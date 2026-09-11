@@ -1,0 +1,33 @@
+{
+  "hooks": [
+    {
+      "text": "Uma paciente deu entrada no hospital e fez toda a equipe médica desmaiar.",
+      "curiosity": 9,
+      "clarity": 10,
+      "factuality": 10,
+      "retention": 9,
+      "local_retention_score": 68.0,
+      "combined_score": 77.3
+    },
+    {
+      "text": "O corpo desta mulher no hospital era tão tóxico que fez vinte e três pessoas adoecerem.",
+      "curiosity": 10,
+      "clarity": 9,
+      "factuality": 10,
+      "retention": 10,
+      "local_retention_score": 64.0,
+      "combined_score": 77.9
+    },
+    {
+      "text": "Por que o simples atendimento a uma paciente gerou a evacuação de um pronto-socorro?",
+      "curiosity": 9,
+      "clarity": 9,
+      "factuality": 10,
+      "retention": 9,
+      "local_retention_score": 78.0,
+      "combined_score": 82.8
+    }
+  ],
+  "chosen": 2,
+  "final_script": "O corpo desta mulher no hospital era tão tóxico que fez vinte e três pessoas adoecerem. Em 19 de fevereiro de 1994, Gloria Ramirez foi levada ao Hospital Geral de Riverside e transformou o pronto-socorro em uma emergência. Um cheiro adocicado de alho e amônia foi notado no ambiente. Segundos depois, uma enfermeira desmaiou ao tentar tirar seu sangue. Outros funcionários sentiram falta de ar e espasmos musculares, forçando a evacuação do local. Uma investigação sugeriu que ela usava dimetilsulfóxido para dor, que pode ter se transformado em dimetilsulfato durante o atendimento. A causa exata permanece debatida pela comunidade científica. Comente sua opinião e inscreva-se."
+}

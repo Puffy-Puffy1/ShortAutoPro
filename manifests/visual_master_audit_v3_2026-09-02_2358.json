@@ -1,0 +1,374 @@
+{
+  "short_id": "2026-09-02_2358",
+  "timestamp": 1788931626.0082917,
+  "pass": 70,
+  "warn": 2,
+  "fail": 1,
+  "results": [
+    {
+      "level": "PASS",
+      "name": "FILE_midia.py",
+      "detail": "97800 bytes"
+    },
+    {
+      "level": "PASS",
+      "name": "FILE_video.py",
+      "detail": "20906 bytes"
+    },
+    {
+      "level": "PASS",
+      "name": "FILE_v6.py",
+      "detail": "14095 bytes"
+    },
+    {
+      "level": "PASS",
+      "name": "FILE_gerar_short.sh",
+      "detail": "15121 bytes"
+    },
+    {
+      "level": "PASS",
+      "name": "FILE_legenda_dinamica.py",
+      "detail": "10826 bytes"
+    },
+    {
+      "level": "PASS",
+      "name": "FILE_visual_selection_engine_v4.py",
+      "detail": "143571 bytes"
+    },
+    {
+      "level": "PASS",
+      "name": "FILE_visual_selection_bridge_v42.py",
+      "detail": "24923 bytes"
+    },
+    {
+      "level": "PASS",
+      "name": "FILE_media_diversity_guard_v1.py",
+      "detail": "10189 bytes"
+    },
+    {
+      "level": "PASS",
+      "name": "FILE_media_provenance_capture_v1.py",
+      "detail": "27080 bytes"
+    },
+    {
+      "level": "PASS",
+      "name": "FILE_visual_scene_commit_lock_v1.py",
+      "detail": "9327 bytes"
+    },
+    {
+      "level": "PASS",
+      "name": "FILE_fresh_render_guard_v1.py",
+      "detail": "3017 bytes"
+    },
+    {
+      "level": "PASS",
+      "name": "FILE_render_input_fingerprint_v1.py",
+      "detail": "2341 bytes"
+    },
+    {
+      "level": "PASS",
+      "name": "COMPILE_midia.py",
+      "detail": ""
+    },
+    {
+      "level": "PASS",
+      "name": "COMPILE_video.py",
+      "detail": ""
+    },
+    {
+      "level": "PASS",
+      "name": "COMPILE_v6.py",
+      "detail": ""
+    },
+    {
+      "level": "PASS",
+      "name": "COMPILE_legenda_dinamica.py",
+      "detail": ""
+    },
+    {
+      "level": "PASS",
+      "name": "COMPILE_visual_selection_engine_v4.py",
+      "detail": ""
+    },
+    {
+      "level": "PASS",
+      "name": "COMPILE_visual_selection_bridge_v42.py",
+      "detail": ""
+    },
+    {
+      "level": "PASS",
+      "name": "COMPILE_media_diversity_guard_v1.py",
+      "detail": ""
+    },
+    {
+      "level": "PASS",
+      "name": "COMPILE_media_provenance_capture_v1.py",
+      "detail": ""
+    },
+    {
+      "level": "PASS",
+      "name": "COMPILE_visual_scene_commit_lock_v1.py",
+      "detail": ""
+    },
+    {
+      "level": "PASS",
+      "name": "COMPILE_fresh_render_guard_v1.py",
+      "detail": ""
+    },
+    {
+      "level": "PASS",
+      "name": "COMPILE_render_input_fingerprint_v1.py",
+      "detail": ""
+    },
+    {
+      "level": "PASS",
+      "name": "GERAR_SHORT_SYNTAX",
+      "detail": ""
+    },
+    {
+      "level": "PASS",
+      "name": "VSE4_RUNTIME_LOAD",
+      "detail": ""
+    },
+    {
+      "level": "PASS",
+      "name": "VSE4_RUNTIME_API",
+      "detail": ""
+    },
+    {
+      "level": "PASS",
+      "name": "VSE4_SELF_TEST",
+      "detail": ""
+    },
+    {
+      "level": "PASS",
+      "name": "SEMANTIC_CRIME_INVESTIGATION",
+      "detail": "479.7 > -1000080.6"
+    },
+    {
+      "level": "PASS",
+      "name": "SEMANTIC_FORENSICS",
+      "detail": "470.7 > -1000818.0"
+    },
+    {
+      "level": "PASS",
+      "name": "SEMANTIC_COURT",
+      "detail": "344.7 > -1000053.6"
+    },
+    {
+      "level": "PASS",
+      "name": "SEMANTIC_SPACE",
+      "detail": "367.7 > 204.4"
+    },
+    {
+      "level": "PASS",
+      "name": "SEMANTIC_WILDFIRE",
+      "detail": "353.7 > -1000000.0"
+    },
+    {
+      "level": "PASS",
+      "name": "SEMANTIC_TECHNOLOGY",
+      "detail": "367.7 > 288.4"
+    },
+    {
+      "level": "PASS",
+      "name": "SEMANTIC_MILITARY",
+      "detail": "353.7 > -1000000.0"
+    },
+    {
+      "level": "PASS",
+      "name": "SEMANTIC_OCEAN",
+      "detail": "325.7 > 288.4"
+    },
+    {
+      "level": "PASS",
+      "name": "SEMANTIC_BUSINESS",
+      "detail": "395.7 > 288.4"
+    },
+    {
+      "level": "PASS",
+      "name": "GEO_SP_VS_NY",
+      "detail": ""
+    },
+    {
+      "level": "PASS",
+      "name": "GEO_RIO_VS_LONDON",
+      "detail": ""
+    },
+    {
+      "level": "PASS",
+      "name": "GEO_PARIS_VS_TOKYO",
+      "detail": ""
+    },
+    {
+      "level": "PASS",
+      "name": "GEO_LONDON_VS_NYC",
+      "detail": ""
+    },
+    {
+      "level": "PASS",
+      "name": "REPEATED_PROVIDER_PENALTY",
+      "detail": "wikimedia"
+    },
+    {
+      "level": "PASS",
+      "name": "EXACT_ASSET_REPEAT_PENALTY",
+      "detail": ""
+    },
+    {
+      "level": "PASS",
+      "name": "PROVIDER_FUNCTION_buscar_todos_candidatos",
+      "detail": ""
+    },
+    {
+      "level": "WARN",
+      "name": "PROVIDER_FUNCTION_buscar_wikimedia_fotos",
+      "detail": "não encontrada"
+    },
+    {
+      "level": "PASS",
+      "name": "PROVIDER_FUNCTION_coverr_video",
+      "detail": ""
+    },
+    {
+      "level": "PASS",
+      "name": "PROVIDER_FUNCTION_pexels_foto",
+      "detail": ""
+    },
+    {
+      "level": "PASS",
+      "name": "PROVIDER_FUNCTION_pexels_video",
+      "detail": ""
+    },
+    {
+      "level": "PASS",
+      "name": "PROVIDER_FUNCTION_pixabay_foto",
+      "detail": ""
+    },
+    {
+      "level": "PASS",
+      "name": "PROVIDER_FUNCTION_pixabay_video",
+      "detail": ""
+    },
+    {
+      "level": "PASS",
+      "name": "ACQUISITION_CALL_buscar_wikimedia_fotos",
+      "detail": ""
+    },
+    {
+      "level": "PASS",
+      "name": "ACQUISITION_CALL_coverr_video",
+      "detail": ""
+    },
+    {
+      "level": "PASS",
+      "name": "ACQUISITION_CALL_pexels_foto",
+      "detail": ""
+    },
+    {
+      "level": "PASS",
+      "name": "ACQUISITION_CALL_pexels_video",
+      "detail": ""
+    },
+    {
+      "level": "PASS",
+      "name": "ACQUISITION_CALL_pixabay_foto",
+      "detail": ""
+    },
+    {
+      "level": "PASS",
+      "name": "ACQUISITION_CALL_pixabay_video",
+      "detail": ""
+    },
+    {
+      "level": "PASS",
+      "name": "PROVIDER_ENV_CONFIGURATION_REFERENCED",
+      "detail": "6 variáveis"
+    },
+    {
+      "level": "PASS",
+      "name": "MIDIA_IMPORTS_V42_BRIDGE",
+      "detail": ""
+    },
+    {
+      "level": "PASS",
+      "name": "MIDIA_CALLS_V42_RANK_POOL",
+      "detail": ""
+    },
+    {
+      "level": "PASS",
+      "name": "BRIDGE_API_rank_pool",
+      "detail": "(pool, escolhido=None, context=None)"
+    },
+    {
+      "level": "PASS",
+      "name": "BRIDGE_API_reset_state",
+      "detail": "()"
+    },
+    {
+      "level": "PASS",
+      "name": "COMMIT_LOCK_BRIDGE_PRESENT",
+      "detail": ""
+    },
+    {
+      "level": "PASS",
+      "name": "COMMIT_LOCK_COMMIT_PATH",
+      "detail": ""
+    },
+    {
+      "level": "PASS",
+      "name": "COMMIT_LOCK_BLOCK_PATH",
+      "detail": ""
+    },
+    {
+      "level": "FAIL",
+      "name": "MEDIA_12_OF_12",
+      "detail": "[(1, 0), (2, 0), (3, 0), (4, 0), (5, 0), (6, 0), (7, 0), (8, 0), (9, 0), (10, 0), (11, 0), (12, 0)]"
+    },
+    {
+      "level": "PASS",
+      "name": "DUPLICATE_MEDIA_SHA",
+      "detail": "nenhum"
+    },
+    {
+      "level": "PASS",
+      "name": "RENDER_GUARD_ASS",
+      "detail": ""
+    },
+    {
+      "level": "PASS",
+      "name": "RENDER_GUARD_AUDIO",
+      "detail": ""
+    },
+    {
+      "level": "PASS",
+      "name": "RENDER_GUARD_TEMP_VIDEO_REMOVED",
+      "detail": ""
+    },
+    {
+      "level": "PASS",
+      "name": "RENDER_GUARD_FINAL_REMOVED",
+      "detail": ""
+    },
+    {
+      "level": "WARN",
+      "name": "MIDIA_BLIND_FIRST_CANDIDATE",
+      "detail": "12"
+    },
+    {
+      "level": "PASS",
+      "name": "MIDIA_RANDOM_CHOICE",
+      "detail": ""
+    },
+    {
+      "level": "PASS",
+      "name": "MIDIA_HARDCODED_PIXABAY",
+      "detail": ""
+    },
+    {
+      "level": "PASS",
+      "name": "BARE_EXCEPT",
+      "detail": ""
+    }
+  ]
+}

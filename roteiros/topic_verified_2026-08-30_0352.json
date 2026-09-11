@@ -1,0 +1,95 @@
+{
+  "short_id": "2026-08-30_0352",
+  "selected": {
+    "topic": "O desaparecimento da tripulação do Mary Celeste",
+    "curiosity": 10.0,
+    "visual": 9.0,
+    "documentation": 10.0,
+    "retention": 9.0,
+    "originality": 8.0,
+    "score": 57.400000000000006,
+    "wiki_title": "Mary Celeste",
+    "wiki_chars": 6764,
+    "wiki_similarity": 0.286
+  },
+  "approved": [
+    {
+      "topic": "O desaparecimento da tripulação do Mary Celeste",
+      "curiosity": 10.0,
+      "visual": 9.0,
+      "documentation": 10.0,
+      "retention": 9.0,
+      "originality": 8.0,
+      "score": 57.400000000000006,
+      "wiki_title": "Mary Celeste",
+      "wiki_chars": 6764,
+      "wiki_similarity": 0.286
+    },
+    {
+      "topic": "O caso Elisa Lam",
+      "curiosity": 10.0,
+      "visual": 10.0,
+      "documentation": 10.0,
+      "retention": 10.0,
+      "originality": 7.0,
+      "score": 57.3,
+      "wiki_title": "Morte de Elisa Lam",
+      "wiki_chars": 2601,
+      "wiki_similarity": 0.5
+    }
+  ],
+  "verification": [
+    {
+      "topic": "O caso Elisa Lam",
+      "approved": true,
+      "wiki_title": "Morte de Elisa Lam",
+      "chars": 2601
+    },
+    {
+      "topic": "O desaparecimento da tripulação do Mary Celeste",
+      "approved": true,
+      "wiki_title": "Mary Celeste",
+      "chars": 6764
+    },
+    {
+      "topic": "O incidente da Passagem Dyatlov",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O homem de Somerton",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "As mortes no Voador de 1959 na Rússia",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O caso das fotos de Kris Kremers e Lisanne Froon",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "DB Cooper",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O caso Villisca Axe Murders",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O mistério dos faróis de Eilean Mor",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O desaparecimento de Frederick Valentich",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    }
+  ]
+}

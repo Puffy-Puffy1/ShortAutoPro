@@ -1,0 +1,33 @@
+{
+  "hooks": [
+    {
+      "text": "Um estudante entrou em um bar cheio de câmeras e simplesmente desapareceu sem sair.",
+      "curiosity": 9,
+      "clarity": 10,
+      "factuality": 10,
+      "retention": 9,
+      "local_retention_score": 72.0,
+      "combined_score": 79.7
+    },
+    {
+      "text": "Como um jovem entrou em um bar filmado e sumiu sem deixar rastros?",
+      "curiosity": 9,
+      "clarity": 10,
+      "factuality": 10,
+      "retention": 9,
+      "local_retention_score": 82.0,
+      "combined_score": 85.7
+    },
+    {
+      "text": "As câmeras registraram sua entrada, mas nenhuma imagem o mostrou saindo do bar.",
+      "curiosity": 8,
+      "clarity": 10,
+      "factuality": 10,
+      "retention": 8,
+      "local_retention_score": 72.0,
+      "combined_score": 76.2
+    }
+  ],
+  "chosen": 1,
+  "final_script": "Um estudante entrou em um bar cheio de câmeras e simplesmente desapareceu sem sair. Em 2006, Brian Shaffer foi capturado entrando no Ugly Tuna Saloona, em Columbus, mas nenhuma imagem o registrou saindo. O prédio não tinha outras saídas públicas normais na época, intrigando a polícia. Meses depois, o celular de sua namorada chegou a tocar e registrou sinal em outra torre, embora a operadora tenha sugerido falha no sistema. Anos mais tarde, um investigador afirmou com cem por cento de certeza que ele não saiu pela escada rolante. O paradeiro de Brian continua um mistério e a polícia investigou várias teorias sobre o caso. Deixe sua opinião nos comentários."
+}

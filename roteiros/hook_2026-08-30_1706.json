@@ -1,0 +1,33 @@
+{
+  "hooks": [
+    {
+      "text": "Um piloto relatou um objeto misterioso pelo rádio antes de desaparecer sem deixar rastros.",
+      "curiosity": 9,
+      "clarity": 10,
+      "factuality": 10,
+      "retention": 9,
+      "local_retention_score": 72.0,
+      "combined_score": 79.7
+    },
+    {
+      "text": "O que aconteceu na última transmissão de rádio do piloto Frederick Valentich na Austrália?",
+      "curiosity": 9,
+      "clarity": 9,
+      "factuality": 10,
+      "retention": 9,
+      "local_retention_score": 78.0,
+      "combined_score": 82.8
+    },
+    {
+      "text": "Sons metálicos cortaram a transmissão de um piloto que avistou algo inexplicável no céu.",
+      "curiosity": 10,
+      "clarity": 9,
+      "factuality": 10,
+      "retention": 10,
+      "local_retention_score": 68.0,
+      "combined_score": 80.3
+    }
+  ],
+  "chosen": 3,
+  "final_script": "Sons metálicos cortaram a transmissão de um piloto que avistou algo inexplicável no céu. Em vinte e um de outubro de mil novecentos e setenta e oito, o piloto Frederick Valentich desapareceu na Austrália após relatar um evento pelo rádio. Com cerca de cento e cinquenta horas de voo e exames reprovados, o jovem de vinte anos voava sobre o Estreito de Bass quando avisou o controle de tráfego de Melbourne sobre uma aeronave não identificada. Valentich afirmou que o objeto tinha luzes de pouso, superfície metálica brilhante, luz verde e orbitava seu Cessna. Investigações do Departamento de Transporte não determinaram a razão do desaparecimento, mas teorias sugerem desorientação espacial com reflexos na água ou planetas. Inscreva-se para mais mistérios."
+}

@@ -1,0 +1,15 @@
+{
+  "short_id": "2026-09-02_2358",
+  "changed": false,
+  "before": "Um pai alegou que um invasor jogou sua filha de cinco anos, mas a investigação revelou outra história.",
+  "before_score": 55.0,
+  "after": "Um pai alegou que um invasor jogou sua filha de cinco anos, mas a investigação revelou outra história.",
+  "candidate_after": "Uma menina de cinco anos foi jogada do sexto andar enquanto o pai alegava um assalto.",
+  "candidate_score": 65.0,
+  "improvement": 10.0,
+  "problems": [
+    "cold_open_fraco=65.0"
+  ],
+  "reason": "A primeira frase destaca o evento principal e intrigante em 12 palavras, criando uma forte lacuna de curiosidade antes de fornecer o contexto geográfico e temporal na segunda frase, mantendo rigor com os fatos da fonte.",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/short_pre_cold_open_2026-09-02_2358.txt"
+}

@@ -1,0 +1,27 @@
+{
+  "short_id": "2026-09-02_1803",
+  "version": "6.7",
+  "changed": 1,
+  "changes": [
+    {
+      "scene": 11,
+      "segment": "Comente sua opinião e inscreva-se.",
+      "before": {
+        "query": "question mark symbol on dark mystery background",
+        "must_have": [
+          "question mark"
+        ],
+        "visual_mode": null
+      },
+      "after": {
+        "query": "question mark symbol on dark mystery background",
+        "must_have": [
+          "question mark"
+        ],
+        "visual_mode": "cta_reuse"
+      },
+      "reason": "reuse_verified_story_visual"
+    }
+  ],
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_pre_truth_refiner_2026-09-02_1803.json"
+}

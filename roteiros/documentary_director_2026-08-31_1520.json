@@ -1,0 +1,213 @@
+{
+  "short_id": "2026-08-31_1520",
+  "topic": "O monstro de Flatwoods",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_pre_documentary_2026-08-31_1520.json",
+  "visual_mode_triple_repetitions": 0,
+  "shot_triple_repetitions": 1,
+  "scenes": [
+    {
+      "scene": 1,
+      "segment": "O que causou vômitos, convulsões e o aparecimento de um monstro brilhante em 1952?",
+      "visual_mode": "document",
+      "shot_type": "medium",
+      "query_before": "vintage 1950s mysterious glowing monster in dark forest",
+      "query_after": "vintage 1950s newspaper clipping about mysterious creature sighting",
+      "must_have": [
+        "newspaper",
+        "vintage"
+      ],
+      "avoid": [
+        "modern digital screen",
+        "smartphone"
+      ],
+      "reason": "Usa um documento de época para introduzir o relato histórico do incidente de 1952 sem violar a regra de alegações factuais."
+    },
+    {
+      "scene": 2,
+      "segment": "Em 12 de setembro de 1952, em Flatwoods, Virgínia Ocidental,",
+      "visual_mode": "location",
+      "shot_type": "wide",
+      "query_before": "dark rural countryside road usa vintage 1950s",
+      "query_after": "dark rural countryside road usa 1950s flatwoods west virginia",
+      "must_have": [
+        "countryside",
+        "road"
+      ],
+      "avoid": [
+        "modern cars",
+        "skyscrapers"
+      ],
+      "reason": "Mostra o local real do evento (Flatwoods, Virgínia Ocidental) em ambientação compatível com a época."
+    },
+    {
+      "scene": 3,
+      "segment": "testemunhas relataram ter visto um objeto brilhante no céu",
+      "visual_mode": "abstract_context",
+      "shot_type": "wide",
+      "query_before": "glowing UFO fireball object in dark night sky",
+      "query_after": "unidentified bright light crossing dark night sky",
+      "must_have": [
+        "light",
+        "night sky"
+      ],
+      "avoid": [
+        "detailed alien spacecraft",
+        "airplane"
+      ],
+      "reason": "Representa visualmente o objeto brilhante não identificado no céu de forma ambígua, conforme as regras para OVNIs."
+    },
+    {
+      "scene": 4,
+      "segment": "e uma entidade.",
+      "visual_mode": "evidence",
+      "shot_type": "medium",
+      "query_before": "creepy silhouette of tall alien figure in woods",
+      "query_after": "dark forest tree shadows silhouette at night",
+      "must_have": [
+        "shadow",
+        "trees"
+      ],
+      "avoid": [
+        "visible ghost",
+        "alien creature"
+      ],
+      "reason": "Evita mostrar um alienígena detalhado e foca na silhueta ambígua na floresta relatada pelas testemunhas."
+    },
+    {
+      "scene": 5,
+      "segment": "O grupo relatou uma névoa pungente que queimava o nariz,",
+      "visual_mode": "environment",
+      "shot_type": "medium",
+      "query_before": "thick mysterious fog rolling through dark forest trees",
+      "query_after": "thick mysterious fog rolling through dark forest trees",
+      "must_have": [
+        "fog",
+        "trees"
+      ],
+      "avoid": [
+        "sunny day",
+        "desert"
+      ],
+      "reason": "Ilustra fisicamente a névoa pungente descrita pelo grupo no local do incidente."
+    },
+    {
+      "scene": 6,
+      "segment": "além de sintomas como vômitos e convulsões após o encontro.",
+      "visual_mode": "document",
+      "shot_type": "close_up",
+      "query_before": "scared people holding heads in dark forest at night",
+      "query_after": "vintage medical report document 1950s symptoms notes",
+      "must_have": [
+        "document",
+        "paper"
+      ],
+      "avoid": [
+        "hospital room",
+        "doctors"
+      ],
+      "reason": "Usa um registro documental para apontar os sintomas relatados, evitando dramatizações médicas inventadas."
+    },
+    {
+      "scene": 7,
+      "segment": "Investigadores concluíram anos mais tarde que a luz era provavelmente um meteoro",
+      "visual_mode": "abstract_context",
+      "shot_type": "wide",
+      "query_before": "bright meteor falling fast across dark starry night sky",
+      "query_after": "bright meteor falling fast across dark starry night sky",
+      "must_have": [
+        "meteor",
+        "sky"
+      ],
+      "avoid": [
+        "daytime",
+        "indoor"
+      ],
+      "reason": "Representa a explicação cética oficial de que a luz era um meteoro cruzando o céu."
+    },
+    {
+      "scene": 8,
+      "segment": "e a criatura, uma coruja-das-torres empoleirada em uma árvore,",
+      "visual_mode": "environment",
+      "shot_type": "close_up",
+      "query_before": "barn owl perched on tree branch at night close up",
+      "query_after": "barn owl perched on tree branch at night close up",
+      "must_have": [
+        "owl",
+        "tree"
+      ],
+      "avoid": [
+        "human",
+        "alien"
+      ],
+      "reason": "Mostra a coruja-das-torres, correspondendo à explicação investigativa racional para a criatura."
+    },
+    {
+      "scene": 9,
+      "segment": "com sombras distorcidas pelo pânico.",
+      "visual_mode": "evidence",
+      "shot_type": "medium",
+      "query_before": "scary tree shadows cast on dark wall at night",
+      "query_after": "scary tree shadows cast on dark wall at night panic illusion",
+      "must_have": [
+        "shadow",
+        "tree"
+      ],
+      "avoid": [
+        "bright sunlight",
+        "happy people"
+      ],
+      "reason": "Retrata o efeito de sombras e pânico investigado por céticos sobre a distorção visual."
+    },
+    {
+      "scene": 10,
+      "segment": "Entusiastas, contudo, afirmam que a entidade pode ser um alienígena,",
+      "visual_mode": "document",
+      "shot_type": "medium",
+      "query_before": "green alien head silhouette glowing in dark background",
+      "query_after": "paranormal magazine article clipping about mysterious alien creature",
+      "must_have": [
+        "article",
+        "magazine"
+      ],
+      "avoid": [
+        "cute animal",
+        "bird"
+      ],
+      "reason": "Usa um formato documental impresso para representar as teorias de entusiastas sem confirmar alegações sobrenaturais como fatos."
+    },
+    {
+      "scene": 11,
+      "segment": "o que impulsionou o turismo local.",
+      "visual_mode": "architecture",
+      "shot_type": "medium",
+      "query_before": "vintage welcome sign to small american town rural",
+      "query_after": "vintage welcome sign to small american town rural roadside",
+      "must_have": [
+        "sign",
+        "town"
+      ],
+      "avoid": [
+        "busy airport",
+        "modern mall"
+      ],
+      "reason": "Mostra o contexto urbano/rural da cidade que se beneficiou do turismo gerado pelo folclore local."
+    },
+    {
+      "scene": 12,
+      "segment": "O mistério continua dividindo opiniões.",
+      "visual_mode": "location",
+      "shot_type": "wide",
+      "query_before": "foggy dark forest path mystery cinematic atmosphere",
+      "query_after": "foggy dark forest path mystery cinematic atmosphere",
+      "must_have": [
+        "fog",
+        "forest"
+      ],
+      "avoid": [
+        "bright beach",
+        "happy children"
+      ],
+      "reason": "Encerra o documentário com o ambiente misterioso e inconclusivo da floresta de Flatwoods."
+    }
+  ]
+}

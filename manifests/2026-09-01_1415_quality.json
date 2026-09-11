@@ -1,0 +1,18 @@
+{
+  "short_id": "2026-09-01_1415",
+  "total_score": 90.4,
+  "level": "EXCELLENT",
+  "components": {
+    "script": 23.0,
+    "hook": 21.0,
+    "visual_technical": 30.0,
+    "publish": 16.4
+  },
+  "details": {
+    "script_words": 113,
+    "long_sentences": 1,
+    "scene_count": 12,
+    "physical_scene_count": 12,
+    "duration_seconds": 36.966016
+  }
+}

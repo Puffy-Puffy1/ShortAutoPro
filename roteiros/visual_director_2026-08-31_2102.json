@@ -1,0 +1,217 @@
+{
+  "short_id": "2026-08-31_2102",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_pre_visual_2026-08-31_2102.json",
+  "shot_repetitions": 0,
+  "scenes": [
+    {
+      "scene": 1,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "historic arid desert ranch landscape new mexico 1947",
+      "after_query": "historic arid desert ranch landscape new mexico 1947",
+      "must_have": [
+        "desert",
+        "ranch"
+      ],
+      "avoid": [
+        "futuristic",
+        "modern city",
+        "spaceship"
+      ],
+      "shot_type": "wide environment",
+      "reason": "Estabelece o local e época históricos do evento."
+    },
+    {
+      "scene": 2,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "vintage 1947 newspaper front page headline flying saucer",
+      "after_query": "vintage 1947 newspaper front page headline flying saucer",
+      "must_have": [
+        "newspaper",
+        "headline"
+      ],
+      "avoid": [
+        "modern smartphone",
+        "tablet",
+        "television"
+      ],
+      "shot_type": "document evidence",
+      "reason": "Representa o anúncio oficial à imprensa através de jornal da época."
+    },
+    {
+      "scene": 3,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "historical meteorological weather balloon rising in clear desert sky",
+      "after_query": "historical meteorological weather balloon rising in clear desert sky",
+      "must_have": [
+        "weather balloon",
+        "sky"
+      ],
+      "avoid": [
+        "alien",
+        "ufo",
+        "spaceship"
+      ],
+      "shot_type": "object close-up",
+      "reason": "Ilustra a explicação oficial do exército sobre o balão meteorológico."
+    },
+    {
+      "scene": 4,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "vintage 1970s calendar and dusty historical archive room",
+      "after_query": "vintage 1970s calendar and dusty historical archive room",
+      "must_have": [
+        "calendar",
+        "archive"
+      ],
+      "avoid": [
+        "smartphone",
+        "laptop",
+        "futuristic tech"
+      ],
+      "shot_type": "environment",
+      "reason": "Indica a passagem do tempo até os anos 70 e arquivos guardados."
+    },
+    {
+      "scene": 5,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "vintage typewriter with research notes and maps on desk",
+      "after_query": "vintage typewriter with research notes and maps on desk",
+      "must_have": [
+        "typewriter",
+        "paper"
+      ],
+      "avoid": [
+        "modern computer",
+        "digital screen"
+      ],
+      "shot_type": "object close-up",
+      "reason": "Mostra a formulação de teorias por ufólogos com material de época."
+    },
+    {
+      "scene": 6,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "secret government documents stamped classified in dark office",
+      "after_query": "secret government documents stamped classified in dark office",
+      "must_have": [
+        "document",
+        "stamp"
+      ],
+      "avoid": [
+        "happy people",
+        "bright sunlight"
+      ],
+      "shot_type": "document evidence",
+      "reason": "Retrata a alegação de acobertamento militar com documentos confidenciais."
+    },
+    {
+      "scene": 7,
+      "before_score": 70,
+      "after_score": 70,
+      "before_query": "official government investigative report papers on wooden desk",
+      "after_query": "official government investigative report papers on wooden desk",
+      "must_have": [
+        "report",
+        "paper"
+      ],
+      "avoid": [
+        "alien",
+        "ufo"
+      ],
+      "shot_type": "document evidence",
+      "reason": "Exibe a publicação posterior de relatórios oficiais pela Força Aérea."
+    },
+    {
+      "scene": 8,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "historical project mogul scientific balloon equipment in desert",
+      "after_query": "historical project mogul scientific balloon equipment in desert",
+      "must_have": [
+        "balloon",
+        "equipment"
+      ],
+      "avoid": [
+        "flying saucer",
+        "alien creature"
+      ],
+      "shot_type": "object close-up",
+      "reason": "Apresenta o equipamento real do Projeto Mogul citado na conclusão."
+    },
+    {
+      "scene": 9,
+      "before_score": 70,
+      "after_score": 70,
+      "before_query": "historical crash test mannequin lying in desert sand",
+      "after_query": "historical crash test mannequin lying in desert sand",
+      "must_have": [
+        "mannequin",
+        "desert"
+      ],
+      "avoid": [
+        "real alien",
+        "green creature",
+        "spaceship"
+      ],
+      "shot_type": "rescue action",
+      "reason": "Evidencia visualmente o uso de bonecos de ensaio para explicar os relatos."
+    },
+    {
+      "scene": 10,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "mysterious desert night sky with stars and dark shadows",
+      "after_query": "mysterious desert night sky with stars and dark shadows",
+      "must_have": [
+        "desert",
+        "night sky"
+      ],
+      "avoid": [
+        "daylight",
+        "sunny beach"
+      ],
+      "shot_type": "wide environment",
+      "reason": "Simboliza a persistência de mistérios e teorias em torno do caso."
+    },
+    {
+      "scene": 11,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "vintage retro microphone on wooden studio desk",
+      "after_query": "vintage retro microphone on wooden studio desk",
+      "must_have": [
+        "microphone",
+        "desk"
+      ],
+      "avoid": [
+        "smartphone",
+        "computer screen",
+        "social media icons"
+      ],
+      "shot_type": "object close-up",
+      "reason": "Convida o público a participar e deixar sua opinião."
+    },
+    {
+      "scene": 12,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "old archive box closed on dusty wooden library shelf",
+      "after_query": "old archive box closed on dusty wooden library shelf",
+      "must_have": [
+        "box",
+        "shelf"
+      ],
+      "avoid": [
+        "modern office",
+        "neon lights"
+      ],
+      "shot_type": "environment",
+      "reason": "Encerra a investigação histórica simbolizando o arquivo guardado."
+    }
+  ]
+}

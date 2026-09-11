@@ -1,0 +1,54 @@
+{
+  "version": "1250.00",
+
+  "network": {
+    "metadata_only": true,
+    "maximum_total_requests": 140,
+    "maximum_queries_per_hold_scene": 10,
+    "maximum_archive_queries_per_scene": 6,
+    "cache_enabled": true
+  },
+
+  "coverage": {
+    "ideal_selected_scenes": 12,
+    "minimum_near_ready_scenes": 10,
+    "minimum_unique_sources_for_full_portfolio": 8
+  },
+
+  "portfolio": {
+    "case_archive_source_max": 3,
+    "verified_location_source_max": 2,
+    "generic_source_max": 1,
+    "other_case_source_max": 2,
+    "maximum_consecutive_same_source": 2,
+    "minimum_unique_per_6_scene_window": 4
+  },
+
+  "fallback": {
+    "contextual_story_visual": true,
+    "final_cta_contextual_visual": true,
+    "context_label": "IMAGEM DE CONTEXTO",
+    "claim_visualized": false,
+    "generic_factual_fallback": false
+  },
+
+  "truth": {
+    "query_is_never_evidence": true,
+    "wrong_location_never_proves_named_location": true,
+    "file_namespace_never_proves_document": true,
+    "hold_preferred_over_semantic_mismatch": true
+  },
+
+  "execution": {
+    "remote_media_download": false,
+    "ffmpeg": false,
+    "renderer": false,
+    "video_generation": false,
+    "production_mutation": false,
+    "publication": false
+  },
+
+  "source_recovery": {
+    "mode": "SHADOW_ONLY"
+  }
+}

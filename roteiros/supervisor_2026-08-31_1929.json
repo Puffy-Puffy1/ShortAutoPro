@@ -1,0 +1,35 @@
+{
+  "short_id": "2026-08-31_1929",
+  "version": "5.0",
+  "topic": "O assassinato de Elizabeth Short",
+  "wiki_title": "Elizabeth Short",
+  "score": 95,
+  "status": "EXCELLENT",
+  "critical": [],
+  "warnings": [
+    "low_video_mix_1"
+  ],
+  "strengths": [
+    "source_identity_pass",
+    "script_length",
+    "hook_length",
+    "scene_count_12",
+    "visual_variety",
+    "visual_mode_variety",
+    "physical_media_12",
+    "motion_plan",
+    "motion_variety",
+    "comment_cta"
+  ],
+  "metrics": {
+    "script_words": 118,
+    "hook_words": 12,
+    "scenes": 12,
+    "visual_modes": 6,
+    "visual_repetitions": 0,
+    "media_files": 12,
+    "videos": 1,
+    "photos": 11,
+    "motion_scenes": 12
+  }
+}

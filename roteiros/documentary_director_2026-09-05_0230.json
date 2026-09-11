@@ -1,0 +1,213 @@
+{
+  "short_id": "2026-09-05_0230",
+  "topic": "A Fuga de Alcatraz de 1962",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_pre_documentary_2026-09-05_0230.json",
+  "visual_mode_triple_repetitions": 0,
+  "shot_triple_repetitions": 0,
+  "scenes": [
+    {
+      "scene": 1,
+      "segment": "Como três homens conseguiram fugir da prisão de Alcatraz",
+      "visual_mode": "location",
+      "shot_type": "aerial",
+      "query_before": "aerial view of alcatraz prison island cinematic dark",
+      "query_after": "aerial view of alcatraz island prison bay of san francisco",
+      "must_have": [
+        "prison island",
+        "building"
+      ],
+      "avoid": [
+        "sunny beach",
+        "modern city"
+      ],
+      "reason": "Mostra a prisão em seu local real na ilha."
+    },
+    {
+      "scene": 2,
+      "segment": "deixando bonecos em seus beliches?",
+      "visual_mode": "architecture",
+      "shot_type": "medium",
+      "query_before": "old rusty prison cell interior with metal bed",
+      "query_after": "old rusty prison cell interior with metal bed block b",
+      "must_have": [
+        "prison cell",
+        "bed"
+      ],
+      "avoid": [
+        "luxury hotel",
+        "empty room"
+      ],
+      "reason": "Exibe o ambiente arquitetônico das celas da prisão."
+    },
+    {
+      "scene": 3,
+      "segment": "Em junho de 1962, Frank Morris e os irmãos Anglin sumiram",
+      "visual_mode": "document",
+      "shot_type": "close_up",
+      "query_before": "vintage black and white mugshots of three men",
+      "query_after": "vintage 1962 fbi wanted poster mugshots of three men",
+      "must_have": [
+        "mugshots",
+        "men"
+      ],
+      "avoid": [
+        "colorful anime",
+        "smartphone"
+      ],
+      "reason": "Usa registros documentais de época dos fugitivos."
+    },
+    {
+      "scene": 4,
+      "segment": "da prisão mais segura do mundo.",
+      "visual_mode": "architecture",
+      "shot_type": "medium",
+      "query_before": "heavy iron prison bars dark corridor cinematic",
+      "query_after": "heavy iron prison bars dark cellblock corridor alcatraz",
+      "must_have": [
+        "prison bars",
+        "corridor"
+      ],
+      "avoid": [
+        "open field",
+        "office"
+      ],
+      "reason": "Destaca a estrutura física restritiva do presídio de segurança máxima."
+    },
+    {
+      "scene": 5,
+      "segment": "Durante meses, cavaram o concreto com uma colher",
+      "visual_mode": "object",
+      "shot_type": "medium",
+      "query_before": "close up of a spoon digging concrete wall",
+      "query_after": "old metal spoon digging into concrete wall texture",
+      "must_have": [
+        "spoon",
+        "wall"
+      ],
+      "avoid": [
+        "kitchen cooking",
+        "fork"
+      ],
+      "reason": "Foca no objeto improvisado exato usado para cavar."
+    },
+    {
+      "scene": 6,
+      "segment": "e um motor de aspirador de pó.",
+      "visual_mode": "object",
+      "shot_type": "close_up",
+      "query_before": "old electric motor vintage mechanical device on table",
+      "query_after": "vintage electric vacuum cleaner motor mechanical device",
+      "must_have": [
+        "motor",
+        "machine"
+      ],
+      "avoid": [
+        "clean living room",
+        "modern vacuum"
+      ],
+      "reason": "Representa a ferramenta mecânica furtada citada na fonte."
+    },
+    {
+      "scene": 7,
+      "segment": "Para cobrir a ausência, deixaram bonecos com cabelo humano nos beliches,",
+      "visual_mode": "evidence",
+      "shot_type": "medium",
+      "query_before": "handmade dummy head with hair on prison bed",
+      "query_after": "historical paper mache dummy head exhibit alcatraz prison",
+      "must_have": [
+        "dummy",
+        "head"
+      ],
+      "avoid": [
+        "plastic mannequin",
+        "shopping mall"
+      ],
+      "reason": "Mostra a evidência física real preservada dos bonecos usados."
+    },
+    {
+      "scene": 8,
+      "segment": "fugindo por um duto de ventilação",
+      "visual_mode": "architecture",
+      "shot_type": "medium",
+      "query_before": "dark narrow ventilation shaft metal tunnel",
+      "query_after": "dark narrow ventilation shaft metal tunnel inside prison",
+      "must_have": [
+        "metal tunnel",
+        "shaft"
+      ],
+      "avoid": [
+        "bright hallway",
+        "open sky"
+      ],
+      "reason": "Ilustra o duto de ventilação usado na rota de fuga."
+    },
+    {
+      "scene": 9,
+      "segment": "e cruzando a baía em uma balsa de capas de chuva.",
+      "visual_mode": "object",
+      "shot_type": "wide",
+      "query_before": "homemade inflatable raft floating on dark ocean water",
+      "query_after": "makeshift inflatable raincoats raft floating on dark water",
+      "must_have": [
+        "raft",
+        "water"
+      ],
+      "avoid": [
+        "cruise ship",
+        "swimming pool"
+      ],
+      "reason": "Exibe o bote inflável construído com capas de chuva."
+    },
+    {
+      "scene": 10,
+      "segment": "O FBI concluiu em 1979 que eles se afogaram,",
+      "visual_mode": "document",
+      "shot_type": "medium",
+      "query_before": "dark stormy ocean waves from above cinematic",
+      "query_after": "historic 1979 fbi official report document alcatraz case",
+      "must_have": [
+        "document",
+        "report"
+      ],
+      "avoid": [
+        "sunny beach",
+        "children playing"
+      ],
+      "reason": "Apresenta o documento oficial da conclusão da investigação pelo FBI."
+    },
+    {
+      "scene": 11,
+      "segment": "mas nenhum corpo foi encontrado.",
+      "visual_mode": "environment",
+      "shot_type": "wide",
+      "query_before": "empty stormy sea horizon at dusk fog",
+      "query_after": "empty dark stormy sea horizon at dusk fog bay",
+      "must_have": [
+        "sea",
+        "horizon"
+      ],
+      "avoid": [
+        "crowded beach",
+        "people swimming"
+      ],
+      "reason": "Retrata o ambiente natural da baía onde nenhum corpo foi achado."
+    },
+    {
+      "scene": 12,
+      "segment": "O que você acha que aconteceu?",
+      "visual_mode": "location",
+      "shot_type": "wide",
+      "query_before": "foggy mysterious alcatraz prison gate at night",
+      "query_after": "foggy mysterious alcatraz prison island gate at night",
+      "must_have": [
+        "prison",
+        "fog"
+      ],
+      "avoid": [
+        "bright sunlight",
+        "happy people"
+      ],
+      "reason": "Encerra com o local histórico envolto em mistério."
+    }
+  ]
+}

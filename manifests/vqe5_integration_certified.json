@@ -1,0 +1,18 @@
+{
+  "status": "PASS",
+  "timestamp": 1788491983.2767773,
+  "engine": "visual_quality_engine_v5.py",
+  "midia_sha256": "94809ed1ee649fae21db30c8815344460c062b04a60271c9990a32a0c8935f47",
+  "engine_sha256": "15def019627adc5be54610313168a0e9b673c176dcc805894d7a4e4d880e244e",
+  "bridge_sha256": "725a1517f40c19f8a612aa2bdb3d272f274db5d3e6bd320f9752d06914a2deb9",
+  "features": {
+    "final_quality_gate": true,
+    "hard_mismatch_protection": true,
+    "must_downgrade_guard": true,
+    "provider_diversity_state": true,
+    "post_download_commit": true,
+    "scene_sibling_cleanup": true,
+    "post_success_break": true,
+    "kill_switch": "SAP_VQE5=0"
+  }
+}

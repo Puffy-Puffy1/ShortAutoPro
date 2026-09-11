@@ -1,0 +1,75 @@
+{
+  "short_id": "2026-08-30_2318",
+  "selected": {
+    "topic": "Voyager Golden Record",
+    "score": 68.93,
+    "gemini": {
+      "curiosity": 8.0,
+      "visual": 10.0,
+      "documentation": 10.0,
+      "retention": 8.0,
+      "comment_potential": 8.0
+    },
+    "objective": {
+      "visual": 5.0,
+      "hook": 5.0,
+      "documentation": 8.0,
+      "title_match": 10.0,
+      "novelty": 8.78
+    },
+    "wiki_title": "Voyager Golden Record",
+    "wiki_chars": 4487,
+    "wiki_similarity": 1.0
+  },
+  "ranking": [
+    {
+      "topic": "Voyager Golden Record",
+      "score": 68.93,
+      "gemini": {
+        "curiosity": 8.0,
+        "visual": 10.0,
+        "documentation": 10.0,
+        "retention": 8.0,
+        "comment_potential": 8.0
+      },
+      "objective": {
+        "visual": 5.0,
+        "hook": 5.0,
+        "documentation": 8.0,
+        "title_match": 10.0,
+        "novelty": 8.78
+      },
+      "wiki_title": "Voyager Golden Record",
+      "wiki_chars": 4487,
+      "wiki_similarity": 1.0
+    }
+  ],
+  "verification": [
+    {
+      "topic": "Tamam Shud case",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "The Somerton Man",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "Voynich Manuscript",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "Voyager Golden Record",
+      "approved": true,
+      "score": 68.93,
+      "wiki_title": "Voyager Golden Record"
+    },
+    {
+      "topic": "Isdal Woman",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    }
+  ]
+}

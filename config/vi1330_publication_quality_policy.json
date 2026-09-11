@@ -1,0 +1,63 @@
+{
+  "version": "1330.00",
+
+  "benchmark_sid": "2026-09-01_1433",
+
+  "target": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30
+  },
+
+  "quality": {
+    "minimum_scene_count": 12,
+    "minimum_unique_visual_groups": 9,
+    "maximum_consecutive_duplicate_visual": 1,
+    "maximum_visual_similarity_reuse": 2,
+    "minimum_output_bytes": 3000000
+  },
+
+  "hook": {
+    "enabled": true,
+    "start": 0.0,
+    "end": 2.15,
+    "text_line_1": "OS ÚLTIMOS MINUTOS",
+    "text_line_2": "DE ELISA LAM",
+    "subtext": "IMAGENS REAIS DO CASO"
+  },
+
+  "safe_zone": {
+    "top": 115,
+    "bottom": 285,
+    "left": 65,
+    "right": 65
+  },
+
+  "motion": {
+    "base_zoom": 1.0,
+    "maximum_zoom": 1.065,
+    "fast_hook_zoom": 1.08
+  },
+
+  "render": {
+    "codec": "libx264",
+    "preset": "veryfast",
+    "crf": 18,
+    "pixel_format": "yuv420p",
+    "audio_codec": "aac",
+    "audio_bitrate": "192k"
+  },
+
+  "execution": {
+    "network": false,
+    "downloads": false,
+    "ffmpeg": true,
+    "ffprobe": true,
+    "production_mutation": false,
+    "publication": false
+  },
+
+  "source_recovery": {
+    "mode": "SHADOW_ONLY"
+  }
+}

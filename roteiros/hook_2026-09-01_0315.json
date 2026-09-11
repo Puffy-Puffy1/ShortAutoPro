@@ -1,0 +1,33 @@
+{
+  "hooks": [
+    {
+      "text": "Um tesouro de três milhões de dólares nas montanhas causou uma obsessão mortal.",
+      "curiosity": 9,
+      "clarity": 10,
+      "factuality": 10,
+      "retention": 9,
+      "local_retention_score": 68.0,
+      "combined_score": 77.3
+    },
+    {
+      "text": "Sessenta e cinco mil pessoas caçaram um cofre milionário até que a tragédia aconteceu.",
+      "curiosity": 9,
+      "clarity": 9,
+      "factuality": 10,
+      "retention": 9,
+      "local_retention_score": 68.0,
+      "combined_score": 76.8
+    },
+    {
+      "text": "Ele escondeu um cofre milionário nas Montanhas Rochosas e gerou uma busca trágica.",
+      "curiosity": 8,
+      "clarity": 10,
+      "factuality": 10,
+      "retention": 9,
+      "local_retention_score": 68.0,
+      "combined_score": 75.8
+    }
+  ],
+  "chosen": 1,
+  "final_script": "Um tesouro de três milhões de dólares nas montanhas causou uma obsessão mortal. Em mil novecentos e oitenta e oito, Forrest Fenn escondeu um cofre de bronze cheio de riquezas nas Montanhas Rochosas. Mais de sessenta e cinco mil pessoas participaram das buscas durante dez anos. Mas a caçada teve um preço trágico. Pelo menos três pessoas desapareceram, cinco morreram e outras foram presas na região montanhosa. Críticos especularam se o cofre realmente existia ou se era apenas uma jogada de marketing para vender seu livro. O mistério terminou em junho de dois mil e vinte, quando um estudante de medicina encontrou o tesouro em Wyoming. Curtiu? Inscreva-se para mais histórias reais."
+}

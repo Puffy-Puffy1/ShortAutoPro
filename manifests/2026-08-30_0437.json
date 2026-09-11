@@ -1,0 +1,247 @@
+{
+  "short_id": "2026-08-30_0437",
+  "created_at": "2026-08-30T04:44:52.018842",
+  "status": "QUALITY_PASS",
+  "topic": "O Caso Isabella Nardoni",
+  "hook": "O pai alegou invasão, mas a perícia revelou uma verdade chocante sobre o caso Isabella Nardoni.",
+  "script": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/short_2026-08-30_0437.txt",
+    "text": "O pai alegou invasão, mas a perícia revelou uma verdade chocante sobre o caso Isabella Nardoni. Era 29 de março de 2008 quando a menina de cinco anos foi encontrada sem vida no jardim de um prédio em São Paulo. O pai alegou que um invasor cortou a tela de proteção e cometeu o crime enquanto ele trazia os outros filhos do carro, mas a investigação apontou que não havia sinais de arrombamento. A perícia técnica constatou que a tela do quarto dos irmãos foi cortada e identificou manchas de sangue no local. Laudos apontaram indícios de agressões e asfixia anteriores à queda. Alexandre Nardoni e a madrasta, Anna Carolina Jatobá, foram condenados. Comente o que achou e siga o canal."
+  },
+  "source": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/fonte_2026-08-30_0437.txt"
+  },
+  "publish": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/publish_2026-08-30_0437.json",
+    "chosen_title": "A verdade que a perícia revelou no caso Nardoni 🔍",
+    "titles": [
+      "A verdade que a perícia revelou no caso Nardoni 🔍",
+      "O que a perícia encontrou no caso Isabella Nardoni",
+      "A mentura do pai exposta pela perícia 🔍"
+    ],
+    "description": "O pai alegou invasão, mas a perícia técnica revelou detalhes chocantes sobre o que realmente aconteceu naquela noite em São Paulo. Qual sua opinião sobre o caso? Comente abaixo.",
+    "hashtags": [
+      "#Shorts",
+      "#CasoIsabellaNardoni",
+      "#TrueCrimeBrasil",
+      "#Investigacao",
+      "#PericiaCriminal"
+    ],
+    "pinned_comment": "Você acha que as provas técnicas foram decisivas para o julgamento?"
+  },
+  "scenes": {
+    "map_path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_2026-08-30_0437.json",
+    "count": 12,
+    "physical_count": 12,
+    "items": [
+      {
+        "scene": 1,
+        "segment": "O pai alegou invasão, mas a perícia revelou uma verdade chocante sobre o caso Isabella Nardoni.",
+        "query": "crime scene police investigation tape yellow tape night",
+        "must_have": [
+          "police tape",
+          "night"
+        ],
+        "avoid": [
+          "happy family",
+          "bright sunlight",
+          "beach"
+        ],
+        "words": 16,
+        "weight": 0.1322314049586777
+      },
+      {
+        "scene": 2,
+        "segment": "Era 29 de março de 2008 quando a menina de cinco anos foi encontrada sem vida",
+        "query": "old calendar date march 2008 vintage room",
+        "must_have": [
+          "calendar"
+        ],
+        "avoid": [
+          "smartphone screen",
+          "modern computer",
+          "futuristic"
+        ],
+        "words": 16,
+        "weight": 0.1322314049586777
+      },
+      {
+        "scene": 3,
+        "segment": "no jardim de um prédio em São Paulo.",
+        "query": "residential apartment building exterior courtyard grass ground",
+        "must_have": [
+          "building",
+          "grass"
+        ],
+        "avoid": [
+          "beach",
+          "mountain",
+          "desert"
+        ],
+        "words": 8,
+        "weight": 0.06611570247933884
+      },
+      {
+        "scene": 4,
+        "segment": "O pai alegou que um invasor cortou a tela de proteção",
+        "query": "window metal mesh screen cut damage close up",
+        "must_have": [
+          "window",
+          "mesh screen"
+        ],
+        "avoid": [
+          "person smiling",
+          "car driving",
+          "kitchen food"
+        ],
+        "words": 11,
+        "weight": 0.09090909090909091
+      },
+      {
+        "scene": 5,
+        "segment": "e cometeu o crime enquanto ele trazia os outros filhos do carro,",
+        "query": "family car parked night street dark atmosphere",
+        "must_have": [
+          "car",
+          "night"
+        ],
+        "avoid": [
+          "daytime sunny beach",
+          "airplane",
+          "boat"
+        ],
+        "words": 12,
+        "weight": 0.09917355371900827
+      },
+      {
+        "scene": 6,
+        "segment": "mas a investigação apontou que não havia sinais de arrombamento.",
+        "query": "detective examining door lock forensic investigation close up",
+        "must_have": [
+          "door",
+          "investigation"
+        ],
+        "avoid": [
+          "happy people",
+          "party lights",
+          "food cooking"
+        ],
+        "words": 10,
+        "weight": 0.08264462809917356
+      },
+      {
+        "scene": 7,
+        "segment": "A perícia técnica constatou que a tela do quarto dos irmãos foi cortada",
+        "query": "forensic expert examining window mesh screen with flashlight",
+        "must_have": [
+          "window",
+          "forensic"
+        ],
+        "avoid": [
+          "sunset landscape",
+          "happy children playing",
+          "office desk"
+        ],
+        "words": 13,
+        "weight": 0.10743801652892562
+      },
+      {
+        "scene": 8,
+        "segment": "e identificou manchas de sangue no local.",
+        "query": "forensic evidence marker blood stain on floor crime scene",
+        "must_have": [
+          "blood stain",
+          "floor"
+        ],
+        "avoid": [
+          "clean hospital",
+          "bright flowers",
+          "food spill"
+        ],
+        "words": 7,
+        "weight": 0.05785123966942149
+      },
+      {
+        "scene": 9,
+        "segment": "Laudos apontaram indícios de agressões e asfixia anteriores à queda.",
+        "query": "medical examiner documents legal files folder table close up",
+        "must_have": [
+          "documents",
+          "folder"
+        ],
+        "avoid": [
+          "smiling portrait",
+          "animal running",
+          "sports stadium"
+        ],
+        "words": 10,
+        "weight": 0.08264462809917356
+      },
+      {
+        "scene": 10,
+        "segment": "Alexandre Nardoni e a madrasta, Anna Carolina Jatobá, foram condenados.",
+        "query": "courtroom wooden judge gavel legal system trial",
+        "must_have": [
+          "gavel",
+          "courtroom"
+        ],
+        "avoid": [
+          "birthday party",
+          "beach vacation",
+          "shopping mall"
+        ],
+        "words": 10,
+        "weight": 0.08264462809917356
+      },
+      {
+        "scene": 11,
+        "segment": "Comente o que achou",
+        "query": "vintage typewriter keyboard typing message close up",
+        "must_have": [
+          "keyboard"
+        ],
+        "avoid": [
+          "smartphone",
+          "social media icon",
+          "finger pointing"
+        ],
+        "words": 4,
+        "weight": 0.03305785123966942
+      },
+      {
+        "scene": 12,
+        "segment": "e siga o canal.",
+        "query": "old wooden bookshelf library dark corridor tunnel",
+        "must_have": [
+          "bookshelf"
+        ],
+        "avoid": [
+          "smartphone screen",
+          "subscribe button",
+          "notification bell"
+        ],
+        "words": 4,
+        "weight": 0.03305785123966942
+      }
+    ]
+  },
+  "video": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/videos/short_v6_2026-08-30_0437.mp4",
+    "version": "V6",
+    "duration_seconds": 37.933333,
+    "width": 1080,
+    "height": 1920,
+    "fps": 30.0,
+    "video_codec": "h264",
+    "audio_codec": "aac"
+  },
+  "quality": {
+    "video_exists": true,
+    "scene_map_count": 12,
+    "physical_scene_count": 12,
+    "resolution_ok": true,
+    "fps_ok": true,
+    "audio_exists": true
+  },
+  "log": "/data/data/com.termux/files/home/ShortAutoPro/logs/producao/short_2026-08-30_0437.log"
+}

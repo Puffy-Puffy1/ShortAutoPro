@@ -1,0 +1,33 @@
+{
+  "hooks": [
+    {
+      "text": "Um bilhete de resgate idêntico ao bônus do pai escondeu um crime brutal.",
+      "curiosity": 9,
+      "clarity": 8,
+      "factuality": 10,
+      "retention": 9,
+      "local_retention_score": 68.0,
+      "combined_score": 76.3
+    },
+    {
+      "text": "O bilhete de resgate tinha exatamente o mesmo valor do bônus do pai.",
+      "curiosity": 8,
+      "clarity": 10,
+      "factuality": 10,
+      "retention": 8,
+      "local_retention_score": 68.0,
+      "combined_score": 73.8
+    },
+    {
+      "text": "Uma mini-miss foi encontrada morta no porão após um bilhete de resgate misterioso.",
+      "curiosity": 9,
+      "clarity": 9,
+      "factuality": 10,
+      "retention": 9,
+      "local_retention_score": 72.0,
+      "combined_score": 79.2
+    }
+  ],
+  "chosen": 1,
+  "final_script": "Um bilhete de resgate idêntico ao bônus do pai escondeu um crime brutal. Na manhã de vinte e seis de dezembro de mil novecentos e noventa e seis, a criança e mini-miss de seis anos foi encontrada morta no porão de sua casa em Boulder. Ela sofreu uma pancada na cabeça e havia sido estrangulada. A cena do crime foi contaminada. Anos depois, exames de DNA revelaram material genético de pessoas desconhecidas, e a promotora de Boulder deixou claro que os pais não tinham nada a ver com o caso. Em dois mil e dezenove, uma carta de confissão de Gary Oliva foi entregue à polícia. O caso continua sem solução até hoje. Comente o que você acha dessa história."
+}

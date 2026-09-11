@@ -1,0 +1,216 @@
+{
+  "short_id": "2026-09-01_1349",
+  "topic": "A Morte de JonBenét Ramsey",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_pre_documentary_2026-09-01_1349.json",
+  "visual_mode_triple_repetitions": 0,
+  "shot_triple_repetitions": 0,
+  "scenes": [
+    {
+      "scene": 1,
+      "segment": "Um bilhete de resgate bizarro iniciou",
+      "visual_mode": "document",
+      "shot_type": "medium",
+      "query_before": "handwritten ransom note on paper close up cinematic",
+      "query_after": "vintage handwritten ransom note on lined paper close up",
+      "must_have": [
+        "handwritten note",
+        "paper"
+      ],
+      "avoid": [
+        "modern smartphone",
+        "digital screen"
+      ],
+      "reason": "Representa diretamente o bilhete de resgate mencionado na narração usando o modo document."
+    },
+    {
+      "scene": 2,
+      "segment": "um dos crimes mais chocantes dos Estados Unidos.",
+      "visual_mode": "evidence",
+      "shot_type": "medium",
+      "query_before": "police tape crime scene investigation moody lighting",
+      "query_after": "police crime scene tape yellow barrier indoor hallway",
+      "must_have": [
+        "police tape",
+        "crime scene"
+      ],
+      "avoid": [
+        "sunny beach",
+        "happy children"
+      ],
+      "reason": "Usa evidence para simbolizar o contexto de crime grave nos Estados Unidos sem expor violência."
+    },
+    {
+      "scene": 3,
+      "segment": "Em 26 de dezembro de 1996,",
+      "visual_mode": "object",
+      "shot_type": "close_up",
+      "query_before": "vintage 1990s calendar date December snow",
+      "query_after": "vintage 1990s wall calendar showing december month snow outside",
+      "must_have": [
+        "calendar",
+        "winter"
+      ],
+      "avoid": [
+        "modern tablet",
+        "future year"
+      ],
+      "reason": "Estabelece a data específica de dezembro de 1996 de forma visualmente precisa."
+    },
+    {
+      "scene": 4,
+      "segment": "a mini-miss JonBenét Ramsey, de seis anos,",
+      "visual_mode": "document",
+      "shot_type": "medium",
+      "query_before": "young little blonde girl portrait childhood photo style",
+      "query_after": "vintage 1990s young blonde girl portrait photograph archival style",
+      "must_have": [
+        "child portrait",
+        "photo"
+      ],
+      "avoid": [
+        "adult woman",
+        "teenager"
+      ],
+      "reason": "Usa uma foto de arquivo com estética da época para retratar a criança de 6 anos."
+    },
+    {
+      "scene": 5,
+      "segment": "foi encontrada morta no porão de sua casa",
+      "visual_mode": "architecture",
+      "shot_type": "wide",
+      "query_before": "dark basement interior stairs residential house spooky",
+      "query_after": "dark residential basement interior concrete walls wooden stairs",
+      "must_have": [
+        "basement",
+        "stairs"
+      ],
+      "avoid": [
+        "bright penthouse",
+        "outdoor park"
+      ],
+      "reason": "Mostra a arquitetura do porão da casa onde o corpo foi encontrado."
+    },
+    {
+      "scene": 6,
+      "segment": "em Boulder, Colorado.",
+      "visual_mode": "location",
+      "shot_type": "medium",
+      "query_before": "snowy suburban house Boulder Colorado winter drone shot",
+      "query_after": "snowy suburban residential house in Boulder Colorado winter exterior",
+      "must_have": [
+        "suburban house",
+        "snow"
+      ],
+      "avoid": [
+        "tropical beach",
+        "desert"
+      ],
+      "reason": "Apresenta a localização exata da casa na neve em Boulder, Colorado."
+    },
+    {
+      "scene": 7,
+      "segment": "O dia começou com um bilhete de resgate de três páginas,",
+      "visual_mode": "document",
+      "shot_type": "medium",
+      "query_before": "three pages of handwritten letters on wooden table",
+      "query_after": "multiple pages of handwritten ransom letters on wooden table",
+      "must_have": [
+        "pages",
+        "handwriting"
+      ],
+      "avoid": [
+        "single book",
+        "newspaper"
+      ],
+      "reason": "Ilustra especificamente as três páginas do bilhete de resgate."
+    },
+    {
+      "scene": 8,
+      "segment": "escrito com papel de um bloco da família,",
+      "visual_mode": "object",
+      "shot_type": "close_up",
+      "query_before": "notepad paper blank sheet close up desk",
+      "query_after": "blank paper notepad sheet on wooden office desk top view",
+      "must_have": [
+        "notepad",
+        "paper"
+      ],
+      "avoid": [
+        "digital tablet",
+        "computer screen"
+      ],
+      "reason": "Destaca o bloco de notas da família mencionado na investigação."
+    },
+    {
+      "scene": 9,
+      "segment": "exigindo o mesmo valor de um dinheiro ganho pelo pai.",
+      "visual_mode": "evidence",
+      "shot_type": "medium",
+      "query_before": "stack of US dollar cash money bills close up",
+      "query_after": "stack of vintage US dollar cash money bills close up",
+      "must_have": [
+        "cash",
+        "money"
+      ],
+      "avoid": [
+        "credit card",
+        "coins"
+      ],
+      "reason": "Representa o valor do resgate exigido na carta."
+    },
+    {
+      "scene": 10,
+      "segment": "À tarde, o pai encontrou o corpo da menina,",
+      "visual_mode": "abstract_context",
+      "shot_type": "medium",
+      "query_before": "father crying grief dramatic lighting indoor room",
+      "query_after": "dramatic silhouette of man in grief holding head indoor",
+      "must_have": [
+        "man",
+        "grief"
+      ],
+      "avoid": [
+        "smiling crowd",
+        "party"
+      ],
+      "reason": "Retrata o momento dramático em que o pai encontrou a filha, mantendo o respeito factual sem imagens gráficas."
+    },
+    {
+      "scene": 11,
+      "segment": "A cena foi contaminada e o caso continua sem solução,",
+      "visual_mode": "evidence",
+      "shot_type": "wide",
+      "query_before": "police investigation crime scene yellow tape night",
+      "query_after": "police investigation crime scene yellow barrier tape dark moody",
+      "must_have": [
+        "police tape",
+        "night"
+      ],
+      "avoid": [
+        "clean office",
+        "sunny day"
+      ],
+      "reason": "Ilustra a contaminação da cena do crime e o mistério sem solução."
+    },
+    {
+      "scene": 12,
+      "segment": "Siga o perfil para mais crimes reais.",
+      "visual_mode": "document",
+      "shot_type": "medium",
+      "query_before": "detective case files archive folders dark room moody",
+      "query_after": "police archive case files folders stacked on dark wooden table",
+      "must_have": [
+        "case files",
+        "folders"
+      ],
+      "avoid": [
+        "smartphone screen",
+        "social media buttons",
+        "social media icon",
+        "thumbs up",
+        "generic influencer"
+      ],
+      "reason": "Fecha o documentário mostrando arquivos de investigação criminal, mantendo o tom profissional."
+    }
+  ]
+}

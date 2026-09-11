@@ -1,0 +1,274 @@
+{
+  "short_id": "2026-08-30_1744",
+  "created_at": "2026-08-30T17:54:22.061449",
+  "status": "QUALITY_PASS",
+  "topic": "O Desaparecimento da Família Sodder",
+  "hook": "",
+  "script": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/short_2026-08-30_1744.txt",
+    "text": "Cinco crianças desapareceram na Virgínia Ocidental após um incêndio destruir a casa da família Sodder na véspera de Natal de 1945. Quatro dos nove filhos e os pais escaparam das chamas, mas os corpos nunca foram encontrados.\n\nOs pais logo notaram detalhes suspeitos: a escada sumiu, os camiões não funcionavam e a linha telefónica foi cortada. A família passou a acreditar na teoria de que as crianças foram raptadas, possivelmente como retaliação pelas críticas públicas de George Sodder a Benito Mussolini.\n\nAnos mais tarde, receberam uma misteriosa fotografia de um adulto que acreditavam ser um dos filhos. Até hoje, o mistério continua sem solução. Compartilhe e comente se acha que sobreviveram."
+  },
+  "source": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/fonte_2026-08-30_1744.txt"
+  },
+  "publish": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/publish_2026-08-30_1744.json",
+    "chosen_title": "O enigma das crianças Sodder após incêndio",
+    "titles": [
+      "O misterioso incêndio que sumiu com cinco crianças 🏠",
+      "Cinco crianças sumiram após incêndio em 1945?",
+      "O enigma das crianças Sodder após incêndio"
+    ],
+    "description": "Em 1945, um incêndio destruiu a casa da família Sodder e cinco crianças desapareceram sem deixar corpos. O que realmente aconteceu? Comente sua teoria.",
+    "hashtags": [
+      "#Shorts",
+      "#FamiliaSodder",
+      "#Misterio",
+      "#CasosReais",
+      "#Historia"
+    ],
+    "pinned_comment": "Você acha que as crianças sobreviveram ao incêndio?"
+  },
+  "scenes": {
+    "map_path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_2026-08-30_1744.json",
+    "count": 12,
+    "physical_count": 12,
+    "items": [
+      {
+        "scene": 1,
+        "segment": "Cinco crianças desapareceram na Virgínia Ocidental após um incêndio",
+        "query": "rural West Virginia historic landscape in the 1940s",
+        "must_have": [
+          "landscape",
+          "rural"
+        ],
+        "avoid": [
+          "modern city",
+          "skyscrapers"
+        ],
+        "words": 9,
+        "weight": 0.08653846153846154,
+        "visual_mode": "location",
+        "shot_type": "wide"
+      },
+      {
+        "scene": 2,
+        "segment": "destruir a casa da família Sodder na véspera de Natal de 1945.",
+        "query": "vintage 1945 december calendar page showing christmas eve",
+        "must_have": [
+          "calendar",
+          "vintage"
+        ],
+        "avoid": [
+          "modern digital clock",
+          "smartphone"
+        ],
+        "words": 12,
+        "weight": 0.11538461538461539,
+        "visual_mode": "document",
+        "shot_type": "close_up"
+      },
+      {
+        "scene": 3,
+        "segment": "Quatro dos nove filhos e os pais escaparam das chamas,",
+        "query": "historic two story timber frame house exterior night",
+        "must_have": [
+          "house",
+          "night"
+        ],
+        "avoid": [
+          "modern building",
+          "fire"
+        ],
+        "words": 10,
+        "weight": 0.09615384615384616,
+        "visual_mode": "architecture",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 4,
+        "segment": "mas os corpos nunca foram encontrados.",
+        "query": "charred wooden ruins and ashes of burned house",
+        "must_have": [
+          "ashes",
+          "ruins"
+        ],
+        "avoid": [
+          "living people",
+          "green grass"
+        ],
+        "words": 6,
+        "weight": 0.057692307692307696,
+        "visual_mode": "evidence",
+        "shot_type": "wide"
+      },
+      {
+        "scene": 5,
+        "segment": "Os pais logo notaram detalhes suspeitos:",
+        "query": "vintage house electrical fuse box with old wiring",
+        "must_have": [
+          "fuse box",
+          "vintage"
+        ],
+        "avoid": [
+          "modern circuit breaker",
+          "digital meter"
+        ],
+        "words": 6,
+        "weight": 0.057692307692307696,
+        "visual_mode": "object",
+        "shot_type": "close_up"
+      },
+      {
+        "scene": 6,
+        "segment": "a escada sumiu, os camiões não funcionavam",
+        "query": "old wooden ladder resting against rural house wall",
+        "must_have": [
+          "ladder",
+          "wood"
+        ],
+        "avoid": [
+          "modern aluminum ladder",
+          "construction site"
+        ],
+        "words": 7,
+        "weight": 0.0673076923076923,
+        "visual_mode": "evidence",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 7,
+        "segment": "e a linha telefónica foi cortada.",
+        "query": "old wooden utility pole with cut telephone wire outdoors",
+        "must_have": [
+          "pole",
+          "wire"
+        ],
+        "avoid": [
+          "fiber optic cable",
+          "modern streetlamp"
+        ],
+        "words": 6,
+        "weight": 0.057692307692307696,
+        "visual_mode": "object",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 8,
+        "segment": "A família passou a acreditar na teoria de que as crianças foram raptadas,",
+        "query": "collection of old faded family photographs sepia tone",
+        "must_have": [
+          "photograph",
+          "vintage"
+        ],
+        "avoid": [
+          "digital display",
+          "modern color print",
+          "detailed alien spacecraft",
+          "flying saucer",
+          "visible ghost",
+          "alien creature"
+        ],
+        "words": 13,
+        "weight": 0.125,
+        "visual_mode": "document",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 9,
+        "segment": "possivelmente como retaliação pelas críticas públicas de George Sodder a Benito Mussolini.",
+        "query": "historic 1940s newspaper clipping with political opinion text",
+        "must_have": [
+          "newspaper",
+          "vintage"
+        ],
+        "avoid": [
+          "modern laptop",
+          "tablet"
+        ],
+        "words": 12,
+        "weight": 0.11538461538461539,
+        "visual_mode": "document",
+        "shot_type": "close_up"
+      },
+      {
+        "scene": 10,
+        "segment": "Anos mais tarde, receberam uma misteriosa fotografia",
+        "query": "old paper mail envelope with vintage postage stamp received",
+        "must_have": [
+          "envelope",
+          "paper"
+        ],
+        "avoid": [
+          "email inbox",
+          "plastic package",
+          "detailed alien spacecraft",
+          "flying saucer",
+          "visible ghost",
+          "alien creature"
+        ],
+        "words": 7,
+        "weight": 0.0673076923076923,
+        "visual_mode": "evidence",
+        "shot_type": "close_up"
+      },
+      {
+        "scene": 11,
+        "segment": "de um adulto que acreditavam ser um dos filhos.",
+        "query": "vintage black and white portrait of an adult man",
+        "must_have": [
+          "portrait",
+          "man"
+        ],
+        "avoid": [
+          "child",
+          "infant"
+        ],
+        "words": 9,
+        "weight": 0.08653846153846154,
+        "visual_mode": "document",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 12,
+        "segment": "Até hoje, o mistério continua sem solução.",
+        "query": "old missing persons case file documents and archive",
+        "must_have": [
+          "document",
+          "archive"
+        ],
+        "avoid": [
+          "modern computer",
+          "digital screen",
+          "detailed alien spacecraft",
+          "flying saucer",
+          "visible ghost",
+          "alien creature"
+        ],
+        "words": 7,
+        "weight": 0.0673076923076923,
+        "visual_mode": "document",
+        "shot_type": "close_up"
+      }
+    ]
+  },
+  "video": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/videos/short_v6_2026-08-30_1744.mp4",
+    "version": "V6",
+    "duration_seconds": 40.2,
+    "width": 1080,
+    "height": 1920,
+    "fps": 30.0,
+    "video_codec": "h264",
+    "audio_codec": "aac"
+  },
+  "quality": {
+    "video_exists": true,
+    "scene_map_count": 12,
+    "physical_scene_count": 12,
+    "resolution_ok": true,
+    "fps_ok": true,
+    "audio_exists": true
+  },
+  "log": "/data/data/com.termux/files/home/ShortAutoPro/logs/producao/short_2026-08-30_1744.log"
+}

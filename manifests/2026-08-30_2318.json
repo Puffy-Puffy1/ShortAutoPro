@@ -1,0 +1,266 @@
+{
+  "short_id": "2026-08-30_2318",
+  "created_at": "2026-08-30T23:43:40.854284",
+  "status": "QUALITY_PASS",
+  "topic": "O Desaparecimento de Elisa Lam",
+  "hook": "Por que o último vídeo desta estudante gerou tanta comoção na internet em 2013?",
+  "script": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/short_2026-08-30_2318.txt",
+    "text": "Por que o último vídeo desta estudante gerou tanta comoção na internet em 2013? Em fevereiro daquele ano, a estudante canadense Elisa Lam desapareceu em Los Angeles, hospedada no Hotel Cecil. Dias depois, a polícia divulgou imagens perturbadoras de uma câmera de segurança no elevador. Nelas, Elisa gesticula no corredor, parece se esconder e o elevador age de forma estranha. O vídeo viralizou rapidamente na internet. O caso tomou um rumo macabro quando funcionários acharam o corpo dela dentro de um tanque de água no telhado, após reclamações de clientes. A autópsia concluiu que a morte foi acidental, sem sinais de trauma físico. O mistério realimentou teorias e virou série. O que você acha que aconteceu no hotel?"
+  },
+  "source": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/fonte_2026-08-30_2318.txt"
+  },
+  "publish": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/publish_2026-08-30_2318.json",
+    "chosen_title": "O que revelou o caso de Elisa Lam em 2013?",
+    "titles": [
+      "O mistério do vídeo de Elisa Lam no elevador 🛗",
+      "O que revelou o caso de Elisa Lam em 2013?",
+      "O misterioso desaparecimento no Hotel Cecil"
+    ],
+    "description": "Em 2013, o desaparecimento de Elisa Lam gerou enorme repercussão após a polícia divulgar um vídeo perturbador no elevador. O que você acha que aconteceu?",
+    "hashtags": [
+      "#Shorts",
+      "#ElisaLam",
+      "#HotelCecil",
+      "#Mistério",
+      "#CasosReais"
+    ],
+    "pinned_comment": "O que você acha que aconteceu no hotel?"
+  },
+  "scenes": {
+    "map_path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_2026-08-30_2318.json",
+    "count": 12,
+    "physical_count": 12,
+    "items": [
+      {
+        "scene": 1,
+        "segment": "Por que o último vídeo desta estudante gerou tanta comoção na internet em 2013?",
+        "query": "vintage computer monitor displaying internet video in dark room",
+        "must_have": [
+          "computer screen",
+          "monitor"
+        ],
+        "avoid": [
+          "modern smartphone",
+          "tablet"
+        ],
+        "words": 14,
+        "weight": 0.11864406779661017,
+        "visual_mode": "document",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 2,
+        "segment": "Em fevereiro daquele ano, a estudante canadense Elisa Lam desapareceu em Los Angeles,",
+        "query": "vintage map of Los Angeles downtown area archival style",
+        "must_have": [
+          "map",
+          "city layout"
+        ],
+        "avoid": [
+          "modern 3d gps graphic",
+          "globe"
+        ],
+        "words": 13,
+        "weight": 0.11016949152542373,
+        "visual_mode": "map_context",
+        "shot_type": "wide"
+      },
+      {
+        "scene": 3,
+        "segment": "hospedada no Hotel Cecil.",
+        "query": "historic Cecil Hotel exterior building facade Los Angeles street",
+        "must_have": [
+          "hotel building",
+          "facade"
+        ],
+        "avoid": [
+          "modern skyscraper",
+          "tropical resort"
+        ],
+        "words": 4,
+        "weight": 0.03389830508474576,
+        "visual_mode": "architecture",
+        "shot_type": "wide"
+      },
+      {
+        "scene": 4,
+        "segment": "Dias depois, a polícia divulgou imagens perturbadoras de uma câmera de segurança no elevador.",
+        "query": "grainy security camera footage interior elevator vintage aesthetic",
+        "must_have": [
+          "security camera",
+          "elevator interior"
+        ],
+        "avoid": [
+          "high definition modern camera",
+          "outdoor street"
+        ],
+        "words": 14,
+        "weight": 0.11864406779661017,
+        "visual_mode": "evidence",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 5,
+        "segment": "Nelas, Elisa gesticula no corredor, parece se esconder",
+        "query": "narrow vintage hotel hallway surveillance camera angle dark",
+        "must_have": [
+          "hallway",
+          "corridor"
+        ],
+        "avoid": [
+          "happy smiling person",
+          "bright sunny park"
+        ],
+        "words": 8,
+        "weight": 0.06779661016949153,
+        "visual_mode": "architecture",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 6,
+        "segment": "e o elevador age de forma estranha.",
+        "query": "vintage elevator control panel buttons close up grainy footage",
+        "must_have": [
+          "elevator buttons",
+          "control panel"
+        ],
+        "avoid": [
+          "escalator",
+          "stairs"
+        ],
+        "words": 7,
+        "weight": 0.059322033898305086,
+        "visual_mode": "evidence",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 7,
+        "segment": "O vídeo viralizou rapidamente na internet.",
+        "query": "computer screen showing internet video view counter statistics dark room",
+        "must_have": [
+          "screen",
+          "dark room"
+        ],
+        "avoid": [
+          "mobile phone",
+          "social media icons"
+        ],
+        "words": 6,
+        "weight": 0.05084745762711865,
+        "visual_mode": "document",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 8,
+        "segment": "O caso tomou um rumo macabro quando funcionários acharam o corpo dela",
+        "query": "hotel rooftop industrial water storage tanks gloomy overcast sky",
+        "must_have": [
+          "water tank",
+          "rooftop"
+        ],
+        "avoid": [
+          "swimming pool",
+          "beach"
+        ],
+        "words": 12,
+        "weight": 0.1016949152542373,
+        "visual_mode": "location",
+        "shot_type": "wide"
+      },
+      {
+        "scene": 9,
+        "segment": "dentro de um tanque de água no telhado, após reclamações de clientes.",
+        "query": "large industrial water storage tank on top of building roof",
+        "must_have": [
+          "water tank",
+          "roof"
+        ],
+        "avoid": [
+          "interior bathroom",
+          "kitchen sink"
+        ],
+        "words": 12,
+        "weight": 0.1016949152542373,
+        "visual_mode": "architecture",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 10,
+        "segment": "A autópsia concluiu que a morte foi acidental, sem sinais de trauma físico.",
+        "query": "official coroner autopsy report document official paperwork close up",
+        "must_have": [
+          "document",
+          "paperwork"
+        ],
+        "avoid": [
+          "bright hospital ward",
+          "happy doctor"
+        ],
+        "words": 13,
+        "weight": 0.11016949152542373,
+        "visual_mode": "document",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 11,
+        "segment": "O mistério realimentou teorias e virou série.",
+        "query": "true crime documentary title card on television screen dark room",
+        "must_have": [
+          "television screen",
+          "dark room"
+        ],
+        "avoid": [
+          "smartphone",
+          "modern laptop",
+          "detailed alien spacecraft",
+          "flying saucer",
+          "visible ghost",
+          "alien creature"
+        ],
+        "words": 7,
+        "weight": 0.059322033898305086,
+        "visual_mode": "document",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 12,
+        "segment": "O que você acha que aconteceu no hotel?",
+        "query": "historic hotel hallway at night eerie dim lighting cinematic",
+        "must_have": [
+          "hotel hallway",
+          "dim lighting"
+        ],
+        "avoid": [
+          "bright sunny day",
+          "crowded lobby"
+        ],
+        "words": 8,
+        "weight": 0.06779661016949153,
+        "visual_mode": "location",
+        "shot_type": "wide"
+      }
+    ]
+  },
+  "video": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/videos/short_v6_2026-08-30_2318.mp4",
+    "version": "V6",
+    "duration_seconds": 39.266016,
+    "width": 1080,
+    "height": 1920,
+    "fps": 30.0,
+    "video_codec": "h264",
+    "audio_codec": "aac"
+  },
+  "quality": {
+    "video_exists": true,
+    "scene_map_count": 12,
+    "physical_scene_count": 12,
+    "resolution_ok": true,
+    "fps_ok": true,
+    "audio_exists": true
+  },
+  "log": "/data/data/com.termux/files/home/ShortAutoPro/logs/producao/short_2026-08-30_2318.log"
+}

@@ -1,0 +1,13 @@
+{
+  "short_id": "2026-09-01_0254",
+  "changed": true,
+  "before": "Em 1977, um telescópio capta um sinal de rádio tão forte que o astrônomo escreveu 'Wow!' no papel.",
+  "before_score": 50.0,
+  "after": "Um astrônomo circulou um sinal de rádio e escreveu 'Wow!' no papel.",
+  "candidate_after": "Um astrônomo circulou um sinal de rádio e escreveu 'Wow!' no papel.",
+  "candidate_score": 75.0,
+  "improvement": 25.0,
+  "problems": [],
+  "reason": "A primeira frase tem 12 palavras, foca na ação mais intrigante e cria uma lacuna de curiosidade imediata, seguida pelo contexto temporal na segunda frase, mantendo a contagem total dentro do limite de 105 a 125 palavras.",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/short_pre_cold_open_2026-09-01_0254.txt"
+}

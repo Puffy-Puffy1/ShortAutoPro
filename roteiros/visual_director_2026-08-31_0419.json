@@ -1,0 +1,223 @@
+{
+  "short_id": "2026-08-31_0419",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_pre_visual_2026-08-31_0419.json",
+  "shot_repetitions": 1,
+  "scenes": [
+    {
+      "scene": 1,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "dark eerie appalachian forest at night fog vintage",
+      "after_query": "tall humanoid silhouette glowing face in dark forest vintage",
+      "must_have": [
+        "silhouette",
+        "forest"
+      ],
+      "avoid": [
+        "cartoon",
+        "bright daylight",
+        "clear alien face"
+      ],
+      "shot_type": "medium wide shot",
+      "reason": "Representa a criatura alta e com rosto brilhante na floresta escura conforme o segmento."
+    },
+    {
+      "scene": 2,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "1950s night sky with bright falling meteor streaking",
+      "after_query": "1950s night sky with bright mysterious light streaking across",
+      "must_have": [
+        "night sky",
+        "mysterious light"
+      ],
+      "avoid": [
+        "modern city",
+        "spaceship",
+        "airplane"
+      ],
+      "shot_type": "wide sky shot",
+      "reason": "Mostra o objeto cruzando o céu noturno em 1952."
+    },
+    {
+      "scene": 3,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "vintage 1950s people walking with flashlights in dark woods",
+      "after_query": "vintage 1950s people climbing dark hillside with flashlights",
+      "must_have": [
+        "people",
+        "flashlight"
+      ],
+      "avoid": [
+        "modern clothing",
+        "daytime",
+        "smartphone"
+      ],
+      "shot_type": "action shot",
+      "reason": "Ilustra o grupo subindo as colinas para investigar."
+    },
+    {
+      "scene": 4,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "thick acrid smoke and dense fog rising from ground",
+      "after_query": "thick pungent fog rising from dark ground in woods",
+      "must_have": [
+        "fog",
+        "ground"
+      ],
+      "avoid": [
+        "cityscape",
+        "sunny",
+        "beach"
+      ],
+      "shot_type": "close-up shot",
+      "reason": "Representa a névoa pungente descrita no segmento."
+    },
+    {
+      "scene": 5,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "vintage flashlight beam cutting through dark wooded area shadow",
+      "after_query": "vintage flashlight beam cutting through dark wooded area silhouette",
+      "must_have": [
+        "flashlight beam",
+        "shadow"
+      ],
+      "avoid": [
+        "detailed alien",
+        "cartoon",
+        "friendly"
+      ],
+      "shot_type": "point of view shot",
+      "reason": "Foca no facho da lanterna revelando a silhueta no escuro."
+    },
+    {
+      "scene": 6,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "dark tree branch silhouette against gloomy night sky",
+      "after_query": "dark tree branch silhouette against gloomy night sky mystery",
+      "must_have": [
+        "silhouette",
+        "night sky"
+      ],
+      "avoid": [
+        "visible monster",
+        "daylight",
+        "happy"
+      ],
+      "shot_type": "low angle shot",
+      "reason": "Ambiente noturno sugestivo para acompanhar o som misterioso."
+    },
+    {
+      "scene": 7,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "vintage 1950s medical report document paper on wooden desk",
+      "after_query": "vintage 1950s medical report document paper on wooden desk",
+      "must_have": [
+        "document",
+        "paper"
+      ],
+      "avoid": [
+        "modern hospital",
+        "smartphone",
+        "digital screen"
+      ],
+      "shot_type": "documentary close-up",
+      "reason": "Representa os relatos de sintomas através de documentos de época."
+    },
+    {
+      "scene": 8,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "vintage 1950s rural house interior dim lighting hallway",
+      "after_query": "vintage 1950s rural house interior dim lighting hallway",
+      "must_have": [
+        "interior",
+        "dim lighting"
+      ],
+      "avoid": [
+        "modern hospital",
+        "bright lights",
+        "futuristic"
+      ],
+      "shot_type": "interior shot",
+      "reason": "Mostra o ambiente interno rústico após o encontro."
+    },
+    {
+      "scene": 9,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "scientific skepticism research notes papers astronomy charts vintage",
+      "after_query": "scientific skepticism research notes papers astronomy charts vintage",
+      "must_have": [
+        "charts",
+        "papers"
+      ],
+      "avoid": [
+        "monster",
+        "alien",
+        "futuristic"
+      ],
+      "shot_type": "flat lay shot",
+      "reason": "Representa a conclusão dos céticos com anotações e cartas astronômicas."
+    },
+    {
+      "scene": 10,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "barn owl perched on dark tree branch at night",
+      "after_query": "barn owl perched on dark tree branch at night",
+      "must_have": [
+        "owl",
+        "tree branch"
+      ],
+      "avoid": [
+        "monster",
+        "alien",
+        "humanoid"
+      ],
+      "shot_type": "animal close-up",
+      "reason": "Mostra a coruja conforme a conclusão dos céticos."
+    },
+    {
+      "scene": 11,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "mysterious glowing light in dark night sky folklore",
+      "after_query": "mysterious glowing light in dark night sky folklore",
+      "must_have": [
+        "glowing light",
+        "night sky"
+      ],
+      "avoid": [
+        "detailed alien spacecraft",
+        "owl",
+        "daylight"
+      ],
+      "shot_type": "wide sky shot",
+      "reason": "Representa a teoria dos entusiastas sobre a luz misteriosa."
+    },
+    {
+      "scene": 12,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "dark forest woods at night with pair of glowing reflections",
+      "after_query": "dark forest woods at night with pair of glowing reflections",
+      "must_have": [
+        "dark forest",
+        "reflections"
+      ],
+      "avoid": [
+        "funny",
+        "bright daylight",
+        "cartoon"
+      ],
+      "shot_type": "mystery shot",
+      "reason": "Encerra com uma imagem ambígua na floresta escura."
+    }
+  ]
+}

@@ -1,0 +1,64 @@
+{
+  "short_id": "2026-09-09_0417",
+  "selected": {
+    "topic": "A Fuga de Alcatraz de 1962",
+    "score": 75.77,
+    "wiki_title": "Fuga de Alcatraz em junho de 1962",
+    "wiki_chars": 0,
+    "wiki_similarity": 1.0,
+    "gemini": {},
+    "objective": {
+      "visual": 0,
+      "hook": 0,
+      "documentation": 0,
+      "title_match": 10,
+      "novelty": 10
+    },
+    "reserve": true
+  },
+  "ranking": [
+    {
+      "topic": "A Fuga de Alcatraz de 1962",
+      "score": 75.77,
+      "wiki_title": "Fuga de Alcatraz em junho de 1962",
+      "wiki_chars": 0,
+      "wiki_similarity": 1.0,
+      "gemini": {},
+      "objective": {
+        "visual": 0,
+        "hook": 0,
+        "documentation": 0,
+        "title_match": 10,
+        "novelty": 10
+      },
+      "reserve": true
+    }
+  ],
+  "verification": [
+    {
+      "topic": "Caso Tamam Shud",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O Farol das Ilhas Eilean Mor",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O Mistério de Villisca",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "Desaparecimento de Maura Murray",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O Desaparecimento de Bobby Dunbar",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    }
+  ]
+}

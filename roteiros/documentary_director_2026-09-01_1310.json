@@ -1,0 +1,216 @@
+{
+  "short_id": "2026-09-01_1310",
+  "topic": "Caso Isdal",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_pre_documentary_2026-09-01_1310.json",
+  "visual_mode_triple_repetitions": 0,
+  "shot_triple_repetitions": 1,
+  "scenes": [
+    {
+      "scene": 1,
+      "segment": "Uma mulher carbonizada foi achada com etiquetas arrancadas",
+      "visual_mode": "location",
+      "shot_type": "wide",
+      "query_before": "burnt female mannequin forensic crime scene dark cinematic",
+      "query_after": "icy barren valley landscape mountains in noruega winter dark",
+      "must_have": [
+        "valley",
+        "mountains"
+      ],
+      "avoid": [
+        "bright sunlight",
+        "summer grass",
+        "people"
+      ],
+      "reason": "Representa o local real da descoberta no vale de Isdalen sem mostrar cadáver."
+    },
+    {
+      "scene": 2,
+      "segment": "e oito passaportes falsos na Noruega.",
+      "visual_mode": "evidence",
+      "shot_type": "close_up",
+      "query_before": "multiple fake passports scattered on dark wooden table",
+      "query_after": "multiple vintage passports spread on dark wooden forensic table",
+      "must_have": [
+        "passports",
+        "table"
+      ],
+      "avoid": [
+        "modern smartphone",
+        "money bills"
+      ],
+      "reason": "Foca diretamente nos passaportes falsos mencionados no texto."
+    },
+    {
+      "scene": 3,
+      "segment": "A autópsia revelou que ela morreu de uma combinação",
+      "visual_mode": "document",
+      "shot_type": "medium",
+      "query_before": "medical autopsy room autopsy table forensic lights dark",
+      "query_after": "vintage medical autopsy report document black and white 1970",
+      "must_have": [
+        "document",
+        "paper"
+      ],
+      "avoid": [
+        "modern computer",
+        "color photos"
+      ],
+      "reason": "Usa um documento médico pericial para ilustrar a autópsia de forma neutra."
+    },
+    {
+      "scene": 4,
+      "segment": "de pílulas para dormir e envenenamento por monóxido de carbono,",
+      "visual_mode": "object",
+      "shot_type": "close_up",
+      "query_before": "medical pills and smoke gas dark moody atmosphere",
+      "query_after": "vintage medicine pills in small glass bottle dark lighting",
+      "must_have": [
+        "pills",
+        "bottle"
+      ],
+      "avoid": [
+        "food",
+        "modern packaging"
+      ],
+      "reason": "Mostra pílulas para dormir de forma neutra e histórica."
+    },
+    {
+      "scene": 5,
+      "segment": "estando viva quando foi queimada.",
+      "visual_mode": "evidence",
+      "shot_type": "close_up",
+      "query_before": "fire flames burning dark background dramatic cinematic slow motion",
+      "query_after": "charred fabric fragments and burnt clothing forensic evidence dark",
+      "must_have": [
+        "burnt fabric",
+        "evidence"
+      ],
+      "avoid": [
+        "human body",
+        "blood"
+      ],
+      "reason": "Evidencia as roupas queimadas encontradas sem representar danos corporais."
+    },
+    {
+      "scene": 6,
+      "segment": "Investigações mostraram que ela viajou pela Noruega e Europa",
+      "visual_mode": "map_context",
+      "shot_type": "medium",
+      "query_before": "vintage map of europe with compass and magnifying glass",
+      "query_after": "old 1970s map of europe with route lines and compass",
+      "must_have": [
+        "map",
+        "routes"
+      ],
+      "avoid": [
+        "modern gps",
+        "digital screen"
+      ],
+      "reason": "Ilustra o trajeto de viagens pela Noruega e Europa em um mapa vintage."
+    },
+    {
+      "scene": 7,
+      "segment": "usando pelo menos oito passaportes e pseudônimos falsos.",
+      "visual_mode": "object",
+      "shot_type": "medium",
+      "query_before": "stack of vintage passport documents old paper dark room",
+      "query_after": "stack of old vintage passports and travel documents dark room",
+      "must_have": [
+        "passports",
+        "documents"
+      ],
+      "avoid": [
+        "plastic cards",
+        "smartphone"
+      ],
+      "reason": "Reforça o uso de múltiplos passaportes e pseudônimos."
+    },
+    {
+      "scene": 8,
+      "segment": "As autoridades locais deram um veredito de provável suicídio,",
+      "visual_mode": "document",
+      "shot_type": "medium",
+      "query_before": "old vintage police file document case closed stamp",
+      "query_after": "old police investigation case file stamped closed in norwegian",
+      "must_have": [
+        "document",
+        "file"
+      ],
+      "avoid": [
+        "modern computer",
+        "police car"
+      ],
+      "reason": "Representa o veredito oficial e o arquivo policial da época."
+    },
+    {
+      "scene": 9,
+      "segment": "mas a natureza do caso encorajou especulações e investigações,",
+      "visual_mode": "object",
+      "shot_type": "close_up",
+      "query_before": "detective desk vintage typewriter and magnifying glass noir",
+      "query_after": "vintage typewriter magnifying glass and old notes on desk",
+      "must_have": [
+        "typewriter",
+        "magnifying glass"
+      ],
+      "avoid": [
+        "laptop",
+        "tablet"
+      ],
+      "reason": "Simboliza a investigação contínua e as especulações em torno do caso."
+    },
+    {
+      "scene": 10,
+      "segment": "com muitos suspeitando de espionagem no contexto da Guerra Fria.",
+      "visual_mode": "abstract_context",
+      "shot_type": "wide",
+      "query_before": "cold war espionage spy briefcase dark shadow alley",
+      "query_after": "cold war espionage shadow briefcase dark alleyway cinematic",
+      "must_have": [
+        "shadow",
+        "briefcase"
+      ],
+      "avoid": [
+        "futuristic",
+        "neon lights"
+      ],
+      "reason": "Ambienta visualmente o contexto de espionagem da Guerra Fria de forma neutra."
+    },
+    {
+      "scene": 11,
+      "segment": "Análises modernas indicam que ela nasceu perto de Nuremberga, na Alemanha, por volta de 1930.",
+      "visual_mode": "environment",
+      "shot_type": "medium",
+      "query_before": "old vintage black and white city street germany 1930s",
+      "query_after": "old black and white city street in germany 1930s architecture",
+      "must_have": [
+        "old street",
+        "buildings"
+      ],
+      "avoid": [
+        "modern cars",
+        "skyscrapers"
+      ],
+      "reason": "Retrata a época e local de nascimento estimados (Nuremberga, 1930)."
+    },
+    {
+      "scene": 12,
+      "segment": "Até hoje, sua verdadeira identidade permanece um mistério. Comente sua teoria e siga para mais casos reais.",
+      "visual_mode": "abstract_context",
+      "shot_type": "close_up",
+      "query_before": "question mark shadow on dark wall mystery cinematic",
+      "query_after": "question mark shadow on dark brick wall mystery cinematic",
+      "must_have": [
+        "question mark",
+        "shadow"
+      ],
+      "avoid": [
+        "smiling face",
+        "bright lights",
+        "social media icon",
+        "thumbs up"
+      ],
+      "reason": "Encerra o documentário com o mistério aberto, mantendo o tom factual exigido."
+    }
+  ]
+}

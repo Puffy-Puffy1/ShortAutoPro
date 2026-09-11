@@ -1,0 +1,46 @@
+{
+  "version": "1260.00",
+
+  "target_scenes": [2, 3, 6, 8, 9, 10, 11],
+
+  "network": {
+    "maximum_total_requests": 120,
+    "maximum_queries_per_scene": 8,
+    "cache_enabled": true
+  },
+
+  "source_caps": {
+    "CASE_ARCHIVE": 3,
+    "VERIFIED_LOCATION": 2,
+    "GENERIC": 1,
+    "CASE_ENTITY": 2
+  },
+
+  "semantic_modes": {
+    "case_location_context": true,
+    "case_person_context": true,
+    "action_context": true,
+    "evidence_discussion_context": true,
+    "medical_illustration": true,
+    "maintenance_worker_illustration": true,
+    "water_tank_illustration": true
+  },
+
+  "labels": {
+    "context": "IMAGEM DE CONTEXTO",
+    "illustration": "IMAGEM ILUSTRATIVA"
+  },
+
+  "execution": {
+    "remote_media_download": false,
+    "ffmpeg": false,
+    "renderer": false,
+    "video_generation": false,
+    "production_mutation": false,
+    "publication": false
+  },
+
+  "source_recovery": {
+    "mode": "SHADOW_ONLY"
+  }
+}

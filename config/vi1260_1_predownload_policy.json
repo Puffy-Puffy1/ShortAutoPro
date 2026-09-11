@@ -1,0 +1,55 @@
+{
+  "version": "1260.1",
+
+  "repair_scenes": [3, 6, 8],
+
+  "network": {
+    "metadata_request_budget": 70,
+    "maximum_queries_per_scene": 8
+  },
+
+  "strict_semantics": {
+    "scene3_document_as_person_visual": false,
+    "scene3_requires_specific_person_visual_context": true,
+
+    "scene6_transport_location_as_hide_behavior": false,
+    "scene6_requires_action_compatible_visual": true,
+
+    "scene8_document_as_evidence_discussion": false,
+    "scene8_requires_surveillance_or_elevator_context": true
+  },
+
+  "controlled_download": {
+    "enabled_only_after_12_of_12": true,
+    "directory": "temp/vi1270_downloads/assets",
+    "maximum_file_bytes": 36700160,
+    "maximum_total_bytes": 125829120,
+
+    "allowed_hosts": [
+      "upload.wikimedia.org",
+      "commons.wikimedia.org",
+      "archive.org"
+    ],
+
+    "allowed_mime_types": [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "video/webm",
+      "video/mp4",
+      "application/pdf"
+    ]
+  },
+
+  "execution": {
+    "ffmpeg": false,
+    "renderer": false,
+    "video_generation": false,
+    "production_mutation": false,
+    "publication": false
+  },
+
+  "source_recovery": {
+    "mode": "SHADOW_ONLY"
+  }
+}

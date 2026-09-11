@@ -1,0 +1,16 @@
+{
+  "short_id": "2026-09-01_1415",
+  "changed": false,
+  "before": "Uma mini-miss foi encontrada morta no porão após um bilhete de resgate misterioso.",
+  "before_score": 75.0,
+  "after": "Uma mini-miss foi encontrada morta no porão após um bilhete de resgate misterioso.",
+  "candidate_after": "Um bilhete de resgate com o mesmo valor do bônus do pai selou o destino de uma mini-miss.",
+  "candidate_score": 50.0,
+  "improvement": -25.0,
+  "problems": [
+    "cold_open_fraco=50.0",
+    "melhoria_insuficiente=-25.0"
+  ],
+  "reason": "A primeira frase tem 17 palavras e foca no detalhe mais intrigante e bizarro do bilhete de resgate vinculado ao bônus do pai, criando uma forte lacuna de curiosidade sem usar clickbait. A segunda frase contextualiza data e local imediatamente.",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/short_pre_cold_open_2026-09-01_1415.txt"
+}

@@ -1,0 +1,91 @@
+ASSUNTO: O Incidente do Voo 19
+FONTE: Wikipedia — Voo TAM 3054
+
+Voo TAM 3054 (IATA: JJ3054 ICAO: TAM 3054) foi uma rota comercial doméstica, operada pela TAM Linhas Aéreas (atual LATAM Airlines Brasil), utilizando um Airbus A320-233, partindo do Aeroporto Internacional de Porto Alegre com destino ao Aeroporto de Congonhas. Em 17 de julho de 2007, ao tentar pousar na pista 35L em São Paulo, a aeronave não conseguiu frear, ultrapassou os limites da pista, planou sobre a Avenida Washington Luís e colidiu com o prédio da TAM Express e com um posto de gasolina da Shell. Todos os 187 passageiros e tripulantes a bordo do A320 e mais doze pessoas em solo morreram. É o acidente aéreo com mais mortes na história da aviação brasileira, ultrapassando o Voo Gol 1907 e também o mais mortífero envolvendo uma aeronave da família A320 até então, sendo ultrapassado em outubro de 2015 pelo voo Metrojet 9268, com 224 mortes.
+O acidente, investigado pelo Centro de Investigação e Prevenção de Acidentes Aeronáuticos, órgão filiado à Força Aérea Brasileira, teve seu relatório final divulgado em setembro de 2009, apontando como causas principais do acidente o erro do piloto, ao configurar irregularmente os manetes, falta da infraestrutura aeroportuária brasileira, faltando groovings (ranhuras) na pista de Congonhas e autonomia excessiva aplicada aos computadores da aeronave.
+
+
+== Antecedentes ==
+
+
+=== Reforma das pistas de Congonhas ===
+
+Nas duas pistas do Aeroporto de Congonhas, uma inclinação impedia o escoamento da água acumulada sobre o asfalto, que já era liso por causa do excesso de borracha sobre a pista, causado pela pressão dos pneus ao pousar. Não havia áreas de escape junto às cabeceiras, já que logo após o final da pista encontrava-se a Avenida Washington Luis e várias casas e prédios comerciais. No dia 24 de julho de 2006, um ano antes do acidente, um Boeing 737 da BRA Transportes Aéreos, ao pousar no aeroporto, deslizou pela pista e só conseguiu parar porque o piloto realizou uma manobra conhecida como "cavalo de pau", o que evitou que a aeronave caísse na Avenida Washington Luís. Devido a atrasos e cancelamentos de voos, provocados por chuvas no início de 2007, a Infraero decidiu fazer o recapeamento do asfalto da pista principal do aeroporto. De acordo com o projeto, seriam instalados groovings no asfalto, que são pequenas ranhuras para escoar a água das chuvas e evitar alagamentos, já que pilotos alertavam sobre a pouca aderência da pista em dias de chuvas. As obras foram concluídas em 29 de junho, mas sem a instalação dos groovings, já que, segundo a Infraero, seriam necessários mais 30 dias para a aplicação dos mesmos. Enquanto a pista de Congonhas estava em reformas, o apagão aéreo de 2006 continuava avançando sobre o setor aeroviário brasileiro, o que fez com que a pista fosse liberada emergencialmente para uso, mesmo sem os groovings.
+
+
+=== Dificuldade para pousos ===
+No dia 16 de julho, um dia antes do acidente, quatro pilotos que pousaram no aeroporto relataram haver pouca aderência, inclusive de um piloto da TAM, o qual conseguiu frear sua aeronave apenas alguns metros antes do final da pista. Entre as 12h25 e as 12h28, a Infraero suspendeu as operações no aeroporto para examinar as condições de aderência da pista, a qual foi liberada por "ausência de poças e de lâminas d'água". Mas, logo depois da checagem, às 12h42, uma aeronave ATR-42, da Pantanal Linhas Aéreas, logo após tocar o trem de pouso na pista, aquaplanou, deslizando pela pista, fazendo uma curva abrupta para a esquerda e invadindo o gramado. A aeronave ainda colidiu com uma caixa de concreto(pt-BR) ou betão(pt) e com um pequeno poste de luz, antes do piloto fazer um "cavalo de pau" para conseguir frear a aeronave. Nenhuma das 21 pessoas a bordo se feriram, mas a aeronave teve seu trem de pouso destruído e seu nariz danificado. Mesmo com o incidente, os pousos sob chuva continuaram sendo realizados normalmente no aeroporto.
+
+
+== Aeronave e tripulação ==
+
+A aeronave envolvida no acidente era um Airbus A320-233, número de série 789, fabricada nas instalações da Airbus em Hamburgo, Alemanha. Foi registrada no Brasil como PR-MBK, equipada com dois motores IAE V2527-A5. Seu primeiro voo foi em 13 de fevereiro de 1998 e entrou em serviço um mês depois com a TACA El Salvador, com o registro salvadorenho N454TA. Posteriormente, entrou na frota da Pacific Airlines com o registro vietnamita VN-A168. A aeronave era de propriedade da companhia turca Pegasus Airlines, antes de entrar em serviço com a TAM em dezembro de 2006. A aeronave tinha 20 000 horas de voo e 9 300 ciclos (pousos e decolagens somados).
+A aeronave estava com um defeito no reversor do motor direito, o qual estava inoperante. Seguindo recomendações da fabricante francesa Airbus, a aeronave poderia operar, mesmo com o reversor inoperante, por um prazo máximo de dez dias. Além disso, foi relatado que a aeronave não tinha dificuldade para pousar na pista do Aeroporto de Congonhas.
+O voo estava sob o comando do capitão Henrique Stephanini di Sacco, 53 anos de idade e 13 655 horas de voo, sendo 2 236 horas no modelo A320, e também pelo comandante Kleyber Aguiar Lima, 54 anos de idade e 14 760 horas de voo, sendo 237 horas no modelo A320. Após esse acidente a TAM proibiu que voos regulares fossem realizados por dois comandantes ao mesmo tempo, devido a supostas falhas na logística de tarefas de cabine diagnosticada posteriormente pelo CENIPA. Além dos pilotos, havia quatro comissários de voo a bordo, e outros 13 funcionários não-operantes da companhia.
+
+
+== Acidente ==
+
+
+=== Voo ===
+
+A delegação da equipe de futebol do Grêmio estava prevista para embarcar neste voo. Jogadores e comissão técnica fariam uma conexão em Congonhas e seguiriam para Goiânia, onde havia um jogo marcado contra a equipe do Goiás, mas a direção do clube adiou a viagem para o dia seguinte. Após o embarque, a aeronave decolou em direção a São Paulo, subindo ao nível de voo 340 (34 mil pés, aproximadamente 10 300 metros) e desviando de algumas formações de nuvens. Cerca de 40 minutos após atingir o nível de cruzeiro, a aeronave iniciou a aproximação para o pouso. Inicialmente, a aeronave iria pousar no Aeroporto de Guarulhos, onde as condições climáticas estavam melhores, mas a tripulação decidiu aterrissar em Congonhas.
+
+
+=== Pouso e colisão ===
+
+A aeronave foi autorizada a pousar em Congonhas na pista 35L. Testemunhas oculares e câmeras de segurança do aeroporto mostraram que quando a aeronave tocou a pista na área conhecida como "zona de toque", onde todas as aeronaves devem pousar, ela não diminuiu sua velocidade, atravessando a pista a uma velocidade média de 90 nós (170 quilômetros por hora). A aeronave fez uma curva abrupta para a esquerda, saindo da pista e invadindo o gramado e o pátio de manobras do aeroporto. A pista é localizada em um platô, ao lado da Avenida Washington Luis, a qual estava com movimento intenso no momento. A aeronave saiu das delimitações do aeroporto, planou sobre a avenida e colidiu com o edifício da TAM Express e com um posto de gasolina da Shell, causando uma enorme explosão e um incêndio imediato de grandes proporções. Todos os 187 ocupantes da aeronave morreram imediatamente. Onze pessoas que estavam no prédio da TAM Express também morreram, além de um motorista de táxi que estava no posto de gasolina.
+Dados da caixa preta da aeronave mostraram que, pouco antes do pouso, ambos manetes de potência dos motores estavam em CLB (posição de subida, com 80% de potência), regulados pelo sistema autothrust da aeronave, sistema que regula a potência dos motores com base em uma velocidade determinada pelo piloto, com o objetivo de mantê-la sempre constante. Dois segundos antes do pouso, um aviso sonoro foi emitido pela aeronave, aconselhando os pilotos a levarem os manetes para a posição IDLE (posição de pouso, sem potência). Isso desativaria o sistema autothrust da aeronave, fazendo com que a aeronave tivesse pouca velocidade, conseguindo frear completamente dentro dos limites da pista.
+De acordo com o computador de bordo do A320, para que os spoilers, superfícies moveis sobre a asa que são abertos para quebrar a resistência do ar e diminuir a velocidade, fossem armados, os motores deveriam estar na posição IDLE, sem potência. A caixa preta mostra ainda que, imediatamente após o aviso para retardar os manetes, o piloto trouxe apenas o manete da esquerda para a posição IDLE, ativando o reverso do motor esquerdo, enquanto o manete da direita estava na posição CLB, com 80% de potência. Por causa da configuração incorreta dos manetes, o computador de bordo entendeu que a aeronave estava arremetendo. Uma teoria apresentada pelo CENIPA é que os pilotos podem não ter notado que o motor direito manteve-se em CLB, já que o sistema autothrust desenvolvido pela Airbus, ao contrário dos modelos de outras fabricantes, não move os manetes enquanto a potência dos motores é alterada. Assim, quando o piloto puxou o manete do motor esquerdo para a posição IDLE, ele desligou o sistema autothrottle e o computador de bordo não retardou a potência do motor direito para a posição IDLE. Esta assimetria nas potências dos motores ocasionou uma perda de controle, fazendo com que a aeronave se desviasse para a esquerda e saísse da pista.
+
+
+=== Linha do tempo ===
+
+Fonte:
+
+
+== Investigação ==
+
+A investigação foi conduzida pelo Centro de Investigação e Prevenção de Acidentes Aeronáuticos (CENIPA). As caixas pretas da aeronave foram abertas pelo National Transportation Safety Board (NTSB), nos Estados Unidos, nos dias 20 e 23 de julho. Com base em dados preliminares das caixas pretas, em 25 de julho, a Airbus advertiu os operadores do A320 para que instruíssem seus pilotos a se certificarem que os manetes da aeronave estivessem na posição ID durante o pouso. A transcrição da caixa preta foi divulgada em 1.º de agosto, e mostrou que os pilotos estavam cientes das condições de pista molhada e reversor desativado. Comentários dos pilotos comprovaram que os spoilers não abriram durante o pouso.
+Uma investigação, conduzida pelo Ministério Público do Brasil em novembro de 2008, concluiu que os pilotos configuraram erroneamente os manetes, colocando os motores em potência inversa, sendo que os manetes deveriam ser configuradas na posição ID. Foi concluído também que a Agência Nacional de Aviação Civil (ANAC) deveria ter fechado o aeroporto na noite do acidente, devido às fortes chuvas; que a Empresa Brasileira de Infraestrutura Aeroportuária (Infraero) não deveria ter liberado a pista para uso, já que ela não tinha os groovings para o escoamento da água, fator que contribuiu para o acidente; que a fabricante do avião, Airbus, deveria ter instalado alarmes na aeronave para avisar o piloto em caso de aquaplanagem; e a falta de treinamento adequado para os pilotos por parte da TAM.
+
+
+=== Relatório final ===
+Em setembro de 2009, dois anos após a tragédia, o CENIPA divulgou o relatório final do acidente. O relatório concluiu que um dos manetes que controlam os motores estava em posição de aceleração, ao invés de estar em posição de pouso, mas não foi provado se houve falha mecânica ou humana neste fator.
+O relatório sugere duas hipóteses para o acidente. Na primeira, haveria uma falha no controle de potência dos motores do avião, que teria mantido um dos manetes de potência em aceleração, independentemente da sua posição real. Em tais circunstâncias, haveria uma falha mecânica da aeronave. Na segunda hipótese, o piloto teria realizado um procedimento diferente do previsto no manual, no qual configurou os manetes irregularmente, o que caracterizaria uma falha humana.
+Além das posições dos manetes, o relatório assinala vários fatores que podem ter contribuído para o acidente, tais como chuvas intensas no dia, formação de poças d'água na pista, bem como a ausência de groovings. O relatório não citou o tamanho da pista como fator contribuinte para o acidente.
+
+
+== Reações ==
+
+
+=== Nacionais ===
+Após o acidente, o presidente Luiz Inácio Lula da Silva ordenou três dias de luto nacional.
+Durante os Jogos Pan-Americanos de 2007, que estavam sendo realizados no Rio de Janeiro, os atletas brasileiros usaram uma braçadeira preta em memória das vítimas. As bandeiras de todos os países participantes foram hasteadas a meio mastro em 18 de julho. Partidas que envolviam um atleta ou equipe brasileira começaram com um minuto de silêncio.
+No Campeonato Brasileiro de Futebol de 2007, todos os jogos da 11.ª e 12.ª rodada começaram com um minuto de silêncio, enquanto todos os jogadores usavam braçadeiras negras.[carece de fontes?] Os pilotos de Fórmula 1 Felipe Massa e Rubens Barrichello usaram uma listra preta no topo de seu capacete durante o Grande Prêmio da Europa de 2007, em homenagem às vítimas, além dos pilotos da Red Bull Racing David Coulthard e Mark Webber que usaram pequenas bandeiras do Brasil em seus capacetes.
+Mais de cinco mil pessoas foram ao local do acidente em 29 de julho de 2007 para protestar, culpando a falta de infraestrutura do aeroporto. Muitos dos manifestantes também exigiram o impeachment do presidente Luiz Inácio Lula da Silva.
+
+
+==== Aeroporto de Congonhas ====
+
+O aeroporto reabriu em 19 de julho de 2007, utilizando a pista alternativa. Muitos voos, incluindo os da OceanAir e BRA Transportes Aéreos, foram transferidos para o Aeroporto Internacional de São Paulo-Guarulhos, devido ao fechamento da pista principal de Congonhas e a investigação do acidente.
+Em 20 de julho, a ministra-chefe da Casa Civil Dilma Rousseff anunciou planos para reduzir significativamente o número de voos em Congonhas. O plano incluía a proibição, no prazo de 60 dias, de todas as conexões, escalas, voos charter e voos internacionais, além da redução do número de jatos executivos. O aeroporto operaria voos diretos somente para algumas cidades do Brasil. O plano também pediu um estudo sobre a expansão dos aeroportos de Guarulhos e Campinas, além da construção de um terceiro aeroporto na região metropolitana.
+
+
+=== Internacionais ===
+
+ Alemanha: O presidente alemão Horst Köhler, enviou um telegrama ao presidente Luiz Inácio Lula da Silva, manifestando solidariedade às famílias das vítimas da tragédia. Em nota, a embaixada alemã em Brasília informou que o governo do país ficou consternado com a tragédia e aderiu ao luto de três dias, hasteando a bandeira nacional a meio-mastro na embaixada.
+ Argentina: O presidente argentino Néstor Kirchner foi o primeiro chefe de Estado que telefonou na noite do acidente ao presidente Luiz Inácio Lula da Silva para manifestar solidariedade pelo acidente.
+ Chile: A presidente chilena Michelle Bachelet ligou para o presidente Luiz Inácio Lula da Silva para prestar suas condolências.
+ China: O presidente chinês Hu Jintao enviou mensagem de condolências dizendo expressar as sinceras manifestações de solidariedade aos familiares das vítimas, ao governo e ao povo brasileiro.
+ Espanha: O herdeiro ao trono espanhol Felipe, Príncipe das Asúrias, que estava em visita ao Brasil, acompanhou os acontecimentos e prestou condolências.
+ Estados Unidos: A porta-voz do presidente americano George W. Bush, Sean McCormack, afirmou suas condolências ao povo brasileiro, em especial às famílias das vítimas. A secretária de estado americana, Condoleezza Rice, ligou pessoalmente ao Ministro das Relações Exteriores brasileiro, Celso Amorim, para prestar condolências.
+ México: O presidente mexicano, Vicente Fox, prestou suas condolências com o acidente.
+ Peru: O presidente peruano, Alan García, manifestou suas condolências e o desejo de conversar com o presidente Luiz Inácio Lula da Silva.
+ Vaticano: Em telegrama endereçado ao arcebispo de São Paulo, dom Odilo Scherer, e assinado pelo secretário de Estado do Vaticano, Tarcisio Bertone, o Papa Bento XVI enviou condolências aos familiares das vítimas além de rezar uma missa pelas mesmas.
+ Venezuela: O chanceler venezuelano Nicolás Maduro, expressou suas condolências ao presidente e ao povo brasileiro.
+
+
+=== Memorial ===
+
+A Praça Memorial 17 de Julho foi cons

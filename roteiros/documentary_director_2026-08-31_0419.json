@@ -1,0 +1,225 @@
+{
+  "short_id": "2026-08-31_0419",
+  "topic": "O monstro de Flatwoods",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_pre_documentary_2026-08-31_0419.json",
+  "visual_mode_triple_repetitions": 0,
+  "shot_triple_repetitions": 0,
+  "scenes": [
+    {
+      "scene": 1,
+      "segment": "Uma criatura com mais de dois metros e rosto brilhante aterrorizou uma cidade americana.",
+      "visual_mode": "location",
+      "shot_type": "wide",
+      "query_before": "tall glowing face humanoid creature dark forest",
+      "query_after": "dark eerie appalachian forest at night fog vintage",
+      "must_have": [
+        "forest",
+        "night"
+      ],
+      "avoid": [
+        "alien",
+        "cartoon",
+        "bright daylight"
+      ],
+      "reason": "Estabelece o local sombrio onde o suposto monstro foi avistado, respeitando a regra de evitar criaturas detalhadas."
+    },
+    {
+      "scene": 2,
+      "segment": "Em doze de setembro de mil novecentos e cinquenta e dois, moradores viram um objeto cruzando o céu.",
+      "visual_mode": "environment",
+      "shot_type": "wide",
+      "query_before": "vintage 1950s night sky bright falling meteor",
+      "query_after": "1950s night sky with bright falling meteor streaking",
+      "must_have": [
+        "night sky",
+        "meteor"
+      ],
+      "avoid": [
+        "modern city",
+        "spaceship",
+        "airplane"
+      ],
+      "reason": "Mostra o evento celeste factual relatado na data informada, sem inventar espaçonaves."
+    },
+    {
+      "scene": 3,
+      "segment": "Um grupo subiu as colinas para investigar.",
+      "visual_mode": "human_context",
+      "shot_type": "medium",
+      "query_before": "people walking dark hills with flashlights vintage",
+      "query_after": "vintage 1950s people walking with flashlights in dark woods",
+      "must_have": [
+        "flashlight",
+        "people"
+      ],
+      "avoid": [
+        "modern clothing",
+        "daytime",
+        "smartphone"
+      ],
+      "reason": "Representa o grupo de moradores subindo a colina com roupas de época."
+    },
+    {
+      "scene": 4,
+      "segment": "Eles sentiram uma névoa pungente que queimava o nariz.",
+      "visual_mode": "environment",
+      "shot_type": "close_up",
+      "query_before": "thick mysterious fog rolling over dark hills",
+      "query_after": "thick acrid smoke and dense fog rising from ground",
+      "must_have": [
+        "fog",
+        "smoke"
+      ],
+      "avoid": [
+        "cityscape",
+        "sunny",
+        "beach"
+      ],
+      "reason": "Foca na evidência ambiental da névoa pungente descrita pelas testemunhas."
+    },
+    {
+      "scene": 5,
+      "segment": "Ao apontarem a lanterna, viram um humanoide",
+      "visual_mode": "evidence",
+      "shot_type": "medium",
+      "query_before": "flashlight beam hitting scary tall figure in woods",
+      "query_after": "vintage flashlight beam cutting through dark wooded area shadow",
+      "must_have": [
+        "flashlight beam",
+        "shadow"
+      ],
+      "avoid": [
+        "detailed alien",
+        "cartoon",
+        "friendly"
+      ],
+      "reason": "Usa a ambiguidade visual exigida para relatos de OVNIs/fantasmas, mostrando apenas o feixe de luz e uma sombra ambígua."
+    },
+    {
+      "scene": 6,
+      "segment": "que emitiu um assobio estridente.",
+      "visual_mode": "abstract_context",
+      "shot_type": "close_up",
+      "query_before": "dark silhouette of scary monster screaming in forest",
+      "query_after": "dark tree branch silhouette against gloomy night sky",
+      "must_have": [
+        "silhouette",
+        "night"
+      ],
+      "avoid": [
+        "visible monster",
+        "daylight",
+        "happy"
+      ],
+      "reason": "Representa o contexto do som estridente emitido a partir de um ponto escuro na árvore, mantendo a ambiguidade."
+    },
+    {
+      "scene": 7,
+      "segment": "Várias pessoas relataram sintomas graves,",
+      "visual_mode": "document",
+      "shot_type": "medium",
+      "query_before": "vintage distressed person holding throat sick",
+      "query_after": "vintage 1950s medical report document paper on wooden desk",
+      "must_have": [
+        "document",
+        "paper"
+      ],
+      "avoid": [
+        "modern hospital",
+        "smartphone",
+        "digital screen"
+      ],
+      "reason": "Usa um registro documental para ilustrar os relatos de sintomas graves sem expor pessoas reais ou sofrimento gráfico."
+    },
+    {
+      "scene": 8,
+      "segment": "como inchaço na garganta e convulsões após o encontro.",
+      "visual_mode": "architecture",
+      "shot_type": "wide",
+      "query_before": "vintage medical emergency dark room dramatic lighting",
+      "query_after": "vintage 1950s rural house interior dim lighting hallway",
+      "must_have": [
+        "interior",
+        "dim lighting"
+      ],
+      "avoid": [
+        "modern hospital",
+        "bright lights",
+        "futuristic"
+      ],
+      "reason": "Mostra o ambiente interno da época onde os efeitos do encontro foram relatados."
+    },
+    {
+      "scene": 9,
+      "segment": "Anos depois, céticos concluíram que a luz era um meteoro",
+      "visual_mode": "document",
+      "shot_type": "medium",
+      "query_before": "astronomy charts vintage telescope night sky science",
+      "query_after": "scientific skepticism research notes papers astronomy charts vintage",
+      "must_have": [
+        "charts",
+        "papers"
+      ],
+      "avoid": [
+        "monster",
+        "alien",
+        "futuristic"
+      ],
+      "reason": "Ilustra a investigação científica e as conclusões dos céticos usando documentos e notas."
+    },
+    {
+      "scene": 10,
+      "segment": "e a criatura, uma coruja.",
+      "visual_mode": "location",
+      "shot_type": "close_up",
+      "query_before": "barn owl sitting on dark tree branch at night",
+      "query_after": "barn owl perched on dark tree branch at night",
+      "must_have": [
+        "owl",
+        "tree branch"
+      ],
+      "avoid": [
+        "monster",
+        "alien",
+        "humanoid"
+      ],
+      "reason": "Apresenta a explicação convencional factual (a coruja-das-torres) em seu habitat."
+    },
+    {
+      "scene": 11,
+      "segment": "Entusiastas defendem que era um alienígena.",
+      "visual_mode": "abstract_context",
+      "shot_type": "wide",
+      "query_before": "ufo spaceship glowing in dark mysterious night sky",
+      "query_after": "mysterious glowing light in dark night sky folklore",
+      "must_have": [
+        "glowing light",
+        "night sky"
+      ],
+      "avoid": [
+        "detailed alien spacecraft",
+        "owl",
+        "daylight"
+      ],
+      "reason": "Retrata a crença dos entusiastas de forma ambiguação visual, mostrando apenas uma luz misteriosa."
+    },
+    {
+      "scene": 12,
+      "segment": "Você acha que foi um monstro espacial ou apenas uma coruja?",
+      "visual_mode": "location",
+      "shot_type": "close_up",
+      "query_before": "mysterious glowing eyes in dark forest woods close up",
+      "query_after": "dark forest woods at night with pair of glowing reflections",
+      "must_have": [
+        "dark forest",
+        "reflections"
+      ],
+      "avoid": [
+        "funny",
+        "bright daylight",
+        "cartoon"
+      ],
+      "reason": "Encerra o vídeo questionando o espectador com uma vista ambígua da floresta escura."
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "version": "1510.10",
+  "reaudit_existing_runs": true,
+  "generate_new_videos": false,
+  "minimum_releases_for_certification": 2,
+  "release_score_min": 8.0,
+  "artifact_window_before_seconds": 15,
+  "artifact_window_after_seconds": 45,
+  "domains": {
+    "HISTORICAL_MYSTERY": {
+      "minimum_assets": 5,
+      "minimum_unique_assets": 4,
+      "minimum_source_records": 4,
+      "minimum_provenance_coverage": 0.5,
+      "minimum_licensed_records": 1,
+      "minimum_relevant_records": 1
+    },
+    "HISTORICAL_EVENT": {
+      "minimum_assets": 5,
+      "minimum_unique_assets": 4,
+      "minimum_source_records": 4,
+      "minimum_provenance_coverage": 0.5,
+      "minimum_licensed_records": 1,
+      "minimum_relevant_records": 1
+    },
+    "SCIENCE_CONCEPT": {
+      "minimum_assets": 4,
+      "minimum_unique_assets": 4,
+      "minimum_source_records": 3,
+      "minimum_provenance_coverage": 0.35,
+      "minimum_licensed_records": 1,
+      "minimum_relevant_records": 1
+    },
+    "CUSTOM": {
+      "minimum_assets": 4,
+      "minimum_unique_assets": 4,
+      "minimum_source_records": 3,
+      "minimum_provenance_coverage": 0.35,
+      "minimum_licensed_records": 1,
+      "minimum_relevant_records": 1
+    }
+  },
+  "benchmark_specific_classes": [
+    "CASE_ARCHIVE",
+    "CASE_ENTITY",
+    "VERIFIED_LOCATION"
+  ],
+  "benchmark_specific_phrases": [
+    "Elisa Lam",
+    "Hotel Cecil",
+    "Autopsy Report of Elisa Lam"
+  ],
+  "control_plane_references": [
+    "2026-09-01_1433"
+  ],
+  "publication": false,
+  "upload": false,
+  "production_mutation": false,
+  "network_direct": false,
+  "source_recovery": "SHADOW_ONLY",
+  "partition_runs_at_next_start": true,
+  "actual_scene_assets_preferred": true,
+  "query_never_evidence": true,
+  "control_plane_reference_is_not_content_leak": true
+}

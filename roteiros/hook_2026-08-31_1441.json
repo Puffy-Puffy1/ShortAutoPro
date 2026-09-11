@@ -1,0 +1,33 @@
+{
+  "hooks": [
+    {
+      "text": "Uma nota de resgate bizarra e um crime sem solução que chocou os Estados Unidos.",
+      "curiosity": 9,
+      "clarity": 10,
+      "factuality": 10,
+      "retention": 9,
+      "local_retention_score": 60.0,
+      "combined_score": 72.5
+    },
+    {
+      "text": "O pai encontrou o corpo da própria filha no porão após um suposto sequestro.",
+      "curiosity": 10,
+      "clarity": 10,
+      "factuality": 10,
+      "retention": 10,
+      "local_retention_score": 72.0,
+      "combined_score": 83.2
+    },
+    {
+      "text": "Uma mini-miss assassinada em casa e um bilhete de resgate misterioso.",
+      "curiosity": 9,
+      "clarity": 10,
+      "factuality": 10,
+      "retention": 9,
+      "local_retention_score": 72.0,
+      "combined_score": 79.7
+    }
+  ],
+  "chosen": 2,
+  "final_script": "O pai encontrou o corpo da própria filha no porão após um suposto sequestro. Uma criança de apenas seis anos foi assassinada sob circunstâncias suspeitas dentro de sua própria casa e o caso continua sem solução até hoje, sendo considerado um dos mais notórios dos Estados Unidos. Na manhã de vinte e seis de dezembro de mil novecentos e noventa e seis, uma nota de resgate foi encontrada na residência. Ela sofreu uma pancada na cabeça, foi estrangulada e a causa oficial da morte foi asfixia associada a traumatismo cranioencefálico. O bilhete de resgate usava papel da própria família. Anos depois, testes de DNA revelaram material genético desconhecido e a polícia reabriu a investigação. Deixe sua opinião nos comentários e siga para mais casos."
+}

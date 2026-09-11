@@ -1,0 +1,8 @@
+file '/data/data/com.termux/files/home/ShortAuto/temp_v3/cena_00.mp4'
+file '/data/data/com.termux/files/home/ShortAuto/temp_v3/cena_01.mp4'
+file '/data/data/com.termux/files/home/ShortAuto/temp_v3/cena_02.mp4'
+file '/data/data/com.termux/files/home/ShortAuto/temp_v3/cena_03.mp4'
+file '/data/data/com.termux/files/home/ShortAuto/temp_v3/cena_04.mp4'
+file '/data/data/com.termux/files/home/ShortAuto/temp_v3/cena_05.mp4'
+file '/data/data/com.termux/files/home/ShortAuto/temp_v3/cena_06.mp4'
+file '/data/data/com.termux/files/home/ShortAuto/temp_v3/cena_07.mp4'

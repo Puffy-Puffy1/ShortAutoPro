@@ -1,0 +1,280 @@
+{
+  "short_id": "2026-09-02_1803",
+  "created_at": "2026-09-02T18:12:04.997828",
+  "status": "QUALITY_PASS",
+  "topic": "Gloria Ramirez",
+  "hook": "Por que o simples atendimento a uma paciente gerou a evacuação de um pronto-socorro?",
+  "script": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/short_2026-09-02_1803.txt",
+    "text": "O corpo desta mulher no hospital era tão tóxico que fez vinte e três pessoas adoecerem. Em 19 de fevereiro de 1994, Gloria Ramirez foi levada ao Hospital Geral de Riverside e transformou o pronto-socorro em uma emergência. Um cheiro adocicado de alho e amônia foi notado no ambiente. Segundos depois, uma enfermeira desmaiou ao tentar tirar seu sangue. Outros funcionários sentiram falta de ar e espasmos musculares, forçando a evacuação do local. Uma investigação sugeriu que ela usava dimetilsulfóxido para dor, que pode ter se transformado em dimetilsulfato durante o atendimento. A causa exata permanece debatida pela comunidade científica. Comente sua opinião e inscreva-se."
+  },
+  "source": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/fonte_2026-09-02_1803.txt"
+  },
+  "publish": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/publish_2026-09-02_1803.json",
+    "chosen_title": "O estranho caso da paciente chamada de mulher tóxica",
+    "titles": [
+      "A mulher cujo corpo fez profissionais desmaiarem 🚑",
+      "O mistério do pronto-socorro evacuado na Califórnia",
+      "O estranho caso da paciente chamada de mulher tóxica"
+    ],
+    "description": "Atendimento a uma paciente gerou a evacuação de um pronto-socorro após profissionais adoecerem. Qual a sua opinião sobre este misterioso caso de 1994?",
+    "hashtags": [
+      "#Shorts",
+      "#GloriaRamirez",
+      "#Misterio",
+      "#CasoReal",
+      "#Curiosidades"
+    ],
+    "pinned_comment": "Você acha que foi uma reação química ou histeria em massa?"
+  },
+  "scenes": {
+    "map_path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_2026-09-02_1803.json",
+    "count": 12,
+    "physical_count": 12,
+    "items": [
+      {
+        "scene": 1,
+        "segment": "O corpo desta mulher no hospital era tão tóxico que fez vinte e três pessoas adoecerem.",
+        "query": "vintage 1990s female patient lying in hospital bed dark room",
+        "must_have": [
+          "hospital bed",
+          "patient"
+        ],
+        "avoid": [
+          "happy doctors",
+          "sunny park",
+          "bright office"
+        ],
+        "words": 16,
+        "weight": 0.1415929203539823,
+        "visual_mode": "location",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 2,
+        "segment": "Em 19 de fevereiro de 1994, Gloria Ramirez foi levada ao Hospital Geral de Riverside",
+        "query": "Riverside General Hospital exterior building 1990s architecture",
+        "must_have": [
+          "hospital building",
+          "exterior"
+        ],
+        "avoid": [
+          "modern futuristic hospital",
+          "smartphone",
+          "digital clock"
+        ],
+        "words": 15,
+        "weight": 0.13274336283185842,
+        "visual_mode": "architecture",
+        "shot_type": "wide"
+      },
+      {
+        "scene": 3,
+        "segment": "e transformou o pronto-socorro em uma emergência.",
+        "query": "hospital emergency room medical equipment monitors flashing",
+        "must_have": [
+          "emergency room",
+          "medical equipment"
+        ],
+        "avoid": [
+          "empty room",
+          "calm nurse",
+          "outdoor street"
+        ],
+        "words": 7,
+        "weight": 0.061946902654867256,
+        "visual_mode": "location",
+        "shot_type": "close_up"
+      },
+      {
+        "scene": 4,
+        "segment": "Um cheiro adocicado de alho e amônia foi notado no ambiente.",
+        "query": "chemical laboratory test tube with vapor emission close up",
+        "must_have": [
+          "chemical",
+          "vapor"
+        ],
+        "avoid": [
+          "delicious food",
+          "garlic bulb kitchen",
+          "smiling chef"
+        ],
+        "words": 11,
+        "weight": 0.09734513274336283,
+        "visual_mode": "evidence",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 5,
+        "segment": "Segundos depois, uma enfermeira desmaiou ao tentar tirar seu sangue.",
+        "query": "medical worker fainting in hospital room environment",
+        "must_have": [
+          "medical worker",
+          "hospital"
+        ],
+        "avoid": [
+          "happy person",
+          "outdoor nature",
+          "dancing"
+        ],
+        "words": 10,
+        "weight": 0.08849557522123894,
+        "visual_mode": "human_context",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 6,
+        "segment": "Outros funcionários sentiram falta de ar e espasmos musculares,",
+        "query": "hospital staff wearing protective masks indoors worried",
+        "must_have": [
+          "medical workers",
+          "masks"
+        ],
+        "avoid": [
+          "party crowd",
+          "beach",
+          "athletes running"
+        ],
+        "words": 9,
+        "weight": 0.07964601769911504,
+        "visual_mode": "human_context",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 7,
+        "segment": "forçando a evacuação do local.",
+        "query": "hospital corridor emergency exit sign hallway",
+        "must_have": [
+          "corridor",
+          "exit"
+        ],
+        "avoid": [
+          "shopping mall",
+          "airport terminal",
+          "airplane"
+        ],
+        "words": 5,
+        "weight": 0.04424778761061947,
+        "visual_mode": "architecture",
+        "shot_type": "wide"
+      },
+      {
+        "scene": 8,
+        "segment": "Uma investigação sugeriu que ela usava dimetilsulfóxido para dor,",
+        "query": "medical research laboratory bottles and pharmaceutical containers",
+        "must_have": [
+          "laboratory",
+          "bottles"
+        ],
+        "avoid": [
+          "kitchen cooking",
+          "sports gym",
+          "shopping"
+        ],
+        "words": 9,
+        "weight": 0.07964601769911504,
+        "visual_mode": "object",
+        "shot_type": "close_up"
+      },
+      {
+        "scene": 9,
+        "segment": "que pode ter se transformado em dimetilsulfato durante o atendimento.",
+        "query": "scientific chemical reaction beaker with color change laboratory",
+        "must_have": [
+          "chemical liquid",
+          "beaker"
+        ],
+        "avoid": [
+          "water glass",
+          "coffee cup",
+          "cooking soup"
+        ],
+        "words": 10,
+        "weight": 0.08849557522123894,
+        "visual_mode": "evidence",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 10,
+        "segment": "A causa exata permanece debatida pela comunidade científica.",
+        "query": "scientific forensic research papers and documents on desk",
+        "must_have": [
+          "documents",
+          "desk"
+        ],
+        "avoid": [
+          "sports game",
+          "restaurant dining",
+          "music concert"
+        ],
+        "words": 8,
+        "weight": 0.07079646017699115,
+        "visual_mode": "document",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 11,
+        "segment": "Comente sua opinião e inscreva-se.",
+        "query": "question mark symbol on dark mysterious background",
+        "must_have": [
+          "question mark"
+        ],
+        "avoid": [
+          "phone screen",
+          "computer monitor",
+          "hand clicking"
+        ],
+        "words": 5,
+        "weight": 0.04424778761061947,
+        "visual_intent_6_7": "CTA",
+        "visual_mode": "abstract_context",
+        "truth_refiner_6_7": "reuse_verified_story_visual",
+        "cta_reuse_6_7": true,
+        "shot_type": "close_up"
+      },
+      {
+        "scene": 12,
+        "segment": "A misteriosa tragédia médica continua sem resposta definitiva.",
+        "query": "empty dark hospital hallway eerie dramatic lighting",
+        "must_have": [
+          "hospital hallway",
+          "darkness"
+        ],
+        "avoid": [
+          "bright sunny day",
+          "happy people",
+          "crowded street",
+          "detailed alien spacecraft",
+          "flying saucer",
+          "visible ghost",
+          "alien creature"
+        ],
+        "words": 8,
+        "weight": 0.07079646017699115,
+        "visual_mode": "location",
+        "shot_type": "wide"
+      }
+    ]
+  },
+  "video": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/videos/short_v6_2026-09-02_1803.mp4",
+    "version": "V6",
+    "duration_seconds": 40.133008,
+    "width": 1080,
+    "height": 1920,
+    "fps": 30.0,
+    "video_codec": "h264",
+    "audio_codec": "aac"
+  },
+  "quality": {
+    "video_exists": true,
+    "scene_map_count": 12,
+    "physical_scene_count": 12,
+    "resolution_ok": true,
+    "fps_ok": true,
+    "audio_exists": true
+  },
+  "log": "/data/data/com.termux/files/home/ShortAutoPro/logs/producao/short_2026-09-02_1803.log"
+}

@@ -1,0 +1,224 @@
+{
+  "short_id": "2026-09-01_0324",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_pre_visual_2026-09-01_0324.json",
+  "shot_repetitions": 0,
+  "scenes": [
+    {
+      "scene": 1,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "dc10 airplane engine separated from wing in flight",
+      "after_query": "vintage passenger airplane engine detaching from wing in flight",
+      "must_have": [
+        "airplane wing",
+        "engine"
+      ],
+      "avoid": [
+        "passenger interior",
+        "cartoon",
+        "car"
+      ],
+      "shot_type": "medium shot",
+      "reason": "Shows the exact moment the engine separates from the wing as described in the segment."
+    },
+    {
+      "scene": 2,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "chicago o hare airport runway 1979 vintage style",
+      "after_query": "chicago o hare airport runway 1979 vintage airliner taking off",
+      "must_have": [
+        "runway",
+        "airliner"
+      ],
+      "avoid": [
+        "modern drone shot",
+        "futuristic airport",
+        "train"
+      ],
+      "shot_type": "wide environment",
+      "reason": "Establishes the historical takeoff location and date accurately with period-appropriate visuals."
+    },
+    {
+      "scene": 3,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "smoke plume rising from open field near airport disaster site",
+      "after_query": "thick smoke plume rising from open field near airport",
+      "must_have": [
+        "smoke",
+        "ground"
+      ],
+      "avoid": [
+        "happy landing",
+        "blue sky only",
+        "water crash"
+      ],
+      "shot_type": "wide environment",
+      "reason": "Depicts the immediate aftermath of the crash in a field shortly after takeoff."
+    },
+    {
+      "scene": 4,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "investigation site rope barrier and smoke aviation accident",
+      "after_query": "aviation accident investigation site with emergency lights and smoke",
+      "must_have": [
+        "emergency lights",
+        "smoke"
+      ],
+      "avoid": [
+        "people smiling",
+        "bright sunny day",
+        "party"
+      ],
+      "shot_type": "environment",
+      "reason": "Represents the scale of the fatal accident site without violating safety or privacy rules."
+    },
+    {
+      "scene": 5,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "ntsb aircraft accident investigation report papers and schematics",
+      "after_query": "ntsb aircraft accident investigation report papers and engine schematics",
+      "must_have": [
+        "mechanic",
+        "airplane engine"
+      ],
+      "avoid": [
+        "computer programmer",
+        "kitchen",
+        "office desk"
+      ],
+      "shot_type": "document/evidence",
+      "reason": "Focuses on the investigative conclusions regarding maintenance practices."
+    },
+    {
+      "scene": 6,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "metal fatigue crack on aircraft engine pylon close up",
+      "after_query": "metal fatigue crack on vintage aircraft engine pylon close up",
+      "must_have": [
+        "metal",
+        "crack"
+      ],
+      "avoid": [
+        "plastic toy",
+        "wooden log",
+        "glass"
+      ],
+      "shot_type": "object close-up",
+      "reason": "Highlights the specific mechanical failure of fatigue cracks on the engine pylon."
+    },
+    {
+      "scene": 7,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "unlit 1970s airliner cockpit instrument panel dark",
+      "after_query": "unlit 1970s airliner cockpit instrument panel dark and quiet",
+      "must_have": [
+        "cockpit",
+        "instrument panel"
+      ],
+      "avoid": [
+        "bright daylight",
+        "car dashboard",
+        "modern spaceship"
+      ],
+      "shot_type": "people/context",
+      "reason": "Illustrates the loss of electrical power on the commander's panel."
+    },
+    {
+      "scene": 8,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "vintage aircraft analog cockpit gauges and dials",
+      "after_query": "vintage aircraft analog cockpit gauges and dials close up",
+      "must_have": [
+        "gauges",
+        "cockpit"
+      ],
+      "avoid": [
+        "digital tablet",
+        "smartphone",
+        "kitchen stove"
+      ],
+      "shot_type": "object close-up",
+      "reason": "Focuses visually on the instrument failure mentioned in the narrative."
+    },
+    {
+      "scene": 9,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "aircraft hydraulic line fitting and fluid leak detail",
+      "after_query": "aircraft hydraulic line fitting and fluid leak detail view",
+      "must_have": [
+        "airplane wing",
+        "metal mechanism"
+      ],
+      "avoid": [
+        "water faucet",
+        "car engine",
+        "garden hose"
+      ],
+      "shot_type": "object close-up",
+      "reason": "Shows hydraulic fluid loss mechanism inside the wing structure."
+    },
+    {
+      "scene": 10,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "aerodynamic airflow diagram over aircraft wing cross section",
+      "after_query": "aerodynamic airflow diagram over vintage aircraft wing cross section",
+      "must_have": [
+        "wing",
+        "airflow"
+      ],
+      "avoid": [
+        "bird flying",
+        "kite",
+        "sail boat"
+      ],
+      "shot_type": "document/evidence",
+      "reason": "Visualizes the aerodynamic concept of increased stall speed on the left wing."
+    },
+    {
+      "scene": 11,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "commercial airliner banking steeply left toward ground simulation",
+      "after_query": "commercial airliner banking steeply left toward ground in flight",
+      "must_have": [
+        "airplane",
+        "ground"
+      ],
+      "avoid": [
+        "smooth flight",
+        "sunset cruise",
+        "spacecraft"
+      ],
+      "shot_type": "rescue/action",
+      "reason": "Captures the abrupt left turn and collision path toward the ground."
+    },
+    {
+      "scene": 12,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "historical aviation investigation books and documents on wooden table",
+      "after_query": "historical aviation investigation books and documents on wooden table",
+      "must_have": [
+        "books",
+        "airplane model"
+      ],
+      "avoid": [
+        "smartphone screen",
+        "social media icons",
+        "modern laptop",
+        "thumbs up"
+      ],
+      "shot_type": "document/evidence",
+      "reason": "Provides a concluding historical documentation shot suitable for the channel sign-off."
+    }
+  ]
+}

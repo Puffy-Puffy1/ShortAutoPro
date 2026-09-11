@@ -1,0 +1,226 @@
+{
+  "short_id": "2026-08-31_0126",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_pre_visual_2026-08-31_0126.json",
+  "shot_repetitions": 2,
+  "scenes": [
+    {
+      "scene": 1,
+      "before_score": 70,
+      "after_score": 70,
+      "before_query": "dark rustic fireplace burning in old german farmhouse interior",
+      "after_query": "dark rustic fireplace burning inside old german farmhouse interior",
+      "must_have": [
+        "fireplace",
+        "fire"
+      ],
+      "avoid": [
+        "modern",
+        "neon",
+        "people"
+      ],
+      "shot_type": "medium shot",
+      "reason": "O objeto principal é a lareira acesa mencionada na ação do assassino."
+    },
+    {
+      "scene": 2,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "vintage 1920s German rural farmhouse covered in snow aerial view",
+      "after_query": "vintage 1920s German rural farmhouse covered in snow aerial view",
+      "must_have": [
+        "farmhouse",
+        "snow"
+      ],
+      "avoid": [
+        "skyscraper",
+        "car",
+        "beach"
+      ],
+      "shot_type": "wide shot",
+      "reason": "Estabelece o local e época exatos do evento histórico."
+    },
+    {
+      "scene": 3,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "old rusty agricultural hoe tool resting on dark wooden floor",
+      "after_query": "old rusty agricultural hoe tool resting on dark wooden floor",
+      "must_have": [
+        "hoe",
+        "tool"
+      ],
+      "avoid": [
+        "knife",
+        "gun",
+        "blood"
+      ],
+      "shot_type": "close-up",
+      "reason": "Representa o instrumento do crime citado sem violar diretrizes de violência explícita."
+    },
+    {
+      "scene": 4,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "elderly man with beard wearing vintage 1920s winter coat outdoor",
+      "after_query": "elderly man with beard wearing vintage 1920s winter coat outdoor",
+      "must_have": [
+        "elderly man",
+        "coat"
+      ],
+      "avoid": [
+        "smartphone",
+        "car",
+        "woman"
+      ],
+      "shot_type": "medium shot",
+      "reason": "Retrata o patriarca Andreas Gruber com vestimenta de época."
+    },
+    {
+      "scene": 5,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "footprints in deep snow leading into dark pine forest",
+      "after_query": "footprints in deep snow leading into dark pine forest",
+      "must_have": [
+        "footprints",
+        "snow",
+        "forest"
+      ],
+      "avoid": [
+        "sun",
+        "summer",
+        "beach"
+      ],
+      "shot_type": "wide shot",
+      "reason": "Foca nas pegadas na neve vindas da floresta conforme o relato."
+    },
+    {
+      "scene": 6,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "dark dusty attic interior with wooden beams and moonlight",
+      "after_query": "dark dusty attic interior with wooden beams and moonlight",
+      "must_have": [
+        "attic",
+        "beams"
+      ],
+      "avoid": [
+        "bright",
+        "modern",
+        "clean"
+      ],
+      "shot_type": "wide shot",
+      "reason": "Mostra o sótão onde os passos foram ouvidos."
+    },
+    {
+      "scene": 7,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "dark eerie farmhouse window at night with dim interior light",
+      "after_query": "dark eerie farmhouse window at night with dim interior light",
+      "must_have": [
+        "window",
+        "house"
+      ],
+      "avoid": [
+        "bright daylight",
+        "crowd",
+        "city"
+      ],
+      "shot_type": "medium shot",
+      "reason": "Evidencia a propriedade indicando permanência humana após o massacre."
+    },
+    {
+      "scene": 8,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "chimney smoke coming out of old rustic house roof in winter",
+      "after_query": "chimney smoke coming out of old rustic house roof in winter",
+      "must_have": [
+        "smoke",
+        "chimney",
+        "roof"
+      ],
+      "avoid": [
+        "factory",
+        "city",
+        "car"
+      ],
+      "shot_type": "medium shot",
+      "reason": "Ilustra diretamente a fumaça saindo da chaminé vista pelos vizinhos."
+    },
+    {
+      "scene": 9,
+      "before_score": 70,
+      "after_score": 70,
+      "before_query": "vintage 1920s police files and old documents on wooden table",
+      "after_query": "vintage 1920s police investigative files and documents on wooden table",
+      "must_have": [
+        "documents",
+        "table"
+      ],
+      "avoid": [
+        "computer",
+        "smartphone",
+        "neon"
+      ],
+      "shot_type": "close-up",
+      "reason": "Representa a investigação policial através de documentos de época."
+    },
+    {
+      "scene": 10,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "vintage 1910s military helmet and old sepia portrait photograph",
+      "after_query": "vintage archival case documents and partially visible old photograph",
+      "must_have": [
+        "document",
+        "photograph"
+      ],
+      "avoid": [
+        "modern soldier",
+        "smartphone",
+        "car"
+      ],
+      "shot_type": "close-up",
+      "reason": "Remete ao ex-marido dado como morto na Primeira Guerra Mundial usando elementos da época."
+    },
+    {
+      "scene": 11,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "foggy German countryside road leading into dark winter woods",
+      "after_query": "foggy German countryside road leading into dark winter woods",
+      "must_have": [
+        "road",
+        "fog",
+        "woods"
+      ],
+      "avoid": [
+        "highway",
+        "traffic",
+        "city"
+      ],
+      "shot_type": "wide shot",
+      "reason": "Contextualiza visualmente o ambiente rural isolado e o mistério sem solução."
+    },
+    {
+      "scene": 12,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "dark ominous German forest silhouette against grey winter twilight sky",
+      "after_query": "dark ominous German forest silhouette against grey winter twilight sky",
+      "must_have": [
+        "forest",
+        "trees"
+      ],
+      "avoid": [
+        "smartphone",
+        "computer",
+        "social media icons"
+      ],
+      "shot_type": "wide shot",
+      "reason": "Cria um encerramento atmosférico e misterioso compatível com o tom do vídeo."
+    }
+  ]
+}

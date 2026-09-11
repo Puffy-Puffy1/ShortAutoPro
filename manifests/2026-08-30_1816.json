@@ -1,0 +1,276 @@
+{
+  "short_id": "2026-08-30_1816",
+  "created_at": "2026-08-30T18:25:33.003102",
+  "status": "QUALITY_PASS",
+  "topic": "O Desaparecimento de Agatha Christie",
+  "hook": "Por que a maior escritora policial do mundo desapareceu por onze dias?",
+  "script": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/short_2026-08-30_1816.txt",
+    "text": "Por que a maior escritora policial do mundo desapareceu por onze dias? Em 3 de dezembro de 1926, após o marido revelar o desejo de divórcio, Agatha Christie abandonou sua residência. Na manhã seguinte, seu automóvel foi achado abandonado na beira de um lago com os faróis acesos, casaco de pele e documentos dentro. Uma busca gigante mobilizou quinze mil voluntários e até aviões. Onze dias depois, ela foi descoberta hospedada em um hotel. A escritora usava o sobrenome da amante do marido e alegou sofrer de amnésia ao ser reconhecida. Teorias sugerem que o episódio foi um golpe publicitário ou uma tentativa de vingança, enquanto o mistério real continua debatido. Qual é a sua teoria favorita sobre esse caso? Deixe nos comentários!"
+  },
+  "source": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/fonte_2026-08-30_1816.txt"
+  },
+  "publish": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/publish_2026-08-30_1816.json",
+    "chosen_title": "",
+    "titles": [],
+    "description": "",
+    "hashtags": [],
+    "pinned_comment": ""
+  },
+  "scenes": {
+    "map_path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_2026-08-30_1816.json",
+    "count": 12,
+    "physical_count": 12,
+    "items": [
+      {
+        "scene": 1,
+        "segment": "Por que a maior escritora policial do mundo desapareceu por onze dias?",
+        "query": "vintage 1920s detective notebook and fountain pen on desk",
+        "must_have": [
+          "notebook",
+          "pen"
+        ],
+        "avoid": [
+          "modern laptop",
+          "smartphone",
+          "neon lights"
+        ],
+        "words": 12,
+        "weight": 0.0975609756097561,
+        "visual_mode": "object",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 2,
+        "segment": "Em 3 de dezembro de 1926, após o marido revelar o desejo de divórcio,",
+        "query": "1926 vintage British marriage certificate legal document close up",
+        "must_have": [
+          "document",
+          "paper"
+        ],
+        "avoid": [
+          "happy couple",
+          "modern clothing",
+          "bright sunlight"
+        ],
+        "words": 14,
+        "weight": 0.11382113821138211,
+        "visual_mode": "document",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 3,
+        "segment": "Agatha Christie abandonou sua residência.",
+        "query": "old English country house exterior facade in the fog",
+        "must_have": [
+          "house",
+          "fog"
+        ],
+        "avoid": [
+          "skyscraper",
+          "modern car",
+          "neon sign"
+        ],
+        "words": 5,
+        "weight": 0.04065040650406504,
+        "visual_mode": "architecture",
+        "shot_type": "wide"
+      },
+      {
+        "scene": 4,
+        "segment": "Na manhã seguinte, seu automóvel foi achado abandonado na beira de um lago",
+        "query": "vintage classic car abandoned near misty lake shore",
+        "must_have": [
+          "vintage car",
+          "lake"
+        ],
+        "avoid": [
+          "modern car",
+          "city street",
+          "airplane"
+        ],
+        "words": 13,
+        "weight": 0.10569105691056911,
+        "visual_mode": "transport",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 5,
+        "segment": "com os faróis acesos, casaco de pele e documentos dentro.",
+        "query": "vintage fur coat left on classic car seat interior",
+        "must_have": [
+          "fur coat",
+          "car interior"
+        ],
+        "avoid": [
+          "smartphone",
+          "plastic bag",
+          "modern backpack"
+        ],
+        "words": 10,
+        "weight": 0.08130081300813008,
+        "visual_mode": "evidence",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 6,
+        "segment": "Uma busca gigante mobilizou quinze mil voluntários",
+        "query": "large crowd of volunteer searchers walking through 1920s forest",
+        "must_have": [
+          "crowd",
+          "forest"
+        ],
+        "avoid": [
+          "modern stadium",
+          "police car",
+          "urban city"
+        ],
+        "words": 7,
+        "weight": 0.056910569105691054,
+        "visual_mode": "human_context",
+        "shot_type": "wide"
+      },
+      {
+        "scene": 7,
+        "segment": "e até aviões.",
+        "query": "vintage 1920s biplane flying over misty British countryside",
+        "must_have": [
+          "biplane",
+          "sky"
+        ],
+        "avoid": [
+          "modern jet",
+          "helicopter",
+          "drone"
+        ],
+        "words": 3,
+        "weight": 0.024390243902439025,
+        "visual_mode": "transport",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 8,
+        "segment": "Onze dias depois, ela foi descoberta hospedada em um hotel.",
+        "query": "classic luxury vintage hotel building exterior facade 1920s",
+        "must_have": [
+          "hotel",
+          "vintage building"
+        ],
+        "avoid": [
+          "modern motel",
+          "tent",
+          "beach resort"
+        ],
+        "words": 10,
+        "weight": 0.08130081300813008,
+        "visual_mode": "architecture",
+        "shot_type": "wide"
+      },
+      {
+        "scene": 9,
+        "segment": "A escritora usava o sobrenome da amante do marido",
+        "query": "vintage hotel guest registry book with handwriting ink pen",
+        "must_have": [
+          "registry book",
+          "pen"
+        ],
+        "avoid": [
+          "computer screen",
+          "tablet",
+          "digital kiosk"
+        ],
+        "words": 9,
+        "weight": 0.07317073170731707,
+        "visual_mode": "document",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 10,
+        "segment": "e alegou sofrer de amnesia ao ser reconhecida.",
+        "query": "vintage hotel room interior looking out rainy window",
+        "must_have": [
+          "window",
+          "room"
+        ],
+        "avoid": [
+          "smiling person",
+          "bright party",
+          "modern office",
+          "detailed alien spacecraft",
+          "flying saucer",
+          "visible ghost",
+          "alien creature"
+        ],
+        "words": 8,
+        "weight": 0.06504065040650407,
+        "visual_mode": "location",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 11,
+        "segment": "Teorias sugerem que o episódio foi um golpe publicitário ou uma tentativa de vingança,",
+        "query": "vintage 1920s newspaper headlines old newsprint macro shot",
+        "must_have": [
+          "newspaper",
+          "text"
+        ],
+        "avoid": [
+          "modern magazine",
+          "smartphone screen",
+          "laptop",
+          "detailed alien spacecraft",
+          "flying saucer",
+          "visible ghost",
+          "alien creature"
+        ],
+        "words": 14,
+        "weight": 0.11382113821138211,
+        "visual_mode": "document",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 12,
+        "segment": "enquanto o mistério real continua debatido. Qual é a sua teoria favorita sobre esse caso? Deixe nos comentários!",
+        "query": "mysterious vintage foggy London street at dusk historical",
+        "must_have": [
+          "fog",
+          "street"
+        ],
+        "avoid": [
+          "modern traffic",
+          "neon lights",
+          "smartphone",
+          "detailed alien spacecraft",
+          "flying saucer",
+          "visible ghost",
+          "alien creature"
+        ],
+        "words": 18,
+        "weight": 0.14634146341463414,
+        "visual_mode": "abstract_context",
+        "shot_type": "wide"
+      }
+    ]
+  },
+  "video": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/videos/short_v6_2026-08-30_1816.mp4",
+    "version": "V6",
+    "duration_seconds": 41.366667,
+    "width": 1080,
+    "height": 1920,
+    "fps": 30.0,
+    "video_codec": "h264",
+    "audio_codec": "aac"
+  },
+  "quality": {
+    "video_exists": true,
+    "scene_map_count": 12,
+    "physical_scene_count": 12,
+    "resolution_ok": true,
+    "fps_ok": true,
+    "audio_exists": true
+  },
+  "log": "/data/data/com.termux/files/home/ShortAutoPro/logs/producao/short_2026-08-30_1816.log"
+}

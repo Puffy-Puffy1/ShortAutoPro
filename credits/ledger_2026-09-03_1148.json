@@ -1,0 +1,27 @@
+{
+  "short_id": "2026-09-03_1148",
+  "total_scene_credits": 2,
+  "unique_assets": 2,
+  "assets": [
+    {
+      "scene": 1,
+      "source": "Wikimedia Commons",
+      "author": "User:Simtropolitan",
+      "license": "CC BY 3.0",
+      "page": "https://commons.wikimedia.org/wiki/File:Steins_and_entrance_to_front_bar_room_of_The_Student_Prince_(Springfield,_Massachusetts).jpg",
+      "scenes": [
+        1
+      ]
+    },
+    {
+      "scene": 7,
+      "source": "Wikimedia Commons",
+      "author": "Bryan Green",
+      "license": "CC BY-SA 2.0",
+      "page": "https://commons.wikimedia.org/wiki/File:Brian_Shaffer.jpg",
+      "scenes": [
+        7
+      ]
+    }
+  ]
+}

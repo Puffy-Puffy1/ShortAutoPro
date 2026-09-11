@@ -1,0 +1,75 @@
+{
+  "short_id": "2026-08-31_0126",
+  "selected": {
+    "topic": "Caso Hinterkaifeck",
+    "score": 76.93,
+    "gemini": {
+      "curiosity": 10.0,
+      "visual": 9.0,
+      "documentation": 9.0,
+      "retention": 10.0,
+      "comment_potential": 10.0
+    },
+    "objective": {
+      "visual": 5.0,
+      "hook": 5.0,
+      "documentation": 10.0,
+      "title_match": 10.0,
+      "novelty": 8.91
+    },
+    "wiki_title": "Hinterkaifeck",
+    "wiki_chars": 23481,
+    "wiki_similarity": 1.0
+  },
+  "ranking": [
+    {
+      "topic": "Caso Hinterkaifeck",
+      "score": 76.93,
+      "gemini": {
+        "curiosity": 10.0,
+        "visual": 9.0,
+        "documentation": 9.0,
+        "retention": 10.0,
+        "comment_potential": 10.0
+      },
+      "objective": {
+        "visual": 5.0,
+        "hook": 5.0,
+        "documentation": 10.0,
+        "title_match": 10.0,
+        "novelty": 8.91
+      },
+      "wiki_title": "Hinterkaifeck",
+      "wiki_chars": 23481,
+      "wiki_similarity": 1.0
+    }
+  ],
+  "verification": [
+    {
+      "topic": "Caso Hinterkaifeck",
+      "approved": true,
+      "score": 76.93,
+      "wiki_title": "Hinterkaifeck"
+    },
+    {
+      "topic": "Voynich Manuscript",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "Caso Tamam Shud",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "Homem de Somerton",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O Desaparecimento de Maura Murray",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "short_id": "2026-09-01_0324",
+  "version": "6.7",
+  "changed": 1,
+  "changes": [
+    {
+      "scene": 12,
+      "segment": "Se inscreve para mais histórias reais da aviação.",
+      "before": {
+        "query": "old vintage aviation books and airplane model on wooden desk",
+        "must_have": [
+          "books",
+          "airplane model"
+        ],
+        "visual_mode": null
+      },
+      "after": {
+        "query": "old vintage aviation books and airplane model on wooden desk",
+        "must_have": [
+          "books",
+          "airplane model"
+        ],
+        "visual_mode": "cta_reuse"
+      },
+      "reason": "reuse_verified_story_visual"
+    }
+  ],
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_pre_truth_refiner_2026-09-01_0324.json"
+}

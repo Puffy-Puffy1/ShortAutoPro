@@ -1,0 +1,18 @@
+{
+  "short_id": "2026-08-31_1929",
+  "total_score": 90.4,
+  "level": "EXCELLENT",
+  "components": {
+    "script": 21.0,
+    "hook": 23.0,
+    "visual_technical": 30.0,
+    "publish": 16.4
+  },
+  "details": {
+    "script_words": 118,
+    "long_sentences": 2,
+    "scene_count": 12,
+    "physical_scene_count": 12,
+    "duration_seconds": 40.566667
+  }
+}

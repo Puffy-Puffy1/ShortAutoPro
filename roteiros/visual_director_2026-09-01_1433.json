@@ -1,0 +1,213 @@
+{
+  "short_id": "2026-09-01_1433",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_pre_visual_2026-09-01_1433.json",
+  "shot_repetitions": 0,
+  "scenes": [
+    {
+      "scene": 1,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "vintage hotel elevator interior doors closing suspense",
+      "after_query": "vintage hotel elevator interior doors closing suspense",
+      "must_have": [
+        "elevator",
+        "doors"
+      ],
+      "avoid": [
+        "modern smartphone",
+        "bright daylight"
+      ],
+      "shot_type": "medium shot",
+      "reason": "Mostra o interior do elevador conforme mencionado na narração."
+    },
+    {
+      "scene": 2,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "historic old hotel facade los angeles street view",
+      "after_query": "historic old hotel facade los angeles street view",
+      "must_have": [
+        "hotel",
+        "building"
+      ],
+      "avoid": [
+        "modern skyscraper",
+        "beach"
+      ],
+      "shot_type": "wide establishing shot",
+      "reason": "Estabelece a locação histórica do Hotel Cecil em Los Angeles."
+    },
+    {
+      "scene": 3,
+      "before_score": 70,
+      "after_score": 70,
+      "before_query": "police tape crime scene corridor dark moody",
+      "after_query": "empty dark hotel hallway corridor with vintage doors",
+      "must_have": [
+        "hallway",
+        "door"
+      ],
+      "avoid": [
+        "sunny park",
+        "happy people"
+      ],
+      "shot_type": "medium shot",
+      "reason": "Retrata o corredor escuro nos dias anteriores ao ocorrido sem apelar para fita policial fictícia."
+    },
+    {
+      "scene": 4,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "old cctv security camera mounted on wall",
+      "after_query": "old cctv security camera mounted on wall",
+      "must_have": [
+        "security camera",
+        "lens"
+      ],
+      "avoid": [
+        "smartphone screen",
+        "computer monitor"
+      ],
+      "shot_type": "close-up shot",
+      "reason": "Ilustra diretamente a câmera de segurança citada na frase."
+    },
+    {
+      "scene": 5,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "woman stepping inside old elevator car doors",
+      "after_query": "woman stepping inside old elevator car doors",
+      "must_have": [
+        "woman",
+        "elevator"
+      ],
+      "avoid": [
+        "face close up",
+        "modern office"
+      ],
+      "shot_type": "medium shot",
+      "reason": "Representa genericamente a pessoa entrando e saindo do elevador."
+    },
+    {
+      "scene": 6,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "person hiding corner dark hallway shadows",
+      "after_query": "person hiding corner dark hallway shadows",
+      "must_have": [
+        "corner",
+        "shadows"
+      ],
+      "avoid": [
+        "bright lights",
+        "smiling face"
+      ],
+      "shot_type": "medium shot",
+      "reason": "Captura a ideia de se esconder nas sombras do corredor."
+    },
+    {
+      "scene": 7,
+      "before_score": 70,
+      "after_score": 70,
+      "before_query": "elevator buttons flashing glitch dark interior",
+      "after_query": "old elevator control panel buttons vintage interior",
+      "must_have": [
+        "buttons",
+        "panel"
+      ],
+      "avoid": [
+        "repairman tools",
+        "modern touchscreen"
+      ],
+      "shot_type": "close-up shot",
+      "reason": "Foca no painel do elevador para ilustrar o mau funcionamento."
+    },
+    {
+      "scene": 8,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "mysterious fog over dark hotel hallway cinematic",
+      "after_query": "mysterious fog over dark hotel hallway cinematic",
+      "must_have": [
+        "hallway",
+        "fog"
+      ],
+      "avoid": [
+        "cartoon ghosts",
+        "daylight"
+      ],
+      "shot_type": "wide shot",
+      "reason": "Usa elementos ambíguos de luz e sombra para representar especulações sem criar fatos sobrenaturais visuais."
+    },
+    {
+      "scene": 9,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "empty medicine bottles on dark wooden table",
+      "after_query": "prescription medicine bottles on dark wooden table",
+      "must_have": [
+        "bottles",
+        "table"
+      ],
+      "avoid": [
+        "hospital doctor",
+        "patient face"
+      ],
+      "shot_type": "close-up shot",
+      "reason": "Representa contextualmente a questão médica e o transtorno mencionado."
+    },
+    {
+      "scene": 10,
+      "before_score": 70,
+      "after_score": 70,
+      "before_query": "industrial rooftop water towers dark atmosphere",
+      "after_query": "industrial rooftop water towers dark atmosphere",
+      "must_have": [
+        "water tower",
+        "roof"
+      ],
+      "avoid": [
+        "swimming pool",
+        "beach"
+      ],
+      "shot_type": "wide shot",
+      "reason": "Mostra o topo do hotel e os tanques de água onde a descoberta ocorreu."
+    },
+    {
+      "scene": 11,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "large metal water tank on hotel rooftop",
+      "after_query": "large metal water tank on hotel rooftop",
+      "must_have": [
+        "water tank",
+        "rooftop"
+      ],
+      "avoid": [
+        "indoor plumbing",
+        "kitchen sink"
+      ],
+      "shot_type": "medium shot",
+      "reason": "Foca no tanque de água específico mencionado no segmento."
+    },
+    {
+      "scene": 12,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "official paper document file dark background cinematic",
+      "after_query": "official paper document file dark background cinematic",
+      "must_have": [
+        "paper",
+        "document"
+      ],
+      "avoid": [
+        "computer screen",
+        "typing hands",
+        "social media icon",
+        "thumbs up"
+      ],
+      "shot_type": "close-up shot",
+      "reason": "Representa o relatório oficial da autópsia citado no encerramento."
+    }
+  ]
+}

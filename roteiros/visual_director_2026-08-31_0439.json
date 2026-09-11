@@ -1,0 +1,212 @@
+{
+  "short_id": "2026-08-31_0439",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_pre_visual_2026-08-31_0439.json",
+  "shot_repetitions": 0,
+  "scenes": [
+    {
+      "scene": 1,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "historic military airfield 1947 usa, desert landscape",
+      "after_query": "vintage military airfield hangars 1947 new mexico desert",
+      "must_have": [
+        "airfield",
+        "desert"
+      ],
+      "avoid": [
+        "spaceship",
+        "alien",
+        "modern jets"
+      ],
+      "shot_type": "wide establishing shot",
+      "reason": "Mostra a base aérea no contexto desértico histórico."
+    },
+    {
+      "scene": 2,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "vintage military press release typewriter document 1947",
+      "after_query": "vintage military press release typewriter document 1947",
+      "must_have": [
+        "document",
+        "typewriter"
+      ],
+      "avoid": [
+        "alien",
+        "futuristic"
+      ],
+      "shot_type": "close-up",
+      "reason": "Foco em documentos e na atmosfera de comunicação oficial."
+    },
+    {
+      "scene": 3,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "1947 newspaper front page headline crash debris new mexico",
+      "after_query": "1947 vintage newspaper front page headline crash debris",
+      "must_have": [
+        "newspaper",
+        "headline"
+      ],
+      "avoid": [
+        "modern tablet",
+        "smartphone"
+      ],
+      "shot_type": "insert shot",
+      "reason": "Representa o comunicado oficial impresso na época."
+    },
+    {
+      "scene": 4,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "historical meteorological weather balloon equipment 1940s",
+      "after_query": "historical meteorological weather balloon equipment 1940s desert",
+      "must_have": [
+        "balloon",
+        "equipment"
+      ],
+      "avoid": [
+        "spaceship",
+        "flying saucer"
+      ],
+      "shot_type": "medium shot",
+      "reason": "Ilustra o balão meteorológico mencionado na retração."
+    },
+    {
+      "scene": 5,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "archive boxes research papers ufology history 1970s",
+      "after_query": "archive boxes research papers office 1970s investigation",
+      "must_have": [
+        "archive",
+        "boxes"
+      ],
+      "avoid": [
+        "modern computer",
+        "smartphone"
+      ],
+      "shot_type": "environment shot",
+      "reason": "Retrata a retomada do caso em arquivos nas décadas seguintes."
+    },
+    {
+      "scene": 6,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "declassified project mogul report top secret documents",
+      "after_query": "declassified project mogul report top secret documents 1990s",
+      "must_have": [
+        "documents",
+        "text"
+      ],
+      "avoid": [
+        "alien",
+        "spaceship"
+      ],
+      "shot_type": "document close-up",
+      "reason": "Foco em relatórios oficiais desclassificados."
+    },
+    {
+      "scene": 7,
+      "before_score": 70,
+      "after_score": 70,
+      "before_query": "historical crash test dummy mannequin high altitude test",
+      "after_query": "historical crash test dummy mannequin old laboratory equipment",
+      "must_have": [
+        "mannequin",
+        "laboratory"
+      ],
+      "avoid": [
+        "real alien",
+        "green monster"
+      ],
+      "shot_type": "medium shot",
+      "reason": "Mostra os bonecos de teste utilizados nas explicações oficiais."
+    },
+    {
+      "scene": 8,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "mysterious shadow silhouette dark mystery concept",
+      "after_query": "mysterious shadow silhouette dark mystery concept room",
+      "must_have": [
+        "shadow",
+        "dark"
+      ],
+      "avoid": [
+        "visible alien",
+        "happy people"
+      ],
+      "shot_type": "atmospheric shot",
+      "reason": "Evoca o clima de mistério e teorias da conspiração."
+    },
+    {
+      "scene": 9,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "vintage typewriter on wooden desk historical office",
+      "after_query": "vintage typewriter on wooden desk historical office interior",
+      "must_have": [
+        "typewriter",
+        "desk"
+      ],
+      "avoid": [
+        "smartphone screen",
+        "youtube interface"
+      ],
+      "shot_type": "object close-up",
+      "reason": "Cena de transição neutra e clássica para interação."
+    },
+    {
+      "scene": 10,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "official government stamped closed case document folder",
+      "after_query": "official government stamped closed case document folder vintage",
+      "must_have": [
+        "document",
+        "stamp"
+      ],
+      "avoid": [
+        "alien",
+        "spaceship"
+      ],
+      "shot_type": "insert shot",
+      "reason": "Representa o encerramento oficial da investigação."
+    },
+    {
+      "scene": 11,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "desert night sky full of stars milky way",
+      "after_query": "desert night sky full of stars milky way landscape",
+      "must_have": [
+        "night sky",
+        "stars"
+      ],
+      "avoid": [
+        "daytime",
+        "bright sun"
+      ],
+      "shot_type": "wide landscape shot",
+      "reason": "Mantém o apelo visual do mistério noturno no deserto."
+    },
+    {
+      "scene": 12,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "welcome to roswell new mexico road sign highway",
+      "after_query": "welcome to roswell new mexico road sign highway desert",
+      "must_have": [
+        "road sign",
+        "highway"
+      ],
+      "avoid": [
+        "city traffic",
+        "skyscraper"
+      ],
+      "shot_type": "establishing shot",
+      "reason": "Encerra com a icônica placa de boas-vindas da cidade."
+    }
+  ]
+}

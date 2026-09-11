@@ -1,0 +1,33 @@
+{
+  "hooks": [
+    {
+      "text": "Um estudante de medicina entrou em um bar e simplesmente nunca mais foi visto.",
+      "curiosity": 9,
+      "clarity": 10,
+      "factuality": 10,
+      "retention": 9,
+      "local_retention_score": 72.0,
+      "combined_score": 79.7
+    },
+    {
+      "text": "Ele entrou em um bar monitorado, mas as câmeras nunca o registraram saindo.",
+      "curiosity": 10,
+      "clarity": 10,
+      "factuality": 10,
+      "retention": 10,
+      "local_retention_score": 76.0,
+      "combined_score": 85.6
+    },
+    {
+      "text": "Como alguém desaparece de dentro de um bar sem nenhuma saída pública?",
+      "curiosity": 9,
+      "clarity": 9,
+      "factuality": 10,
+      "retention": 9,
+      "local_retention_score": 78.0,
+      "combined_score": 82.8
+    }
+  ],
+  "chosen": 2,
+  "final_script": "Ele entrou em um bar monitorado, mas as câmeras nunca o registraram saindo. Nas primeiras horas de primeiro de abril de 2006, Brian Shaffer desapareceu em Columbus, Ohio. Câmeras registraram sua chegada, mas nenhuma imagem mostrou sua saída. O local não tinha outras saídas públicas, exceto uma porta de serviço para uma área em construção. A polícia investigou várias hipóteses, incluindo desaparecimento voluntário. Meses depois, o celular de Brian emitiu sinal em outra torre, e uma mensagem misteriosa apareceu após a morte de seu pai. Até hoje, o paradeiro de Brian continua um mistério completo. Você acha que ele fugiu ou sumiu sem deixar rastros? Comente sua teoria."
+}

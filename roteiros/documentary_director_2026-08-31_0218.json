@@ -1,0 +1,222 @@
+{
+  "short_id": "2026-08-31_0218",
+  "topic": "O Desaparecimento de Elisa Lam",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_pre_documentary_2026-08-31_0218.json",
+  "visual_mode_triple_repetitions": 0,
+  "shot_triple_repetitions": 4,
+  "scenes": [
+    {
+      "scene": 1,
+      "segment": "Por que o último vídeo desta estudante no elevador chocou a internet inteira?",
+      "visual_mode": "document",
+      "shot_type": "medium",
+      "query_before": "vintage hotel elevator interior security camera footage style",
+      "query_after": "vintage hotel elevator interior security camera footage still",
+      "must_have": [
+        "elevator",
+        "security camera"
+      ],
+      "avoid": [
+        "modern smartphone",
+        "youtube logo",
+        "gamer"
+      ],
+      "reason": "Usa uma abordagem de registro de segurança real para contextualizar o vídeo famoso sem violar regras."
+    },
+    {
+      "scene": 2,
+      "segment": "Em fevereiro de 2013, a canadense Elisa Lam desapareceu em Los Angeles.",
+      "visual_mode": "location",
+      "shot_type": "wide",
+      "query_before": "los angeles city skyline street view historic building",
+      "query_after": "los angeles city skyline historic downtown street view 2013",
+      "must_have": [
+        "city",
+        "street"
+      ],
+      "avoid": [
+        "snow",
+        "beach",
+        "airplane"
+      ],
+      "reason": "Mostra a localização geográfica onde o caso ocorreu de forma neutra e factual."
+    },
+    {
+      "scene": 3,
+      "segment": "Dias antes, a polícia divulgou imagens dela no Hotel Cecil.",
+      "visual_mode": "architecture",
+      "shot_type": "medium",
+      "query_before": "old historic urban hotel facade exterior building",
+      "query_after": "historic Cecil hotel facade exterior building downtown Los Angeles",
+      "must_have": [
+        "hotel",
+        "building"
+      ],
+      "avoid": [
+        "modern house",
+        "forest",
+        "car"
+      ],
+      "reason": "Destaca a arquitetura real do Hotel Cecil mencionado no texto."
+    },
+    {
+      "scene": 4,
+      "segment": "Ela sai, entra, gesticula e parece se esconder,",
+      "visual_mode": "location",
+      "shot_type": "medium",
+      "query_before": "woman stepping inside old elevator car doorway",
+      "query_after": "vintage elevator doorway in historic hotel corridor",
+      "must_have": [
+        "elevator door"
+      ],
+      "avoid": [
+        "happy smiling person",
+        "bright colors",
+        "office"
+      ],
+      "reason": "Evita retratar diretamente a pessoa real conforme a regra 9, focando no local da ação relatada."
+    },
+    {
+      "scene": 5,
+      "segment": "enquanto o equipamento apresenta um funcionamento estranho.",
+      "visual_mode": "object",
+      "shot_type": "medium",
+      "query_before": "vintage elevator control panel buttons flickering light",
+      "query_after": "vintage elevator control panel buttons with old wiring",
+      "must_have": [
+        "elevator buttons"
+      ],
+      "avoid": [
+        "computer screen",
+        "digital display",
+        "smartphone"
+      ],
+      "reason": "Representa o equipamento citado no texto de forma mecânica e neutra."
+    },
+    {
+      "scene": 6,
+      "segment": "O vídeo viralizou e gerou teorias que variaram do paranormal",
+      "visual_mode": "abstract_context",
+      "shot_type": "medium",
+      "query_before": "dark eerie hallway hotel corridor mysterious shadow",
+      "query_after": "dark eerie hallway hotel corridor with mysterious shadow",
+      "must_have": [
+        "hallway",
+        "shadow"
+      ],
+      "avoid": [
+        "sunny park",
+        "kitchen",
+        "party"
+      ],
+      "reason": "Trata alegações controversas e paranormais de forma visualmente ambígua conforme a regra 8."
+    },
+    {
+      "scene": 7,
+      "segment": "ao transtorno bipolar da jovem.",
+      "visual_mode": "document",
+      "shot_type": "medium",
+      "query_before": "person sitting alone looking thoughtful through window",
+      "query_after": "medical records file paperwork on wooden desk",
+      "must_have": [
+        "papers",
+        "table"
+      ],
+      "avoid": [
+        "doctor office",
+        "hospital bed",
+        "medicine"
+      ],
+      "reason": "Aborda o histórico médico mencionado de forma documental sem inventar retratos ou cenas médicas fictícias."
+    },
+    {
+      "scene": 8,
+      "segment": "O corpo foi achado semanas depois por funcionários",
+      "visual_mode": "architecture",
+      "shot_type": "wide",
+      "query_before": "maintenance worker rooftop industrial building water tower",
+      "query_after": "industrial building rooftop and water tower structure",
+      "must_have": [
+        "rooftop"
+      ],
+      "avoid": [
+        "indoor office",
+        "shopping mall",
+        "beach"
+      ],
+      "reason": "Mostra o ambiente físico do telhado onde a investigação ocorreu."
+    },
+    {
+      "scene": 9,
+      "segment": "em um tanque de água no topo do prédio.",
+      "visual_mode": "evidence",
+      "shot_type": "medium",
+      "query_before": "large industrial metal water tank on rooftop",
+      "query_after": "large industrial metal water tank on building rooftop",
+      "must_have": [
+        "water tank",
+        "rooftop"
+      ],
+      "avoid": [
+        "swimming pool",
+        "indoor bathroom",
+        "kitchen sink"
+      ],
+      "reason": "Apresenta o objeto central da descoberta factual do corpo."
+    },
+    {
+      "scene": 10,
+      "segment": "O relatório oficial da autópsia apontou morte acidental",
+      "visual_mode": "document",
+      "shot_type": "medium",
+      "query_before": "official documents folder paperwork on dark table",
+      "query_after": "official coroner autopsy report documents on dark table",
+      "must_have": [
+        "papers",
+        "table"
+      ],
+      "avoid": [
+        "computer monitor",
+        "smartphone",
+        "happy people"
+      ],
+      "reason": "Usa um documento oficial para representar o relatório da autópsia citado no texto."
+    },
+    {
+      "scene": 11,
+      "segment": "sem trauma físico, mas o caso virou referência na cultura popular",
+      "visual_mode": "object",
+      "shot_type": "medium",
+      "query_before": "vintage television set static noise dark room",
+      "query_after": "vintage television set static noise in dark room",
+      "must_have": [
+        "television",
+        "dark room"
+      ],
+      "avoid": [
+        "modern smartphone",
+        "laptop",
+        "cinema popcorn"
+      ],
+      "reason": "Remete à cultura popular e referências midiáticas de forma abstrata e neutra."
+    },
+    {
+      "scene": 12,
+      "segment": "e deixou mistérios sem resposta. Qual a sua opinião sobre esse caso?",
+      "visual_mode": "architecture",
+      "shot_type": "wide",
+      "query_before": "historic hotel neon sign night moody atmosphere",
+      "query_after": "historic hotel neon sign at night moody atmosphere",
+      "must_have": [
+        "neon sign",
+        "night"
+      ],
+      "avoid": [
+        "happy bright day",
+        "social media icons",
+        "subscribe button"
+      ],
+      "reason": "Encerra com o ambiente atmosférico do hotel à noite, mantendo o tom documental e investigativo."
+    }
+  ]
+}

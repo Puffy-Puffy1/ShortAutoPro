@@ -1,0 +1,75 @@
+{
+  "short_id": "2026-08-31_1929",
+  "selected": {
+    "topic": "O assassinato de Elizabeth Short",
+    "score": 72.71,
+    "gemini": {
+      "curiosity": 10.0,
+      "visual": 9.0,
+      "documentation": 10.0,
+      "retention": 10.0,
+      "comment_potential": 10.0
+    },
+    "objective": {
+      "visual": 5.0,
+      "hook": 5.0,
+      "documentation": 8.0,
+      "title_match": 6.67,
+      "novelty": 8.46
+    },
+    "wiki_title": "Elizabeth Short",
+    "wiki_chars": 4699,
+    "wiki_similarity": 0.667
+  },
+  "ranking": [
+    {
+      "topic": "O assassinato de Elizabeth Short",
+      "score": 72.71,
+      "gemini": {
+        "curiosity": 10.0,
+        "visual": 9.0,
+        "documentation": 10.0,
+        "retention": 10.0,
+        "comment_potential": 10.0
+      },
+      "objective": {
+        "visual": 5.0,
+        "hook": 5.0,
+        "documentation": 8.0,
+        "title_match": 6.67,
+        "novelty": 8.46
+      },
+      "wiki_title": "Elizabeth Short",
+      "wiki_chars": 4699,
+      "wiki_similarity": 0.667
+    }
+  ],
+  "verification": [
+    {
+      "topic": "O assassinato de Elizabeth Short",
+      "approved": true,
+      "score": 72.71,
+      "wiki_title": "Elizabeth Short"
+    },
+    {
+      "topic": "O desaparecimento de Maura Murray",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O Homem de Somnerton",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O Caso Tamam Shud",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O desaparecimento dofarol de Ilhas Eilean Mor",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    }
+  ]
+}

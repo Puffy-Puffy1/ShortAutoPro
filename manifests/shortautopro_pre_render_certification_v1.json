@@ -1,0 +1,13 @@
+{
+  "status": "CERTIFIED",
+  "stage": "PRE_RENDER",
+  "midia_sha256": "626b28af9397c84fc1cced44fa1d6236c5cd62948712bc4403e2407593361d90",
+  "v6_sha256": "13d1444fc2ae0198f8f070ad98238a36d7c939c6db2572c462cd9b07712286e7",
+  "video_sha256": "756c0db576f664d474cb92676b4ad81737158f8a275bfad6348aa0a542d87b06",
+  "gerar_short_sha256": "25af0e189440d3646de8da8772535e00ac1e8446097f5db56ed93144ab45eb7a",
+  "fresh_partitions": 3,
+  "fresh_assets": 36,
+  "network": false,
+  "ffmpeg": false,
+  "video": false
+}

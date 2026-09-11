@@ -1,0 +1,75 @@
+{
+  "short_id": "2026-08-31_2102",
+  "selected": {
+    "topic": "O Incidente de Roswell",
+    "score": 74.47,
+    "gemini": {
+      "curiosity": 9.0,
+      "visual": 9.0,
+      "documentation": 9.0,
+      "retention": 9.0,
+      "comment_potential": 10.0
+    },
+    "objective": {
+      "visual": 5.0,
+      "hook": 5.0,
+      "documentation": 10.0,
+      "title_match": 10.0,
+      "novelty": 8.69
+    },
+    "wiki_title": "Caso Roswell",
+    "wiki_chars": 24468,
+    "wiki_similarity": 1.0
+  },
+  "ranking": [
+    {
+      "topic": "O Incidente de Roswell",
+      "score": 74.47,
+      "gemini": {
+        "curiosity": 9.0,
+        "visual": 9.0,
+        "documentation": 9.0,
+        "retention": 9.0,
+        "comment_potential": 10.0
+      },
+      "objective": {
+        "visual": 5.0,
+        "hook": 5.0,
+        "documentation": 10.0,
+        "title_match": 10.0,
+        "novelty": 8.69
+      },
+      "wiki_title": "Caso Roswell",
+      "wiki_chars": 24468,
+      "wiki_similarity": 1.0
+    }
+  ],
+  "verification": [
+    {
+      "topic": "As Cartas de Zodiac",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O Incidente de Roswell",
+      "approved": true,
+      "score": 74.47,
+      "wiki_title": "Caso Roswell"
+    },
+    {
+      "topic": "O Desaparecimento de Bobby Dunbar",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O Mistério de Isdal",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O Homem de Somnerton",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "schema": "SHORTAUTOPRO_SOURCE_PROVENANCE_V1",
+  "provider": "",
+  "title": "",
+  "license": "",
+  "artist": "",
+  "source_group": "",
+  "source_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9d/Brian_Shaffer.jpg/1280px-Brian_Shaffer.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "remote_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9d/Brian_Shaffer.jpg/1280px-Brian_Shaffer.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+  "local_path": "/data/data/com.termux/files/home/ShortAutoPro/imagens/short_2026-09-03_1148/scene_07.jpg",
+  "sha256": "664a90dead3534636b6f741cdfaa1ab659753da4433688628b4ac8055ea9cbce",
+  "bytes": 307310,
+  "suffix": ".jpg",
+  "capture_method": "baixar_candidato_5_2_hardened_v1",
+  "captured_at_unix": 1788447129.9888425,
+  "query_used_as_evidence": false,
+  "search_used_as_evidence": false,
+  "topic_used_as_evidence": false
+}

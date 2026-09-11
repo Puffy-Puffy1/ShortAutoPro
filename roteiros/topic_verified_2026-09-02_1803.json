@@ -1,0 +1,97 @@
+{
+  "short_id": "2026-09-02_1803",
+  "selected": {
+    "topic": "Gloria Ramirez",
+    "score": 73.55,
+    "gemini": {
+      "curiosity": 10.0,
+      "visual": 8.0,
+      "documentation": 10.0,
+      "retention": 9.0,
+      "comment_potential": 9.0
+    },
+    "objective": {
+      "visual": 5.0,
+      "hook": 5.0,
+      "documentation": 9.5,
+      "title_match": 10.0,
+      "novelty": 8.17
+    },
+    "wiki_title": "Morte de Gloria Ramirez",
+    "wiki_chars": 8906,
+    "wiki_similarity": 1.0
+  },
+  "ranking": [
+    {
+      "topic": "Gloria Ramirez",
+      "score": 73.55,
+      "gemini": {
+        "curiosity": 10.0,
+        "visual": 8.0,
+        "documentation": 10.0,
+        "retention": 9.0,
+        "comment_potential": 9.0
+      },
+      "objective": {
+        "visual": 5.0,
+        "hook": 5.0,
+        "documentation": 9.5,
+        "title_match": 10.0,
+        "novelty": 8.17
+      },
+      "wiki_title": "Morte de Gloria Ramirez",
+      "wiki_chars": 8906,
+      "wiki_similarity": 1.0
+    },
+    {
+      "topic": "Max Headroom broadcast intrusion",
+      "score": 71.28,
+      "gemini": {
+        "curiosity": 9.0,
+        "visual": 10.0,
+        "documentation": 10.0,
+        "retention": 9.0,
+        "comment_potential": 9.0
+      },
+      "objective": {
+        "visual": 5.0,
+        "hook": 5.0,
+        "documentation": 9.5,
+        "title_match": 5.0,
+        "novelty": 8.81
+      },
+      "wiki_title": "Incidente Max Headroom",
+      "wiki_chars": 9991,
+      "wiki_similarity": 0.5
+    }
+  ],
+  "verification": [
+    {
+      "topic": "Max Headroom broadcast intrusion",
+      "approved": true,
+      "score": 71.28,
+      "wiki_title": "Incidente Max Headroom"
+    },
+    {
+      "topic": "Gloria Ramirez",
+      "approved": true,
+      "score": 73.55,
+      "wiki_title": "Morte de Gloria Ramirez"
+    },
+    {
+      "topic": "Caso Tamam Shud",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "Somerton Man",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "The Jamison Family deaths",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    }
+  ]
+}

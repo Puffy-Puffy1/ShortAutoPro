@@ -1,0 +1,15 @@
+SHORTAUTO PRO - BATCH REPORT
+================================
+
+Produções analisadas: 1
+Quality Pass: 1
+Falhas/incompletos: 0
+Duração média: 37.93s
+
+1. O Caso Isabella Nardoni
+   ID: 2026-08-30_0437
+   Status: QUALITY_PASS
+   Título: A verdade que a perícia revelou no caso Nardoni 🔍
+   Duração: 37.93s
+   Cenas: 12/12
+   Vídeo: /data/data/com.termux/files/home/ShortAutoPro/videos/short_v6_2026-08-30_0437.mp4

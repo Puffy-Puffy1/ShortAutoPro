@@ -1,0 +1,33 @@
+{
+  "hooks": [
+    {
+      "text": "Em 1952, testemunhas viram um monstro brilhante de mais de dois metros na Virgínia Ocidental.",
+      "curiosity": 9,
+      "clarity": 10,
+      "factuality": 10,
+      "retention": 9,
+      "local_retention_score": 60.0,
+      "combined_score": 72.5
+    },
+    {
+      "text": "O que causou vômitos, convulsões e o aparecimento de um monstro brilhante em 1952?",
+      "curiosity": 10,
+      "clarity": 9,
+      "factuality": 10,
+      "retention": 10,
+      "local_retention_score": 74.0,
+      "combined_score": 83.9
+    },
+    {
+      "text": "Um monstro brilhante com mais de dois metros aterrorizou testemunhas em 1952.",
+      "curiosity": 8,
+      "clarity": 10,
+      "factuality": 10,
+      "retention": 8,
+      "local_retention_score": 68.0,
+      "combined_score": 73.8
+    }
+  ],
+  "chosen": 2,
+  "final_script": "O que causou vômitos, convulsões e o aparecimento de um monstro brilhante em 1952? Em 12 de setembro de 1952, em Flatwoods, Virgínia Ocidental, testemunhas relataram ter visto um objeto brilhante no céu e uma entidade. O grupo relatou uma névoa pungente que queimava o nariz, além de sintomas como vômitos e convulsões após o encontro. Investigadores concluíram anos mais tarde que a luz era provavelmente um meteoro e a criatura, uma coruja-das-torres empoleirada em uma árvore, com sombras distorcidas pelo pânico. Entusiastas, contudo, afirmam que a entidade pode ser um alienígena, o que impulsionou o turismo local. O mistério continua dividindo opiniões. Comente aqui embaixo se você acha que era um alienígena ou apenas uma coruja."
+}

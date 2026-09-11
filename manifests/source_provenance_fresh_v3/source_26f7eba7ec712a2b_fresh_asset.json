@@ -1,0 +1,19 @@
+{
+  "schema": "SHORTAUTOPRO_SOURCE_PROVENANCE_V1",
+  "provider": "Wikimedia Commons",
+  "title": "Fresh Provenance V3 Benchmark",
+  "license": "CC BY 4.0",
+  "artist": "Benchmark Author",
+  "source_group": "FRESH:ACTIVE:PROVENANCE:003",
+  "source_url": "https://commons.wikimedia.org/wiki/File:Fresh_provenance_v3.jpg",
+  "remote_url": "https://commons.wikimedia.org/wiki/File:Fresh_provenance_v3.jpg",
+  "local_path": "/data/data/com.termux/files/home/ShortAutoPro/temp/media_provenance_fresh_v3/fresh_asset.jpg",
+  "sha256": "26f7eba7ec712a2bc3972ef3a6ac8a84dff0ad362b1f5069b7e99b275ec28068",
+  "bytes": 32,
+  "suffix": ".jpg",
+  "capture_method": "baixar_candidato_5_2",
+  "captured_at_unix": 1788402067.6210294,
+  "query_used_as_evidence": false,
+  "search_used_as_evidence": false,
+  "topic_used_as_evidence": false
+}

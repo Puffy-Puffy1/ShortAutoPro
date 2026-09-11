@@ -1,0 +1,19 @@
+{
+  "schema": "SHORTAUTOPRO_SOURCE_PROVENANCE_V1",
+  "provider": "Wikimedia Commons",
+  "title": "Source 05 for partition 3",
+  "license": "BENCHMARK-LICENSE",
+  "artist": "Author 05",
+  "source_group": "FRESH:P3:05",
+  "source_url": "https://commons.wikimedia.org/wiki/File:fresh_p3_05",
+  "remote_url": "https://commons.wikimedia.org/wiki/File:fresh_p3_05",
+  "local_path": "/data/data/com.termux/files/home/ShortAutoPro/temp/fresh_provenance_3topic_v1/partition_03/asset_05.jpg",
+  "sha256": "46125005bdcae6cf663e9d62765155d7d4ba77167716e53d373d07b8fff25bc1",
+  "bytes": 48,
+  "suffix": ".jpg",
+  "capture_method": "fresh_3topic_generalization",
+  "captured_at_unix": 1788410926.073213,
+  "query_used_as_evidence": false,
+  "search_used_as_evidence": false,
+  "topic_used_as_evidence": false
+}

@@ -1,0 +1,16 @@
+{
+  "short_id": "2026-09-02_1754",
+  "changed": false,
+  "before": "Um famoso goleiro do Flamengo foi condenado pelo chocante assassinato de Eliza Samudio em 2010.",
+  "before_score": 65.0,
+  "after": "Um famoso goleiro do Flamengo foi condenado pelo chocante assassinato de Eliza Samudio em 2010.",
+  "candidate_after": "O sequestro de Eliza Samudio transformou um ídolo do futebol em mandante de um crime bárbaro em 2010.",
+  "candidate_score": 50.0,
+  "improvement": -15.0,
+  "problems": [
+    "cold_open_fraco=50.0",
+    "melhoria_insuficiente=-15.0"
+  ],
+  "reason": "A primeira frase tem 15 palavras (dentro da faixa ajustada de impacto rápido), destaca o contraste entre ídolo e crime bárbaro e cria curiosidade imediata, seguida pela contextualização factual exata.",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/short_pre_cold_open_2026-09-02_1754.txt"
+}

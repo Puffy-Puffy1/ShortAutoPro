@@ -1,0 +1,227 @@
+{
+  "short_id": "2026-09-01_0324",
+  "topic": "O Voo 191 da American Airlines",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_pre_documentary_2026-09-01_0324.json",
+  "visual_mode_triple_repetitions": 0,
+  "shot_triple_repetitions": 4,
+  "scenes": [
+    {
+      "scene": 1,
+      "segment": "O motor esquerdo simplesmente se soltou da asa segundos após a decolagem.",
+      "visual_mode": "transport",
+      "shot_type": "medium",
+      "query_before": "airplane jet engine detaching from wing in flight",
+      "query_after": "dc10 airplane engine separated from wing in flight",
+      "must_have": [
+        "airplane wing",
+        "engine"
+      ],
+      "avoid": [
+        "passenger interior",
+        "cartoon",
+        "car"
+      ],
+      "reason": "Mostra diretamente o evento central da frase seguindo a prioridade factual do objeto mecânico."
+    },
+    {
+      "scene": 2,
+      "segment": "Em 25 de maio de 1979, o Voo 191 da American Airlines decolou de Chicago",
+      "visual_mode": "location",
+      "shot_type": "wide",
+      "query_before": "vintage passenger airliner taking off from airport runway",
+      "query_after": "chicago o hare airport runway 1979 vintage style",
+      "must_have": [
+        "runway",
+        "airliner"
+      ],
+      "avoid": [
+        "modern drone shot",
+        "futuristic airport",
+        "train"
+      ],
+      "reason": "Estabelece o local de origem do voo com contexto temporal correto de 1979."
+    },
+    {
+      "scene": 3,
+      "segment": "e caiu em menos de um minuto,",
+      "visual_mode": "location",
+      "shot_type": "medium",
+      "query_before": "airplane crashing into ground with smoke and fire",
+      "query_after": "smoke plume rising from open field near airport disaster site",
+      "must_have": [
+        "smoke",
+        "ground"
+      ],
+      "avoid": [
+        "happy landing",
+        "blue sky only",
+        "water crash"
+      ],
+      "reason": "Representa o local do impacto factual sem mostrar violência gráfica."
+    },
+    {
+      "scene": 4,
+      "segment": "matando 271 pessoas no acidente aéreo mais mortal dos Estados Unidos.",
+      "visual_mode": "evidence",
+      "shot_type": "wide",
+      "query_before": "emergency rescue vehicles lights flashing at disaster site",
+      "query_after": "investigation site rope barrier and smoke aviation accident",
+      "must_have": [
+        "emergency lights",
+        "smoke"
+      ],
+      "avoid": [
+        "people smiling",
+        "bright sunny day",
+        "party"
+      ],
+      "reason": "Foca nas evidências do local do acidente de forma respeitosa e documental."
+    },
+    {
+      "scene": 5,
+      "segment": "A investigação concluiu que práticas de manutenção impróprias",
+      "visual_mode": "document",
+      "shot_type": "medium",
+      "query_before": "aviation mechanics inspecting airplane engine parts in hangar",
+      "query_after": "ntsb aircraft accident investigation report papers and schematics",
+      "must_have": [
+        "mechanic",
+        "airplane engine"
+      ],
+      "avoid": [
+        "computer programmer",
+        "kitchen",
+        "office desk"
+      ],
+      "reason": "Usa registros investigativos oficiais para explicar a conclusão sobre a manutenção."
+    },
+    {
+      "scene": 6,
+      "segment": "causaram rachaduras por fadiga no pilone que segurava o motor.",
+      "visual_mode": "evidence",
+      "shot_type": "medium",
+      "query_before": "close up metal fracture crack on aircraft structure",
+      "query_after": "metal fatigue crack on aircraft engine pylon close up",
+      "must_have": [
+        "metal",
+        "crack"
+      ],
+      "avoid": [
+        "plastic toy",
+        "wooden log",
+        "glass"
+      ],
+      "reason": "Mostra a evidência física exata da falha estrutural mencionada na investigação."
+    },
+    {
+      "scene": 7,
+      "segment": "Sem energia elétrica no painel do comandante,",
+      "visual_mode": "transport",
+      "shot_type": "medium",
+      "query_before": "dark airplane cockpit instrument panel with unlit screens",
+      "query_after": "unlit 1970s airliner cockpit instrument panel dark",
+      "must_have": [
+        "cockpit",
+        "instrument panel"
+      ],
+      "avoid": [
+        "bright daylight",
+        "car dashboard",
+        "modern spaceship"
+      ],
+      "reason": "Ilustra a falha de energia elétrica no painel conforme detalhado nos registros."
+    },
+    {
+      "scene": 8,
+      "segment": "alguns instrumentos falharam.",
+      "visual_mode": "evidence",
+      "shot_type": "medium",
+      "query_before": "vintage airplane cockpit dials and gauges close up",
+      "query_after": "vintage aircraft analog cockpit gauges and dials",
+      "must_have": [
+        "gauges",
+        "cockpit"
+      ],
+      "avoid": [
+        "digital tablet",
+        "smartphone",
+        "kitchen stove"
+      ],
+      "reason": "Foca nos instrumentos analógicos específicos da época do DC-10."
+    },
+    {
+      "scene": 9,
+      "segment": "Além disso, a perda de fluido hidráulico fez os slats externos retraírem,",
+      "visual_mode": "object",
+      "shot_type": "medium",
+      "query_before": "airplane wing flap mechanism hydraulic fluid leak close up",
+      "query_after": "aircraft hydraulic line fitting and fluid leak detail",
+      "must_have": [
+        "airplane wing",
+        "metal mechanism"
+      ],
+      "avoid": [
+        "water faucet",
+        "car engine",
+        "garden hose"
+      ],
+      "reason": "Evidencia o sistema hidráulico danificado na separação do motor."
+    },
+    {
+      "scene": 10,
+      "segment": "elevando a velocidade de estol da asa esquerda.",
+      "visual_mode": "abstract_context",
+      "shot_type": "medium",
+      "query_before": "aircraft wing aerodynamics airflow test wind tunnel",
+      "query_after": "aerodynamic airflow diagram over aircraft wing cross section",
+      "must_have": [
+        "wing",
+        "airflow"
+      ],
+      "avoid": [
+        "bird flying",
+        "kite",
+        "sail boat"
+      ],
+      "reason": "Explica visualmente de forma técnica o conceito abstrato da velocidade de estol."
+    },
+    {
+      "scene": 11,
+      "segment": "A aeronave virou abruptamente para a esquerda e colidiu com o solo.",
+      "visual_mode": "transport",
+      "shot_type": "wide",
+      "query_before": "airplane banking sharply sideways toward the ground",
+      "query_after": "commercial airliner banking steeply left toward ground simulation",
+      "must_have": [
+        "airplane",
+        "ground"
+      ],
+      "avoid": [
+        "smooth flight",
+        "sunset cruise",
+        "spacecraft"
+      ],
+      "reason": "Representa a trajetória factual da aeronave baseada nos relatórios de voo."
+    },
+    {
+      "scene": 12,
+      "segment": "Se inscreve para mais histórias reais da aviação.",
+      "visual_mode": "object",
+      "shot_type": "medium",
+      "query_before": "old vintage aviation books and airplane model on wooden desk",
+      "query_after": "historical aviation investigation books and documents on wooden table",
+      "must_have": [
+        "books",
+        "airplane model"
+      ],
+      "avoid": [
+        "smartphone screen",
+        "social media icons",
+        "modern laptop",
+        "social media icon",
+        "thumbs up"
+      ],
+      "reason": "Fecha o documentário com elementos factuais e históricos da aviação."
+    }
+  ]
+}

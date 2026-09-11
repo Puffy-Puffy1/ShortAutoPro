@@ -1,0 +1,29 @@
+{
+  "short_id": "2026-09-01_1433",
+  "version": "6.7",
+  "changed": 1,
+  "changes": [
+    {
+      "scene": 12,
+      "segment": "O relatório da autópsia afirmou que a morte foi acidental, sem evidências de trauma físico. Comente sua opinião.",
+      "before": {
+        "query": "official paper document file dark background cinematic",
+        "must_have": [
+          "paper",
+          "document"
+        ],
+        "visual_mode": null
+      },
+      "after": {
+        "query": "official paper document file dark background cinematic",
+        "must_have": [
+          "paper",
+          "document"
+        ],
+        "visual_mode": "cta_reuse"
+      },
+      "reason": "reuse_verified_story_visual"
+    }
+  ],
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_pre_truth_refiner_2026-09-01_1433.json"
+}

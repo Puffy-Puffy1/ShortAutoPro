@@ -1,0 +1,211 @@
+{
+  "short_id": "2026-09-03_1148",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_pre_visual_2026-09-03_1148.json",
+  "shot_repetitions": 1,
+  "scenes": [
+    {
+      "scene": 1,
+      "before_score": 70,
+      "after_score": 70,
+      "before_query": "busy college bar entrance interior at night",
+      "after_query": "student silhouette entering crowded bar security camera footage",
+      "must_have": [
+        "student",
+        "bar camera"
+      ],
+      "avoid": [
+        "beach",
+        "airplane",
+        "dog"
+      ],
+      "shot_type": "medium shot",
+      "reason": "Mostra o estudante entrando em um bar cheio de câmeras conforme o segmento."
+    },
+    {
+      "scene": 2,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "empty dimly lit bar interior security footage aesthetic",
+      "after_query": "empty dimly lit bar interior security footage aesthetic",
+      "must_have": [
+        "empty bar",
+        "interior"
+      ],
+      "avoid": [
+        "sunny park",
+        "happy people"
+      ],
+      "shot_type": "wide shot",
+      "reason": "Ilustra o ambiente vazio sugerindo o desaparecimento repentino."
+    },
+    {
+      "scene": 3,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "retro security camera monitor static vintage year 2006",
+      "after_query": "retro security camera monitor static vintage year 2006",
+      "must_have": [
+        "security camera",
+        "monitor"
+      ],
+      "avoid": [
+        "modern smartphone",
+        "tablet"
+      ],
+      "shot_type": "close-up",
+      "reason": "Retrata o registro de câmeras de segurança no ano de 2006."
+    },
+    {
+      "scene": 4,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "exterior storefront bar sign at night street Columbus Ohio",
+      "after_query": "exterior storefront bar sign at night street Columbus Ohio",
+      "must_have": [
+        "bar sign",
+        "street"
+      ],
+      "avoid": [
+        "forest",
+        "kitchen"
+      ],
+      "shot_type": "establishing shot",
+      "reason": "Foca na fachada do estabelecimento citado na localização."
+    },
+    {
+      "scene": 5,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "security camera view of empty hallway exit door",
+      "after_query": "security camera view of empty hallway exit door",
+      "must_have": [
+        "door",
+        "hallway"
+      ],
+      "avoid": [
+        "person running",
+        "crowd"
+      ],
+      "shot_type": "medium shot",
+      "reason": "Mostra a saída sem registro de saída da pessoa."
+    },
+    {
+      "scene": 6,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "old brick commercial building exterior architecture urban alley",
+      "after_query": "old brick commercial building exterior architecture urban alley",
+      "must_have": [
+        "building",
+        "brick"
+      ],
+      "avoid": [
+        "futuristic skyscraper",
+        "spaceship"
+      ],
+      "shot_type": "wide shot",
+      "reason": "Exibe a arquitetura externa do prédio e suas limitações de saída."
+    },
+    {
+      "scene": 7,
+      "before_score": 70,
+      "after_score": 70,
+      "before_query": "police investigation case files on dark desk",
+      "after_query": "police detective looking at mysterious disappearance case files",
+      "must_have": [
+        "detective",
+        "files"
+      ],
+      "avoid": [
+        "party",
+        "dancing"
+      ],
+      "shot_type": "medium shot",
+      "reason": "Representa o mistério e a investigação policial gerada pelo caso."
+    },
+    {
+      "scene": 8,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "vintage flip mobile phone on wooden table dark room",
+      "after_query": "vintage flip mobile phone on wooden table dark room",
+      "must_have": [
+        "phone",
+        "table"
+      ],
+      "avoid": [
+        "modern touch screen",
+        "smartwatch"
+      ],
+      "shot_type": "close-up",
+      "reason": "Retrata o telefone celular tocando meses depois."
+    },
+    {
+      "scene": 9,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "telecommunication cell tower against dark cloudy sky",
+      "after_query": "telecommunication cell tower against dark cloudy sky",
+      "must_have": [
+        "cell tower",
+        "sky"
+      ],
+      "avoid": [
+        "tree",
+        "flower"
+      ],
+      "shot_type": "low angle shot",
+      "reason": "Mostra a torre de sinal telefônico mencionada no relato."
+    },
+    {
+      "scene": 10,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "telecommunication network system error report document on desk",
+      "after_query": "telecommunication network system error report document on desk",
+      "must_have": [
+        "document",
+        "report"
+      ],
+      "avoid": [
+        "playing video game",
+        "sunny office"
+      ],
+      "shot_type": "close-up",
+      "reason": "Ilustra o relatório técnico de falha no sistema da operadora."
+    },
+    {
+      "scene": 11,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "police detective reviewing cold case file documents",
+      "after_query": "police detective reviewing cold case file documents",
+      "must_have": [
+        "documents",
+        "desk"
+      ],
+      "avoid": [
+        "kitchen cooking",
+        "sports"
+      ],
+      "shot_type": "medium shot",
+      "reason": "Retrata o investigador analisando os documentos anos mais tarde."
+    },
+    {
+      "scene": 12,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "escalator inside a commercial building moving up dark shadows",
+      "after_query": "escalator inside a commercial building moving up dark shadows",
+      "must_have": [
+        "escalator"
+      ],
+      "avoid": [
+        "outdoor stairs",
+        "beach"
+      ],
+      "shot_type": "medium shot",
+      "reason": "Foca na escada rolante do prédio onde foi verificado que ele não saiu."
+    }
+  ]
+}

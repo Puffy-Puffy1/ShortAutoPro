@@ -1,0 +1,62 @@
+{
+  "version": "1320.00",
+
+  "target": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30
+  },
+
+  "render": {
+    "codec": "libx264",
+    "crf": 18,
+    "preset": "veryfast",
+    "audio_codec": "aac",
+    "audio_bitrate": "192k"
+  },
+
+  "hook": {
+    "enabled": true,
+    "duration": 2.2,
+    "text": "OS ÚLTIMOS MINUTOS NO ELEVADOR"
+  },
+
+  "labels": {
+    "scene_1": "IMAGEM REAL DO CASO",
+    "scene_2": "HOTEL CECIL",
+    "scene_3": "IMAGEM DE CONTEXTO",
+    "scene_4": "IMAGEM REAL DO CASO",
+    "scene_5": "IMAGEM ILUSTRATIVA",
+    "scene_6": "IMAGEM ILUSTRATIVA",
+    "scene_7": "IMAGEM ILUSTRATIVA",
+    "scene_8": "IMAGEM ILUSTRATIVA",
+    "scene_9": "IMAGEM ILUSTRATIVA",
+    "scene_10": "IMAGEM ILUSTRATIVA",
+    "scene_11": "IMAGEM ILUSTRATIVA",
+    "scene_12": "DOCUMENTO DO CASO"
+  },
+
+  "scene_direction": {
+    "1":  {"strategy": "REAL_ARCHIVE_VIDEO_A"},
+    "2":  {"strategy": "HOTEL_SIGN_DETAIL"},
+    "3":  {"strategy": "HOTEL_FACADE"},
+    "4":  {"strategy": "REAL_ARCHIVE_VIDEO_B"},
+    "5":  {"strategy": "SLOW_PUSH"},
+    "6":  {"strategy": "SLOW_PAN_LEFT"},
+    "7":  {"strategy": "ELEVATOR_PUSH"},
+    "8":  {"strategy": "CCTV_PUSH"},
+    "9":  {"strategy": "GRAPH_DETAIL"},
+    "10": {"strategy": "WORKER_DETAIL"},
+    "11": {"strategy": "WATER_TANK_DETAIL"},
+    "12": {"strategy": "DOCUMENT_DETAIL"}
+  },
+
+  "execution": {
+    "network": false,
+    "downloads": false,
+    "ffprobe": true,
+    "ffmpeg": true,
+    "production_mutation": false,
+    "publication": false
+  }
+}

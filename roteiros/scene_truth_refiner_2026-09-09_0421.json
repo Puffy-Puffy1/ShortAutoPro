@@ -1,0 +1,29 @@
+{
+  "short_id": "2026-09-09_0421",
+  "version": "6.7",
+  "changed": 1,
+  "changes": [
+    {
+      "scene": 12,
+      "segment": "Comente sua teoria e siga para mais mistérios.",
+      "before": {
+        "query": "vintage hotel hallway dark shadows mysterious atmosphere",
+        "must_have": [
+          "hallway",
+          "shadows"
+        ],
+        "visual_mode": null
+      },
+      "after": {
+        "query": "vintage hotel hallway dark shadows mysterious atmosphere",
+        "must_have": [
+          "hallway",
+          "shadows"
+        ],
+        "visual_mode": "cta_reuse"
+      },
+      "reason": "reuse_verified_story_visual"
+    }
+  ],
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_pre_truth_refiner_2026-09-09_0421.json"
+}

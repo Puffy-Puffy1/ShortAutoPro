@@ -1,0 +1,33 @@
+{
+  "hooks": [
+    {
+      "text": "O que aconteceu dentro deste elevador antes de um corpo ser achado na caixa d'água?",
+      "curiosity": 9,
+      "clarity": 10,
+      "factuality": 10,
+      "retention": 9,
+      "local_retention_score": 74.0,
+      "combined_score": 80.9
+    },
+    {
+      "text": "Imagens de segurança revelaram o comportamento estranho de Elisa Lam antes de seu misterioso desaparecimento.",
+      "curiosity": 8,
+      "clarity": 9,
+      "factuality": 10,
+      "retention": 8,
+      "local_retention_score": 64.0,
+      "combined_score": 70.9
+    },
+    {
+      "text": "Por que o último vídeo desta estudante gerou tanta comoção na internet em 2013?",
+      "curiosity": 8,
+      "clarity": 10,
+      "factuality": 10,
+      "retention": 8,
+      "local_retention_score": 86.0,
+      "combined_score": 84.6
+    }
+  ],
+  "chosen": 1,
+  "final_script": "O que aconteceu dentro deste elevador antes de um corpo ser achado na caixa d'água? Em fevereiro de 2013, a estudante Elisa Lam desapareceu em Los Angeles. Dias depois, a polícia divulgou imagens de uma câmera de segurança no elevador do Hotel Cecil. Nelas, Elisa entra, sai, gesticula no corredor e às vezes parece se esconder, enquanto o elevador parece apresentar um funcionamento estranho. O vídeo viralizou e gerou reações perturbadas. O caso ganhou contornos mais dramáticos quando funcionários de manutenção encontraram o corpo dela dentro de um tanque de água no topo do hotel, após reclamações de clientes. O relatório da autópsia concluiu que a morte foi acidental, sem evidências de trauma físico. O mistério inspirou especulações e virou série documental. Comente sua opinião."
+}

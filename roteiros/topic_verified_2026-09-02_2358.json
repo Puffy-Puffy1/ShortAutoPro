@@ -1,0 +1,64 @@
+{
+  "short_id": "2026-09-02_2358",
+  "selected": {
+    "topic": "Caso Boy in the Box",
+    "score": 74.66,
+    "wiki_title": "The Boy in the Striped Pyjamas (filme)",
+    "wiki_chars": 0,
+    "wiki_similarity": 1.0,
+    "gemini": {},
+    "objective": {
+      "visual": 0,
+      "hook": 0,
+      "documentation": 0,
+      "title_match": 10,
+      "novelty": 10
+    },
+    "reserve": true
+  },
+  "ranking": [
+    {
+      "topic": "Caso Boy in the Box",
+      "score": 74.66,
+      "wiki_title": "The Boy in the Striped Pyjamas (filme)",
+      "wiki_chars": 0,
+      "wiki_similarity": 1.0,
+      "gemini": {},
+      "objective": {
+        "visual": 0,
+        "hook": 0,
+        "documentation": 0,
+        "title_match": 10,
+        "novelty": 10
+      },
+      "reserve": true
+    }
+  ],
+  "verification": [
+    {
+      "topic": "As Cartas de Zodiac",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O Assassinato de Juliane Koepcke",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O Farol das Ilhas Eilean Mor",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O Homem de Somnerton",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O Mistério de Tamam Shud",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    }
+  ]
+}

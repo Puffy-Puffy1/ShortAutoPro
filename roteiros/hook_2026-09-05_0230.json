@@ -1,0 +1,33 @@
+{
+  "hooks": [
+    {
+      "text": "Eles usaram cabeças falsas de papel-machê para enganar a prisão mais segura do mundo.",
+      "curiosity": 9,
+      "clarity": 10,
+      "factuality": 10,
+      "retention": 9,
+      "local_retention_score": 68.0,
+      "combined_score": 77.3
+    },
+    {
+      "text": "Em junho de 1962, três prisioneiros sumiram de Alcatraz usando uma colher e um aspirador.",
+      "curiosity": 9,
+      "clarity": 9,
+      "factuality": 10,
+      "retention": 9,
+      "local_retention_score": 60.0,
+      "combined_score": 72.0
+    },
+    {
+      "text": "Como três homens conseguiram fugir da prisão de Alcatraz deixando bonecos em seus beliches?",
+      "curiosity": 8,
+      "clarity": 10,
+      "factuality": 10,
+      "retention": 9,
+      "local_retention_score": 78.0,
+      "combined_score": 81.8
+    }
+  ],
+  "chosen": 1,
+  "final_script": "Eles usaram cabeças falsas de papel-machê para enganar a prisão mais segura do mundo. Em junho de 1962, Frank Morris e os irmãos Anglin sumiram. Durante meses, cavaram o concreto com uma colher e um motor de aspirador de pó. Para cobrir a ausência, deixaram bonecos com cabelo humano nos beliches. Fugiram por um duto de ventilação, cruzando a baía em uma balsa feita com capas de chuva. O FBI concluiu em 1979 que a teoria mais provável é que eles se afogaram, mas nenhum corpo foi encontrado. Em 2010, parentes apresentaram evidências que alimentaram boatos de fuga para o Brasil. O caso no Marshals Service continua aberto. O que você acha que aconteceu?"
+}

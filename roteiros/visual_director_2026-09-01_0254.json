@@ -1,0 +1,224 @@
+{
+  "short_id": "2026-09-01_0254",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_pre_visual_2026-09-01_0254.json",
+  "shot_repetitions": 0,
+  "scenes": [
+    {
+      "scene": 1,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "vintage computer printout paper with handwritten wow note",
+      "after_query": "vintage computer printout paper with handwritten wow note",
+      "must_have": [
+        "paper",
+        "handwriting"
+      ],
+      "avoid": [
+        "computer screen",
+        "modern office",
+        "digital tablet"
+      ],
+      "shot_type": "close-up",
+      "reason": "Foco no papel impresso com a anotação manual citada no segmento."
+    },
+    {
+      "scene": 2,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "historic big ear radio telescope ohio state university 1970s",
+      "after_query": "historic big ear radio telescope ohio state university 1970s",
+      "must_have": [
+        "radio telescope",
+        "structure"
+      ],
+      "avoid": [
+        "modern smartphone",
+        "futuristic spaceship",
+        "indoor room"
+      ],
+      "shot_type": "wide environment",
+      "reason": "Mostra o radiotelescópio Big Ear no período histórico correto."
+    },
+    {
+      "scene": 3,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "astronomy night sky constellation sagittarius star map vintage",
+      "after_query": "astronomy night sky constellation sagittarius star map vintage",
+      "must_have": [
+        "stars",
+        "constellation map"
+      ],
+      "avoid": [
+        "sunlight",
+        "daytime clouds",
+        "city street"
+      ],
+      "shot_type": "environment",
+      "reason": "Ilustra o mapa celeste e a constelação mencionada na narração."
+    },
+    {
+      "scene": 4,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "vintage 1970s digital timer clock retro electronics",
+      "after_query": "vintage 1970s digital timer clock retro electronics",
+      "must_have": [
+        "clock",
+        "numbers"
+      ],
+      "avoid": [
+        "hourglass",
+        "pocket watch",
+        "modern smartwatch"
+      ],
+      "shot_type": "object close-up",
+      "reason": "Representação temporal dos setenta e dois segundos do sinal."
+    },
+    {
+      "scene": 5,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "1970s radio observatory control room analog equipment dials",
+      "after_query": "1970s radio observatory control room analog equipment dials",
+      "must_have": [
+        "control panel",
+        "buttons"
+      ],
+      "avoid": [
+        "laptop",
+        "smartphone",
+        "modern flat screen"
+      ],
+      "shot_type": "environment",
+      "reason": "Ambiente de controle e equipamentos da época observando o céu."
+    },
+    {
+      "scene": 6,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "ibm 1130 computer data printout paper rolls 1970s",
+      "after_query": "ibm 1130 computer data printout paper rolls 1970s",
+      "must_have": [
+        "paper",
+        "printout"
+      ],
+      "avoid": [
+        "tablet",
+        "computer monitor",
+        "reading book"
+      ],
+      "shot_type": "document/evidence",
+      "reason": "Exibe os dados impressos que o astrônomo estava revisando."
+    },
+    {
+      "scene": 7,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "retro computer printout paper rows of numbers 6equj5",
+      "after_query": "retro computer printout paper rows of numbers 6equj5",
+      "must_have": [
+        "paper",
+        "numbers"
+      ],
+      "avoid": [
+        "graphics",
+        "colorful charts",
+        "modern infographic"
+      ],
+      "shot_type": "document/evidence",
+      "reason": "Foco nos números e códigos da intensidade incomum detectada."
+    },
+    {
+      "scene": 8,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "hand writing note on historic science paper printout",
+      "after_query": "hand writing note on historic science paper printout",
+      "must_have": [
+        "pen",
+        "paper",
+        "hand"
+      ],
+      "avoid": [
+        "digital stylus",
+        "touchscreen",
+        "keyboard"
+      ],
+      "shot_type": "people/context",
+      "reason": "Mão circulando o código e escrevendo a exclamação no documento."
+    },
+    {
+      "scene": 9,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "hydrogen spectral line physics laboratory equipment science",
+      "after_query": "hydrogen spectral line physics laboratory equipment science",
+      "must_have": [
+        "spectrum",
+        "light"
+      ],
+      "avoid": [
+        "fire",
+        "water drop",
+        "plant leaf"
+      ],
+      "shot_type": "object close-up",
+      "reason": "Visualização da frequência do hidrogênio em contexto científico."
+    },
+    {
+      "scene": 10,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "deep space nebula galaxy stars cosmic background mystery",
+      "after_query": "deep space nebula galaxy stars cosmic background mystery",
+      "must_have": [
+        "galaxy",
+        "stars"
+      ],
+      "avoid": [
+        "ufo spaceship",
+        "alien green face",
+        "futuristic city"
+      ],
+      "shot_type": "wide environment",
+      "reason": "Espaço profundo e galáxias representando o contexto de contato sem adicionar fatos visuais indevidos."
+    },
+    {
+      "scene": 11,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "historic radio telescope observatory under starry night sky",
+      "after_query": "historic radio telescope observatory under starry night sky",
+      "must_have": [
+        "telescope",
+        "night"
+      ],
+      "avoid": [
+        "bright daylight",
+        "office worker",
+        "modern laboratory"
+      ],
+      "shot_type": "wide environment",
+      "reason": "Telescópio sob o céu noturno remetendo ao mistério científico persistente."
+    },
+    {
+      "scene": 12,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "mysterious deep space signal waveforms abstract data dark",
+      "after_query": "mysterious deep space signal waveforms abstract data dark",
+      "must_have": [
+        "darkness",
+        "light"
+      ],
+      "avoid": [
+        "sunny beach",
+        "smiling people",
+        "kitchen interior"
+      ],
+      "shot_type": "abstract/environment",
+      "reason": "Ondas de sinal abstratas no escuro para encerrar com tom de questionamento."
+    }
+  ]
+}

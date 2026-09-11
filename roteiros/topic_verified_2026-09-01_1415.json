@@ -1,0 +1,64 @@
+{
+  "short_id": "2026-09-01_1415",
+  "selected": {
+    "topic": "A Morte de JonBenét Ramsey",
+    "score": 75.62,
+    "wiki_title": "JonBenét Ramsey",
+    "wiki_chars": 0,
+    "wiki_similarity": 1.0,
+    "gemini": {},
+    "objective": {
+      "visual": 0,
+      "hook": 0,
+      "documentation": 0,
+      "title_match": 10,
+      "novelty": 10
+    },
+    "reserve": true
+  },
+  "ranking": [
+    {
+      "topic": "A Morte de JonBenét Ramsey",
+      "score": 75.62,
+      "wiki_title": "JonBenét Ramsey",
+      "wiki_chars": 0,
+      "wiki_similarity": 1.0,
+      "gemini": {},
+      "objective": {
+        "visual": 0,
+        "hook": 0,
+        "documentation": 0,
+        "title_match": 10,
+        "novelty": 10
+      },
+      "reserve": true
+    }
+  ],
+  "verification": [
+    {
+      "topic": "O caso das radiações de Goiânia",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "Caso Tamam Shud",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O desaparecimento dos faroleiros das Ilhas Flannan",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "Gareth Williams",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "Voynich Manuscript",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    }
+  ]
+}

@@ -1,0 +1,251 @@
+{
+  "short_id": "2026-08-30_1528",
+  "created_at": "2026-08-30T15:37:25.064264",
+  "status": "QUALITY_PASS",
+  "topic": "A queda do Voo 571 da Força Aérea Uruguaia",
+  "hook": "O resgate foi cancelado após oito dias. Como dezesseis pessoas conseguiram sobreviver?",
+  "script": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/short_2026-08-30_1528.txt",
+    "text": "O resgate foi cancelado após oito dias. Como dezesseis pessoas conseguiram sobreviver? Em 13 de outubro de 1972, o Voo 571 da Força Aérea Uruguaia caiu na Cordilheira dos Andes. O avião transportava quarenta e cinco pessoas, incluindo uma equipe de rugby. No frio extremo a mais de 3,6 mil metros, sem comida, eles enfrentaram o impensável: alimentaram-se da carne dos passageiros mortos. Após setenta e dois dias isolados, Fernando Parrado e Roberto Canessa caminharam dez dias pelas montanhas até encontrar um vaqueiro, que alertou as autoridades. O último sobrevivente foi resgatado em 23 de dezembro. Se curtiu essa história real de superação, siga o canal."
+  },
+  "source": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/fonte_2026-08-30_1528.txt"
+  },
+  "publish": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/publish_2026-08-30_1528.json",
+    "chosen_title": "O dia em que o resgate foi cancelado nos Andes 🏔️",
+    "titles": [
+      "A tragédia nos Andes: como sobreviveram 72 dias",
+      "O dia em que o resgate foi cancelado nos Andes 🏔️",
+      "Sobreviveram 72 dias na neve extrema dos Andes"
+    ],
+    "description": "Após o resgate ser cancelado, 16 pessoas precisaram tomar decisões extremas para sobreviver 72 dias na Cordilheira dos Andes. Qual seria sua atitude nessa situação? Deixe sua opinião nos comentários.",
+    "hashtags": [
+      "#Shorts",
+      "#HistoriaReal",
+      "#Curiosidades",
+      "#Sobrevivencia",
+      "#Andes"
+    ],
+    "pinned_comment": "Você teria coragem de caminhar 10 dias pela neve para buscar ajuda?"
+  },
+  "scenes": {
+    "map_path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_2026-08-30_1528.json",
+    "count": 12,
+    "physical_count": 12,
+    "items": [
+      {
+        "scene": 1,
+        "segment": "O resgate foi cancelado após oito dias.",
+        "query": "frozen mountain range aerial view cinematic snow",
+        "must_have": [
+          "mountains",
+          "snow"
+        ],
+        "avoid": [
+          "city",
+          "summer",
+          "beach"
+        ],
+        "words": 7,
+        "weight": 0.06542056074766354
+      },
+      {
+        "scene": 2,
+        "segment": "Como dezesseis pessoas conseguiram sobreviver?",
+        "query": "group of people walking in deep snow mountains",
+        "must_have": [
+          "people",
+          "snow"
+        ],
+        "avoid": [
+          "office",
+          "modern city",
+          "cars"
+        ],
+        "words": 5,
+        "weight": 0.04672897196261682
+      },
+      {
+        "scene": 3,
+        "segment": "Em 13 de outubro de 1972, o Voo 571 da Força Aérea Uruguaia caiu na Cordilheira dos Andes.",
+        "query": "vintage airplane wreckage on snowy mountain peak",
+        "must_have": [
+          "airplane wreckage",
+          "snow"
+        ],
+        "avoid": [
+          "modern jet",
+          "green forest",
+          "ocean"
+        ],
+        "words": 18,
+        "weight": 0.16822429906542055
+      },
+      {
+        "scene": 4,
+        "segment": "O avião transportava quarenta e cinco pessoas, incluindo uma equipe de rugby.",
+        "query": "vintage rugby team players portrait sepia tone",
+        "must_have": [
+          "men",
+          "rugby team"
+        ],
+        "avoid": [
+          "women",
+          "children",
+          "soccer players"
+        ],
+        "words": 12,
+        "weight": 0.11214953271028037
+      },
+      {
+        "scene": 5,
+        "segment": "No frio extremo a mais de 3,6 mil metros, sem comida,",
+        "query": "frozen snowy mountain peak extreme cold blizzard",
+        "must_have": [
+          "snow",
+          "mountains"
+        ],
+        "avoid": [
+          "sunshine",
+          "beach",
+          "city street"
+        ],
+        "words": 12,
+        "weight": 0.11214953271028037
+      },
+      {
+        "scene": 6,
+        "segment": "eles enfrentaram o impensável: alimentaram-se da carne dos passageiros mortos.",
+        "query": "dark snowy mountain wilderness desolate landscape",
+        "must_have": [
+          "snow",
+          "mountains"
+        ],
+        "avoid": [
+          "restaurant",
+          "food market",
+          "kitchen"
+        ],
+        "words": 10,
+        "weight": 0.09345794392523364
+      },
+      {
+        "scene": 7,
+        "segment": "Após setenta e dois dias isolados,",
+        "query": "isolated snowy peaks landscape cinematic drone shot",
+        "must_have": [
+          "mountains",
+          "snow"
+        ],
+        "avoid": [
+          "highway",
+          "crowd",
+          "houses"
+        ],
+        "words": 6,
+        "weight": 0.056074766355140186
+      },
+      {
+        "scene": 8,
+        "segment": "Fernando Parrado e Roberto Canessa caminharam dez dias pelas montanhas",
+        "query": "two hikers walking through deep snow mountain ridge",
+        "must_have": [
+          "hikers",
+          "snow",
+          "mountains"
+        ],
+        "avoid": [
+          "desert",
+          "forest",
+          "beach"
+        ],
+        "words": 10,
+        "weight": 0.09345794392523364
+      },
+      {
+        "scene": 9,
+        "segment": "até encontrar um vaqueiro, que alertou as autoridades.",
+        "query": "man horse rider in remote mountain valley landscape",
+        "must_have": [
+          "horse",
+          "rider"
+        ],
+        "avoid": [
+          "car",
+          "airplane",
+          "city"
+        ],
+        "words": 8,
+        "weight": 0.07476635514018691
+      },
+      {
+        "scene": 10,
+        "segment": "O último sobrevivente foi resgatado em 23 de dezembro.",
+        "query": "vintage helicopter rescue on snowy mountain top",
+        "must_have": [
+          "helicopter",
+          "snow"
+        ],
+        "avoid": [
+          "modern ambulance",
+          "hospital",
+          "car"
+        ],
+        "words": 9,
+        "weight": 0.08411214953271028
+      },
+      {
+        "scene": 11,
+        "segment": "Se curtiu essa história real de superação,",
+        "query": "dramatic snowy mountain peak glowing in sunlight",
+        "must_have": [
+          "mountains",
+          "snow"
+        ],
+        "avoid": [
+          "computer screen",
+          "smartphone",
+          "social media icons"
+        ],
+        "words": 7,
+        "weight": 0.06542056074766354
+      },
+      {
+        "scene": 12,
+        "segment": "siga o canal.",
+        "query": "cinematic sunset over snowy mountain range horizon",
+        "must_have": [
+          "mountains",
+          "sunset"
+        ],
+        "avoid": [
+          "button",
+          "mouse",
+          "logo"
+        ],
+        "words": 3,
+        "weight": 0.028037383177570093
+      }
+    ]
+  },
+  "video": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/videos/short_v6_2026-08-30_1528.mp4",
+    "version": "V6",
+    "duration_seconds": 39.866016,
+    "width": 1080,
+    "height": 1920,
+    "fps": 30.0,
+    "video_codec": "h264",
+    "audio_codec": "aac"
+  },
+  "quality": {
+    "video_exists": true,
+    "scene_map_count": 12,
+    "physical_scene_count": 12,
+    "resolution_ok": true,
+    "fps_ok": true,
+    "audio_exists": true
+  },
+  "log": "/data/data/com.termux/files/home/ShortAutoPro/logs/producao/short_2026-08-30_1528.log"
+}

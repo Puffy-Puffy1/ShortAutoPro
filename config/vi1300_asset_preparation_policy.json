@@ -1,0 +1,31 @@
+{
+  "version": "1300.00",
+
+  "target": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "image_quality": 3
+  },
+
+  "execution": {
+    "network": false,
+    "downloads": false,
+    "ffprobe": true,
+    "ffmpeg": true,
+    "pdf_rasterization": true,
+    "renderer": false,
+    "video_generation": false,
+    "production_mutation": false
+  },
+
+  "paths": {
+    "prepared_root": "temp/vi1300_prepared"
+  },
+
+  "safety": {
+    "production_media_write": false,
+    "source_asset_mutation": false,
+    "source_recovery": "SHADOW_ONLY"
+  }
+}

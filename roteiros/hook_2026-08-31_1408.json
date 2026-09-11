@@ -1,0 +1,33 @@
+{
+  "hooks": [
+    {
+      "text": "O vídeo bizarro no elevador antes do desaparecimento de Elisa Lam vai te chocar.",
+      "curiosity": 9,
+      "clarity": 10,
+      "factuality": 10,
+      "retention": 9,
+      "local_retention_score": 68.0,
+      "combined_score": 77.3
+    },
+    {
+      "text": "Por que o comportamento de Elisa Lam neste elevador intrigou o mundo inteiro?",
+      "curiosity": 10,
+      "clarity": 9,
+      "factuality": 10,
+      "retention": 9,
+      "local_retention_score": 78.0,
+      "combined_score": 84.3
+    },
+    {
+      "text": "O misterioso vídeo da câmera de segurança que marcou os últimos momentos de Elisa Lam.",
+      "curiosity": 9,
+      "clarity": 10,
+      "factuality": 10,
+      "retention": 9,
+      "local_retention_score": 68.0,
+      "combined_score": 77.3
+    }
+  ],
+  "chosen": 2,
+  "final_script": "Por que o comportamento de Elisa Lam neste elevador intrigou o mundo inteiro? Em fevereiro de 2013, a estudante canadense desapareceu no infame Hotel Cecil, em Los Angeles. Dias depois, a polícia divulgou imagens da câmera de segurança do elevador. No registro, Elisa entra, sai, gesticula no corredor e às vezes parece se esconder, enquanto o elevador apresenta um funcionamento estranho. O vídeo viralizou, gerando especulações que variaram de paranormalidade ao transtorno bipolar da jovem. O mistério terminou de forma trágica quando funcionários de manutenção encontraram o corpo de Elisa nu em um tanque de água no telhado. O relatório oficial da autópsia apontou morte acidental e sem trauma físico, mas as circunstâncias bizarras continuam intrigantes. Comente o que acha e siga para mais mistérios."
+}

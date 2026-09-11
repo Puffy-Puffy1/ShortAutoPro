@@ -1,0 +1,75 @@
+{
+  "short_id": "2026-08-31_1426",
+  "selected": {
+    "topic": "O Incidente do Voo 19",
+    "score": 71.88,
+    "gemini": {
+      "curiosity": 9.0,
+      "visual": 9.0,
+      "documentation": 9.0,
+      "retention": 9.0,
+      "comment_potential": 9.0
+    },
+    "objective": {
+      "visual": 5.0,
+      "hook": 5.0,
+      "documentation": 8.0,
+      "title_match": 10.0,
+      "novelty": 9.78
+    },
+    "wiki_title": "Voo 19",
+    "wiki_chars": 3521,
+    "wiki_similarity": 1.0
+  },
+  "ranking": [
+    {
+      "topic": "O Incidente do Voo 19",
+      "score": 71.88,
+      "gemini": {
+        "curiosity": 9.0,
+        "visual": 9.0,
+        "documentation": 9.0,
+        "retention": 9.0,
+        "comment_potential": 9.0
+      },
+      "objective": {
+        "visual": 5.0,
+        "hook": 5.0,
+        "documentation": 8.0,
+        "title_match": 10.0,
+        "novelty": 9.78
+      },
+      "wiki_title": "Voo 19",
+      "wiki_chars": 3521,
+      "wiki_similarity": 1.0
+    }
+  ],
+  "verification": [
+    {
+      "topic": "As Cartas de Zodiac",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O Homem de Somerton",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O Desaparecimento de Maura Murray",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O Incidente do Voo 19",
+      "approved": true,
+      "score": 71.88,
+      "wiki_title": "Voo 19"
+    },
+    {
+      "topic": "O desaparecimento de Bobby Dunbar",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "version": "4.2",
+  "enabled": true,
+  "rescue_enabled": true,
+  "max_rescue_queries": 3,
+  "hard_geo_contradiction": true,
+  "false_medicine_guard": true,
+  "generic_lifestyle_penalty": true,
+  "provider_diversity": true,
+  "source_group_diversity": true,
+  "media_type_diversity": true,
+  "never_downgrade_must_without_hard_mismatch": true,
+  "remove_scene_sibling_after_download": true,
+  "commit_first_success": true,
+  "telemetry": true
+}

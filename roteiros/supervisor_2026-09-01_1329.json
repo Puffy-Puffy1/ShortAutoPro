@@ -1,0 +1,35 @@
+{
+  "short_id": "2026-09-01_1329",
+  "version": "5.0",
+  "topic": "O Desaparecimento de Elisa Lam",
+  "wiki_title": "Morte de Elisa Lam",
+  "score": 95,
+  "status": "EXCELLENT",
+  "critical": [],
+  "warnings": [
+    "low_video_mix_2"
+  ],
+  "strengths": [
+    "source_identity_pass",
+    "script_length",
+    "hook_length",
+    "scene_count_12",
+    "visual_variety",
+    "visual_mode_variety",
+    "physical_media_12",
+    "motion_plan",
+    "motion_variety",
+    "comment_cta"
+  ],
+  "metrics": {
+    "script_words": 125,
+    "hook_words": 12,
+    "scenes": 12,
+    "visual_modes": 8,
+    "visual_repetitions": 0,
+    "media_files": 12,
+    "videos": 2,
+    "photos": 10,
+    "motion_scenes": 12
+  }
+}

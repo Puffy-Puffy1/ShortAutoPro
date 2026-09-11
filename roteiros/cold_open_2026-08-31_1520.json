@@ -1,0 +1,15 @@
+{
+  "short_id": "2026-08-31_1520",
+  "changed": false,
+  "before": "O que causou vômitos, convulsões e o aparecimento de um monstro brilhante em 1952?",
+  "before_score": 68.0,
+  "after": "O que causou vômitos, convulsões e o aparecimento de um monstro brilhante em 1952?",
+  "candidate_after": "Vômitos, convulsões e uma névoa que queimava a pele em 1952.",
+  "candidate_score": 75.0,
+  "improvement": 7.0,
+  "problems": [
+    "nomes_novos:Vômitos"
+  ],
+  "reason": "A primeira frase tem 12 palavras, destaca os sintomas mais intrigantes logo no início criando uma lacuna de curiosidade, e a segunda frase fornece o contexto temporal e geográfico exato sem alterar nenhum fato do roteiro.",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/short_pre_cold_open_2026-08-31_1520.txt"
+}

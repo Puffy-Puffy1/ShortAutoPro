@@ -1,0 +1,226 @@
+{
+  "short_id": "2026-09-09_0417",
+  "topic": "A Fuga de Alcatraz de 1962",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_pre_documentary_2026-09-09_0417.json",
+  "visual_mode_triple_repetitions": 0,
+  "shot_triple_repetitions": 1,
+  "scenes": [
+    {
+      "scene": 1,
+      "segment": "Como três presos usaram cabeças de papel machê para fugir de Alcatraz?",
+      "visual_mode": "architecture",
+      "shot_type": "medium",
+      "query_before": "historic prison cell interior dark atmosphere cinematic",
+      "query_after": "historic prison cell interior dark atmosphere cinematic",
+      "must_have": [
+        "prison cell",
+        "bars"
+      ],
+      "avoid": [
+        "modern office",
+        "smartphone",
+        "happy people"
+      ],
+      "reason": "Mostra o ambiente físico original das celas de Alcatraz."
+    },
+    {
+      "scene": 2,
+      "segment": "Em junho de 1962, Frank Morris e os irmãos Anglin executaram uma ousada fuga",
+      "visual_mode": "environment",
+      "shot_type": "wide",
+      "query_before": "vintage 1960s prison island exterior aerial view",
+      "query_after": "vintage 1960s prison island exterior aerial view",
+      "must_have": [
+        "island",
+        "prison"
+      ],
+      "avoid": [
+        "futuristic city",
+        "cars",
+        "airplane"
+      ],
+      "reason": "Estabelece a locação histórica da ilha de Alcatraz em 1962."
+    },
+    {
+      "scene": 3,
+      "segment": "na prisão mais segura do mundo.",
+      "visual_mode": "object",
+      "shot_type": "close_up",
+      "query_before": "heavy iron prison gates locking mechanism close up",
+      "query_after": "heavy iron prison gates locking mechanism close up",
+      "must_have": [
+        "metal bars",
+        "lock"
+      ],
+      "avoid": [
+        "wooden door",
+        "bright lights",
+        "flowers"
+      ],
+      "reason": "Enfatiza a segurança extrema da prisão mencionada na narração."
+    },
+    {
+      "scene": 4,
+      "segment": "Usando colheres e um motor de aspirador adaptado,",
+      "visual_mode": "object",
+      "shot_type": "close_up",
+      "query_before": "old metal spoon digging rusty concrete wall",
+      "query_after": "old metal spoon digging rusty concrete wall",
+      "must_have": [
+        "spoon",
+        "wall"
+      ],
+      "avoid": [
+        "modern kitchen",
+        "computer",
+        "plastic"
+      ],
+      "reason": "Representa diretamente o uso de ferramentas improvisadas descrito na fonte."
+    },
+    {
+      "scene": 5,
+      "segment": "eles abriram caminho por um duto de ventilação.",
+      "visual_mode": "architecture",
+      "shot_type": "medium",
+      "query_before": "dark metal ventilation duct tunnel inside prison",
+      "query_after": "dark metal ventilation duct tunnel inside prison",
+      "must_have": [
+        "ventilation duct",
+        "metal"
+      ],
+      "avoid": [
+        "forest",
+        "bedroom",
+        "sunny beach"
+      ],
+      "reason": "Ilustra o duto de ventilação usado na rota de fuga."
+    },
+    {
+      "scene": 6,
+      "segment": "O barulho foi encoberto pelo som de acordeões.",
+      "visual_mode": "object",
+      "shot_type": "medium",
+      "query_before": "vintage accordion instrument playing in dark room",
+      "query_after": "vintage accordion instrument playing in dark room",
+      "must_have": [
+        "accordion"
+      ],
+      "avoid": [
+        "electric guitar",
+        "piano",
+        "dj"
+      ],
+      "reason": "Mostra o instrumento usado para abafar o barulho conforme os relatos."
+    },
+    {
+      "scene": 7,
+      "segment": "No telhado, construíram uma balsa com mais de cinquenta capas de chuva furtadas.",
+      "visual_mode": "evidence",
+      "shot_type": "medium",
+      "query_before": "rubber raincoats piled on dark rooftop at night",
+      "query_after": "rubber raincoats piled on dark rooftop at night",
+      "must_have": [
+        "raincoats",
+        "rooftop"
+      ],
+      "avoid": [
+        "bright sunny day",
+        "ocean waves",
+        "car"
+      ],
+      "reason": "Evidencia o material utilizado na construção da balsa inflável."
+    },
+    {
+      "scene": 8,
+      "segment": "Naquela noite, deixaram bonecos com cabelo humano nas camas",
+      "visual_mode": "evidence",
+      "shot_type": "close_up",
+      "query_before": "dummy mannequin head on prison bed dark cell",
+      "query_after": "dummy mannequin head on prison bed dark cell",
+      "must_have": [
+        "bed",
+        "dummy head"
+      ],
+      "avoid": [
+        "living person",
+        "hospital",
+        "bright light"
+      ],
+      "reason": "Representa os bonecos de papel machê deixados nas camas."
+    },
+    {
+      "scene": 9,
+      "segment": "e partiram para o escuro.",
+      "visual_mode": "environment",
+      "shot_type": "wide",
+      "query_before": "dark stormy ocean water at night cinematic",
+      "query_after": "dark stormy ocean water at night cinematic",
+      "must_have": [
+        "dark water",
+        "night"
+      ],
+      "avoid": [
+        "sunny beach",
+        "swimming pool",
+        "daytime"
+      ],
+      "reason": "Contextualiza o momento da partida para o mar escuro e perigoso."
+    },
+    {
+      "scene": 10,
+      "segment": "O FBI concluiu oficialmente que eles se afogaram nas águas geladas da baía.",
+      "visual_mode": "environment",
+      "shot_type": "wide",
+      "query_before": "cold foggy bay water with choppy waves aerial view",
+      "query_after": "cold foggy bay water with choppy waves aerial view",
+      "must_have": [
+        "cold water",
+        "fog"
+      ],
+      "avoid": [
+        "desert",
+        "tropical beach",
+        "sunny sky"
+      ],
+      "reason": "Ilustra as condições reais das águas da Baía de São Francisco."
+    },
+    {
+      "scene": 11,
+      "segment": "Mas o caso continua aberto até hoje, e teorias de sobrevivência persistem.",
+      "visual_mode": "document",
+      "shot_type": "medium",
+      "query_before": "old police case file document with stamp top view",
+      "query_after": "old police case file document with stamp top view",
+      "must_have": [
+        "document",
+        "paper"
+      ],
+      "avoid": [
+        "smartphone",
+        "laptop",
+        "neon lights"
+      ],
+      "reason": "Representa a investigação oficial e o status em aberto do caso."
+    },
+    {
+      "scene": 12,
+      "segment": "O que você acha que aconteceu? Comente abaixo.",
+      "visual_mode": "architecture",
+      "shot_type": "wide",
+      "query_before": "historic alcatraz prison watchtower silhouette at dusk",
+      "query_after": "historic alcatraz prison watchtower silhouette at dusk",
+      "must_have": [
+        "watchtower",
+        "silhouette"
+      ],
+      "avoid": [
+        "smartphone",
+        "social media icons",
+        "computer screen",
+        "social media icon",
+        "thumbs up"
+      ],
+      "reason": "Encerra o documentário mantendo o tom histórico e misterioso da ilha."
+    }
+  ]
+}

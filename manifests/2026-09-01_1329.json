@@ -1,0 +1,285 @@
+{
+  "short_id": "2026-09-01_1329",
+  "created_at": "2026-09-01T13:38:37.452457",
+  "status": "QUALITY_PASS",
+  "topic": "O Desaparecimento de Elisa Lam",
+  "hook": "Por que o último vídeo desta estudante canadense no elevador chocou a internet?",
+  "script": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/short_2026-09-01_1329.txt",
+    "text": "O que realmente aconteceu nos últimos minutos de Elisa Lam no elevador? Em fevereiro de 2013, a estudante canadense desapareceu no Hotel Cecil, em Los Angeles. Cinco dias antes de seu corpo ser achado em um tanque de água no topo do hotel, a polícia divulgou imagens de uma câmera de segurança no elevador. Elisa entra, sai, gesticula para o corredor e parece se esconder enquanto o elevador apresenta um funcionamento estranho. O vídeo viralizou, gerando especulações que variaram de alegações de envolvimento paranormal ao transtorno bipolar do qual Lam sofria. Meses depois, o relatório da autópsia concluiu que não havia evidência de trauma físico e que a morte foi acidental. O caso gerou debates e referências. Comente sua teoria e siga para mais mistérios."
+  },
+  "source": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/fonte_2026-09-01_1329.txt"
+  },
+  "publish": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/publish_2026-09-01_1329.json",
+    "chosen_title": "O mistério do vídeo no elevador de Elisa Lam 🏨",
+    "titles": [
+      "O mistério do vídeo no elevador de Elisa Lam 🏨",
+      "O que aconteceu com Elisa Lam no Hotel Cecil?",
+      "A verdade sobre o caso de Elisa Lam em 2013"
+    ],
+    "description": "O desaparecimento de Elisa Lam no Hotel Cecil chocou a internet após a polícia divulgar um vídeo perturbador no elevador. O que você acha que aconteceu? Comente sua teoria!",
+    "hashtags": [
+      "#Shorts",
+      "#ElisaLam",
+      "#HotelCecil",
+      "#Misterio",
+      "#CasoReal"
+    ],
+    "pinned_comment": "Para você, o vídeo do elevador tem alguma explicação paranormal ou foi resultado do transtorno bipolar?"
+  },
+  "scenes": {
+    "map_path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_2026-09-01_1329.json",
+    "count": 12,
+    "physical_count": 12,
+    "items": [
+      {
+        "scene": 1,
+        "segment": "O que realmente aconteceu nos últimos minutos de Elisa Lam no elevador?",
+        "query": "vintage hotel elevator interior control panel buttons old style",
+        "must_have": [
+          "elevator",
+          "buttons"
+        ],
+        "avoid": [
+          "modern futuristic elevator",
+          "smartphone",
+          "bright lights"
+        ],
+        "words": 12,
+        "weight": 0.096,
+        "visual_mode": "location",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 2,
+        "segment": "Em fevereiro de 2013, a estudante canadense desapareceu no Hotel Cecil, em Los Angeles.",
+        "query": "historic old hotel exterior facade downtown Los Angeles street",
+        "must_have": [
+          "hotel",
+          "building"
+        ],
+        "avoid": [
+          "beach",
+          "tropical",
+          "futuristic skyscraper"
+        ],
+        "words": 14,
+        "weight": 0.112,
+        "visual_mode": "architecture",
+        "shot_type": "wide"
+      },
+      {
+        "scene": 3,
+        "segment": "Cinco dias antes de seu corpo ser achado em um tanque de água no topo do hotel,",
+        "query": "industrial rooftop water tank architecture urban building Los Angeles",
+        "must_have": [
+          "water tank",
+          "rooftop"
+        ],
+        "avoid": [
+          "swimming pool",
+          "interior bedroom",
+          "green grass"
+        ],
+        "words": 17,
+        "weight": 0.136,
+        "visual_mode": "location",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 4,
+        "segment": "a polícia divulgou imagens de uma câmera de segurança no elevador.",
+        "query": "grainy security camera footage monitor screen view vintage",
+        "must_have": [
+          "security camera",
+          "monitor"
+        ],
+        "avoid": [
+          "smartphone screen",
+          "colorful animation",
+          "bright studio"
+        ],
+        "words": 11,
+        "weight": 0.088,
+        "visual_mode": "evidence",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 5,
+        "segment": "Elisa entra, sai, gesticula para o corredor",
+        "query": "security camera view person walking vintage elevator hallway",
+        "must_have": [
+          "elevator",
+          "hallway"
+        ],
+        "avoid": [
+          "smiling person",
+          "group of people",
+          "party"
+        ],
+        "words": 7,
+        "weight": 0.056,
+        "visual_mode": "human_context",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 6,
+        "segment": "e parece se esconder enquanto o elevador apresenta um funcionamento estranho.",
+        "query": "vintage elevator doors opening closing repeatedly mechanical fault",
+        "must_have": [
+          "elevator doors"
+        ],
+        "avoid": [
+          "escalator",
+          "stairs",
+          "fire escape"
+        ],
+        "words": 11,
+        "weight": 0.088,
+        "visual_mode": "object",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 7,
+        "segment": "O vídeo viralizou, gerando especulações que variaram de alegações de envolvimento paranormal",
+        "query": "dark mysterious hotel hallway flickering lights shadows suspense atmosphere",
+        "must_have": [
+          "hallway",
+          "shadows"
+        ],
+        "avoid": [
+          "sunny park",
+          "happy family",
+          "bright office",
+          "detailed alien spacecraft",
+          "flying saucer",
+          "visible ghost",
+          "alien creature"
+        ],
+        "words": 12,
+        "weight": 0.096,
+        "visual_mode": "abstract_context",
+        "shot_type": "wide"
+      },
+      {
+        "scene": 8,
+        "segment": "ao transtorno bipolar do qual Lam sofria.",
+        "query": "pensive silhouette looking through window glass reflection darkness",
+        "must_have": [
+          "window",
+          "reflection"
+        ],
+        "avoid": [
+          "hospital medical surgery",
+          "doctor smiling",
+          "group therapy"
+        ],
+        "words": 7,
+        "weight": 0.056,
+        "visual_mode": "abstract_context",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 9,
+        "segment": "Meses depois, o relatório da autópsia concluiu que não havia evidência de trauma físico",
+        "query": "official autopsy medical report document on wooden table",
+        "must_have": [
+          "paper document",
+          "table"
+        ],
+        "avoid": [
+          "computer screen",
+          "modern office",
+          "neon lights"
+        ],
+        "words": 14,
+        "weight": 0.112,
+        "visual_mode": "document",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 10,
+        "segment": "e que a morte foi acidental.",
+        "query": "calm water surface ripples dark cinematic lighting reflection",
+        "must_have": [
+          "water",
+          "ripples"
+        ],
+        "avoid": [
+          "fire",
+          "sunlight",
+          "explosion"
+        ],
+        "words": 6,
+        "weight": 0.048,
+        "visual_mode": "environment",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 11,
+        "segment": "O caso gerou debates e referências.",
+        "query": "old television static screen noise darkness retro media",
+        "must_have": [
+          "television",
+          "static"
+        ],
+        "avoid": [
+          "modern smartphone",
+          "tablet",
+          "cinema theater"
+        ],
+        "words": 6,
+        "weight": 0.048,
+        "visual_mode": "object",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 12,
+        "segment": "Comente sua teoria e siga para mais mistérios.",
+        "query": "dark vintage hotel hallway leading into darkness mystery architecture",
+        "must_have": [
+          "hallway",
+          "door"
+        ],
+        "avoid": [
+          "like button",
+          "subscribe icon",
+          "smartphone screen",
+          "social media icon",
+          "detailed alien spacecraft",
+          "flying saucer",
+          "visible ghost",
+          "alien creature"
+        ],
+        "words": 8,
+        "weight": 0.064,
+        "visual_intent_6_7": "CTA",
+        "visual_mode": "architecture",
+        "truth_refiner_6_7": "reuse_verified_story_visual",
+        "cta_reuse_6_7": true,
+        "shot_type": "wide"
+      }
+    ]
+  },
+  "video": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/videos/short_v6_2026-09-01_1329.mp4",
+    "version": "V6",
+    "duration_seconds": 41.3,
+    "width": 1080,
+    "height": 1920,
+    "fps": 30.0,
+    "video_codec": "h264",
+    "audio_codec": "aac"
+  },
+  "quality": {
+    "video_exists": true,
+    "scene_map_count": 12,
+    "physical_scene_count": 12,
+    "resolution_ok": true,
+    "fps_ok": true,
+    "audio_exists": true
+  },
+  "log": "/data/data/com.termux/files/home/ShortAutoPro/logs/producao/short_2026-09-01_1329.log"
+}

@@ -1,0 +1,211 @@
+{
+  "short_id": "2026-08-31_1520",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_pre_visual_2026-08-31_1520.json",
+  "shot_repetitions": 0,
+  "scenes": [
+    {
+      "scene": 1,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "vintage 1950s newspaper clipping about mysterious creature sighting",
+      "after_query": "vintage 1950s newspaper clipping about mysterious creature sighting",
+      "must_have": [
+        "newspaper",
+        "vintage"
+      ],
+      "avoid": [
+        "modern digital screen",
+        "smartphone"
+      ],
+      "shot_type": "document close-up",
+      "reason": "O objeto principal é o contexto de jornal/registro da época sobre o mistério."
+    },
+    {
+      "scene": 2,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "dark rural countryside road usa 1950s flatwoods west virginia",
+      "after_query": "dark rural countryside road usa 1950s west virginia night",
+      "must_have": [
+        "countryside",
+        "road"
+      ],
+      "avoid": [
+        "modern cars",
+        "skyscrapers"
+      ],
+      "shot_type": "wide environment",
+      "reason": "Estabelece a locação geográfica e temporal da noite do evento."
+    },
+    {
+      "scene": 3,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "unidentified bright light crossing dark night sky",
+      "after_query": "unidentified bright light crossing dark night sky atmosphere",
+      "must_have": [
+        "light",
+        "night sky"
+      ],
+      "avoid": [
+        "detailed alien spacecraft",
+        "airplane"
+      ],
+      "shot_type": "wide sky",
+      "reason": "Representa a luz brilhante no céu sem cair em fatos fictícios de espaçonaves."
+    },
+    {
+      "scene": 4,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "dark forest tree shadows silhouette at night",
+      "after_query": "dark forest tree shadows silhouette at night mystery",
+      "must_have": [
+        "shadow",
+        "trees"
+      ],
+      "avoid": [
+        "visible ghost",
+        "alien creature"
+      ],
+      "shot_type": "environment",
+      "reason": "Mostra a silhueta ambígua na floresta conforme relatado pelas testemunhas."
+    },
+    {
+      "scene": 5,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "thick mysterious fog rolling through dark forest trees",
+      "after_query": "thick mysterious fog rolling through dark forest trees",
+      "must_have": [
+        "fog",
+        "trees"
+      ],
+      "avoid": [
+        "sunny day",
+        "desert"
+      ],
+      "shot_type": "environment",
+      "reason": "Foca na névoa pungente descrita pelo grupo no local."
+    },
+    {
+      "scene": 6,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "vintage medical report document 1950s symptoms notes",
+      "after_query": "vintage medical report document 1950s symptoms notes paper",
+      "must_have": [
+        "document",
+        "paper"
+      ],
+      "avoid": [
+        "hospital room",
+        "doctors"
+      ],
+      "shot_type": "document/evidence",
+      "reason": "Ilustra os registros dos sintomas através de um documento de época."
+    },
+    {
+      "scene": 7,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "bright meteor falling fast across dark starry night sky",
+      "after_query": "bright meteor falling fast across dark starry night sky",
+      "must_have": [
+        "meteor",
+        "sky"
+      ],
+      "avoid": [
+        "daytime",
+        "indoor"
+      ],
+      "shot_type": "wide sky",
+      "reason": "Representa a conclusão científica do meteoro cruzando o céu."
+    },
+    {
+      "scene": 8,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "barn owl perched on tree branch at night close up",
+      "after_query": "barn owl perched on tree branch at night close up",
+      "must_have": [
+        "owl",
+        "tree"
+      ],
+      "avoid": [
+        "human",
+        "alien"
+      ],
+      "shot_type": "object close-up",
+      "reason": "Mostra a coruja-das-torres em uma árvore conforme a explicação racional."
+    },
+    {
+      "scene": 9,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "scary tree shadows cast on dark wall at night panic illusion",
+      "after_query": "scary tree shadows cast on dark wall at night panic",
+      "must_have": [
+        "shadow",
+        "tree"
+      ],
+      "avoid": [
+        "bright sunlight",
+        "happy people"
+      ],
+      "shot_type": "object close-up",
+      "reason": "Visualiza o efeito psicológico das sombras distorcidas pelo pânico."
+    },
+    {
+      "scene": 10,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "paranormal magazine article clipping about mysterious alien creature",
+      "after_query": "paranormal magazine article clipping about mysterious creature theory",
+      "must_have": [
+        "article",
+        "magazine"
+      ],
+      "avoid": [
+        "cute animal",
+        "bird"
+      ],
+      "shot_type": "document/evidence",
+      "reason": "Retrata as teorias e afirmações dos entusiastas através de material impresso."
+    },
+    {
+      "scene": 11,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "vintage welcome sign to small american town rural roadside",
+      "after_query": "vintage welcome sign to small american town rural roadside",
+      "must_have": [
+        "sign",
+        "town"
+      ],
+      "avoid": [
+        "busy airport",
+        "modern mall"
+      ],
+      "shot_type": "environment",
+      "reason": "Ilustra o turismo local e a cidade através de uma placa de boas-vindas."
+    },
+    {
+      "scene": 12,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "foggy dark forest path mystery cinematic atmosphere",
+      "after_query": "foggy dark forest path mystery cinematic atmosphere woods",
+      "must_have": [
+        "fog",
+        "forest"
+      ],
+      "avoid": [
+        "bright beach",
+        "happy children"
+      ],
+      "shot_type": "wide environment",
+      "reason": "Encerra com a atmosfera misteriosa e ambígua da floresta."
+    }
+  ]
+}

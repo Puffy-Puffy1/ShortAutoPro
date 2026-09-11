@@ -1,0 +1,78 @@
+{
+  "updated_at": "2026-08-30T15:16:24.285618",
+  "total": 18,
+  "unused": 16,
+  "used": 2,
+  "topics": [
+    {
+      "topic": "Desaparecimento de Frederick Valentich",
+      "wiki_title": "Desaparecimento de Valentich",
+      "score": 76.58,
+      "used": false,
+      "source": "topic_verified_2026-08-30_1437.json"
+    },
+    {
+      "topic": "Incidente no Passo Dyatlov",
+      "wiki_title": "Incidente do Passo Dyatlov",
+      "score": 76.5,
+      "used": false,
+      "source": "topic_verified_2026-08-30_1437.json"
+    },
+    {
+      "topic": "Desaparecimento de Elisa Lam",
+      "wiki_title": "Morte de Elisa Lam",
+      "score": 74.51,
+      "used": false,
+      "source": "topic_verified_2026-08-30_0435.json"
+    },
+    {
+      "topic": "O monstro de Flatwoods",
+      "wiki_title": "Monstro de Flatwoods",
+      "score": 72.71,
+      "used": false,
+      "source": "topic_verified_2026-08-30_1442.json"
+    },
+    {
+      "topic": "Caso Elisa Lam",
+      "wiki_title": "Morte de Elisa Lam",
+      "score": 72.12,
+      "used": false,
+      "source": "topic_verified_2026-08-30_1437.json"
+    },
+    {
+      "topic": "O Sinal Wow!",
+      "wiki_title": "Sinal Wow!",
+      "score": 69.95,
+      "used": false,
+      "source": "topic_verified_2026-08-30_1442.json"
+    },
+    {
+      "topic": "Caso Isdal",
+      "wiki_title": "Arve Isdal",
+      "score": 69.0,
+      "used": false,
+      "source": "topic_verified_2026-08-30_1437.json"
+    },
+    {
+      "topic": "O caso Elisa Lam",
+      "wiki_title": "Morte de Elisa Lam",
+      "score": 57.3,
+      "used": false,
+      "source": "topic_verified_2026-08-30_0352.json"
+    },
+    {
+      "topic": "Caso Dyatlov",
+      "wiki_title": "Incidente do Passo Dyatlov",
+      "score": 75.54,
+      "used": true,
+      "source": "topic_verified_2026-08-30_1442.json"
+    },
+    {
+      "topic": "O desaparecimento da tripulação do Mary Celeste",
+      "wiki_title": "Mary Celeste",
+      "score": 57.400000000000006,
+      "used": true,
+      "source": "topic_verified_2026-08-30_0352.json"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "hooks": [
+    {
+      "text": "Eles sobreviveram a uma queda nos Andes, mas o pior aconteceu depois.",
+      "curiosity": 9,
+      "clarity": 10,
+      "factuality": 10,
+      "retention": 9
+    },
+    {
+      "text": "O resgate foi cancelado após oito dias. Como dezesseis pessoas conseguiram sobreviver?",
+      "curiosity": 10,
+      "clarity": 9,
+      "factuality": 10,
+      "retention": 9
+    },
+    {
+      "text": "Setenta e dois dias isolados na neve exigiram uma decisão extrema.",
+      "curiosity": 9,
+      "clarity": 10,
+      "factuality": 10,
+      "retention": 9
+    }
+  ],
+  "chosen": 2,
+  "final_script": "O resgate foi cancelado após oito dias. Como dezesseis pessoas conseguiram sobreviver? Em 13 de outubro de 1972, o Voo 571 da Força Aérea Uruguaia caiu na Cordilheira dos Andes. O avião transportava quarenta e cinco pessoas, incluindo uma equipe de rugby. No frio extremo a mais de 3,6 mil metros, sem comida, eles enfrentaram o impensável: alimentaram-se da carne dos passageiros mortos. Após setenta e dois dias isolados, Fernando Parrado e Roberto Canessa caminharam dez dias pelas montanhas até encontrar um vaqueiro, que alertou as autoridades. O último sobrevivente foi resgatado em 23 de dezembro. Se curtiu essa história real de superação, siga o canal."
+}

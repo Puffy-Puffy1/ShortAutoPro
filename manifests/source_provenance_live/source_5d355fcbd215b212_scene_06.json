@@ -1,0 +1,19 @@
+{
+  "schema": "SHORTAUTOPRO_SOURCE_PROVENANCE_V1",
+  "provider": "Pixabay",
+  "title": "",
+  "license": "",
+  "artist": "",
+  "source_group": "",
+  "source_url": "https://pixabay.com/get/gb4eaeb20de80a543f09e01fd7e9d676c81d1ad7c73ee4732e97f82f9ecfa2fafa0ce957cf3faa0adf232273158d4dbda9566b95fd8658e90ae659fc0af0c2335_1280.jpg",
+  "remote_url": "https://pixabay.com/get/gb4eaeb20de80a543f09e01fd7e9d676c81d1ad7c73ee4732e97f82f9ecfa2fafa0ce957cf3faa0adf232273158d4dbda9566b95fd8658e90ae659fc0af0c2335_1280.jpg",
+  "local_path": "/data/data/com.termux/files/home/ShortAutoPro/imagens/short_2026-09-03_1148/scene_06.jpg",
+  "sha256": "5d355fcbd215b21216a1d7e4ca338a4c5e959cc9bda585d3cb6a9306a8e75e9a",
+  "bytes": 359898,
+  "suffix": ".jpg",
+  "capture_method": "baixar_candidato_5_2_hardened_v1",
+  "captured_at_unix": 1788447123.7336583,
+  "query_used_as_evidence": false,
+  "search_used_as_evidence": false,
+  "topic_used_as_evidence": false
+}

@@ -1,0 +1,226 @@
+{
+  "short_id": "2026-09-01_1329",
+  "topic": "O Desaparecimento de Elisa Lam",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_pre_documentary_2026-09-01_1329.json",
+  "visual_mode_triple_repetitions": 0,
+  "shot_triple_repetitions": 4,
+  "scenes": [
+    {
+      "scene": 1,
+      "segment": "O que realmente aconteceu nos últimos minutos de Elisa Lam no elevador?",
+      "visual_mode": "location",
+      "shot_type": "medium",
+      "query_before": "vintage hotel elevator interior cinematic slow motion",
+      "query_after": "vintage hotel elevator interior with control panel buttons",
+      "must_have": [
+        "elevator",
+        "buttons"
+      ],
+      "avoid": [
+        "modern futuristic elevator",
+        "smartphone",
+        "bright lights"
+      ],
+      "reason": "Estabelece o local exato mencionado na narração sobre os últimos momentos no elevador."
+    },
+    {
+      "scene": 2,
+      "segment": "Em fevereiro de 2013, a estudante canadense desapareceu no Hotel Cecil, em Los Angeles.",
+      "visual_mode": "architecture",
+      "shot_type": "wide",
+      "query_before": "historic old hotel exterior facade downtown Los Angeles",
+      "query_after": "historic old hotel exterior facade downtown Los Angeles street",
+      "must_have": [
+        "hotel",
+        "building"
+      ],
+      "avoid": [
+        "beach",
+        "tropical",
+        "futuristic skyscraper"
+      ],
+      "reason": "Mostra a fachada do Hotel Cecil em Los Angeles onde ocorreu o desaparecimento."
+    },
+    {
+      "scene": 3,
+      "segment": "Cinco dias antes de seu corpo ser achado em um tanque de água no topo do hotel,",
+      "visual_mode": "location",
+      "shot_type": "medium",
+      "query_before": "industrial rooftop water tank architecture urban building",
+      "query_after": "industrial rooftop water tank architecture urban building Los Angeles",
+      "must_have": [
+        "water tank",
+        "rooftop"
+      ],
+      "avoid": [
+        "swimming pool",
+        "interior bedroom",
+        "green grass"
+      ],
+      "reason": "Representa o local factual onde o corpo foi encontrado, no topo do edifício."
+    },
+    {
+      "scene": 4,
+      "segment": "a polícia divulgou imagens de uma câmera de segurança no elevador.",
+      "visual_mode": "evidence",
+      "shot_type": "medium",
+      "query_before": "security camera grainy footage monitor screen view",
+      "query_after": "grainy security camera footage monitor screen view vintage",
+      "must_have": [
+        "security camera",
+        "monitor"
+      ],
+      "avoid": [
+        "smartphone screen",
+        "colorful animation",
+        "bright studio"
+      ],
+      "reason": "Usa o formato de evidência visual para ilustrar a divulgação das imagens de segurança pela polícia."
+    },
+    {
+      "scene": 5,
+      "segment": "Elisa entra, sai, gesticula para o corredor",
+      "visual_mode": "human_context",
+      "shot_type": "medium",
+      "query_before": "young woman entering elevator pressing buttons nervously",
+      "query_after": "security camera view of person in vintage elevator hallway",
+      "must_have": [
+        "elevator",
+        "hallway"
+      ],
+      "avoid": [
+        "smiling person",
+        "group of people",
+        "party"
+      ],
+      "reason": "Mostra contextualmente a movimentação descrita no vídeo sem violar regras de representação direta da vítima."
+    },
+    {
+      "scene": 6,
+      "segment": "e parece se esconder enquanto o elevador apresenta um funcionamento estranho.",
+      "visual_mode": "object",
+      "shot_type": "medium",
+      "query_before": "elevator doors opening and closing repeatedly motion",
+      "query_after": "vintage elevator doors opening and closing repeatedly mechanical fault",
+      "must_have": [
+        "elevator doors"
+      ],
+      "avoid": [
+        "escalator",
+        "stairs",
+        "fire escape"
+      ],
+      "reason": "Foca no objeto mecânico (as portas do elevador) para ilustrar o mau funcionamento relatado."
+    },
+    {
+      "scene": 7,
+      "segment": "O vídeo viralizou, gerando especulações que variaram de alegações de envolvimento paranormal",
+      "visual_mode": "abstract_context",
+      "shot_type": "wide",
+      "query_before": "dark mysterious hallway with flickering lights suspense",
+      "query_after": "dark mysterious hallway with flickering lights shadows suspense atmosphere",
+      "must_have": [
+        "hallway",
+        "shadows"
+      ],
+      "avoid": [
+        "sunny park",
+        "happy family",
+        "bright office"
+      ],
+      "reason": "Trata a especulação paranormal de forma visualmente ambígua e atmosférica conforme as regras."
+    },
+    {
+      "scene": 8,
+      "segment": "ao transtorno bipolar do qual Lam sofria.",
+      "visual_mode": "abstract_context",
+      "shot_type": "medium",
+      "query_before": "pensive young woman looking through window glass reflection",
+      "query_after": "pensive silhouette looking through window glass reflection darkness",
+      "must_have": [
+        "window",
+        "reflection"
+      ],
+      "avoid": [
+        "hospital medical surgery",
+        "doctor smiling",
+        "group therapy"
+      ],
+      "reason": "Aborda o transtorno bipolar de maneira abstrata e respeitosa, evitando representações médicas incorretas."
+    },
+    {
+      "scene": 9,
+      "segment": "Meses depois, o relatório da autópsia concluiu que não havia evidência de trauma físico",
+      "visual_mode": "document",
+      "shot_type": "medium",
+      "query_before": "official paperwork document on wooden table cinematic lighting",
+      "query_after": "official autopsy paperwork document on wooden table cinematic lighting",
+      "must_have": [
+        "paper",
+        "table"
+      ],
+      "avoid": [
+        "computer screen",
+        "modern office",
+        "neon lights"
+      ],
+      "reason": "Usa o relatório oficial da autópsia como documento comprobatório dos fatos investigativos."
+    },
+    {
+      "scene": 10,
+      "segment": "e que a morte foi acidental.",
+      "visual_mode": "environment",
+      "shot_type": "medium",
+      "query_before": "rain drops falling on dark water surface ripples",
+      "query_after": "calm water surface ripples dark cinematic lighting reflection",
+      "must_have": [
+        "water",
+        "ripples"
+      ],
+      "avoid": [
+        "fire",
+        "sunlight",
+        "explosion"
+      ],
+      "reason": "Representa de forma neutra e não gráfica a conclusão oficial de morte acidental relacionada à água."
+    },
+    {
+      "scene": 11,
+      "segment": "O caso gerou debates e referências.",
+      "visual_mode": "object",
+      "shot_type": "medium",
+      "query_before": "old television static screen noise darkness",
+      "query_after": "old television static screen noise darkness retro media",
+      "must_have": [
+        "television",
+        "static"
+      ],
+      "avoid": [
+        "modern smartphone",
+        "tablet",
+        "cinema theater"
+      ],
+      "reason": "Simula a repercussão midiática e referências culturais do caso na mídia de época."
+    },
+    {
+      "scene": 12,
+      "segment": "Comente sua teoria e siga para mais mistérios.",
+      "visual_mode": "architecture",
+      "shot_type": "wide",
+      "query_before": "dark vintage hotel hallway leading into darkness mystery",
+      "query_after": "dark vintage hotel hallway leading into darkness mystery architecture",
+      "must_have": [
+        "hallway",
+        "door"
+      ],
+      "avoid": [
+        "like button",
+        "subscribe icon",
+        "smartphone screen",
+        "social media icon",
+        "thumbs up"
+      ],
+      "reason": "Encerra o Short com o ambiente arquitetônico icônico do hotel, mantendo o tom documental e misterioso."
+    }
+  ]
+}

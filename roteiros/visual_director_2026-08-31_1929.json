@@ -1,0 +1,224 @@
+{
+  "short_id": "2026-08-31_1929",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_pre_visual_2026-08-31_1929.json",
+  "shot_repetitions": 0,
+  "scenes": [
+    {
+      "scene": 1,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "vintage 1940s police station interior hallway dark",
+      "after_query": "vintage 1940s police interrogation room interior dark moody",
+      "must_have": [
+        "room",
+        "vintage furniture"
+      ],
+      "avoid": [
+        "modern office",
+        "smartphone",
+        "bright lights"
+      ],
+      "shot_type": "wide environment",
+      "reason": "Estabelece o ambiente de investigação policial retrô."
+    },
+    {
+      "scene": 2,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "old mechanical typewriter on a wooden desk dark room",
+      "after_query": "old mechanical typewriter on wooden desk dramatic shadow",
+      "must_have": [
+        "typewriter",
+        "desk"
+      ],
+      "avoid": [
+        "computer",
+        "tablet",
+        "neon lights"
+      ],
+      "shot_type": "object close-up",
+      "reason": "Foca no registro mecânico associado aos depoimentos e confissões."
+    },
+    {
+      "scene": 3,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "vintage january 1947 calendar page black and white",
+      "after_query": "vintage january 1947 calendar page black and white",
+      "must_have": [
+        "calendar",
+        "paper"
+      ],
+      "avoid": [
+        "digital clock",
+        "modern calendar",
+        "color"
+      ],
+      "shot_type": "document/evidence",
+      "reason": "Marca visualmente a data exata mencionada no segmento."
+    },
+    {
+      "scene": 4,
+      "before_score": 70,
+      "after_score": 70,
+      "before_query": "empty dark vacant lot in los angeles 1947 noir",
+      "after_query": "vintage 1947 crime scene perimeter line dark moody",
+      "must_have": [
+        "outdoor ground",
+        "vintage atmosphere"
+      ],
+      "avoid": [
+        "body",
+        "blood",
+        "corpse"
+      ],
+      "shot_type": "environment",
+      "reason": "Representa o local do achado sem violar as regras de conteúdo sensível."
+    },
+    {
+      "scene": 5,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "los angeles street 1940s vintage buildings architecture",
+      "after_query": "los angeles street 1940s vintage buildings architecture noir",
+      "must_have": [
+        "street",
+        "vintage buildings"
+      ],
+      "avoid": [
+        "modern cars",
+        "skyscrapers",
+        "neon signs"
+      ],
+      "shot_type": "wide environment",
+      "reason": "Contextualiza a cidade de Los Angeles na época."
+    },
+    {
+      "scene": 6,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "dark black dahlia flower close up cinematic lighting",
+      "after_query": "dark black dahlia flower close up cinematic lighting",
+      "must_have": [
+        "black flower",
+        "petals"
+      ],
+      "avoid": [
+        "bright red flowers",
+        "garden",
+        "sunlight"
+      ],
+      "shot_type": "object close-up",
+      "reason": "Ilustra o apelido mencionado na narração com o objeto direto."
+    },
+    {
+      "scene": 7,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "vintage 1940s newspaper headlines stacked black and white",
+      "after_query": "vintage 1940s newspaper headlines stacked black and white",
+      "must_have": [
+        "newspaper",
+        "paper"
+      ],
+      "avoid": [
+        "digital tablet",
+        "smartphone",
+        "modern magazine"
+      ],
+      "shot_type": "document/evidence",
+      "reason": "Mostra a repercussão na imprensa da época."
+    },
+    {
+      "scene": 8,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "retro 1940s american city street gloomy atmosphere",
+      "after_query": "retro 1940s american city street gloomy atmosphere",
+      "must_have": [
+        "street",
+        "vintage cars"
+      ],
+      "avoid": [
+        "modern traffic",
+        "airplanes",
+        "people smiling"
+      ],
+      "shot_type": "wide environment",
+      "reason": "Retrata a atmosfera da América do pós-guerra."
+    },
+    {
+      "scene": 9,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "old police case files stacked on a desk dark room",
+      "after_query": "old police case files stacked on a desk dark room",
+      "must_have": [
+        "paper documents",
+        "desk"
+      ],
+      "avoid": [
+        "computer",
+        "digital screen",
+        "plastic"
+      ],
+      "shot_type": "document/evidence",
+      "reason": "Visualiza os arquivos e confissões descartadas."
+    },
+    {
+      "scene": 10,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "vintage detective magnifying glass over old police investigation map",
+      "after_query": "vintage detective magnifying glass over old police investigation map",
+      "must_have": [
+        "magnifying glass",
+        "paper"
+      ],
+      "avoid": [
+        "digital screen",
+        "smartphone",
+        "glasses"
+      ],
+      "shot_type": "object close-up",
+      "reason": "Simboliza a investigação dos suspeitos."
+    },
+    {
+      "scene": 11,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "unsolved mystery stamped on old police document paper",
+      "after_query": "unsolved mystery stamped on old police document paper",
+      "must_have": [
+        "paper",
+        "stamp"
+      ],
+      "avoid": [
+        "computer",
+        "winner trophy",
+        "lights"
+      ],
+      "shot_type": "document/evidence",
+      "reason": "Representa o caráter inconclusivo da investigação."
+    },
+    {
+      "scene": 12,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "dark vintage library old books mysterious shadow background",
+      "after_query": "dark vintage library old books mysterious shadow background",
+      "must_have": [
+        "bookshelf",
+        "books"
+      ],
+      "avoid": [
+        "smartphone screen",
+        "social media icons",
+        "modern gadgets",
+        "thumbs up"
+      ],
+      "shot_type": "environment",
+      "reason": "Encerra com um ambiente clássico de mistério e inspiração literária."
+    }
+  ]
+}

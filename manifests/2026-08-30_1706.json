@@ -1,0 +1,250 @@
+{
+  "short_id": "2026-08-30_1706",
+  "created_at": "2026-08-30T17:13:58.982086",
+  "status": "QUALITY_PASS",
+  "topic": "Desaparecimento de Frederick Valentich",
+  "hook": "O que aconteceu na última transmissão de rádio do piloto Frederick Valentich na Austrália?",
+  "script": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/short_2026-08-30_1706.txt",
+    "text": "Sons metálicos cortaram a transmissão de um piloto que avistou algo inexplicável no céu. Em vinte e um de outubro de mil novecentos e setenta e oito, o piloto Frederick Valentich desapareceu na Austrália após relatar um evento pelo rádio. Com cerca de cento e cinquenta horas de voo e exames reprovados, o jovem de vinte anos voava sobre o Estreito de Bass quando avisou o controle de tráfego de Melbourne sobre uma aeronave não identificada. Valentich afirmou que o objeto tinha luzes de pouso, superfície metálica brilhante, luz verde e orbitava seu Cessna. Investigações do Departamento de Transporte não determinaram a razão do desaparecimento, mas teorias sugerem desorientação espacial com reflexos na água ou planetas. Inscreva-se para mais mistérios."
+  },
+  "source": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/fonte_2026-08-30_1706.txt"
+  },
+  "publish": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/publish_2026-08-30_1706.json",
+    "chosen_title": "O que Valentich viu antes de sumir na Austrália?",
+    "titles": [
+      "O mistério do piloto que sumiu após ver algo no céu ✈️",
+      "O que Valentich viu antes de sumir na Austrália?",
+      "A última transmissão do piloto Frederick Valentich"
+    ],
+    "description": "Em 1978, um jovem piloto relatou uma aeronave não identificada antes de desaparecer na Austrália. O que teria acontecido? Deixe sua opinião nos comentários!",
+    "hashtags": [
+      "#Shorts",
+      "#FrederickValentich",
+      "#Misterio",
+      "#Aviacao",
+      "#Australia"
+    ],
+    "pinned_comment": "Qual teoria você acha mais provável para o desaparecimento de Valentich?"
+  },
+  "scenes": {
+    "map_path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_2026-08-30_1706.json",
+    "count": 12,
+    "physical_count": 12,
+    "items": [
+      {
+        "scene": 1,
+        "segment": "Sons metálicos cortaram a transmissão de um piloto que avistou algo inexplicável no céu.",
+        "query": "vintage audio radio static grainy night sky transmission",
+        "must_have": [
+          "radio static",
+          "night sky"
+        ],
+        "avoid": [
+          "modern smartphone",
+          "futuristic tech",
+          "daylight"
+        ],
+        "words": 14,
+        "weight": 0.11666666666666667
+      },
+      {
+        "scene": 2,
+        "segment": "Em vinte e um de outubro de mil novecentos e setenta e oito,",
+        "query": "vintage calendar october nineteen seventy eight dark room",
+        "must_have": [
+          "calendar",
+          "vintage"
+        ],
+        "avoid": [
+          "digital clock",
+          "smartphone",
+          "modern calendar"
+        ],
+        "words": 13,
+        "weight": 0.10833333333333334
+      },
+      {
+        "scene": 3,
+        "segment": "o piloto Frederick Valentich desapareceu na Austrália após relatar um evento pelo rádio.",
+        "query": "vintage pilot headset microphone inside dark aircraft cockpit",
+        "must_have": [
+          "pilot headset",
+          "cockpit"
+        ],
+        "avoid": [
+          "modern jet",
+          "commercial airliner",
+          "daylight"
+        ],
+        "words": 13,
+        "weight": 0.10833333333333334
+      },
+      {
+        "scene": 4,
+        "segment": "Com cerca de cento e cinquenta horas de voo e exames reprovados,",
+        "query": "vintage aviation flight logbook paperwork and pen on desk",
+        "must_have": [
+          "logbook",
+          "paperwork"
+        ],
+        "avoid": [
+          "computer screen",
+          "tablet",
+          "modern laptop"
+        ],
+        "words": 12,
+        "weight": 0.1
+      },
+      {
+        "scene": 5,
+        "segment": "o jovem de vinte anos voava sobre o Estreito de Bass",
+        "query": "small propeller airplane flying over dark bass strait ocean",
+        "must_have": [
+          "propeller airplane",
+          "ocean"
+        ],
+        "avoid": [
+          "modern airport",
+          "city skyline",
+          "daylight"
+        ],
+        "words": 11,
+        "weight": 0.09166666666666666
+      },
+      {
+        "scene": 6,
+        "segment": "quando avisou o controle de tráfego de Melbourne sobre uma aeronave não identificada.",
+        "query": "vintage aviation radio microphone and control panel dark room",
+        "must_have": [
+          "radio microphone",
+          "control panel"
+        ],
+        "avoid": [
+          "modern computer",
+          "smartphone",
+          "tablet"
+        ],
+        "words": 13,
+        "weight": 0.10833333333333334
+      },
+      {
+        "scene": 7,
+        "segment": "Valentich afirmou que o objeto tinha luzes de pouso,",
+        "query": "bright glowing aircraft landing lights in dark night sky",
+        "must_have": [
+          "landing lights",
+          "night sky"
+        ],
+        "avoid": [
+          "daylight",
+          "sunset",
+          "city lights"
+        ],
+        "words": 9,
+        "weight": 0.075
+      },
+      {
+        "scene": 8,
+        "segment": "superfície metálica brilhante, luz verde",
+        "query": "metallic glowing UFO object with green light in night sky",
+        "must_have": [
+          "metallic object",
+          "green light"
+        ],
+        "avoid": [
+          "bird",
+          "hot air balloon",
+          "airplane"
+        ],
+        "words": 5,
+        "weight": 0.041666666666666664
+      },
+      {
+        "scene": 9,
+        "segment": "e orbitava seu Cessna.",
+        "query": "small single engine propeller airplane flying at night",
+        "must_have": [
+          "propeller airplane",
+          "night sky"
+        ],
+        "avoid": [
+          "helicopter",
+          "jet fighter",
+          "daylight"
+        ],
+        "words": 4,
+        "weight": 0.03333333333333333
+      },
+      {
+        "scene": 10,
+        "segment": "Investigações do Departamento de Transporte não determinaram a razão do desaparecimento,",
+        "query": "vintage official transport investigation file documents on wooden table",
+        "must_have": [
+          "investigation documents",
+          "table"
+        ],
+        "avoid": [
+          "digital tablet",
+          "laptop",
+          "modern plastic"
+        ],
+        "words": 11,
+        "weight": 0.09166666666666666
+      },
+      {
+        "scene": 11,
+        "segment": "mas teorias sugerem desorientação espacial com reflexos na água ou planetas.",
+        "query": "planet stars reflection on dark ocean water surface night",
+        "must_have": [
+          "stars reflection",
+          "ocean water"
+        ],
+        "avoid": [
+          "city lights",
+          "daytime",
+          "airplane"
+        ],
+        "words": 11,
+        "weight": 0.09166666666666666
+      },
+      {
+        "scene": 12,
+        "segment": "Inscreva-se para mais mistérios.",
+        "query": "dark starry night sky mysterious fog cinematic atmosphere background",
+        "must_have": [
+          "starry sky",
+          "fog"
+        ],
+        "avoid": [
+          "like button",
+          "subscribe button",
+          "smartphone"
+        ],
+        "words": 4,
+        "weight": 0.03333333333333333
+      }
+    ]
+  },
+  "video": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/videos/short_v6_2026-08-30_1706.mp4",
+    "version": "V6",
+    "duration_seconds": 41.766667,
+    "width": 1080,
+    "height": 1920,
+    "fps": 30.0,
+    "video_codec": "h264",
+    "audio_codec": "aac"
+  },
+  "quality": {
+    "video_exists": true,
+    "scene_map_count": 12,
+    "physical_scene_count": 12,
+    "resolution_ok": true,
+    "fps_ok": true,
+    "audio_exists": true
+  },
+  "log": "/data/data/com.termux/files/home/ShortAutoPro/logs/producao/short_2026-08-30_1706.log"
+}

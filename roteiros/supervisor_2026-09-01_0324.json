@@ -1,0 +1,35 @@
+{
+  "short_id": "2026-09-01_0324",
+  "version": "5.0",
+  "topic": "O Voo 191 da American Airlines",
+  "wiki_title": "Voo American Airlines 191",
+  "score": 92,
+  "status": "EXCELLENT",
+  "critical": [],
+  "warnings": [
+    "low_video_mix_1",
+    "weak_comment_cta"
+  ],
+  "strengths": [
+    "source_identity_pass",
+    "script_length",
+    "hook_length",
+    "scene_count_12",
+    "visual_variety",
+    "visual_mode_variety",
+    "physical_media_12",
+    "motion_plan",
+    "motion_variety"
+  ],
+  "metrics": {
+    "script_words": 113,
+    "hook_words": 12,
+    "scenes": 12,
+    "visual_modes": 6,
+    "visual_repetitions": 0,
+    "media_files": 12,
+    "videos": 1,
+    "photos": 11,
+    "motion_scenes": 12
+  }
+}

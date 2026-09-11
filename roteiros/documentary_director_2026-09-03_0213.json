@@ -1,0 +1,227 @@
+{
+  "short_id": "2026-09-03_0213",
+  "topic": "O Caso Isabella Nardoni",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_pre_documentary_2026-09-03_0213.json",
+  "visual_mode_triple_repetitions": 0,
+  "shot_triple_repetitions": 4,
+  "scenes": [
+    {
+      "scene": 1,
+      "segment": "Um pai alegou que um invasor jogou sua filha de cinco anos,",
+      "visual_mode": "document",
+      "shot_type": "medium",
+      "query_before": "father crying police interview dramatic dark room",
+      "query_after": "police investigation report document papers on desk dark",
+      "must_have": [
+        "document",
+        "paper"
+      ],
+      "avoid": [
+        "man face",
+        "actor",
+        "bright sunny park"
+      ],
+      "reason": "Representa alegações de depoimento policial usando documentos oficiais em vez de atores."
+    },
+    {
+      "scene": 2,
+      "segment": "mas a investigação revelou outra história.",
+      "visual_mode": "evidence",
+      "shot_type": "medium",
+      "query_before": "detective examining crime scene evidence flashlight dark",
+      "query_after": "forensic examination tool magnifying glass on dark table",
+      "must_have": [
+        "magnifying glass",
+        "table"
+      ],
+      "avoid": [
+        "smiling person",
+        "kitchen cooking",
+        "beach"
+      ],
+      "reason": "Ilustra o trabalho investigativo revelando fatos de forma neutra."
+    },
+    {
+      "scene": 3,
+      "segment": "Em 2008, o caso Isabella Nardoni chocou o Brasil.",
+      "visual_mode": "document",
+      "shot_type": "medium",
+      "query_before": "old news broadcast television screen static grain",
+      "query_after": "vintage 2008 television news broadcast screen static grain",
+      "must_have": [
+        "television",
+        "screen"
+      ],
+      "avoid": [
+        "modern smartphone",
+        "futuristic tech",
+        "futuristic interface"
+      ],
+      "reason": "Contextualiza a época da repercussão do caso em 2008."
+    },
+    {
+      "scene": 4,
+      "segment": "A menina foi encontrada morta após ser jogada do sexto andar",
+      "visual_mode": "architecture",
+      "shot_type": "medium",
+      "query_before": "high apartment building exterior night dramatic angle",
+      "query_after": "high apartment building exterior night facade dramatic angle",
+      "must_have": [
+        "building",
+        "window"
+      ],
+      "avoid": [
+        "dog running",
+        "countryside",
+        "forest"
+      ],
+      "reason": "Mostra a fachada do prédio residencial citado nos fatos."
+    },
+    {
+      "scene": 5,
+      "segment": "de um prédio em São Paulo.",
+      "visual_mode": "location",
+      "shot_type": "wide",
+      "query_before": "Sao Paulo urban skyline aerial view night dark",
+      "query_after": "Sao Paulo urban skyline aerial view night dark city",
+      "must_have": [
+        "city",
+        "buildings"
+      ],
+      "avoid": [
+        "rural landscape",
+        "desert",
+        "beach"
+      ],
+      "reason": "Indica a cidade onde o ocorrido se deu."
+    },
+    {
+      "scene": 6,
+      "segment": "O pai e a madrasta alegaram que um invasor entrou no apartamento",
+      "visual_mode": "evidence",
+      "shot_type": "medium",
+      "query_before": "broken window glass shards apartment interior night",
+      "query_after": "damaged window mesh screen security frame apartment interior",
+      "must_have": [
+        "window",
+        "screen"
+      ],
+      "avoid": [
+        "happy children",
+        "garden flowers",
+        "sunny day"
+      ],
+      "reason": "Foca na evidência física da tela de proteção mencionada na investigação."
+    },
+    {
+      "scene": 7,
+      "segment": "e jogou a criança.",
+      "visual_mode": "location",
+      "shot_type": "medium",
+      "query_before": "empty dark apartment room floor shadows dramatic",
+      "query_after": "empty dark apartment room interior floor shadows dramatic",
+      "must_have": [
+        "room",
+        "floor"
+      ],
+      "avoid": [
+        "animals",
+        "ocean",
+        "airport"
+      ],
+      "reason": "Representa o interior do apartamento vazio de forma documental."
+    },
+    {
+      "scene": 8,
+      "segment": "Porém, a investigação logo descartou a versão de assalto e acidente.",
+      "visual_mode": "evidence",
+      "shot_type": "medium",
+      "query_before": "forensic investigator examining evidence magnifier dark room",
+      "query_after": "forensic investigator examining evidence flashlight dark room",
+      "must_have": [
+        "flashlight",
+        "table"
+      ],
+      "avoid": [
+        "smiling people",
+        "cooking food",
+        "sports game"
+      ],
+      "reason": "Destaca a refutação da versão inicial pela perícia técnica."
+    },
+    {
+      "scene": 9,
+      "segment": "Os laudos apontaram indícios de agressão e asfixia antes da queda,",
+      "visual_mode": "document",
+      "shot_type": "medium",
+      "query_before": "forensic medical report document papers dark desk",
+      "query_after": "forensic medical autopsy report official document papers dark desk",
+      "must_have": [
+        "document",
+        "paper"
+      ],
+      "avoid": [
+        "bright colorful toys",
+        "birthday party",
+        "nature landscape"
+      ],
+      "reason": "Usa laudos periciais oficiais para relatar os achados médicos sem dramatização gráfica."
+    },
+    {
+      "scene": 10,
+      "segment": "além de sangue no quarto e adulteração na cena do crime.",
+      "visual_mode": "evidence",
+      "shot_type": "wide",
+      "query_before": "crime scene yellow tape police investigation room dark",
+      "query_after": "crime scene yellow police tape restricted area room dark",
+      "must_have": [
+        "police tape",
+        "room"
+      ],
+      "avoid": [
+        "sunny beach",
+        "restaurant table",
+        "happy crowd"
+      ],
+      "reason": "Indica o isolamento e adulteração da cena do crime."
+    },
+    {
+      "scene": 11,
+      "segment": "Alexandre Nardoni e Anna Carolina Jatobá foram condenados por homicídio doloso qualificado.",
+      "visual_mode": "object",
+      "shot_type": "medium",
+      "query_before": "courtroom gavel justice wooden table dramatic lighting",
+      "query_after": "courtroom wooden gavel justice table dramatic lighting",
+      "must_have": [
+        "gavel",
+        "wood"
+      ],
+      "avoid": [
+        "smiling face",
+        "children playing",
+        "outdoor park"
+      ],
+      "reason": "Simboliza a condenação judicial pelo tribunal."
+    },
+    {
+      "scene": 12,
+      "segment": "Comente sua opinião e siga o canal.",
+      "visual_mode": "architecture",
+      "shot_type": "wide",
+      "query_before": "police building exterior entrance gates dramatic shadows",
+      "query_after": "courthouse building exterior entrance gates dramatic shadows",
+      "must_have": [
+        "gate",
+        "building"
+      ],
+      "avoid": [
+        "smartphone screen",
+        "computer monitor",
+        "social media icons",
+        "social media icon",
+        "thumbs up"
+      ],
+      "reason": "Encerra com a fachada institucional neutra, sem apelos genéricos de redes sociais."
+    }
+  ]
+}

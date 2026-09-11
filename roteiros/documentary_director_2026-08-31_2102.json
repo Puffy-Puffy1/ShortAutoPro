@@ -1,0 +1,220 @@
+{
+  "short_id": "2026-08-31_2102",
+  "topic": "O Incidente de Roswell",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_pre_documentary_2026-08-31_2102.json",
+  "visual_mode_triple_repetitions": 0,
+  "shot_triple_repetitions": 6,
+  "scenes": [
+    {
+      "scene": 1,
+      "segment": "Em julho de 1947, um fazendeiro encontrou destroços num rancho perto de Roswell, no Novo México.",
+      "visual_mode": "location",
+      "shot_type": "wide",
+      "query_before": "historic desert ranch landscape new mexico 1947 style",
+      "query_after": "historic arid desert ranch landscape new mexico 1947",
+      "must_have": [
+        "desert",
+        "ranch"
+      ],
+      "avoid": [
+        "futuristic",
+        "modern city",
+        "spaceship"
+      ],
+      "reason": "Mostra o local real do ocorrido em Roswell no ano de 1947."
+    },
+    {
+      "scene": 2,
+      "segment": "A Base Aérea local anunciou à imprensa que havia recuperado um disco voador.",
+      "visual_mode": "document",
+      "shot_type": "medium",
+      "query_before": "vintage 1940s newspaper headline about flying saucer",
+      "query_after": "vintage 1947 newspaper front page headline flying saucer",
+      "must_have": [
+        "newspaper",
+        "headline"
+      ],
+      "avoid": [
+        "modern smartphone",
+        "tablet",
+        "television"
+      ],
+      "reason": "Representa o comunicado original da imprensa sobre o disco voador através de um documento de época."
+    },
+    {
+      "scene": 3,
+      "segment": "Logo depois, o exército desmentiu a história, afirmando tratar-se de um balão meteorológico.",
+      "visual_mode": "evidence",
+      "shot_type": "medium",
+      "query_before": "vintage weather balloon rising in desert sky",
+      "query_after": "historical meteorological weather balloon rising in clear desert sky",
+      "must_have": [
+        "weather balloon",
+        "sky"
+      ],
+      "avoid": [
+        "alien",
+        "ufo",
+        "spaceship"
+      ],
+      "reason": "Ilustra a explicação oficial do exército sobre o balão meteorológico."
+    },
+    {
+      "scene": 4,
+      "segment": "O caso caiu no esquecimento até os anos 70,",
+      "visual_mode": "document",
+      "shot_type": "medium",
+      "query_before": "vintage 1970s calendar and dusty archive room",
+      "query_after": "vintage 1970s calendar and dusty historical archive room",
+      "must_have": [
+        "calendar",
+        "archive"
+      ],
+      "avoid": [
+        "smartphone",
+        "laptop",
+        "futuristic tech"
+      ],
+      "reason": "Indica a passagem do tempo até o ressurgimento do interesse nos anos 70 por meio de arquivos."
+    },
+    {
+      "scene": 5,
+      "segment": "quando ufólogos formularam teorias da conspiração de que uma nave extraterrestre havia se acidentado",
+      "visual_mode": "object",
+      "shot_type": "medium",
+      "query_before": "vintage typewriter with conspiracy notes and maps",
+      "query_after": "vintage typewriter with research notes and maps on desk",
+      "must_have": [
+        "typewriter",
+        "paper"
+      ],
+      "avoid": [
+        "modern computer",
+        "digital screen"
+      ],
+      "reason": "Mostra o trabalho de ufólogos formulando teorias com documentos e notas de época."
+    },
+    {
+      "scene": 6,
+      "segment": "e os militares acobertado o fato.",
+      "visual_mode": "document",
+      "shot_type": "medium",
+      "query_before": "secret military documents stamped classified in dark office",
+      "query_after": "secret government documents stamped classified in dark office",
+      "must_have": [
+        "document",
+        "stamp"
+      ],
+      "avoid": [
+        "happy people",
+        "bright sunlight"
+      ],
+      "reason": "Representa a alegação de acobertamento militar através de documentos oficiais com carimbo sigiloso."
+    },
+    {
+      "scene": 7,
+      "segment": "Décadas mais tarde, a Força Aérea dos EUA publicou relatórios",
+      "visual_mode": "document",
+      "shot_type": "medium",
+      "query_before": "official government report papers on wooden desk",
+      "query_after": "official government investigative report papers on wooden desk",
+      "must_have": [
+        "report",
+        "paper",
+        "desk"
+      ],
+      "avoid": [
+        "alien",
+        "ufo"
+      ],
+      "reason": "Exibe os relatórios oficiais publicados posteriormente pela Força Aérea dos EUA."
+    },
+    {
+      "scene": 8,
+      "segment": "concluindo que o objeto era um balão do Projeto Mogul",
+      "visual_mode": "evidence",
+      "shot_type": "medium",
+      "query_before": "historical scientific balloon equipment in desert",
+      "query_after": "historical project mogul scientific balloon equipment in desert",
+      "must_have": [
+        "balloon",
+        "equipment"
+      ],
+      "avoid": [
+        "flying saucer",
+        "alien creature"
+      ],
+      "reason": "Evidencia o equipamento técnico real associado ao Projeto Mogul."
+    },
+    {
+      "scene": 9,
+      "segment": "e que relatos de corpos alienígenas resultaram de quedas de bonecos de ensaio.",
+      "visual_mode": "evidence",
+      "shot_type": "medium",
+      "query_before": "dummy crash test mannequin lying in desert sand",
+      "query_after": "historical crash test mannequin lying in desert sand",
+      "must_have": [
+        "mannequin",
+        "desert"
+      ],
+      "avoid": [
+        "real alien",
+        "green creature",
+        "spaceship"
+      ],
+      "reason": "Retrata neutramente os bonecos de ensaio citados no relatório oficial de 1997."
+    },
+    {
+      "scene": 10,
+      "segment": "Contudo, teorias da conspiração persistem em torno do caso.",
+      "visual_mode": "environment",
+      "shot_type": "wide",
+      "query_before": "mysterious desert night sky with stars and shadows",
+      "query_after": "mysterious desert night sky with stars and dark shadows",
+      "must_have": [
+        "desert",
+        "night sky"
+      ],
+      "avoid": [
+        "daylight",
+        "sunny beach"
+      ],
+      "reason": "Usa um ambiente visualmente ambíguo e noturno para representar a persistência das teorias."
+    },
+    {
+      "scene": 11,
+      "segment": "Deixe sua opinião nos comentários.",
+      "visual_mode": "object",
+      "shot_type": "medium",
+      "query_before": "vintage retro microphone on wooden desk",
+      "query_after": "vintage retro microphone on wooden studio desk",
+      "must_have": [
+        "microphone",
+        "desk"
+      ],
+      "avoid": [
+        "smartphone",
+        "computer screen",
+        "social media icons"
+      ],
+      "reason": "Contextualiza visualmente a chamada para a participação do público através de um microfone clássico."
+    },
+    {
+      "scene": 12,
+      "segment": "Fim da investigação histórica sobre Roswell.",
+      "visual_mode": "document",
+      "shot_type": "medium",
+      "query_before": "old archive box closed on dusty wooden shelf",
+      "query_after": "old archive box closed on dusty wooden library shelf",
+      "must_have": [
+        "box",
+        "shelf"
+      ],
+      "avoid": [
+        "modern office",
+        "neon lights"
+      ],
+      "reason": "Conclui a investigação histórica com uma caixa de arquivo guardada em prateleira."
+    }
+  ]
+}

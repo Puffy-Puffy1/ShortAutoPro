@@ -1,0 +1,213 @@
+{
+  "short_id": "2026-09-01_1415",
+  "topic": "A Morte de JonBenét Ramsey",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_pre_documentary_2026-09-01_1415.json",
+  "visual_mode_triple_repetitions": 0,
+  "shot_triple_repetitions": 0,
+  "scenes": [
+    {
+      "scene": 1,
+      "segment": "Uma mini-miss foi encontrada morta no porão",
+      "visual_mode": "architecture",
+      "shot_type": "medium",
+      "query_before": "dark basement interior staircase cinematic mystery",
+      "query_after": "dark basement interior with concrete foundation walls",
+      "must_have": [
+        "basement",
+        "walls"
+      ],
+      "avoid": [
+        "sunny beach",
+        "happy people"
+      ],
+      "reason": "Representa o ambiente exato onde o corpo foi encontrado."
+    },
+    {
+      "scene": 2,
+      "segment": "após um bilhete de resgate misterioso.",
+      "visual_mode": "evidence",
+      "shot_type": "close_up",
+      "query_before": "handwritten ransom note on paper close up",
+      "query_after": "handwritten ransom note on lined paper close up",
+      "must_have": [
+        "handwritten note",
+        "paper"
+      ],
+      "avoid": [
+        "modern smartphone",
+        "neon lights"
+      ],
+      "reason": "Foca na evidência física central da investigação."
+    },
+    {
+      "scene": 3,
+      "segment": "Em vinte e seis de dezembro de mil novecentos e noventa e seis,",
+      "visual_mode": "document",
+      "shot_type": "medium",
+      "query_before": "vintage calendar december snowy winter day",
+      "query_after": "vintage calendar page showing december 1996",
+      "must_have": [
+        "calendar",
+        "date"
+      ],
+      "avoid": [
+        "futuristic tech",
+        "summer beach"
+      ],
+      "reason": "Estabelece a época exata do crime de forma documental."
+    },
+    {
+      "scene": 4,
+      "segment": "a criança de seis anos foi achada sem vida na própria casa,",
+      "visual_mode": "location",
+      "shot_type": "wide",
+      "query_before": "suburban family house exterior winter snow",
+      "query_after": "suburban family house exterior covered in snow",
+      "must_have": [
+        "house",
+        "snow"
+      ],
+      "avoid": [
+        "skyscraper",
+        "tropical jungle"
+      ],
+      "reason": "Mostra a residência real onde o fato ocorreu no inverno."
+    },
+    {
+      "scene": 5,
+      "segment": "em Boulder.",
+      "visual_mode": "environment",
+      "shot_type": "wide",
+      "query_before": "snowy mountain town landscape aerial view",
+      "query_after": "snowy mountain town landscape Boulder Colorado aerial view",
+      "must_have": [
+        "mountains",
+        "snow"
+      ],
+      "avoid": [
+        "desert",
+        "tropical beach"
+      ],
+      "reason": "Contextualiza geograficamente a cidade citada no texto."
+    },
+    {
+      "scene": 6,
+      "segment": "O bilhete de resgate exigia exatamente o valor de um bônus recebido pelo pai",
+      "visual_mode": "object",
+      "shot_type": "medium",
+      "query_before": "counting US dollar banknotes on wooden table",
+      "query_after": "vintage US dollar banknotes stacked on wooden table",
+      "must_have": [
+        "money",
+        "cash"
+      ],
+      "avoid": [
+        "credit card",
+        "smartphone"
+      ],
+      "reason": "Ilustra visualmente o valor do bônus mencionado no bilhete."
+    },
+    {
+      "scene": 7,
+      "segment": "e usava papel da própria residência.",
+      "visual_mode": "evidence",
+      "shot_type": "close_up",
+      "query_before": "blank notepad paper sheet on wooden desk",
+      "query_after": "blank notepad paper sheet on wooden desk surface",
+      "must_have": [
+        "paper",
+        "desk"
+      ],
+      "avoid": [
+        "digital tablet",
+        "computer screen"
+      ],
+      "reason": "Representa o bloco de notas da residência usado no crime."
+    },
+    {
+      "scene": 8,
+      "segment": "A cena do crime foi totalmente contaminada por pessoas que entraram no local",
+      "visual_mode": "evidence",
+      "shot_type": "medium",
+      "query_before": "police tape crime scene investigation hallway indoor",
+      "query_after": "yellow police crime scene tape across indoor hallway",
+      "must_have": [
+        "police tape",
+        "hallway"
+      ],
+      "avoid": [
+        "happy party",
+        "sunny park"
+      ],
+      "reason": "Demonstra a contaminação e isolamento da cena do crime."
+    },
+    {
+      "scene": 9,
+      "segment": "e pelo pai ao mover o corpo.",
+      "visual_mode": "abstract_context",
+      "shot_type": "medium",
+      "query_before": "dramatic silhouette of person walking in dark hallway",
+      "query_after": "dramatic shadow silhouette of person in dark corridor",
+      "must_have": [
+        "hallway",
+        "shadow"
+      ],
+      "avoid": [
+        "bright daylight",
+        "smiling face"
+      ],
+      "reason": "Retrata metaforicamente a movimentação que alterou as provas."
+    },
+    {
+      "scene": 10,
+      "segment": "Anos depois, exames de DNA revelaram material genético de pessoas desconhecidas",
+      "visual_mode": "object",
+      "shot_type": "close_up",
+      "query_before": "scientific DNA strand glowing laboratory close up",
+      "query_after": "scientific DNA double helix strand glowing in laboratory",
+      "must_have": [
+        "dna",
+        "laboratory"
+      ],
+      "avoid": [
+        "outdoor nature",
+        "kitchen food"
+      ],
+      "reason": "Visualiza os exames genéticos avançados mencionados na investigação."
+    },
+    {
+      "scene": 11,
+      "segment": "e a promotoria descartou a participação dos pais.",
+      "visual_mode": "document",
+      "shot_type": "medium",
+      "query_before": "courtroom gavel on wooden desk legal scale",
+      "query_after": "wooden courtroom gavel resting on official legal document",
+      "must_have": [
+        "gavel",
+        "desk"
+      ],
+      "avoid": [
+        "children playing",
+        "sports field"
+      ],
+      "reason": "Representa a decisão formal da promotoria no âmbito legal."
+    },
+    {
+      "scene": 12,
+      "segment": "O caso continua sem solução até hoje. Quem você acha que escreveu aquele bilhete?",
+      "visual_mode": "abstract_context",
+      "shot_type": "wide",
+      "query_before": "dark mysterious hallway with single light bulb",
+      "query_after": "dark mysterious hallway with single hanging light bulb",
+      "must_have": [
+        "darkness",
+        "light"
+      ],
+      "avoid": [
+        "bright sunny beach",
+        "happy crowd"
+      ],
+      "reason": "Encerra o documentário com tom de mistério e aberto à reflexão."
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "hooks": [
+    {
+      "text": "O corpo de uma estudante foi achado em um tanque de água após um vídeo misterioso.",
+      "curiosity": 9,
+      "clarity": 10,
+      "factuality": 10,
+      "retention": 9,
+      "local_retention_score": 68.0,
+      "combined_score": 77.3
+    },
+    {
+      "text": "Por que o último vídeo desta estudante no elevador chocou a internet inteira?",
+      "curiosity": 10,
+      "clarity": 9,
+      "factuality": 10,
+      "retention": 10,
+      "local_retention_score": 82.0,
+      "combined_score": 88.7
+    },
+    {
+      "text": "Hóspedes reclamaram da água do hotel antes do corpo ser descoberto no topo.",
+      "curiosity": 9,
+      "clarity": 9,
+      "factuality": 10,
+      "retention": 9,
+      "local_retention_score": 72.0,
+      "combined_score": 79.2
+    }
+  ],
+  "chosen": 2,
+  "final_script": "Por que o último vídeo desta estudante no elevador chocou a internet inteira? Em fevereiro de 2013, a canadense Elisa Lam desapareceu em Los Angeles. Dias antes, a polícia divulgou imagens dela no elevador do Hotel Cecil. Ela sai, entra, gesticula e parece se esconder, enquanto o equipamento apresenta um funcionamento estranho. O vídeo viralizou, gerando teorias que variaram do paranormal ao transtorno bipolar da jovem, além de suspeitas de alteração na gravação. O corpo foi achado por funcionários em um tanque de água no topo do prédio. O relatório da autópsia apontou morte acidental sem trauma físico. Hóspedes e pais processaram o hotel, e o caso virou referência na cultura popular. Qual a sua opinião?"
+}

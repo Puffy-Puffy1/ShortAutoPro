@@ -1,0 +1,223 @@
+{
+  "short_id": "2026-09-02_1812",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_pre_visual_2026-09-02_1812.json",
+  "shot_repetitions": 0,
+  "scenes": [
+    {
+      "scene": 1,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "vintage cardboard box on dark forest ground crime scene",
+      "after_query": "vintage cardboard box abandoned on dark forest ground",
+      "must_have": [
+        "cardboard box",
+        "ground"
+      ],
+      "avoid": [
+        "child",
+        "human body",
+        "bright colors"
+      ],
+      "shot_type": "medium close-up",
+      "reason": "Foca no objeto principal da caixa abandonada no chão."
+    },
+    {
+      "scene": 2,
+      "before_score": 70,
+      "after_score": 70,
+      "before_query": "winter forest woods snow covered ground 1950s atmosphere",
+      "after_query": "snow covered winter forest ground 1950s bleak atmosphere",
+      "must_have": [
+        "snow",
+        "forest ground"
+      ],
+      "avoid": [
+        "modern cars",
+        "people",
+        "buildings"
+      ],
+      "shot_type": "wide environment",
+      "reason": "Representa o ambiente de descobrimento no inverno de 1957."
+    },
+    {
+      "scene": 3,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "vintage 1950s Philadelphia downtown street buildings monochrome",
+      "after_query": "vintage 1950s Philadelphia street buildings monochrome atmosphere",
+      "must_have": [
+        "street",
+        "vintage buildings"
+      ],
+      "avoid": [
+        "modern cars",
+        "skyscrapers",
+        "neon lights"
+      ],
+      "shot_type": "wide establishing shot",
+      "reason": "Mostra a cidade da Filadélfia na época mencionada."
+    },
+    {
+      "scene": 4,
+      "before_score": 70,
+      "after_score": 70,
+      "before_query": "retro police investigation fingerprint dust macro dark room",
+      "after_query": "retro police fingerprint examination card macro dark room",
+      "must_have": [
+        "fingerprint",
+        "card"
+      ],
+      "avoid": [
+        "digital tablet",
+        "computer screen",
+        "laser scanner"
+      ],
+      "shot_type": "macro close-up",
+      "reason": "Foca no objeto principal da investigação e impressões digitais."
+    },
+    {
+      "scene": 5,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "old paper flyers scattered on wooden detective desk 1950s",
+      "after_query": "old paper flyers scattered on wooden detective desk",
+      "must_have": [
+        "paper",
+        "desk"
+      ],
+      "avoid": [
+        "smartphone",
+        "tablet",
+        "color printer"
+      ],
+      "shot_type": "medium shot",
+      "reason": "Ilustra os panfletos de investigação espalhados."
+    },
+    {
+      "scene": 6,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "dusty retro analog clock ticking time passing vintage room",
+      "after_query": "dusty retro analog clock ticking time passing vintage room",
+      "must_have": [
+        "clock",
+        "vintage"
+      ],
+      "avoid": [
+        "digital watch",
+        "smartwatch",
+        "neon"
+      ],
+      "shot_type": "close-up",
+      "reason": "Simboliza a passagem de décadas sem solução."
+    },
+    {
+      "scene": 7,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "old vintage family home interior hallway dark shadows",
+      "after_query": "old vintage family home interior hallway dark shadows",
+      "must_have": [
+        "hallway",
+        "house"
+      ],
+      "avoid": [
+        "modern interior",
+        "bright lights",
+        "appliances"
+      ],
+      "shot_type": "interior shot",
+      "reason": "Retrata o contexto de lar adotivo e teorias mencionadas."
+    },
+    {
+      "scene": 8,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "stacked old paper case files vintage office desk moody light",
+      "after_query": "stacked old paper case files vintage office desk",
+      "must_have": [
+        "files",
+        "paper"
+      ],
+      "avoid": [
+        "laptop",
+        "keyboard",
+        "pen drive"
+      ],
+      "shot_type": "medium shot",
+      "reason": "Mostra pilhas de arquivos de investigação exaustiva."
+    },
+    {
+      "scene": 9,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "DNA family tree chart science laboratory modern research",
+      "after_query": "DNA family tree chart science laboratory modern research",
+      "must_have": [
+        "chart",
+        "diagram"
+      ],
+      "avoid": [
+        "vintage paper",
+        "typewriter",
+        "quill"
+      ],
+      "shot_type": "macro shot",
+      "reason": "Ilustra as análises modernas de árvore genealógica de 2022."
+    },
+    {
+      "scene": 10,
+      "before_score": 70,
+      "after_score": 70,
+      "before_query": "official police case file archive document macro shot",
+      "after_query": "official police case file archive document macro text",
+      "must_have": [
+        "document",
+        "paper"
+      ],
+      "avoid": [
+        "living person",
+        "modern smartphone",
+        "television"
+      ],
+      "shot_type": "documentary insert",
+      "reason": "Representa o documento oficial de identificação da vítima."
+    },
+    {
+      "scene": 11,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "old sepia photograph vintage family portrait portraiture",
+      "after_query": "old sepia photograph vintage family portrait blurred background",
+      "must_have": [
+        "photograph",
+        "vintage"
+      ],
+      "avoid": [
+        "digital camera",
+        "smartphone screen",
+        "modern clothing"
+      ],
+      "shot_type": "portrait archive",
+      "reason": "Mostra uma fotografia antiga contextualizando o nascimento em 1953."
+    },
+    {
+      "scene": 12,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "empty vintage wooden courtroom bench dark atmospheric moody",
+      "after_query": "empty vintage wooden courtroom bench dark atmospheric moody",
+      "must_have": [
+        "wooden bench",
+        "room"
+      ],
+      "avoid": [
+        "chat bubbles",
+        "keyboard",
+        "social media icons"
+      ],
+      "shot_type": "wide atmosphere",
+      "reason": "Encerra o vídeo mantendo o tom documental e neutro."
+    }
+  ]
+}

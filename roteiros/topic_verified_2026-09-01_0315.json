@@ -1,0 +1,75 @@
+{
+  "short_id": "2026-09-01_0315",
+  "selected": {
+    "topic": "O Tesouro de Fenn",
+    "score": 72.13,
+    "gemini": {
+      "curiosity": 9.0,
+      "visual": 9.0,
+      "documentation": 10.0,
+      "retention": 8.0,
+      "comment_potential": 9.0
+    },
+    "objective": {
+      "visual": 5.0,
+      "hook": 5.0,
+      "documentation": 9.5,
+      "title_match": 10.0,
+      "novelty": 8.6
+    },
+    "wiki_title": "Tesouro de Fenn",
+    "wiki_chars": 9143,
+    "wiki_similarity": 1.0
+  },
+  "ranking": [
+    {
+      "topic": "O Tesouro de Fenn",
+      "score": 72.13,
+      "gemini": {
+        "curiosity": 9.0,
+        "visual": 9.0,
+        "documentation": 10.0,
+        "retention": 8.0,
+        "comment_potential": 9.0
+      },
+      "objective": {
+        "visual": 5.0,
+        "hook": 5.0,
+        "documentation": 9.5,
+        "title_match": 10.0,
+        "novelty": 8.6
+      },
+      "wiki_title": "Tesouro de Fenn",
+      "wiki_chars": 9143,
+      "wiki_similarity": 1.0
+    }
+  ],
+  "verification": [
+    {
+      "topic": "As Cartas de Zodiac",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O Farol das Ilhas Eilean Mor",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "Caso Tamam Shud",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O Desaparecimento de Bobby Dunbar",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O Tesouro de Fenn",
+      "approved": true,
+      "score": 72.13,
+      "wiki_title": "Tesouro de Fenn"
+    }
+  ]
+}

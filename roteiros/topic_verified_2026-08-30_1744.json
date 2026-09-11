@@ -1,0 +1,64 @@
+{
+  "short_id": "2026-08-30_1744",
+  "selected": {
+    "topic": "O Desaparecimento da Família Sodder",
+    "score": 75.4,
+    "wiki_title": "Desaparecimento das crianças Sodder",
+    "wiki_chars": 0,
+    "wiki_similarity": 1.0,
+    "gemini": {},
+    "objective": {
+      "visual": 0,
+      "hook": 0,
+      "documentation": 0,
+      "title_match": 10,
+      "novelty": 10
+    },
+    "reserve": true
+  },
+  "ranking": [
+    {
+      "topic": "O Desaparecimento da Família Sodder",
+      "score": 75.4,
+      "wiki_title": "Desaparecimento das crianças Sodder",
+      "wiki_chars": 0,
+      "wiki_similarity": 1.0,
+      "gemini": {},
+      "objective": {
+        "visual": 0,
+        "hook": 0,
+        "documentation": 0,
+        "title_match": 10,
+        "novelty": 10
+      },
+      "reserve": true
+    }
+  ],
+  "verification": [
+    {
+      "topic": "O incêndio da família Sodder",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O Mistério de Isdal",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "A Ilha Dyatlov (substituído por O Desaparecimento de Maura Murray)",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "Caso Tamam Shud",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O assassinato de Jennifer Fairgate",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    }
+  ]
+}

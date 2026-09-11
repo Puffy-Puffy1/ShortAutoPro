@@ -1,0 +1,452 @@
+{
+  "timestamp": "2026-09-09T03:47:54.451755",
+  "root": "/data/data/com.termux/files/home/ShortAutoPro",
+  "short_id": "2026-09-02_2358",
+  "overall": "FAIL",
+  "counts": {
+    "PASS": 44,
+    "INFO": 12,
+    "WARN": 3,
+    "FAIL": 14
+  },
+  "results": [
+    {
+      "section": "STRUCTURE",
+      "test": "roteiros",
+      "status": "PASS",
+      "detail": "/data/data/com.termux/files/home/ShortAutoPro/roteiros"
+    },
+    {
+      "section": "STRUCTURE",
+      "test": "imagens",
+      "status": "PASS",
+      "detail": "/data/data/com.termux/files/home/ShortAutoPro/imagens"
+    },
+    {
+      "section": "STRUCTURE",
+      "test": "audios",
+      "status": "PASS",
+      "detail": "/data/data/com.termux/files/home/ShortAutoPro/audios"
+    },
+    {
+      "section": "STRUCTURE",
+      "test": "videos",
+      "status": "PASS",
+      "detail": "/data/data/com.termux/files/home/ShortAutoPro/videos"
+    },
+    {
+      "section": "STRUCTURE",
+      "test": "temp",
+      "status": "PASS",
+      "detail": "/data/data/com.termux/files/home/ShortAutoPro/temp"
+    },
+    {
+      "section": "STRUCTURE",
+      "test": "logs",
+      "status": "PASS",
+      "detail": "/data/data/com.termux/files/home/ShortAutoPro/logs"
+    },
+    {
+      "section": "STRUCTURE",
+      "test": "manifests",
+      "status": "PASS",
+      "detail": "/data/data/com.termux/files/home/ShortAutoPro/manifests"
+    },
+    {
+      "section": "STRUCTURE",
+      "test": "backups",
+      "status": "PASS",
+      "detail": "/data/data/com.termux/files/home/ShortAutoPro/backups"
+    },
+    {
+      "section": "CORE_FILES",
+      "test": "midia.py",
+      "status": "PASS",
+      "detail": "/data/data/com.termux/files/home/ShortAutoPro/midia.py"
+    },
+    {
+      "section": "CORE_FILES",
+      "test": "video.py",
+      "status": "PASS",
+      "detail": "/data/data/com.termux/files/home/ShortAutoPro/video.py"
+    },
+    {
+      "section": "CORE_FILES",
+      "test": "v6.py",
+      "status": "PASS",
+      "detail": "/data/data/com.termux/files/home/ShortAutoPro/v6.py"
+    },
+    {
+      "section": "CORE_FILES",
+      "test": "gerar_short.sh",
+      "status": "PASS",
+      "detail": "/data/data/com.termux/files/home/ShortAutoPro/gerar_short.sh"
+    },
+    {
+      "section": "CORE_FILES",
+      "test": "legenda_dinamica.py",
+      "status": "PASS",
+      "detail": "/data/data/com.termux/files/home/ShortAutoPro/legenda_dinamica.py"
+    },
+    {
+      "section": "HASH",
+      "test": "midia.py",
+      "status": "INFO",
+      "detail": "82a674eac09f2ab0b3b9104e20ca5d636790d17955e74c922649d2a123576e8b"
+    },
+    {
+      "section": "HASH",
+      "test": "video.py",
+      "status": "INFO",
+      "detail": "756c0db576f664d474cb92676b4ad81737158f8a275bfad6348aa0a542d87b06"
+    },
+    {
+      "section": "HASH",
+      "test": "v6.py",
+      "status": "INFO",
+      "detail": "13d1444fc2ae0198f8f070ad98238a36d7c939c6db2572c462cd9b07712286e7"
+    },
+    {
+      "section": "HASH",
+      "test": "gerar_short.sh",
+      "status": "INFO",
+      "detail": "0e5ddeb2f188873711483d31ab6b658b8d80dbd9885e690ef1a4fe1ac4734924"
+    },
+    {
+      "section": "HASH",
+      "test": "visual_selection_engine_v4.py",
+      "status": "INFO",
+      "detail": "70b815e701c93de49e39c72bc2db4753e974f7bdb74df1e89388d803927acb67"
+    },
+    {
+      "section": "HASH",
+      "test": "media_diversity_guard_v1.py",
+      "status": "INFO",
+      "detail": "43ca43e105b1d603b20ecf5a49080cb4351fd89fb2884f02d2dee3464c59af12"
+    },
+    {
+      "section": "HASH",
+      "test": "media_provenance_capture_v1.py",
+      "status": "INFO",
+      "detail": "c7ad6a3d409002162c208298baa79543a3332b8db2443d9ece31ec32e8e0abba"
+    },
+    {
+      "section": "HASH",
+      "test": "fresh_render_guard_v1.py",
+      "status": "INFO",
+      "detail": "08cd6cb309899874aaf91c47e48d3ee26acf8697c06b21267af2848130ae509e"
+    },
+    {
+      "section": "PYTHON",
+      "test": "FILES_TESTED",
+      "status": "INFO",
+      "detail": "652"
+    },
+    {
+      "section": "PYTHON",
+      "test": "COMPILE_ALL",
+      "status": "PASS",
+      "detail": "652 arquivos"
+    },
+    {
+      "section": "SHELL",
+      "test": "FILES_TESTED",
+      "status": "INFO",
+      "detail": "103"
+    },
+    {
+      "section": "SHELL",
+      "test": "SYNTAX_ALL",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "section": "AST",
+      "test": "DUPLICATE_DEFINITIONS",
+      "status": "WARN",
+      "detail": "23"
+    },
+    {
+      "section": "VSE4",
+      "test": "UNRESOLVED_GLOBALS",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "section": "VSE4",
+      "test": "SELF_TEST",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "section": "VSE4",
+      "test": "HARD_MISMATCH",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "section": "MEDIA",
+      "test": "PROVIDER_DEFINITIONS",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "section": "MEDIA_PROVIDER",
+      "test": "coverr_video",
+      "status": "PASS",
+      "detail": "chamado em buscar_todos_candidatos"
+    },
+    {
+      "section": "MEDIA_PROVIDER",
+      "test": "pexels_foto",
+      "status": "PASS",
+      "detail": "chamado em buscar_todos_candidatos"
+    },
+    {
+      "section": "MEDIA_PROVIDER",
+      "test": "pexels_video",
+      "status": "PASS",
+      "detail": "chamado em buscar_todos_candidatos"
+    },
+    {
+      "section": "MEDIA_PROVIDER",
+      "test": "pixabay_foto",
+      "status": "PASS",
+      "detail": "chamado em buscar_todos_candidatos"
+    },
+    {
+      "section": "MEDIA_PROVIDER",
+      "test": "pixabay_video",
+      "status": "PASS",
+      "detail": "chamado em buscar_todos_candidatos"
+    },
+    {
+      "section": "MEDIA_PROVIDER",
+      "test": "CALLS_TOTAL",
+      "status": "INFO",
+      "detail": "append,avaliar_evidencia,buscar_wikimedia_fotos,coverr_video,escolher_rota,extend,get,pexels_foto,pexels_video,pixabay_foto,pixabay_video"
+    },
+    {
+      "section": "DEPENDENCY",
+      "test": "ffmpeg",
+      "status": "PASS",
+      "detail": "/data/data/com.termux/files/usr/bin/ffmpeg"
+    },
+    {
+      "section": "DEPENDENCY",
+      "test": "ffprobe",
+      "status": "PASS",
+      "detail": "/data/data/com.termux/files/usr/bin/ffprobe"
+    },
+    {
+      "section": "DEPENDENCY",
+      "test": "WHISPER",
+      "status": "PASS",
+      "detail": "/data/data/com.termux/files/home/whisper.cpp/build/bin/whisper-cli"
+    },
+    {
+      "section": "DEPENDENCY",
+      "test": "WHISPER_MODEL",
+      "status": "PASS",
+      "detail": "/data/data/com.termux/files/home/whisper.cpp/models/ggml-base.bin"
+    },
+    {
+      "section": "DEPENDENCY",
+      "test": "PIPER",
+      "status": "PASS",
+      "detail": "/data/data/com.termux/files/usr/bin/piper"
+    },
+    {
+      "section": "FFMPEG_FILTER",
+      "test": "ass",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "section": "FFMPEG_FILTER",
+      "test": "subtitles",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "section": "FFMPEG_FILTER",
+      "test": "zoompan",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "section": "FFMPEG_ENCODER",
+      "test": "libx264",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "section": "MEDIA_CURRENT",
+      "test": "MEDIA_DIR",
+      "status": "PASS",
+      "detail": "/data/data/com.termux/files/home/ShortAutoPro/imagens/short_2026-09-02_2358"
+    },
+    {
+      "section": "MEDIA_SCENE",
+      "test": "scene_01",
+      "status": "FAIL",
+      "detail": "count=0"
+    },
+    {
+      "section": "MEDIA_SCENE",
+      "test": "scene_02",
+      "status": "FAIL",
+      "detail": "count=0"
+    },
+    {
+      "section": "MEDIA_SCENE",
+      "test": "scene_03",
+      "status": "FAIL",
+      "detail": "count=0"
+    },
+    {
+      "section": "MEDIA_SCENE",
+      "test": "scene_04",
+      "status": "FAIL",
+      "detail": "count=0"
+    },
+    {
+      "section": "MEDIA_SCENE",
+      "test": "scene_05",
+      "status": "FAIL",
+      "detail": "count=0"
+    },
+    {
+      "section": "MEDIA_SCENE",
+      "test": "scene_06",
+      "status": "FAIL",
+      "detail": "count=0"
+    },
+    {
+      "section": "MEDIA_SCENE",
+      "test": "scene_07",
+      "status": "FAIL",
+      "detail": "count=0"
+    },
+    {
+      "section": "MEDIA_SCENE",
+      "test": "scene_08",
+      "status": "FAIL",
+      "detail": "count=0"
+    },
+    {
+      "section": "MEDIA_SCENE",
+      "test": "scene_09",
+      "status": "FAIL",
+      "detail": "count=0"
+    },
+    {
+      "section": "MEDIA_SCENE",
+      "test": "scene_10",
+      "status": "FAIL",
+      "detail": "count=0"
+    },
+    {
+      "section": "MEDIA_SCENE",
+      "test": "scene_11",
+      "status": "FAIL",
+      "detail": "count=0"
+    },
+    {
+      "section": "MEDIA_SCENE",
+      "test": "scene_12",
+      "status": "FAIL",
+      "detail": "count=0"
+    },
+    {
+      "section": "MEDIA_CURRENT",
+      "test": "MEDIA_TOTAL",
+      "status": "FAIL",
+      "detail": "0"
+    },
+    {
+      "section": "MEDIA_CURRENT",
+      "test": "INVALID_SCENES",
+      "status": "FAIL",
+      "detail": "12"
+    },
+    {
+      "section": "MEDIA_CURRENT",
+      "test": "DUPLICATE_SHA",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "section": "MEDIA_CURRENT",
+      "test": "FINGERPRINT",
+      "status": "INFO",
+      "detail": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "section": "ASSET",
+      "test": "AUDIO",
+      "status": "PASS",
+      "detail": "/data/data/com.termux/files/home/ShortAutoPro/audios/short_2026-09-02_2358.mp3 bytes=573066"
+    },
+    {
+      "section": "ASSET",
+      "test": "ASS",
+      "status": "PASS",
+      "detail": "/data/data/com.termux/files/home/ShortAutoPro/videos/short_2026-09-02_2358.ass bytes=11681"
+    },
+    {
+      "section": "ASSET",
+      "test": "VIDEO_BASE",
+      "status": "PASS",
+      "detail": "/data/data/com.termux/files/home/ShortAutoPro/temp/2026-09-02_2358/video_sem_audio.mp4 bytes=10640091"
+    },
+    {
+      "section": "ASSET",
+      "test": "FINAL",
+      "status": "PASS",
+      "detail": "/data/data/com.termux/files/home/ShortAutoPro/videos/short_v6_2026-09-02_2358.mp4 bytes=17789481"
+    },
+    {
+      "section": "ASSET",
+      "test": "SCENE_MAP",
+      "status": "PASS",
+      "detail": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_2026-09-02_2358.json bytes=6494"
+    },
+    {
+      "section": "RENDER_GUARD",
+      "test": "PROTECTED_INPUTS",
+      "status": "PASS",
+      "detail": "{'ass': True, 'audio': True, 'intermediate_removed': True, 'final_removed': True}"
+    },
+    {
+      "section": "PROVENANCE",
+      "test": "JSON_VALID",
+      "status": "PASS",
+      "detail": "valid=25 invalid=0"
+    },
+    {
+      "section": "STATIC_RISK",
+      "test": "legenda_dinamica.py:BARE_EXCEPT",
+      "status": "WARN",
+      "detail": "1 ocorrência(s)"
+    },
+    {
+      "section": "STATIC_RISK",
+      "test": "CORE_SCAN",
+      "status": "WARN",
+      "detail": "1 ocorrência(s) para revisão manual"
+    },
+    {
+      "section": "CONFIG",
+      "test": "HARDCODED_SHORT_IDS",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "section": "STORAGE",
+      "test": "FREE_SPACE",
+      "status": "PASS",
+      "detail": "19558.5 MB"
+    }
+  ]
+}

@@ -1,0 +1,143 @@
+{
+  "version": "1000.00",
+  "name": "ShortAutoPro Launch Production Policy",
+
+  "scene_policy": {
+    "preferred_scene_count": 12,
+    "minimum_scene_count": 8,
+    "maximum_scene_count": 16,
+
+    "generic_media_requires_label": true,
+
+    "illustration_label": {
+      "text": "IMAGEM ILUSTRATIVA",
+      "font_size": 38,
+      "safe_x": 36,
+      "safe_y": 86,
+      "box_opacity": 0.68,
+      "minimum_display_seconds": 1.0
+    },
+
+    "scene_1_hook": {
+      "priority": 100,
+      "must_be_strong_visual": true,
+      "generic_fallback_allowed": false,
+      "minimum_semantic_confidence": 80
+    }
+  },
+
+  "truth_policy": {
+    "query_text_is_evidence": false,
+    "file_namespace_is_document_evidence": false,
+    "generic_location_proves_specific_location": false,
+    "generic_human_identity_attribution": false,
+    "generic_object_is_case_evidence": false,
+    "illustrative_media_may_be_used": true,
+    "illustrative_media_must_be_labeled": true,
+    "factual_claim_requires_case_specific_evidence": true,
+    "identity_scene_requires_explicit_identity_evidence": true,
+    "source_recovery_mode": "SHADOW_ONLY"
+  },
+
+  "diversity_policy": {
+    "minimum_unique_source_ratio": 0.67,
+    "minimum_unique_source_groups": 8,
+    "maximum_consecutive_same_source_group": 2,
+    "minimum_unique_sources_per_6_scene_window": 4,
+
+    "verified_specific_location_max_scenes": 2,
+    "authentic_case_archive_max_scenes": 3,
+    "generic_asset_max_scenes": 1,
+
+    "same_hash_multiple_generic_scenes": false,
+    "same_title_multiple_generic_scenes": false
+  },
+
+  "fallback_policy": [
+    "CASE_SPECIFIC_VERIFIED",
+    "ENTITY_SPECIFIC_VERIFIED",
+    "ROLE_CORRECT_LICENSED",
+    "CONTEXTUAL_ILLUSTRATIVE_LICENSED",
+    "CURRENT_MEDIA_IF_SAFE",
+    "HOLD_SCENE"
+  ],
+
+  "media_policy": {
+    "preferred_width": 1080,
+    "preferred_height": 1920,
+    "minimum_image_pixels": 800000,
+    "preferred_image_pixels": 2000000,
+
+    "accepted_image_mime": [
+      "image/jpeg",
+      "image/png",
+      "image/webp"
+    ],
+
+    "accepted_video_extensions": [
+      ".mp4",
+      ".webm",
+      ".mov",
+      ".m4v"
+    ],
+
+    "maximum_new_asset_bytes": 20971520,
+    "maximum_total_download_bytes_per_short": 52428800
+  },
+
+  "provider_policy": {
+    "wikipedia": {
+      "roles": [
+        "DOCUMENT",
+        "LOCATION",
+        "ENTITY_CONTEXT"
+      ],
+      "visual_provider_of_last_resort": true
+    },
+
+    "wikimedia_commons": {
+      "roles": [
+        "LOCATION",
+        "OBJECT",
+        "DOCUMENT",
+        "BROLL",
+        "ARCHIVAL"
+      ]
+    },
+
+    "internet_archive": {
+      "roles": [
+        "ARCHIVAL_VIDEO",
+        "ARCHIVAL_DOCUMENT"
+      ]
+    },
+
+    "current_media": {
+      "roles": [
+        "SAFE_KEEP"
+      ]
+    }
+  },
+
+  "renderer_policy": {
+    "legacy_fallback_required": true,
+    "hash_verified_override_required": true,
+    "automatic_production_replace": false,
+    "canary_required_before_activation": true
+  },
+
+  "publishing_policy": {
+    "technical_resolution": [
+      1080,
+      1920
+    ],
+
+    "target_fps": 30,
+    "audio_required": true,
+    "subtitles_required": true,
+    "credits_required_for_attributed_media": true,
+    "truth_gate_required": true,
+    "diversity_gate_required": true,
+    "visual_review_required_for_first_batch": true
+  }
+}

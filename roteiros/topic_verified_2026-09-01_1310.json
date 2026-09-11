@@ -1,0 +1,64 @@
+{
+  "short_id": "2026-09-01_1310",
+  "selected": {
+    "topic": "Caso Isdal",
+    "score": 69.0,
+    "wiki_title": "Arve Isdal",
+    "wiki_chars": 0,
+    "wiki_similarity": 1.0,
+    "gemini": {},
+    "objective": {
+      "visual": 0,
+      "hook": 0,
+      "documentation": 0,
+      "title_match": 10,
+      "novelty": 10
+    },
+    "reserve": true
+  },
+  "ranking": [
+    {
+      "topic": "Caso Isdal",
+      "score": 69.0,
+      "wiki_title": "Arve Isdal",
+      "wiki_chars": 0,
+      "wiki_similarity": 1.0,
+      "gemini": {},
+      "objective": {
+        "visual": 0,
+        "hook": 0,
+        "documentation": 0,
+        "title_match": 10,
+        "novelty": 10
+      },
+      "reserve": true
+    }
+  ],
+  "verification": [
+    {
+      "topic": "O Farol das Ilhas Flannan",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O Homem de Somnerton",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O Desaparecimento de Bobby Dunbar",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O Desaparecimento de Maura Murray",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O Desaparecimento de Amy Lynn Bradley",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    }
+  ]
+}

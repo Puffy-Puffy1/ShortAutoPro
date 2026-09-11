@@ -1,0 +1,14 @@
+{
+  "short_id": "2026-08-31_2102",
+  "changes": [
+    {
+      "scene": 2,
+      "segment": "A Base Aérea local anunciou à imprensa que havia recuperado um disco voador.",
+      "query_before": "vintage 1947 newspaper front page headline flying saucer",
+      "query_after": "vintage 1947 newspaper front page headline unidentified distant light",
+      "reasons": [
+        "query:flying saucer"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "short_id": "2026-09-02_1803",
+  "changed": false,
+  "before": "O corpo desta mulher no hospital era tão tóxico que fez vinte e três pessoas adoecerem.",
+  "before_score": 70.0,
+  "after": "O corpo desta mulher no hospital era tão tóxico que fez vinte e três pessoas adoecerem.",
+  "candidate_after": "O corpo desta paciente era tão tóxico que fez vinte e três pessoas adoecerem.",
+  "candidate_score": 70.0,
+  "improvement": 0.0,
+  "problems": [
+    "palavras=102",
+    "cold_open_fraco=70.0",
+    "melhoria_insuficiente=0.0"
+  ],
+  "reason": "A primeira frase tem 13 palavras, foca no impacto mais intrigante (23 pessoas doentes por causa de um corpo) e cria uma lacuna de curiosidade imediata, seguida pela contextualização de data e local na segunda frase, mantendo o limite total de palavras e todas as regras fatoriais.",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/short_pre_cold_open_2026-09-02_1803.txt"
+}

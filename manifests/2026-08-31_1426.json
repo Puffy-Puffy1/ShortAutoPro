@@ -1,0 +1,273 @@
+{
+  "short_id": "2026-08-31_1426",
+  "created_at": "2026-08-31T14:33:49.632453",
+  "status": "QUALITY_PASS",
+  "topic": "O Incidente do Voo 19",
+  "hook": "Um avião sem freios atravessou uma avenida movimentada de São Paulo.",
+  "script": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/short_2026-08-31_1426.txt",
+    "text": "Um avião sem freios atravessou uma avenida movimentada de São Paulo. Em 17 de julho de 2007, um Airbus da TAM, vindo de Porto Alegre, tentou pousar no Aeroporto de Congonhas. A pista estava molhada e sem ranhuras para escoar a água. A aeronave não conseguiu frear, ultrapassou os limites e colidiu com um prédio e um posto de gasolina, causando a morte de 199 pessoas. Segundo a investigação do CENIPA, o relatório final apontou como causas principais o erro do piloto, ao configurar irregularmente os manetes, e a falta de infraestrutura aeroportuária, faltando ranhuras na pista, além da autonomia excessiva aplicada aos computadores da aeronave. Compartilhe este vídeo para manter viva a memória dessa história."
+  },
+  "source": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/fonte_2026-08-31_1426.txt"
+  },
+  "publish": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/publish_2026-08-31_1426.json",
+    "chosen_title": "O dia em que um avião cruzou uma avenida ✈️",
+    "titles": [
+      "O dia em que um avião cruzou uma avenida ✈️",
+      "O que causou o acidente do voo 3054?",
+      "A tragédia que marcou a aviação no Brasil"
+    ],
+    "description": "Um avião sem freios atravessou uma avenida em São Paulo em 2007. O que realmente aconteceu no voo da TAM? Deixe sua opinião nos comentários.",
+    "hashtags": [
+      "#Shorts",
+      "#Voo3054",
+      "#Avião",
+      "#HistóriaDoBrasil",
+      "#Curiosidades"
+    ],
+    "pinned_comment": "Você acha que a infraestrutura da pista foi o principal fator?"
+  },
+  "scenes": {
+    "map_path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_2026-08-31_1426.json",
+    "count": 12,
+    "physical_count": 12,
+    "items": [
+      {
+        "scene": 1,
+        "segment": "Um avião sem freios atravessou uma avenida movimentada de São Paulo.",
+        "query": "commercial airplane crossing busy urban avenue street traffic",
+        "must_have": [
+          "airplane",
+          "street"
+        ],
+        "avoid": [
+          "clear sky",
+          "beach",
+          "forest"
+        ],
+        "words": 11,
+        "weight": 0.09482758620689655,
+        "visual_mode": "location",
+        "shot_type": "wide"
+      },
+      {
+        "scene": 2,
+        "segment": "Em 17 de julho de 2007, um Airbus da TAM, vindo de Porto Alegre,",
+        "query": "commercial Airbus passenger aircraft in flight daytime cloudy sky",
+        "must_have": [
+          "airplane"
+        ],
+        "avoid": [
+          "helicopter",
+          "train",
+          "boat"
+        ],
+        "words": 14,
+        "weight": 0.1206896551724138,
+        "visual_mode": "transport",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 3,
+        "segment": "tentou pousar no Aeroporto de Congonhas.",
+        "query": "historic airport terminal building exterior architecture daytime view",
+        "must_have": [
+          "airport",
+          "building"
+        ],
+        "avoid": [
+          "ocean",
+          "desert",
+          "snow"
+        ],
+        "words": 6,
+        "weight": 0.05172413793103448,
+        "visual_mode": "architecture",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 4,
+        "segment": "A pista estava molhada e sem ranhuras para escoar a água.",
+        "query": "wet asphalt airport runway surface with standing water puddles",
+        "must_have": [
+          "wet runway",
+          "water"
+        ],
+        "avoid": [
+          "dry road",
+          "sunny day",
+          "grass"
+        ],
+        "words": 11,
+        "weight": 0.09482758620689655,
+        "visual_mode": "environment",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 5,
+        "segment": "A aeronave não conseguiu frear, ultrapassou os limites",
+        "query": "commercial airplane landing on wet runway asphalt braking hard",
+        "must_have": [
+          "airplane",
+          "runway"
+        ],
+        "avoid": [
+          "flying high",
+          "clouds",
+          "blue sky"
+        ],
+        "words": 8,
+        "weight": 0.06896551724137931,
+        "visual_mode": "transport",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 6,
+        "segment": "e colidiu com um prédio e um posto de gasolina,",
+        "query": "urban commercial building facade after accident smoke and debris",
+        "must_have": [
+          "building",
+          "smoke"
+        ],
+        "avoid": [
+          "happy people",
+          "green trees",
+          "sunny"
+        ],
+        "words": 10,
+        "weight": 0.08620689655172414,
+        "visual_mode": "architecture",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 7,
+        "segment": "causando a morte de 199 pessoas.",
+        "query": "dark moody memorial tribute light low key atmosphere",
+        "must_have": [
+          "dark",
+          "light"
+        ],
+        "avoid": [
+          "party",
+          "celebration",
+          "bright colors"
+        ],
+        "words": 6,
+        "weight": 0.05172413793103448,
+        "visual_mode": "abstract_context",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 8,
+        "segment": "Segundo a investigação do CENIPA, o relatório final apontou",
+        "query": "official aviation investigation report documents on wooden desk table",
+        "must_have": [
+          "documents",
+          "table"
+        ],
+        "avoid": [
+          "computer screen",
+          "modern office",
+          "smartphone"
+        ],
+        "words": 9,
+        "weight": 0.07758620689655173,
+        "visual_mode": "document",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 9,
+        "segment": "como causas principais o erro do piloto, ao configurar irregularmente os manetes,",
+        "query": "airplane cockpit throttle control levers and switches close up detail",
+        "must_have": [
+          "cockpit",
+          "levers"
+        ],
+        "avoid": [
+          "passenger seats",
+          "window view",
+          "kitchen"
+        ],
+        "words": 12,
+        "weight": 0.10344827586206896,
+        "visual_mode": "object",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 10,
+        "segment": "e a falta de infraestrutura aeroportuária, faltando ranhuras na pista,",
+        "query": "airport runway asphalt texture close up inspection lack of grooves",
+        "must_have": [
+          "asphalt",
+          "runway"
+        ],
+        "avoid": [
+          "airplane flying",
+          "sky",
+          "clouds"
+        ],
+        "words": 10,
+        "weight": 0.08620689655172414,
+        "visual_mode": "evidence",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 11,
+        "segment": "além da autonomia excessiva aplicada aos computadores da aeronave.",
+        "query": "modern airliner flight deck digital avionics control screens dashboard",
+        "must_have": [
+          "screens",
+          "dashboard"
+        ],
+        "avoid": [
+          "paper book",
+          "old radio",
+          "bicycle"
+        ],
+        "words": 9,
+        "weight": 0.07758620689655173,
+        "visual_mode": "object",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 12,
+        "segment": "Compartilhe este vídeo para manter viva a memória dessa história.",
+        "query": "single burning candle in the dark memorial tribute flame",
+        "must_have": [
+          "candle",
+          "fire"
+        ],
+        "avoid": [
+          "smartphone",
+          "like button",
+          "social media icons"
+        ],
+        "words": 10,
+        "weight": 0.08620689655172414,
+        "visual_mode": "evidence",
+        "shot_type": "medium"
+      }
+    ]
+  },
+  "video": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/videos/short_v6_2026-08-31_1426.mp4",
+    "version": "V6",
+    "duration_seconds": 40.5,
+    "width": 1080,
+    "height": 1920,
+    "fps": 30.0,
+    "video_codec": "h264",
+    "audio_codec": "aac"
+  },
+  "quality": {
+    "video_exists": true,
+    "scene_map_count": 12,
+    "physical_scene_count": 12,
+    "resolution_ok": true,
+    "fps_ok": true,
+    "audio_exists": true
+  },
+  "log": "/data/data/com.termux/files/home/ShortAutoPro/logs/producao/short_2026-08-31_1426.log"
+}

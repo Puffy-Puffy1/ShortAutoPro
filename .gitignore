@@ -1,0 +1,138 @@
+# =========================
+# SEGREDOS / CREDENCIAIS
+# =========================
+.env
+.env.*
+config.env
+*.key
+*.pem
+*.token
+secrets/
+credentials/
+
+# =========================
+# PYTHON
+# =========================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
+
+# =========================
+# LOGS E TEMPORÁRIOS
+# =========================
+*.log
+logs/
+tmp/
+temp/
+cache/
+.cache/
+*.tmp
+*.bak
+*.swp
+
+# =========================
+# MÍDIA GERADA
+# =========================
+*.mp4
+*.mov
+*.mkv
+*.avi
+*.webm
+*.mp3
+*.wav
+*.aac
+*.m4a
+*.ogg
+*.flac
+*.srt
+*.ass
+
+# =========================
+# IMAGENS/ASSETS BAIXADOS
+# =========================
+downloads/
+download/
+midias/
+media/
+assets/cache/
+frames/
+thumbnails/
+
+# =========================
+# MODELOS PESADOS
+# =========================
+*.onnx
+*.bin
+*.gguf
+*.pt
+*.pth
+*.ckpt
+models/
+modelos/
+
+# =========================
+# SAÍDAS GERADAS EM ROTEIROS
+# =========================
+roteiros/keywords_*.txt
+roteiros/media_quality_*.json
+roteiros/motion_plan_*.json
+roteiros/motion_plan_pre_rhythm_*.json
+roteiros/narrative_*.json
+roteiros/post_script_truth_*.json
+roteiros/publish_*.json
+roteiros/publish_*.txt
+roteiros/publish_integrity_*.json
+roteiros/rhythm_plan_*.json
+roteiros/scene_lossless_*.json
+roteiros/scene_map_*.json
+roteiros/scene_map_pre_*.json
+
+# testes/resultados gerados
+roteiros/*teste*.txt
+roteiros/*teste*.json
+
+# =========================
+# SISTEMA / EDITORES
+# =========================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# vídeos gerados
+videos/
+
+# =========================
+# OUTRAS SAÍDAS GERADAS
+# =========================
+audios/
+temp/
+*.bak
+*.bak_*
+*.backup
+*.old
+
+# arquivos de ambiente temporários
+**/*.env
+**/*_env.sh
+
+# resultados de testes
+**/*self_test*.log
+**/*test*.log
+
+# versões antigas / backups locais
+backups/
+
+# diagnósticos gerados
+diagnosticos/
+
+# configuração local / possíveis credenciais
+config.sh
+
+# arquivo avulso ainda não identificado
+aa

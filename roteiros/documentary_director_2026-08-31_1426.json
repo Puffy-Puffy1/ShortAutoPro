@@ -1,0 +1,224 @@
+{
+  "short_id": "2026-08-31_1426",
+  "topic": "O Incidente do Voo 19",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_pre_documentary_2026-08-31_1426.json",
+  "visual_mode_triple_repetitions": 0,
+  "shot_triple_repetitions": 9,
+  "scenes": [
+    {
+      "scene": 1,
+      "segment": "Um avião sem freios atravessou uma avenida movimentada de São Paulo.",
+      "visual_mode": "location",
+      "shot_type": "wide",
+      "query_before": "busy street traffic with airplane crossing background",
+      "query_after": "busy urban avenue traffic in Sao Paulo Brazil",
+      "must_have": [
+        "street",
+        "traffic"
+      ],
+      "avoid": [
+        "clear sky",
+        "beach",
+        "forest"
+      ],
+      "reason": "Estabelece o local urbano onde o acidente ocorreu na avenida movimentada."
+    },
+    {
+      "scene": 2,
+      "segment": "Em 17 de julho de 2007, um Airbus da TAM, vindo de Porto Alegre,",
+      "visual_mode": "transport",
+      "shot_type": "medium",
+      "query_before": "commercial airplane landing at airport runway daytime",
+      "query_after": "commercial Airbus passenger aircraft in flight daytime",
+      "must_have": [
+        "airplane"
+      ],
+      "avoid": [
+        "helicopter",
+        "train",
+        "boat"
+      ],
+      "reason": "Mostra o tipo de aeronave envolvida no voo comercial mencionada."
+    },
+    {
+      "scene": 3,
+      "segment": "tentou pousar no Aeroporto de Congonhas.",
+      "visual_mode": "architecture",
+      "shot_type": "medium",
+      "query_before": "busy urban airport terminal view from outside",
+      "query_after": "historic Congonhas airport terminal building exterior Sao Paulo",
+      "must_have": [
+        "airport",
+        "building"
+      ],
+      "avoid": [
+        "ocean",
+        "desert",
+        "snow"
+      ],
+      "reason": "Exibe a infraestrutura do Aeroporto de Congonhas de acordo com o contexto histórico."
+    },
+    {
+      "scene": 4,
+      "segment": "A pista estava molhada e sem ranhuras para escoar a água.",
+      "visual_mode": "environment",
+      "shot_type": "medium",
+      "query_before": "wet asphalt runway surface with heavy rain puddles",
+      "query_after": "wet asphalt airport runway surface with water puddles",
+      "must_have": [
+        "wet runway",
+        "water"
+      ],
+      "avoid": [
+        "dry road",
+        "sunny day",
+        "grass"
+      ],
+      "reason": "Ilustra diretamente a condição da pista molhada descrita no relatório."
+    },
+    {
+      "scene": 5,
+      "segment": "A aeronave não conseguiu frear, ultrapassou os limites",
+      "visual_mode": "transport",
+      "shot_type": "medium",
+      "query_before": "commercial airplane overrunning runway edge braking hard",
+      "query_after": "commercial airplane landing on wet runway asphalt",
+      "must_have": [
+        "airplane",
+        "runway"
+      ],
+      "avoid": [
+        "flying high",
+        "clouds",
+        "blue sky"
+      ],
+      "reason": "Representa o momento da tentativa de pouso e o excesso de limite da pista."
+    },
+    {
+      "scene": 6,
+      "segment": "e colidiu com um prédio e um posto de gasolina,",
+      "visual_mode": "architecture",
+      "shot_type": "medium",
+      "query_before": "urban building explosion smoke dark disaster scene",
+      "query_after": "urban commercial building facade after accident smoke",
+      "must_have": [
+        "building",
+        "smoke"
+      ],
+      "avoid": [
+        "happy people",
+        "green trees",
+        "sunny"
+      ],
+      "reason": "Mostra o local da colisão com o prédio comercial próximo à via."
+    },
+    {
+      "scene": 7,
+      "segment": "causando a morte de 199 pessoas.",
+      "visual_mode": "abstract_context",
+      "shot_type": "medium",
+      "query_before": "dark moody memorial tribute cinematic low light",
+      "query_after": "dark moody memorial tribute light low key",
+      "must_have": [
+        "dark",
+        "light"
+      ],
+      "avoid": [
+        "party",
+        "celebration",
+        "bright colors"
+      ],
+      "reason": "Usa tom abstrato respeitoso para representar a perda de vidas sem apelo gráfico."
+    },
+    {
+      "scene": 8,
+      "segment": "Segundo a investigação do CENIPA, o relatório final apontou",
+      "visual_mode": "document",
+      "shot_type": "medium",
+      "query_before": "official investigation documents on wooden table desk",
+      "query_after": "official aviation investigation report documents on wooden desk",
+      "must_have": [
+        "documents",
+        "table"
+      ],
+      "avoid": [
+        "computer screen",
+        "modern office",
+        "smartphone"
+      ],
+      "reason": "Introduz visualmente os documentos oficiais da investigação do CENIPA."
+    },
+    {
+      "scene": 9,
+      "segment": "como causas principais o erro do piloto, ao configurar irregularmente os manetes,",
+      "visual_mode": "object",
+      "shot_type": "medium",
+      "query_before": "airplane cockpit throttles close up control panel",
+      "query_after": "airplane cockpit throttle control levers and switches detail",
+      "must_have": [
+        "cockpit",
+        "levers"
+      ],
+      "avoid": [
+        "passenger seats",
+        "window view",
+        "kitchen"
+      ],
+      "reason": "Foca nos manetes da aeronave citados como fator principal pela investigação."
+    },
+    {
+      "scene": 10,
+      "segment": "e a falta de infraestrutura aeroportuária, faltando ranhuras na pista,",
+      "visual_mode": "evidence",
+      "shot_type": "medium",
+      "query_before": "airport runway asphalt inspection close up view",
+      "query_after": "airport runway asphalt texture close up inspection",
+      "must_have": [
+        "asphalt",
+        "runway"
+      ],
+      "avoid": [
+        "airplane flying",
+        "sky",
+        "clouds"
+      ],
+      "reason": "Exibe o detalhe do pavimento e a falta de ranhuras relatada no caso."
+    },
+    {
+      "scene": 11,
+      "segment": "além da autonomia excessiva aplicada aos computadores da aeronave.",
+      "visual_mode": "object",
+      "shot_type": "medium",
+      "query_before": "modern airplane flight deck digital control screens",
+      "query_after": "modern airliner flight deck digital avionics control screens",
+      "must_have": [
+        "screens",
+        "dashboard"
+      ],
+      "avoid": [
+        "paper book",
+        "old radio",
+        "bicycle"
+      ],
+      "reason": "Evidencia os sistemas computadorizados de bordo do Airbus mencionados."
+    },
+    {
+      "scene": 12,
+      "segment": "Compartilhe este vídeo para manter viva a memória dessa história.",
+      "visual_mode": "evidence",
+      "shot_type": "medium",
+      "query_before": "candle burning in the dark memorial tribute",
+      "query_after": "single burning candle in the dark memorial tribute",
+      "must_have": [
+        "candle",
+        "fire"
+      ],
+      "avoid": [
+        "smartphone",
+        "like button",
+        "social media icons"
+      ],
+      "reason": "Encerra o documentário com uma homenagem sóbria e respeitosa."
+    }
+  ]
+}

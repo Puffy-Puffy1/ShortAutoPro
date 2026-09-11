@@ -1,0 +1,211 @@
+{
+  "short_id": "2026-08-30_2318",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_pre_visual_2026-08-30_2318.json",
+  "shot_repetitions": 1,
+  "scenes": [
+    {
+      "scene": 1,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "vintage computer monitor displaying internet browser dark room",
+      "after_query": "vintage computer monitor displaying internet video in dark room",
+      "must_have": [
+        "computer screen",
+        "monitor"
+      ],
+      "avoid": [
+        "modern smartphone",
+        "tablet"
+      ],
+      "shot_type": "medium close-up",
+      "reason": "Mostra a tela de computador relacionada ao vídeo da estudante na internet em 2013."
+    },
+    {
+      "scene": 2,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "map of Los Angeles downtown area vintage archival style",
+      "after_query": "vintage map of Los Angeles downtown area archival style",
+      "must_have": [
+        "map",
+        "city layout"
+      ],
+      "avoid": [
+        "modern 3d gps graphic",
+        "globe"
+      ],
+      "shot_type": "top-down shot",
+      "reason": "Ilustra a localização geográfica de Los Angeles mencionada no desaparecimento."
+    },
+    {
+      "scene": 3,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "historic Cecil Hotel exterior building facade Los Angeles street",
+      "after_query": "historic Cecil Hotel exterior building facade Los Angeles street",
+      "must_have": [
+        "hotel building",
+        "facade"
+      ],
+      "avoid": [
+        "modern skyscraper",
+        "tropical resort"
+      ],
+      "shot_type": "wide establishing shot",
+      "reason": "Exibe o exterior do Hotel Cecil onde ela estava hospedada."
+    },
+    {
+      "scene": 4,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "grainy security camera footage interior elevator vintage aesthetic",
+      "after_query": "grainy security camera footage interior elevator vintage aesthetic",
+      "must_have": [
+        "security camera",
+        "elevator interior"
+      ],
+      "avoid": [
+        "high definition modern camera",
+        "outdoor street"
+      ],
+      "shot_type": "wide security angle",
+      "reason": "Representa as imagens de câmera de segurança divulgadas pela polícia."
+    },
+    {
+      "scene": 5,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "narrow vintage hotel hallway surveillance camera angle",
+      "after_query": "narrow vintage hotel hallway surveillance camera angle dark",
+      "must_have": [
+        "hallway",
+        "corridor"
+      ],
+      "avoid": [
+        "happy smiling person",
+        "bright sunny park"
+      ],
+      "shot_type": "surveillance angle",
+      "reason": "Foca no corredor onde ela gesticula e parece se esconder."
+    },
+    {
+      "scene": 6,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "vintage elevator control panel buttons close up grainy",
+      "after_query": "vintage elevator control panel buttons close up grainy footage",
+      "must_have": [
+        "elevator buttons",
+        "control panel"
+      ],
+      "avoid": [
+        "escalator",
+        "stairs"
+      ],
+      "shot_type": "macro close-up",
+      "reason": "Mostra o painel do elevador agindo de forma estranha conforme o relato."
+    },
+    {
+      "scene": 7,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "computer screen showing internet video view counter statistics dark room",
+      "after_query": "computer screen showing internet video view counter statistics dark room",
+      "must_have": [
+        "screen",
+        "dark room"
+      ],
+      "avoid": [
+        "mobile phone",
+        "social media icons"
+      ],
+      "shot_type": "medium shot",
+      "reason": "Retrata a viralização rápida do vídeo na internet."
+    },
+    {
+      "scene": 8,
+      "before_score": 70,
+      "after_score": 70,
+      "before_query": "hotel rooftop industrial water tanks gloomy sky overcast",
+      "after_query": "hotel rooftop industrial water storage tanks gloomy overcast sky",
+      "must_have": [
+        "water tank",
+        "rooftop"
+      ],
+      "avoid": [
+        "swimming pool",
+        "beach"
+      ],
+      "shot_type": "wide shot",
+      "reason": "Foca nos tanques de água no telhado onde os funcionários acharam o corpo."
+    },
+    {
+      "scene": 9,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "large industrial water storage tank on top of building roof",
+      "after_query": "large industrial water storage tank on top of building roof",
+      "must_have": [
+        "water tank",
+        "roof"
+      ],
+      "avoid": [
+        "interior bathroom",
+        "kitchen sink"
+      ],
+      "shot_type": "medium shot",
+      "reason": "Detalha o tanque de água no telhado após as reclamações."
+    },
+    {
+      "scene": 10,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "official coroner autopsy report document official paperwork close up",
+      "after_query": "official coroner autopsy report document official paperwork close up",
+      "must_have": [
+        "document",
+        "paperwork"
+      ],
+      "avoid": [
+        "bright hospital ward",
+        "happy doctor"
+      ],
+      "shot_type": "document close-up",
+      "reason": "Mostra o documento oficial da autópsia concluindo morte acidental."
+    },
+    {
+      "scene": 11,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "true crime documentary title card on television screen dark room",
+      "after_query": "true crime documentary title card on television screen dark room",
+      "must_have": [
+        "television screen",
+        "dark room"
+      ],
+      "avoid": [
+        "smartphone",
+        "modern laptop"
+      ],
+      "shot_type": "medium shot",
+      "reason": "Ilustra o caso virando série e realimentando teorias."
+    },
+    {
+      "scene": 12,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "historic hotel hallway at night eerie dim lighting cinematic",
+      "after_query": "historic hotel hallway at night eerie dim lighting cinematic",
+      "must_have": [
+        "hotel hallway",
+        "dim lighting"
+      ],
+      "avoid": [
+        "bright sunny day",
+        "crowded lobby"
+      ],
+      "shot_type": "atmospheric wide shot",
+      "reason": "Encerra com o corredor do hotel em clima misterioso."
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "short_id": "2026-09-03_1148",
+  "version": "5.1",
+  "status": "PASS",
+  "topic": "O Desaparecimento de Brian Shaffer",
+  "wiki_title": "Desaparecimento de Brian Shaffer",
+  "script_words": 110,
+  "scene_count": 12,
+  "coverage": 1.0,
+  "extra_ratio": 0.0,
+  "critical": [],
+  "warnings": [],
+  "strengths": [
+    "script_length_ok",
+    "source_identity_ok",
+    "scene_count_12",
+    "script_scene_coverage=1.000"
+  ]
+}

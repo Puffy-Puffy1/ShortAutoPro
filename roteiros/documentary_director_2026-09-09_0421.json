@@ -1,0 +1,216 @@
+{
+  "short_id": "2026-09-09_0421",
+  "topic": "O Desaparecimento de Elisa Lam",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_pre_documentary_2026-09-09_0421.json",
+  "visual_mode_triple_repetitions": 0,
+  "shot_triple_repetitions": 0,
+  "scenes": [
+    {
+      "scene": 1,
+      "segment": "Você já viu o vídeo viral da internet?",
+      "visual_mode": "abstract_context",
+      "shot_type": "close_up",
+      "query_before": "viral internet video glowing smartphone screen dark room",
+      "query_after": "glowing smartphone screen playing viral video in dark room",
+      "must_have": [
+        "screen",
+        "dark room"
+      ],
+      "avoid": [
+        "person face",
+        "nature"
+      ],
+      "reason": "Introduz o conceito de vídeo viral na internet usando uma tela iluminada no escuro."
+    },
+    {
+      "scene": 2,
+      "segment": "Em fevereiro de 2013, a estudante Elisa Lam desapareceu em Los Angeles.",
+      "visual_mode": "location",
+      "shot_type": "medium",
+      "query_before": "los angeles city street sign sunny day",
+      "query_after": "los angeles city street sign sunny day downtown",
+      "must_have": [
+        "street sign",
+        "city"
+      ],
+      "avoid": [
+        "ocean",
+        "beach"
+      ],
+      "reason": "Mostra o local factual onde o desaparecimento ocorreu em fevereiro de 2013."
+    },
+    {
+      "scene": 3,
+      "segment": "Dias depois, a polícia divulgou imagens de uma câmera de segurança no elevador do Hotel Cecil.",
+      "visual_mode": "evidence",
+      "shot_type": "wide",
+      "query_before": "vintage hotel elevator interior security camera angle",
+      "query_after": "vintage hotel elevator interior security camera angle view",
+      "must_have": [
+        "elevator",
+        "camera angle"
+      ],
+      "avoid": [
+        "modern office",
+        "glass door"
+      ],
+      "reason": "Apresenta a evidência da câmera de segurança do elevador divulgada pela polícia."
+    },
+    {
+      "scene": 4,
+      "segment": "Nelas, Elisa entra, sai, gesticula no corredor e parece se esconder,",
+      "visual_mode": "architecture",
+      "shot_type": "medium",
+      "query_before": "woman stepping inside hotel elevator looking around hallway",
+      "query_after": "woman stepping inside hotel elevator looking around hallway",
+      "must_have": [
+        "elevator",
+        "hallway"
+      ],
+      "avoid": [
+        "daylight park",
+        "car"
+      ],
+      "reason": "Representa o contexto arquitetônico do elevador e corredor citados na filmagem."
+    },
+    {
+      "scene": 5,
+      "segment": "enquanto o elevador parece apresentar um funcionamento estranho.",
+      "visual_mode": "object",
+      "shot_type": "close_up",
+      "query_before": "malfunctioning elevator buttons flickering light cinematic shot",
+      "query_after": "malfunctioning elevator buttons flickering light cinematic shot",
+      "must_have": [
+        "elevator buttons",
+        "light"
+      ],
+      "avoid": [
+        "stairs",
+        "escalator"
+      ],
+      "reason": "Foca no objeto específico do mal-funcionamento relatado no elevador."
+    },
+    {
+      "scene": 6,
+      "segment": "O vídeo viralizou e gerou várias explicações, desde o transtorno bipolar da jovem",
+      "visual_mode": "document",
+      "shot_type": "close_up",
+      "query_before": "medical pills bottle and prescription notes on table",
+      "query_after": "medical pills bottle and prescription notes on table",
+      "must_have": [
+        "pills",
+        "table"
+      ],
+      "avoid": [
+        "hospital surgery",
+        "doctor face"
+      ],
+      "reason": "Documenta de forma neutra a menção ao transtorno bipolar e tratamento."
+    },
+    {
+      "scene": 7,
+      "segment": "até alegações de envolvimento paranormal ou que o vídeo foi alterado.",
+      "visual_mode": "abstract_context",
+      "shot_type": "medium",
+      "query_before": "glitch effect on vintage security camera footage screen",
+      "query_after": "glitch effect on vintage security camera footage screen",
+      "must_have": [
+        "screen",
+        "glitch"
+      ],
+      "avoid": [
+        "bright colors",
+        "happy people"
+      ],
+      "reason": "Trata visualmente a alegação ambígua de alteração no vídeo de segurança."
+    },
+    {
+      "scene": 8,
+      "segment": "O mistério aumentou quando funcionários acharam seu corpo nu dentro de um tanque de água",
+      "visual_mode": "architecture",
+      "shot_type": "wide",
+      "query_before": "industrial rooftop water storage tank metal structure",
+      "query_after": "industrial rooftop water storage tank metal structure",
+      "must_have": [
+        "water tank",
+        "rooftop"
+      ],
+      "avoid": [
+        "swimming pool",
+        "indoor bathroom"
+      ],
+      "reason": "Mostra o local exato onde o corpo foi descoberto pelos funcionários."
+    },
+    {
+      "scene": 9,
+      "segment": "no topo do hotel.",
+      "visual_mode": "location",
+      "shot_type": "aerial",
+      "query_before": "aerial view of old hotel rooftop at dusk",
+      "query_after": "aerial view of old hotel rooftop at dusk",
+      "must_have": [
+        "rooftop",
+        "building"
+      ],
+      "avoid": [
+        "green fields",
+        "forest"
+      ],
+      "reason": "Contextualiza a arquitetura externa do topo do hotel."
+    },
+    {
+      "scene": 10,
+      "segment": "O relatório da autópsia concluiu que a morte foi acidental, sem trauma físico.",
+      "visual_mode": "document",
+      "shot_type": "medium",
+      "query_before": "official police document file on wooden desk",
+      "query_after": "official police document file on wooden desk",
+      "must_have": [
+        "document",
+        "desk"
+      ],
+      "avoid": [
+        "computer keyboard",
+        "tablet"
+      ],
+      "reason": "Exibe o relatório oficial da autópsia citado nas conclusões do caso."
+    },
+    {
+      "scene": 11,
+      "segment": "O caso inspirou uma série documental.",
+      "visual_mode": "abstract_context",
+      "shot_type": "medium",
+      "query_before": "television screen playing dark documentary true crime",
+      "query_after": "television screen playing dark documentary true crime",
+      "must_have": [
+        "television",
+        "screen"
+      ],
+      "avoid": [
+        "remote control",
+        "popcorn"
+      ],
+      "reason": "Faz referência à série documental lançada sobre o caso."
+    },
+    {
+      "scene": 12,
+      "segment": "Comente sua teoria e siga para mais mistérios.",
+      "visual_mode": "architecture",
+      "shot_type": "wide",
+      "query_before": "vintage hotel hallway dark shadows mysterious atmosphere",
+      "query_after": "vintage hotel hallway dark shadows mysterious atmosphere",
+      "must_have": [
+        "hallway",
+        "shadows"
+      ],
+      "avoid": [
+        "bright sunlight",
+        "happy crowd",
+        "social media icon",
+        "thumbs up",
+        "generic influencer"
+      ],
+      "reason": "Encerra o Short mostrando o corredor do hotel sem apelos visuais proibidos."
+    }
+  ]
+}

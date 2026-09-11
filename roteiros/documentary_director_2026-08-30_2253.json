@@ -1,0 +1,212 @@
+{
+  "short_id": "2026-08-30_2253",
+  "topic": "Caso Boy in the Box",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_pre_documentary_2026-08-30_2253.json",
+  "visual_mode_triple_repetitions": 0,
+  "shot_triple_repetitions": 5,
+  "scenes": [
+    {
+      "scene": 1,
+      "segment": "Como uma banda rejeitada tirou Michael Jackson do topo da Billboard em 1992?",
+      "visual_mode": "document",
+      "shot_type": "medium",
+      "query_before": "vintage billboard music chart 1992 retro style",
+      "query_after": "vintage billboard music chart 1992 retro style printed paper",
+      "must_have": [
+        "billboard",
+        "chart"
+      ],
+      "avoid": [
+        "modern smartphone",
+        "digital screen"
+      ],
+      "reason": "Uso de documento de parada de sucesso para ilustrar o topo da Billboard em 1992."
+    },
+    {
+      "scene": 2,
+      "segment": "Produzido por Butch Vig, o álbum Nevermind do Nirvana marcou a história.",
+      "visual_mode": "architecture",
+      "shot_type": "wide",
+      "query_before": "vintage audio mixing console in recording studio",
+      "query_after": "vintage recording studio sound control room mixing console",
+      "must_have": [
+        "mixing console",
+        "studio"
+      ],
+      "avoid": [
+        "computer mouse",
+        "dj controller"
+      ],
+      "reason": "Exibe o ambiente de estúdio onde o álbum Nevermind foi produzido."
+    },
+    {
+      "scene": 3,
+      "segment": "A banda surgiu em Aberdeen, Washington, fundada em 1987 por Kurt Cobain e Krist Novoselic.",
+      "visual_mode": "location",
+      "shot_type": "medium",
+      "query_before": "rainy small town street in washington state",
+      "query_after": "rainy small town street in Aberdeen Washington state",
+      "must_have": [
+        "street",
+        "town"
+      ],
+      "avoid": [
+        "sunny tropical beach",
+        "desert"
+      ],
+      "reason": "Mostra o local real onde a banda foi fundada em 1987."
+    },
+    {
+      "scene": 4,
+      "segment": "Após passarem por vários bateristas, recrutaram Dave Grohl em 1990.",
+      "visual_mode": "object",
+      "shot_type": "medium",
+      "query_before": "vintage drum kit on dark rock stage",
+      "query_after": "vintage drum kit on dark rock concert stage",
+      "must_have": [
+        "drum kit",
+        "stage"
+      ],
+      "avoid": [
+        "electronic drums",
+        "orchestra"
+      ],
+      "reason": "Destaca o instrumento relacionado à entrada de Dave Grohl na banda."
+    },
+    {
+      "scene": 5,
+      "segment": "O som misturava a estética punk com melodias pop e ruído.",
+      "visual_mode": "object",
+      "shot_type": "medium",
+      "query_before": "electric guitar amplifier with audio cables close up",
+      "query_after": "electric guitar amplifier with audio cables close up",
+      "must_have": [
+        "amplifier",
+        "guitar"
+      ],
+      "avoid": [
+        "acoustic guitar",
+        "piano"
+      ],
+      "reason": "Representa fisicamente o ruído e a estética sonora do punk rock."
+    },
+    {
+      "scene": 6,
+      "segment": "O sucesso mundial veio com o hit Smells Like Teen Spirit",
+      "visual_mode": "human_context",
+      "shot_type": "wide",
+      "query_before": "crowd jumping at rock concert with stage lights",
+      "query_after": "crowd jumping at rock concert with stage lights 1990s",
+      "must_have": [
+        "crowd",
+        "stage lights"
+      ],
+      "avoid": [
+        "empty room",
+        "classical concert"
+      ],
+      "reason": "Retrata o contexto de público em shows associado ao sucesso mundial."
+    },
+    {
+      "scene": 7,
+      "segment": "do icônico segundo álbum.",
+      "visual_mode": "object",
+      "shot_type": "medium",
+      "query_before": "vintage vinyl record spinning on turntable player",
+      "query_after": "vintage vinyl record spinning on turntable player",
+      "must_have": [
+        "vinyl record",
+        "turntable"
+      ],
+      "avoid": [
+        "cd player",
+        "cassette tape"
+      ],
+      "reason": "Usa o formato físico clássico para representar o segundo álbum da banda."
+    },
+    {
+      "scene": 8,
+      "segment": "Tragicamente, a banda se separou",
+      "visual_mode": "object",
+      "shot_type": "medium",
+      "query_before": "empty vintage microphone stand on dark stage",
+      "query_after": "empty vintage microphone stand on dark stage",
+      "must_have": [
+        "microphone stand",
+        "stage"
+      ],
+      "avoid": [
+        "singer performing",
+        "happy people"
+      ],
+      "reason": "Simboliza a separação e o vazio deixado na banda."
+    },
+    {
+      "scene": 9,
+      "segment": "após o suicídio de Cobain em abril de 1994.",
+      "visual_mode": "document",
+      "shot_type": "medium",
+      "query_before": "retro calendar page showing april month",
+      "query_after": "retro calendar page showing april month 1994",
+      "must_have": [
+        "calendar"
+      ],
+      "avoid": [
+        "modern digital clock",
+        "smartphone screen"
+      ],
+      "reason": "Marca o registro temporal do falecimento em abril de 1994."
+    },
+    {
+      "scene": 10,
+      "segment": "Eles venderam mais de setenta e cinco milhões de discos em todo o mundo.",
+      "visual_mode": "evidence",
+      "shot_type": "medium",
+      "query_before": "stacks of vintage vinyl records in storage",
+      "query_after": "stacks of vintage vinyl records in music archives",
+      "must_have": [
+        "vinyl records",
+        "stacks"
+      ],
+      "avoid": [
+        "books",
+        "clothes"
+      ],
+      "reason": "Evidencia física em grande volume para representar a marca de discos vendidos."
+    },
+    {
+      "scene": 11,
+      "segment": "Inscreva-se para mais histórias do rock!",
+      "visual_mode": "object",
+      "shot_type": "medium",
+      "query_before": "vintage electric guitar resting on guitar stand",
+      "query_after": "vintage electric guitar resting on guitar stand indoors",
+      "must_have": [
+        "electric guitar",
+        "stand"
+      ],
+      "avoid": [
+        "smartphone",
+        "computer"
+      ],
+      "reason": "Objeto icônico do rock para a chamada final de engajamento."
+    },
+    {
+      "scene": 12,
+      "segment": "Fim da história.",
+      "visual_mode": "object",
+      "shot_type": "medium",
+      "query_before": "vintage cassette tape on wooden table surface",
+      "query_after": "vintage cassette tape on wooden table surface",
+      "must_have": [
+        "cassette tape",
+        "table"
+      ],
+      "avoid": [
+        "modern smartphone",
+        "laptop computer"
+      ],
+      "reason": "Objeto analógico clássico para encerrar visualmente a história."
+    }
+  ]
+}

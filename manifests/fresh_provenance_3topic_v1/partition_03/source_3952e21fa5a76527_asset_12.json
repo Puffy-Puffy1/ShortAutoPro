@@ -1,0 +1,19 @@
+{
+  "schema": "SHORTAUTOPRO_SOURCE_PROVENANCE_V1",
+  "provider": "Coverr",
+  "title": "Source 12 for partition 3",
+  "license": "BENCHMARK-LICENSE",
+  "artist": "Author 12",
+  "source_group": "FRESH:P3:12",
+  "source_url": "https://coverr.co/videos/fresh_p3_12",
+  "remote_url": "https://coverr.co/videos/fresh_p3_12",
+  "local_path": "/data/data/com.termux/files/home/ShortAutoPro/temp/fresh_provenance_3topic_v1/partition_03/asset_12.jpg",
+  "sha256": "3952e21fa5a76527416a1adca253decd9c889ac473603966089fe4b758451b9b",
+  "bytes": 49,
+  "suffix": ".jpg",
+  "capture_method": "fresh_3topic_generalization",
+  "captured_at_unix": 1788410926.0893416,
+  "query_used_as_evidence": false,
+  "search_used_as_evidence": false,
+  "topic_used_as_evidence": false
+}

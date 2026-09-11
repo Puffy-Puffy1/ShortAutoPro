@@ -1,0 +1,64 @@
+{
+  "short_id": "2026-08-30_1706",
+  "selected": {
+    "topic": "Desaparecimento de Frederick Valentich",
+    "score": 76.58,
+    "wiki_title": "Desaparecimento de Valentich",
+    "wiki_chars": 0,
+    "wiki_similarity": 1.0,
+    "gemini": {},
+    "objective": {
+      "visual": 0,
+      "hook": 0,
+      "documentation": 0,
+      "title_match": 10,
+      "novelty": 10
+    },
+    "reserve": true
+  },
+  "ranking": [
+    {
+      "topic": "Desaparecimento de Frederick Valentich",
+      "score": 76.58,
+      "wiki_title": "Desaparecimento de Valentich",
+      "wiki_chars": 0,
+      "wiki_similarity": 1.0,
+      "gemini": {},
+      "objective": {
+        "visual": 0,
+        "hook": 0,
+        "documentation": 0,
+        "title_match": 10,
+        "novelty": 10
+      },
+      "reserve": true
+    }
+  ],
+  "verification": [
+    {
+      "topic": "Somerton Man",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "The Hinterkaifeck murders",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "Tamam Shud case",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "Disappearance of Frederick Valentich",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "Isdal Woman",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    }
+  ]
+}

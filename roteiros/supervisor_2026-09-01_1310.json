@@ -1,0 +1,35 @@
+{
+  "short_id": "2026-09-01_1310",
+  "version": "5.0",
+  "topic": "Caso Isdal",
+  "wiki_title": "Mulher de Isdalen",
+  "score": 95,
+  "status": "EXCELLENT",
+  "critical": [],
+  "warnings": [
+    "low_video_mix_0"
+  ],
+  "strengths": [
+    "source_identity_pass",
+    "script_length",
+    "hook_length",
+    "scene_count_12",
+    "visual_variety",
+    "visual_mode_variety",
+    "physical_media_12",
+    "motion_plan",
+    "motion_variety",
+    "comment_cta"
+  ],
+  "metrics": {
+    "script_words": 115,
+    "hook_words": 14,
+    "scenes": 12,
+    "visual_modes": 7,
+    "visual_repetitions": 0,
+    "media_files": 12,
+    "videos": 0,
+    "photos": 12,
+    "motion_scenes": 12
+  }
+}

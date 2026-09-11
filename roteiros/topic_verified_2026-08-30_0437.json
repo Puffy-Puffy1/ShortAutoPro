@@ -1,0 +1,176 @@
+{
+  "short_id": "2026-08-30_0437",
+  "selected": {
+    "topic": "Caso Dyatlov",
+    "score": 75.1,
+    "gemini": {
+      "curiosity": 10.0,
+      "visual": 9.0,
+      "documentation": 10.0,
+      "retention": 10.0,
+      "comment_potential": 10.0
+    },
+    "objective": {
+      "visual": 5.0,
+      "hook": 5.0,
+      "documentation": 10.0,
+      "title_match": 5.0,
+      "novelty": 9.53
+    },
+    "wiki_title": "Incidente do Passo Dyatlov",
+    "wiki_chars": 17807,
+    "wiki_similarity": 0.5
+  },
+  "ranking": [
+    {
+      "topic": "Caso Dyatlov",
+      "score": 75.1,
+      "gemini": {
+        "curiosity": 10.0,
+        "visual": 9.0,
+        "documentation": 10.0,
+        "retention": 10.0,
+        "comment_potential": 10.0
+      },
+      "objective": {
+        "visual": 5.0,
+        "hook": 5.0,
+        "documentation": 10.0,
+        "title_match": 5.0,
+        "novelty": 9.53
+      },
+      "wiki_title": "Incidente do Passo Dyatlov",
+      "wiki_chars": 17807,
+      "wiki_similarity": 0.5
+    },
+    {
+      "topic": "Desaparecimento de Elisa Lam",
+      "score": 74.51,
+      "gemini": {
+        "curiosity": 10.0,
+        "visual": 10.0,
+        "documentation": 10.0,
+        "retention": 10.0,
+        "comment_potential": 10.0
+      },
+      "objective": {
+        "visual": 5.0,
+        "hook": 6.2,
+        "documentation": 7.0,
+        "title_match": 7.5,
+        "novelty": 9.34
+      },
+      "wiki_title": "Morte de Elisa Lam",
+      "wiki_chars": 2601,
+      "wiki_similarity": 0.75
+    },
+    {
+      "topic": "Desaparecimento de Frederick Valentich",
+      "score": 72.38,
+      "gemini": {
+        "curiosity": 9.0,
+        "visual": 8.0,
+        "documentation": 9.0,
+        "retention": 9.0,
+        "comment_potential": 9.0
+      },
+      "objective": {
+        "visual": 5.0,
+        "hook": 6.2,
+        "documentation": 9.5,
+        "title_match": 7.5,
+        "novelty": 8.67
+      },
+      "wiki_title": "Desaparecimento de Valentich",
+      "wiki_chars": 11798,
+      "wiki_similarity": 0.75
+    },
+    {
+      "topic": "O monstro de Flatwoods",
+      "score": 71.51,
+      "gemini": {
+        "curiosity": 8.0,
+        "visual": 9.0,
+        "documentation": 8.0,
+        "retention": 9.0,
+        "comment_potential": 10.0
+      },
+      "objective": {
+        "visual": 5.0,
+        "hook": 5.0,
+        "documentation": 9.5,
+        "title_match": 7.5,
+        "novelty": 9.48
+      },
+      "wiki_title": "Monstro de Flatwoods",
+      "wiki_chars": 10152,
+      "wiki_similarity": 0.75
+    }
+  ],
+  "verification": [
+    {
+      "topic": "Desaparecimento de Elisa Lam",
+      "approved": true,
+      "score": 74.51,
+      "wiki_title": "Morte de Elisa Lam"
+    },
+    {
+      "topic": "Caso Dyatlov",
+      "approved": true,
+      "score": 75.1,
+      "wiki_title": "Incidente do Passo Dyatlov"
+    },
+    {
+      "topic": "O Homem de Somnerton",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O monstro de Flatwoods",
+      "approved": true,
+      "score": 71.51,
+      "wiki_title": "Monstro de Flatwoods"
+    },
+    {
+      "topic": "Desaparecimento de Frederick Valentich",
+      "approved": true,
+      "score": 72.38,
+      "wiki_title": "Desaparecimento de Valentich"
+    },
+    {
+      "topic": "Voynich Manuscript",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "Caso das Ilhas Flannan",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "D. B. Cooper",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "Os Garotos de Sodder",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "Povoamento de Roanoke",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "Grytviken",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "Incidente de Hinterkaifeck",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    }
+  ]
+}

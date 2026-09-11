@@ -1,0 +1,19 @@
+{
+  "schema": "SHORTAUTOPRO_SOURCE_PROVENANCE_V1",
+  "provider": "Pixabay",
+  "title": "Source 07 for partition 3",
+  "license": "BENCHMARK-LICENSE",
+  "artist": "Author 07",
+  "source_group": "FRESH:P3:07",
+  "source_url": "https://pixabay.com/photos/fresh_p3_07",
+  "remote_url": "https://pixabay.com/photos/fresh_p3_07",
+  "local_path": "/data/data/com.termux/files/home/ShortAutoPro/temp/fresh_provenance_3topic_v1/partition_03/asset_07.jpg",
+  "sha256": "0cc13d21372da0cecf70d4fd6179b1065bcaa2d1740f5f9d89b0695754763f7a",
+  "bytes": 48,
+  "suffix": ".jpg",
+  "capture_method": "fresh_3topic_generalization",
+  "captured_at_unix": 1788410926.0780737,
+  "query_used_as_evidence": false,
+  "search_used_as_evidence": false,
+  "topic_used_as_evidence": false
+}

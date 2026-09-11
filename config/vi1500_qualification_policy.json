@@ -1,0 +1,35 @@
+{
+  "version": "1500.00",
+
+  "execute_generation": true,
+  "topics_required": 3,
+  "minimum_releases_for_certification": 2,
+
+  "generator_timeout_seconds": 1200,
+  "generator_max_attempts": 2,
+
+  "release_score_min": 8.0,
+  "minimum_visual_score": 6.0,
+  "minimum_visual_average": 7.5,
+
+  "minimum_source_records": 6,
+  "minimum_unique_sources": 4,
+
+  "disk_free_block_mb": 700,
+  "disk_free_warn_mb": 1500,
+
+  "old_benchmark_forbidden": [
+    "Elisa Lam",
+    "Hotel Cecil",
+    "2026-09-01_1433",
+    "Autopsy Report of Elisa Lam"
+  ],
+
+  "publication": false,
+  "upload": false,
+  "production_core_mutation": false,
+
+  "qualification_artifact_creation": true,
+
+  "source_recovery": "SHADOW_ONLY"
+}

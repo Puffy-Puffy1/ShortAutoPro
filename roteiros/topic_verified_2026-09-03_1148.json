@@ -1,0 +1,75 @@
+{
+  "short_id": "2026-09-03_1148",
+  "selected": {
+    "topic": "O Desaparecimento de Brian Shaffer",
+    "score": 75.11,
+    "gemini": {
+      "curiosity": 9.0,
+      "visual": 8.0,
+      "documentation": 9.0,
+      "retention": 9.0,
+      "comment_potential": 10.0
+    },
+    "objective": {
+      "visual": 5.0,
+      "hook": 6.2,
+      "documentation": 10.0,
+      "title_match": 10.0,
+      "novelty": 8.44
+    },
+    "wiki_title": "Desaparecimento de Brian Shaffer",
+    "wiki_chars": 14251,
+    "wiki_similarity": 1.0
+  },
+  "ranking": [
+    {
+      "topic": "O Desaparecimento de Brian Shaffer",
+      "score": 75.11,
+      "gemini": {
+        "curiosity": 9.0,
+        "visual": 8.0,
+        "documentation": 9.0,
+        "retention": 9.0,
+        "comment_potential": 10.0
+      },
+      "objective": {
+        "visual": 5.0,
+        "hook": 6.2,
+        "documentation": 10.0,
+        "title_match": 10.0,
+        "novelty": 8.44
+      },
+      "wiki_title": "Desaparecimento de Brian Shaffer",
+      "wiki_chars": 14251,
+      "wiki_similarity": 1.0
+    }
+  ],
+  "verification": [
+    {
+      "topic": "O caso do assassinato de Betty Gore e Candy Montgomery",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O desaparecimento de Maura Murray",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O Desaparecimento de Brian Shaffer",
+      "approved": true,
+      "score": 75.11,
+      "wiki_title": "Desaparecimento de Brian Shaffer"
+    },
+    {
+      "topic": "O Homem de Somnerton",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O Mistério de Tamam Shud",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    }
+  ]
+}

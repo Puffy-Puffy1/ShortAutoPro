@@ -1,0 +1,271 @@
+{
+  "short_id": "2026-09-01_1433",
+  "created_at": "2026-09-01T14:47:00.247581",
+  "status": "QUALITY_PASS",
+  "topic": "O Desaparecimento de Elisa Lam",
+  "hook": "O que realmente aconteceu nos últimos minutos de Elisa Lam no elevador?",
+  "script": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/short_2026-09-01_1433.txt",
+    "text": "O que realmente aconteceu nos últimos minutos de Elisa Lam no elevador? Em fevereiro de 2013, a estudante canadense desapareceu no Hotel Cecil, em Los Angeles. Cinco dias antes de seu corpo ser encontrado, a polícia divulgou imagens de uma câmera de segurança. Nele, Elisa entra e sai, gesticula no corredor e parece se esconder, enquanto o elevador parece apresentar um funcionamento estranho. O vídeo gerou muitas especulações, variando de alegações de envolvimento paranormal ao transtorno bipolar do qual Lam sofria. Funcionários da manutenção descobriram o corpo nu dela dentro de um tanque de água no topo do hotel após reclamações de clientes. O relatório da autópsia afirmou que a morte foi acidental, sem evidências de trauma físico. Comente sua opinião."
+  },
+  "source": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/fonte_2026-09-01_1433.txt"
+  },
+  "publish": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/publish_2026-09-01_1433.json",
+    "chosen_title": "O mistério no elevador de Elisa Lam 🏨",
+    "titles": [
+      "O mistério no elevador de Elisa Lam 🏨",
+      "O que revelou o vídeo de Elisa Lam?",
+      "O enigma do Hotel Cecil e Elisa Lam"
+    ],
+    "description": "O misterioso desaparecimento de Elisa Lam em 2013 gerou teorias que vão de paranormalidade a transtorno bipolar. O que mostram as imagens do elevador? Comente sua opinião.",
+    "hashtags": [
+      "#Shorts",
+      "#ElisaLam",
+      "#HotelCecil",
+      "#Misterio",
+      "#CasosReais"
+    ],
+    "pinned_comment": "Você acha que o caso foi paranormal ou tragédia relacionada ao transtorno bipolar?"
+  },
+  "scenes": {
+    "map_path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_2026-09-01_1433.json",
+    "count": 12,
+    "physical_count": 12,
+    "items": [
+      {
+        "scene": 1,
+        "segment": "O que realmente aconteceu nos últimos minutos de Elisa Lam no elevador?",
+        "query": "vintage hotel elevator interior doors closing suspense",
+        "must_have": [
+          "elevator",
+          "doors"
+        ],
+        "avoid": [
+          "modern smartphone",
+          "bright daylight"
+        ],
+        "words": 12,
+        "weight": 0.09917355371900827,
+        "visual_mode": "architecture",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 2,
+        "segment": "Em fevereiro de 2013, a estudante canadense desapareceu no Hotel Cecil, em Los Angeles.",
+        "query": "historic old hotel facade los angeles street view",
+        "must_have": [
+          "hotel",
+          "building"
+        ],
+        "avoid": [
+          "modern skyscraper",
+          "beach"
+        ],
+        "words": 14,
+        "weight": 0.11570247933884298,
+        "visual_mode": "location",
+        "shot_type": "wide"
+      },
+      {
+        "scene": 3,
+        "segment": "Cinco dias antes de seu corpo ser encontrado,",
+        "query": "empty dark hotel hallway corridor with vintage doors",
+        "must_have": [
+          "hallway",
+          "door"
+        ],
+        "avoid": [
+          "sunny park",
+          "happy people"
+        ],
+        "words": 8,
+        "weight": 0.06611570247933884,
+        "visual_mode": "evidence",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 4,
+        "segment": "a polícia divulgou imagens de uma câmera de segurança.",
+        "query": "old cctv security camera mounted on wall",
+        "must_have": [
+          "security camera",
+          "lens"
+        ],
+        "avoid": [
+          "smartphone screen",
+          "computer monitor"
+        ],
+        "words": 9,
+        "weight": 0.0743801652892562,
+        "visual_mode": "evidence",
+        "shot_type": "close_up"
+      },
+      {
+        "scene": 5,
+        "segment": "Nele, Elisa entra e sai, gesticula no corredor",
+        "query": "woman stepping inside old elevator car doors",
+        "must_have": [
+          "woman",
+          "elevator"
+        ],
+        "avoid": [
+          "face close up",
+          "modern office"
+        ],
+        "words": 8,
+        "weight": 0.06611570247933884,
+        "visual_mode": "human_context",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 6,
+        "segment": "e parece se esconder,",
+        "query": "person hiding corner dark hallway shadows",
+        "must_have": [
+          "corner",
+          "shadows"
+        ],
+        "avoid": [
+          "bright lights",
+          "smiling face"
+        ],
+        "words": 4,
+        "weight": 0.03305785123966942,
+        "visual_mode": "architecture",
+        "shot_type": "wide"
+      },
+      {
+        "scene": 7,
+        "segment": "enquanto o elevador parece apresentar um funcionamento estranho.",
+        "query": "old elevator control panel buttons vintage interior",
+        "must_have": [
+          "buttons",
+          "panel"
+        ],
+        "avoid": [
+          "repairman tools",
+          "modern touchscreen"
+        ],
+        "words": 8,
+        "weight": 0.06611570247933884,
+        "visual_mode": "object",
+        "shot_type": "close_up"
+      },
+      {
+        "scene": 8,
+        "segment": "O vídeo gerou muitas especulações, variando de alegações de envolvimento paranormal",
+        "query": "mysterious fog over dark hotel hallway cinematic",
+        "must_have": [
+          "hallway",
+          "fog"
+        ],
+        "avoid": [
+          "cartoon ghosts",
+          "daylight",
+          "detailed alien spacecraft",
+          "flying saucer",
+          "visible ghost",
+          "alien creature"
+        ],
+        "words": 11,
+        "weight": 0.09090909090909091,
+        "visual_mode": "abstract_context",
+        "shot_type": "wide"
+      },
+      {
+        "scene": 9,
+        "segment": "ao transtorno bipolar do qual Lam sofria.",
+        "query": "prescription medicine bottles on dark wooden table",
+        "must_have": [
+          "bottles",
+          "table"
+        ],
+        "avoid": [
+          "hospital doctor",
+          "patient face"
+        ],
+        "words": 7,
+        "weight": 0.05785123966942149,
+        "visual_mode": "object",
+        "shot_type": "close_up"
+      },
+      {
+        "scene": 10,
+        "segment": "Funcionários da manutenção descobriram o corpo nu dela",
+        "query": "industrial rooftop water towers dark atmosphere",
+        "must_have": [
+          "water tower",
+          "roof"
+        ],
+        "avoid": [
+          "swimming pool",
+          "beach"
+        ],
+        "words": 8,
+        "weight": 0.06611570247933884,
+        "visual_mode": "environment",
+        "shot_type": "wide"
+      },
+      {
+        "scene": 11,
+        "segment": "dentro de um tanque de água no topo do hotel após reclamações de clientes.",
+        "query": "large metal water tank on hotel rooftop",
+        "must_have": [
+          "water tank",
+          "rooftop"
+        ],
+        "avoid": [
+          "indoor plumbing",
+          "kitchen sink"
+        ],
+        "words": 14,
+        "weight": 0.11570247933884298,
+        "visual_mode": "location",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 12,
+        "segment": "O relatório da autópsia afirmou que a morte foi acidental, sem evidências de trauma físico. Comente sua opinião.",
+        "query": "official paper document file dark background cinematic",
+        "must_have": [
+          "paper",
+          "document"
+        ],
+        "avoid": [
+          "computer screen",
+          "typing hands",
+          "social media icon",
+          "thumbs up"
+        ],
+        "words": 18,
+        "weight": 0.1487603305785124,
+        "visual_intent_6_7": "CTA",
+        "visual_mode": "document",
+        "truth_refiner_6_7": "reuse_verified_story_visual",
+        "cta_reuse_6_7": true,
+        "shot_type": "close_up"
+      }
+    ]
+  },
+  "video": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/videos/short_v6_2026-09-01_1433.mp4",
+    "version": "V6",
+    "duration_seconds": 41.866016,
+    "width": 1080,
+    "height": 1920,
+    "fps": 30.0,
+    "video_codec": "h264",
+    "audio_codec": "aac"
+  },
+  "quality": {
+    "video_exists": true,
+    "scene_map_count": 12,
+    "physical_scene_count": 12,
+    "resolution_ok": true,
+    "fps_ok": true,
+    "audio_exists": true
+  },
+  "log": "/data/data/com.termux/files/home/ShortAutoPro/logs/producao/short_2026-09-01_1433.log"
+}

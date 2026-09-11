@@ -1,0 +1,29 @@
+{
+  "short_id": "2026-09-01_1310",
+  "version": "6.7",
+  "changed": 1,
+  "changes": [
+    {
+      "scene": 12,
+      "segment": "Até hoje, sua verdadeira identidade permanece um mistério. Comente sua teoria e siga para mais casos reais.",
+      "before": {
+        "query": "question mark shadow on dark wall mystery cinematic",
+        "must_have": [
+          "question mark",
+          "shadow"
+        ],
+        "visual_mode": null
+      },
+      "after": {
+        "query": "question mark shadow on dark wall mystery cinematic",
+        "must_have": [
+          "question mark",
+          "shadow"
+        ],
+        "visual_mode": "cta_reuse"
+      },
+      "reason": "reuse_verified_story_visual"
+    }
+  ],
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_pre_truth_refiner_2026-09-01_1310.json"
+}

@@ -1,0 +1,423 @@
+{
+  "timestamp": "20260908_165415",
+  "short_id": "2026-09-02_2358",
+  "status": "FAIL",
+  "counts": {
+    "PASS": 68,
+    "WARN": 2,
+    "FAIL": 12
+  },
+  "results": [
+    {
+      "status": "PASS",
+      "name": "FILE_gerar_short.sh",
+      "detail": "15121 bytes sha256=0e5ddeb2f1888737"
+    },
+    {
+      "status": "PASS",
+      "name": "FILE_midia.py",
+      "detail": "97800 bytes sha256=82a674eac09f2ab0"
+    },
+    {
+      "status": "PASS",
+      "name": "FILE_video.py",
+      "detail": "20906 bytes sha256=756c0db576f664d4"
+    },
+    {
+      "status": "PASS",
+      "name": "FILE_v6.py",
+      "detail": "14095 bytes sha256=13d1444fc2ae0198"
+    },
+    {
+      "status": "PASS",
+      "name": "FILE_legenda_dinamica.py",
+      "detail": "10826 bytes sha256=048b3e1021bfe36d"
+    },
+    {
+      "status": "PASS",
+      "name": "FILE_visual_selection_engine_v4.py",
+      "detail": "143571 bytes sha256=70b815e701c93de4"
+    },
+    {
+      "status": "PASS",
+      "name": "FILE_media_diversity_guard_v1.py",
+      "detail": "10189 bytes sha256=43ca43e105b1d603"
+    },
+    {
+      "status": "PASS",
+      "name": "FILE_media_provenance_capture_v1.py",
+      "detail": "27080 bytes sha256=c7ad6a3d40900216"
+    },
+    {
+      "status": "PASS",
+      "name": "FILE_visual_scene_commit_lock_v1.py",
+      "detail": "9327 bytes sha256=26555b176e842173"
+    },
+    {
+      "status": "PASS",
+      "name": "FILE_visual_must_rescue_v1.py",
+      "detail": "2097 bytes sha256=1fc1b2487e87b1d5"
+    },
+    {
+      "status": "PASS",
+      "name": "FILE_fresh_render_guard_v1.py",
+      "detail": "3017 bytes sha256=08cd6cb309899874"
+    },
+    {
+      "status": "PASS",
+      "name": "FILE_render_input_fingerprint_v1.py",
+      "detail": "2341 bytes sha256=3bf71a102d18e709"
+    },
+    {
+      "status": "PASS",
+      "name": "PYTHON_COMPILE_ALL",
+      "detail": "645 root Python files"
+    },
+    {
+      "status": "PASS",
+      "name": "SHELL_SYNTAX_ALL",
+      "detail": "103 root shell files"
+    },
+    {
+      "status": "PASS",
+      "name": "DUPLICATE_DEFS_midia.py",
+      "detail": "none"
+    },
+    {
+      "status": "PASS",
+      "name": "DUPLICATE_DEFS_video.py",
+      "detail": "none"
+    },
+    {
+      "status": "PASS",
+      "name": "DUPLICATE_DEFS_v6.py",
+      "detail": "none"
+    },
+    {
+      "status": "PASS",
+      "name": "DUPLICATE_DEFS_legenda_dinamica.py",
+      "detail": "none"
+    },
+    {
+      "status": "WARN",
+      "name": "DUPLICATE_DEFS_visual_selection_engine_v4.py",
+      "detail": "{\"candidate_text\": 3, \"score_candidate\": 8}"
+    },
+    {
+      "status": "PASS",
+      "name": "VSE4_UNRESOLVED_GLOBALS",
+      "detail": "NONE"
+    },
+    {
+      "status": "PASS",
+      "name": "VSE4_REQUIRED_FUNCTIONS",
+      "detail": "all"
+    },
+    {
+      "status": "PASS",
+      "name": "VSE4_REQUIRED_GLOBALS",
+      "detail": "all"
+    },
+    {
+      "status": "PASS",
+      "name": "VSE4_SELF_TEST",
+      "detail": ""
+    },
+    {
+      "status": "PASS",
+      "name": "VSE4_GEO_HARD_MISMATCH",
+      "detail": ""
+    },
+    {
+      "status": "PASS",
+      "name": "VSE4_CORRECT_GEO_ACCEPTED",
+      "detail": ""
+    },
+    {
+      "status": "PASS",
+      "name": "VSE4_GEO_RANKING",
+      "detail": "correct=235.4 wrong=-1002028.0"
+    },
+    {
+      "status": "PASS",
+      "name": "VSE4_GEO_DETECTION",
+      "detail": ""
+    },
+    {
+      "status": "PASS",
+      "name": "VSE4_MEDICINE_FALSE_ASSOCIATION",
+      "detail": ""
+    },
+    {
+      "status": "PASS",
+      "name": "VSE4_GENERIC_LIFESTYLE_CONTROL",
+      "detail": ""
+    },
+    {
+      "status": "PASS",
+      "name": "MIDIA_INTEGRATION_VSE4",
+      "detail": "reference found"
+    },
+    {
+      "status": "WARN",
+      "name": "MIDIA_INTEGRATION_VSE3",
+      "detail": "reference not found"
+    },
+    {
+      "status": "PASS",
+      "name": "MIDIA_INTEGRATION_COMMIT_LOCK",
+      "detail": "reference found"
+    },
+    {
+      "status": "PASS",
+      "name": "MIDIA_INTEGRATION_PROVENANCE",
+      "detail": "reference found"
+    },
+    {
+      "status": "PASS",
+      "name": "MIDIA_INTEGRATION_DIVERSITY",
+      "detail": "reference found"
+    },
+    {
+      "status": "PASS",
+      "name": "MIDIA_SHA256",
+      "detail": "82a674eac09f2ab0b3b9104e20ca5d636790d17955e74c922649d2a123576e8b"
+    },
+    {
+      "status": "PASS",
+      "name": "PROVIDER_FUNCTION_pexels_video",
+      "detail": ""
+    },
+    {
+      "status": "PASS",
+      "name": "PROVIDER_FUNCTION_pexels_foto",
+      "detail": ""
+    },
+    {
+      "status": "PASS",
+      "name": "PROVIDER_FUNCTION_pixabay_video",
+      "detail": ""
+    },
+    {
+      "status": "PASS",
+      "name": "PROVIDER_FUNCTION_pixabay_foto",
+      "detail": ""
+    },
+    {
+      "status": "PASS",
+      "name": "PROVIDER_FUNCTION_coverr_video",
+      "detail": ""
+    },
+    {
+      "status": "PASS",
+      "name": "BUSCAR_TODOS_CANDIDATOS",
+      "detail": "lines=1848-1994"
+    },
+    {
+      "status": "PASS",
+      "name": "PROVIDER_CALL_pexels_video",
+      "detail": ""
+    },
+    {
+      "status": "PASS",
+      "name": "PROVIDER_CALL_pexels_foto",
+      "detail": ""
+    },
+    {
+      "status": "PASS",
+      "name": "PROVIDER_CALL_pixabay_video",
+      "detail": ""
+    },
+    {
+      "status": "PASS",
+      "name": "PROVIDER_CALL_pixabay_foto",
+      "detail": ""
+    },
+    {
+      "status": "PASS",
+      "name": "PROVIDER_CALL_coverr_video",
+      "detail": ""
+    },
+    {
+      "status": "PASS",
+      "name": "CURRENT_MEDIA_DIR",
+      "detail": "/data/data/com.termux/files/home/ShortAutoPro/imagens/short_2026-09-02_2358"
+    },
+    {
+      "status": "FAIL",
+      "name": "SCENE_01_COUNT",
+      "detail": "0"
+    },
+    {
+      "status": "FAIL",
+      "name": "SCENE_02_COUNT",
+      "detail": "0"
+    },
+    {
+      "status": "FAIL",
+      "name": "SCENE_03_COUNT",
+      "detail": "0"
+    },
+    {
+      "status": "FAIL",
+      "name": "SCENE_04_COUNT",
+      "detail": "0"
+    },
+    {
+      "status": "FAIL",
+      "name": "SCENE_05_COUNT",
+      "detail": "0"
+    },
+    {
+      "status": "FAIL",
+      "name": "SCENE_06_COUNT",
+      "detail": "0"
+    },
+    {
+      "status": "FAIL",
+      "name": "SCENE_07_COUNT",
+      "detail": "0"
+    },
+    {
+      "status": "FAIL",
+      "name": "SCENE_08_COUNT",
+      "detail": "0"
+    },
+    {
+      "status": "FAIL",
+      "name": "SCENE_09_COUNT",
+      "detail": "0"
+    },
+    {
+      "status": "FAIL",
+      "name": "SCENE_10_COUNT",
+      "detail": "0"
+    },
+    {
+      "status": "FAIL",
+      "name": "SCENE_11_COUNT",
+      "detail": "0"
+    },
+    {
+      "status": "FAIL",
+      "name": "SCENE_12_COUNT",
+      "detail": "0"
+    },
+    {
+      "status": "PASS",
+      "name": "EXACT_MEDIA_DUPLICATES",
+      "detail": "none"
+    },
+    {
+      "status": "PASS",
+      "name": "SHORT_ID_ENV_video.py",
+      "detail": ""
+    },
+    {
+      "status": "PASS",
+      "name": "SHORT_ID_ENV_v6.py",
+      "detail": ""
+    },
+    {
+      "status": "PASS",
+      "name": "V6_ASS_INPUT_DECLARED",
+      "detail": ""
+    },
+    {
+      "status": "PASS",
+      "name": "RENDER_ASSET_AUDIO",
+      "detail": "573066 bytes"
+    },
+    {
+      "status": "PASS",
+      "name": "RENDER_ASSET_ASS",
+      "detail": "11681 bytes"
+    },
+    {
+      "status": "PASS",
+      "name": "RENDER_ASSET_VIDEO_BASE",
+      "detail": "10640091 bytes"
+    },
+    {
+      "status": "PASS",
+      "name": "RENDER_ASSET_FINAL",
+      "detail": "17789481 bytes"
+    },
+    {
+      "status": "PASS",
+      "name": "GUARD_ASS_PROTECTED",
+      "detail": ""
+    },
+    {
+      "status": "PASS",
+      "name": "GUARD_AUDIO_PROTECTED",
+      "detail": ""
+    },
+    {
+      "status": "PASS",
+      "name": "GUARD_FINAL_REMOVED",
+      "detail": ""
+    },
+    {
+      "status": "PASS",
+      "name": "GUARD_TEMP_VIDEO_REMOVED",
+      "detail": ""
+    },
+    {
+      "status": "PASS",
+      "name": "EXECUTABLE_python",
+      "detail": "/data/data/com.termux/files/usr/bin/python"
+    },
+    {
+      "status": "PASS",
+      "name": "EXECUTABLE_bash",
+      "detail": "/data/data/com.termux/files/usr/bin/bash"
+    },
+    {
+      "status": "PASS",
+      "name": "EXECUTABLE_ffmpeg",
+      "detail": "/data/data/com.termux/files/usr/bin/ffmpeg"
+    },
+    {
+      "status": "PASS",
+      "name": "EXECUTABLE_ffprobe",
+      "detail": "/data/data/com.termux/files/usr/bin/ffprobe"
+    },
+    {
+      "status": "PASS",
+      "name": "WHISPER_CLI",
+      "detail": "5659824 bytes"
+    },
+    {
+      "status": "PASS",
+      "name": "WHISPER_MODEL",
+      "detail": "147951465 bytes"
+    },
+    {
+      "status": "PASS",
+      "name": "FREE_DISK",
+      "detail": "19726.1 MB"
+    },
+    {
+      "status": "PASS",
+      "name": "TMP_USAGE_midia.py",
+      "detail": "none"
+    },
+    {
+      "status": "PASS",
+      "name": "TMP_USAGE_video.py",
+      "detail": "none"
+    },
+    {
+      "status": "PASS",
+      "name": "TMP_USAGE_v6.py",
+      "detail": "none"
+    },
+    {
+      "status": "PASS",
+      "name": "TMP_USAGE_gerar_short.sh",
+      "detail": "none"
+    }
+  ],
+  "text_report": "/data/data/com.termux/files/home/ShortAutoPro/temp/SHORTAUTOPRO_MASTER_AUDIT_20260908_165415.txt"
+}

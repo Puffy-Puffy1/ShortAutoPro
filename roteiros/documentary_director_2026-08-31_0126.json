@@ -1,0 +1,228 @@
+{
+  "short_id": "2026-08-31_0126",
+  "topic": "Caso Hinterkaifeck",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_pre_documentary_2026-08-31_0126.json",
+  "visual_mode_triple_repetitions": 0,
+  "shot_triple_repetitions": 0,
+  "scenes": [
+    {
+      "scene": 1,
+      "segment": "O assassino comeu, acendeu a lareira e viveu com os corpos.",
+      "visual_mode": "location",
+      "shot_type": "medium",
+      "query_before": "dark rustic fireplace burning in old german farmhouse interior",
+      "query_after": "dark rustic fireplace burning in old german farmhouse interior",
+      "must_have": [
+        "fireplace",
+        "fire"
+      ],
+      "avoid": [
+        "modern",
+        "neon",
+        "people"
+      ],
+      "reason": "Representa o ambiente interno onde o assassino permaneceu após o crime."
+    },
+    {
+      "scene": 2,
+      "segment": "Em março de 1922, na fazenda alemã Hinterkaifeck,",
+      "visual_mode": "architecture",
+      "shot_type": "wide",
+      "query_before": "vintage 1920s German rural farmhouse covered in snow aerial view",
+      "query_after": "vintage 1920s German rural farmhouse covered in snow aerial view",
+      "must_have": [
+        "farmhouse",
+        "snow"
+      ],
+      "avoid": [
+        "skyscraper",
+        "car",
+        "beach"
+      ],
+      "reason": "Mostra a arquitetura da fazenda isolada na Baviera."
+    },
+    {
+      "scene": 3,
+      "segment": "seis pessoas foram brutalmente assassinadas a golpes de enxada.",
+      "visual_mode": "evidence",
+      "shot_type": "medium",
+      "query_before": "old rusty agricultural hoe tool resting on dark wooden floor",
+      "query_after": "old rusty agricultural hoe tool resting on dark wooden floor",
+      "must_have": [
+        "hoe",
+        "tool"
+      ],
+      "avoid": [
+        "knife",
+        "gun",
+        "blood"
+      ],
+      "reason": "Exibe a enxada, arma utilizada nos assassinatos, como evidência neutra."
+    },
+    {
+      "scene": 4,
+      "segment": "Dias antes do crime, o patriarca Andreas Gruber",
+      "visual_mode": "human_context",
+      "shot_type": "medium",
+      "query_before": "elderly man with beard wearing vintage 1920s winter coat outdoor",
+      "query_after": "elderly man with beard wearing vintage 1920s winter coat outdoor",
+      "must_have": [
+        "elderly man",
+        "coat"
+      ],
+      "avoid": [
+        "smartphone",
+        "car",
+        "woman"
+      ],
+      "reason": "Contextualiza a figura do patriarca Andreas Gruber conforme a época."
+    },
+    {
+      "scene": 5,
+      "segment": "encontrou pegadas na neve que vinham da floresta, mas não voltavam.",
+      "visual_mode": "environment",
+      "shot_type": "wide",
+      "query_before": "footprints in deep snow leading into dark pine forest",
+      "query_after": "footprints in deep snow leading into dark pine forest",
+      "must_have": [
+        "footprints",
+        "snow",
+        "forest"
+      ],
+      "avoid": [
+        "sun",
+        "summer",
+        "beach"
+      ],
+      "reason": "Retrata as pegadas misteriosas na neve mencionadas no prelúdio."
+    },
+    {
+      "scene": 6,
+      "segment": "Chaves sumiram e passos foram ouvidos no sótão.",
+      "visual_mode": "location",
+      "shot_type": "medium",
+      "query_before": "dark dusty attic interior with wooden beams and moonlight",
+      "query_after": "dark dusty attic interior with wooden beams and moonlight",
+      "must_have": [
+        "attic",
+        "beams"
+      ],
+      "avoid": [
+        "bright",
+        "modern",
+        "clean"
+      ],
+      "reason": "Ilustra o sótão onde passos e barulhos foram ouvidos."
+    },
+    {
+      "scene": 7,
+      "segment": "Após o massacre, há relatos de que o perpetrador permaneceu na propriedade,",
+      "visual_mode": "architecture",
+      "shot_type": "medium",
+      "query_before": "dark eerie farmhouse window at night with dim interior light",
+      "query_after": "dark eerie farmhouse window at night with dim interior light",
+      "must_have": [
+        "window",
+        "house"
+      ],
+      "avoid": [
+        "bright daylight",
+        "crowd",
+        "city"
+      ],
+      "reason": "Mostra a fachada da casa durante a noite, sugerindo a permanência do perpetrador."
+    },
+    {
+      "scene": 8,
+      "segment": "vizinhos viram fumaça saindo da chaminé e o gado foi alimentado.",
+      "visual_mode": "environment",
+      "shot_type": "wide",
+      "query_before": "chimney smoke coming out of old rustic house roof in winter",
+      "query_after": "chimney smoke coming out of old rustic house roof in winter",
+      "must_have": [
+        "smoke",
+        "chimney",
+        "roof"
+      ],
+      "avoid": [
+        "factory",
+        "city",
+        "car"
+      ],
+      "reason": "Evidencia a fumaça relatada pelos vizinhos saindo da chaminé."
+    },
+    {
+      "scene": 9,
+      "segment": "A polícia investigou mais de cem suspeitos,",
+      "visual_mode": "document",
+      "shot_type": "close_up",
+      "query_before": "vintage 1920s police files and old documents on wooden table",
+      "query_after": "vintage 1920s police files and old documents on wooden table",
+      "must_have": [
+        "documents",
+        "table"
+      ],
+      "avoid": [
+        "computer",
+        "smartphone",
+        "neon"
+      ],
+      "reason": "Representa a extensa investigação policial e os arquivos do caso."
+    },
+    {
+      "scene": 10,
+      "segment": "incluindo o ex-marido de Viktoria, dado como morto na Primeira Guerra Mundial,",
+      "visual_mode": "object",
+      "shot_type": "close_up",
+      "query_before": "vintage 1910s military helmet and old sepia portrait photograph",
+      "query_after": "vintage 1910s military helmet and old sepia portrait photograph",
+      "must_have": [
+        "helmet",
+        "photograph"
+      ],
+      "avoid": [
+        "modern soldier",
+        "smartphone",
+        "car"
+      ],
+      "reason": "Faz referência ao ex-marido de Viktoria e ao período da Primeira Guerra Mundial."
+    },
+    {
+      "scene": 11,
+      "segment": "e um vizinho próximo, mas o caso permanece sem solução até hoje.",
+      "visual_mode": "location",
+      "shot_type": "wide",
+      "query_before": "foggy German countryside road leading into dark winter woods",
+      "query_after": "foggy German countryside road leading into dark winter woods",
+      "must_have": [
+        "road",
+        "fog",
+        "woods"
+      ],
+      "avoid": [
+        "highway",
+        "traffic",
+        "city"
+      ],
+      "reason": "Mostra a paisagem rural bávara onde o mistério permanece sem solução."
+    },
+    {
+      "scene": 12,
+      "segment": "Qual teoria você acha mais assustadora? Comente e se inscreva.",
+      "visual_mode": "environment",
+      "shot_type": "wide",
+      "query_before": "dark ominous German forest silhouette against grey winter twilight sky",
+      "query_after": "dark ominous German forest silhouette against grey winter twilight sky",
+      "must_have": [
+        "forest",
+        "trees"
+      ],
+      "avoid": [
+        "smartphone",
+        "computer",
+        "social media icons"
+      ],
+      "reason": "Cria a atmosfera sombria para o encerramento do short."
+    }
+  ]
+}

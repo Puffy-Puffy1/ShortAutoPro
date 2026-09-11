@@ -1,0 +1,222 @@
+{
+  "short_id": "2026-09-02_1803",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_pre_visual_2026-09-02_1803.json",
+  "shot_repetitions": 0,
+  "scenes": [
+    {
+      "scene": 1,
+      "before_score": 70,
+      "after_score": 70,
+      "before_query": "vintage 1990s hospital emergency room interior atmosphere",
+      "after_query": "vintage 1990s female patient lying in hospital bed dark room",
+      "must_have": [
+        "hospital bed",
+        "patient"
+      ],
+      "avoid": [
+        "happy doctors",
+        "sunny park",
+        "bright office"
+      ],
+      "shot_type": "medium shot",
+      "reason": "O objeto principal é o corpo da mulher no hospital, representado por uma paciente na cama."
+    },
+    {
+      "scene": 2,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "Riverside General Hospital exterior building 1990s architecture",
+      "after_query": "Riverside General Hospital exterior building 1990s architecture",
+      "must_have": [
+        "hospital building",
+        "exterior"
+      ],
+      "avoid": [
+        "modern futuristic hospital",
+        "smartphone",
+        "digital clock"
+      ],
+      "shot_type": "wide shot",
+      "reason": "Mostra o prédio do hospital citado na data específica."
+    },
+    {
+      "scene": 3,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "hospital emergency room medical equipment monitors flashing",
+      "after_query": "hospital emergency room medical equipment monitors flashing",
+      "must_have": [
+        "emergency room",
+        "medical equipment"
+      ],
+      "avoid": [
+        "empty room",
+        "calm nurse",
+        "outdoor street"
+      ],
+      "shot_type": "medium shot",
+      "reason": "Representa o pronto-socorro em situação de emergência."
+    },
+    {
+      "scene": 4,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "chemical laboratory test tube with vapor emission close up",
+      "after_query": "chemical laboratory test tube with vapor emission close up",
+      "must_have": [
+        "chemical",
+        "vapor"
+      ],
+      "avoid": [
+        "delicious food",
+        "garlic bulb kitchen",
+        "smiling chef"
+      ],
+      "shot_type": "close-up",
+      "reason": "Ilustra o cheiro adocicado e a fumaça química descrita."
+    },
+    {
+      "scene": 5,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "medical worker in protective gear inside hospital room",
+      "after_query": "medical worker fainting in hospital room environment",
+      "must_have": [
+        "medical worker",
+        "hospital"
+      ],
+      "avoid": [
+        "happy person",
+        "outdoor nature",
+        "dancing"
+      ],
+      "shot_type": "medium shot",
+      "reason": "Foca na enfermeira desmaiando durante o atendimento."
+    },
+    {
+      "scene": 6,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "hospital staff wearing protective masks indoors worried",
+      "after_query": "hospital staff wearing protective masks indoors worried",
+      "must_have": [
+        "medical workers",
+        "masks"
+      ],
+      "avoid": [
+        "party crowd",
+        "beach",
+        "athletes running"
+      ],
+      "shot_type": "medium shot",
+      "reason": "Mostra os funcionários sentindo falta de ar e preocupados."
+    },
+    {
+      "scene": 7,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "hospital corridor emergency exit sign hallway",
+      "after_query": "hospital corridor emergency exit sign hallway",
+      "must_have": [
+        "corridor",
+        "exit"
+      ],
+      "avoid": [
+        "shopping mall",
+        "airport terminal",
+        "airplane"
+      ],
+      "shot_type": "wide shot",
+      "reason": "Ilustra a evacuação do local através do corredor."
+    },
+    {
+      "scene": 8,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "medical research laboratory bottles and pharmaceutical containers",
+      "after_query": "medical research laboratory bottles and pharmaceutical containers",
+      "must_have": [
+        "laboratory",
+        "bottles"
+      ],
+      "avoid": [
+        "kitchen cooking",
+        "sports gym",
+        "shopping"
+      ],
+      "shot_type": "medium shot",
+      "reason": "Representa a investigação com frascos e substâncias."
+    },
+    {
+      "scene": 9,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "scientific chemical reaction beaker with color change laboratory",
+      "after_query": "scientific chemical reaction beaker with color change laboratory",
+      "must_have": [
+        "chemical liquid",
+        "beaker"
+      ],
+      "avoid": [
+        "water glass",
+        "coffee cup",
+        "cooking soup"
+      ],
+      "shot_type": "close-up",
+      "reason": "Mostra a reação química em andamento."
+    },
+    {
+      "scene": 10,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "scientific forensic research papers and documents on desk",
+      "after_query": "scientific forensic research papers and documents on desk",
+      "must_have": [
+        "documents",
+        "desk"
+      ],
+      "avoid": [
+        "sports game",
+        "restaurant dining",
+        "music concert"
+      ],
+      "shot_type": "medium shot",
+      "reason": "Ilustra documentos de pesquisa científica debatida."
+    },
+    {
+      "scene": 11,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "question mark symbol on dark mysterious background",
+      "after_query": "question mark symbol on dark mysterious background",
+      "must_have": [
+        "question mark"
+      ],
+      "avoid": [
+        "phone screen",
+        "computer monitor",
+        "hand clicking"
+      ],
+      "shot_type": "close-up",
+      "reason": "Representa a chamada para comentários e engajamento."
+    },
+    {
+      "scene": 12,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "empty dark hospital hallway eerie dramatic lighting",
+      "after_query": "empty dark hospital hallway eerie dramatic lighting",
+      "must_have": [
+        "hospital hallway",
+        "darkness"
+      ],
+      "avoid": [
+        "bright sunny day",
+        "happy people",
+        "crowded street"
+      ],
+      "shot_type": "wide shot",
+      "reason": "Encerra com o clima misterioso e sem resposta da tragédia médica."
+    }
+  ]
+}

@@ -1,0 +1,272 @@
+{
+  "short_id": "2026-09-01_1310",
+  "created_at": "2026-09-01T13:18:36.000039",
+  "status": "QUALITY_PASS",
+  "topic": "Caso Isdal",
+  "hook": "Uma mulher carbonizada foi achada com etiquetas arrancadas e oito passaportes falsos na Noruega.",
+  "script": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/short_2026-09-01_1310.txt",
+    "text": "Uma mulher carbonizada foi achada com etiquetas arrancadas e oito passaportes falsos na Noruega. A autópsia revelou que ela morreu de uma combinação de pílulas para dormir e envenenamento por monóxido de carbono, estando viva quando foi queimada. Investigações mostraram que ela viajou pela Noruega e Europa usando pelo menos oito passaportes e pseudônimos falsos. As autoridades locais deram um veredicto de provável suicídio, mas a natureza do caso encorajou especulações e investigações, com muitos suspeitando de espionagem no contexto da Guerra Fria. Análises modernas indicam que ela nasceu perto de Nuremberga, na Alemanha, por volta de 1930. Até hoje, sua verdadeira identidade permanece um mistério. Comente sua teoria e siga para mais casos reais."
+  },
+  "source": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/fonte_2026-09-01_1310.txt"
+  },
+  "publish": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/publish_2026-09-01_1310.json",
+    "chosen_title": "O mistério da mulher carbonizada na Noruega",
+    "titles": [
+      "O mistério da mulher carbonizada na Noruega",
+      "Quem era a mulher dos oito passaportes?",
+      "Caso Isdal: suicídio ou espionagem?"
+    ],
+    "description": "Uma mulher carbonizada foi achada com oito passaportes falsos na Noruega em 1970. O caso gerou fortes suspeitas de espionagem na Guerra Fria. Qual é a sua teoria?",
+    "hashtags": [
+      "#Shorts",
+      "#CasoIsdal",
+      "#Misterio",
+      "#GuerraFria",
+      "#CasosReais"
+    ],
+    "pinned_comment": "Você acha que ela era uma espiã internacional?"
+  },
+  "scenes": {
+    "map_path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_2026-09-01_1310.json",
+    "count": 12,
+    "physical_count": 12,
+    "items": [
+      {
+        "scene": 1,
+        "segment": "Uma mulher carbonizada foi achada com etiquetas arrancadas",
+        "query": "icy barren valley landscape mountains in norway winter dark",
+        "must_have": [
+          "valley",
+          "mountains"
+        ],
+        "avoid": [
+          "bright sunlight",
+          "summer grass",
+          "people"
+        ],
+        "words": 8,
+        "weight": 0.06956521739130435,
+        "visual_mode": "location",
+        "shot_type": "wide"
+      },
+      {
+        "scene": 2,
+        "segment": "e oito passaportes falsos na Noruega.",
+        "query": "multiple vintage passports spread on dark wooden forensic table",
+        "must_have": [
+          "passports",
+          "table"
+        ],
+        "avoid": [
+          "modern smartphone",
+          "money bills"
+        ],
+        "words": 6,
+        "weight": 0.05217391304347826,
+        "visual_mode": "evidence",
+        "shot_type": "close_up"
+      },
+      {
+        "scene": 3,
+        "segment": "A autópsia revelou que ela morreu de uma combinação",
+        "query": "vintage medical autopsy report document black and white 1970",
+        "must_have": [
+          "document",
+          "paper"
+        ],
+        "avoid": [
+          "modern computer",
+          "color photos"
+        ],
+        "words": 9,
+        "weight": 0.0782608695652174,
+        "visual_mode": "document",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 4,
+        "segment": "de pílulas para dormir e envenenamento por monóxido de carbono,",
+        "query": "vintage medicine pills in small glass bottle dark lighting",
+        "must_have": [
+          "pills",
+          "bottle"
+        ],
+        "avoid": [
+          "food",
+          "modern packaging"
+        ],
+        "words": 10,
+        "weight": 0.08695652173913043,
+        "visual_mode": "object",
+        "shot_type": "close_up"
+      },
+      {
+        "scene": 5,
+        "segment": "estando viva quando foi queimada.",
+        "query": "charred fabric fragments and burnt clothing forensic evidence dark",
+        "must_have": [
+          "burnt fabric",
+          "evidence"
+        ],
+        "avoid": [
+          "human body",
+          "blood"
+        ],
+        "words": 5,
+        "weight": 0.043478260869565216,
+        "visual_mode": "evidence",
+        "shot_type": "close_up"
+      },
+      {
+        "scene": 6,
+        "segment": "Investigações mostraram que ela viajou pela Noruega e Europa",
+        "query": "old 1970s map of europe with route lines and compass",
+        "must_have": [
+          "map",
+          "routes"
+        ],
+        "avoid": [
+          "modern gps",
+          "digital screen"
+        ],
+        "words": 9,
+        "weight": 0.0782608695652174,
+        "visual_mode": "map_context",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 7,
+        "segment": "usando pelo menos oito passaportes e pseudônimos falsos.",
+        "query": "stack of old vintage passports and travel documents dark room",
+        "must_have": [
+          "passports",
+          "documents"
+        ],
+        "avoid": [
+          "plastic cards",
+          "smartphone"
+        ],
+        "words": 8,
+        "weight": 0.06956521739130435,
+        "visual_mode": "object",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 8,
+        "segment": "As autoridades locais deram um veredito de provável suicídio,",
+        "query": "old police investigation case file stamped closed in norwegian",
+        "must_have": [
+          "document",
+          "file"
+        ],
+        "avoid": [
+          "modern computer",
+          "police car"
+        ],
+        "words": 9,
+        "weight": 0.0782608695652174,
+        "visual_mode": "document",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 9,
+        "segment": "mas a natureza do caso encorajou especulações e investigações,",
+        "query": "vintage typewriter magnifying glass and old notes on desk",
+        "must_have": [
+          "typewriter",
+          "magnifying glass"
+        ],
+        "avoid": [
+          "laptop",
+          "tablet"
+        ],
+        "words": 9,
+        "weight": 0.0782608695652174,
+        "visual_mode": "object",
+        "shot_type": "close_up"
+      },
+      {
+        "scene": 10,
+        "segment": "com muitos suspeitando de espionagem no contexto da Guerra Fria.",
+        "query": "cold war espionage shadow briefcase dark alleyway cinematic",
+        "must_have": [
+          "shadow",
+          "briefcase"
+        ],
+        "avoid": [
+          "futuristic",
+          "neon lights"
+        ],
+        "words": 10,
+        "weight": 0.08695652173913043,
+        "visual_mode": "abstract_context",
+        "shot_type": "wide"
+      },
+      {
+        "scene": 11,
+        "segment": "Análises modernas indicam que ela nasceu perto de Nuremberga, na Alemanha, por volta de 1930.",
+        "query": "old black and white city street in germany 1930s architecture",
+        "must_have": [
+          "old street",
+          "buildings"
+        ],
+        "avoid": [
+          "modern cars",
+          "skyscrapers"
+        ],
+        "words": 15,
+        "weight": 0.13043478260869565,
+        "visual_mode": "environment",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 12,
+        "segment": "Até hoje, sua verdadeira identidade permanece um mistério. Comente sua teoria e siga para mais casos reais.",
+        "query": "question mark shadow on dark brick wall mystery cinematic",
+        "must_have": [
+          "question mark",
+          "shadow"
+        ],
+        "avoid": [
+          "smiling face",
+          "bright lights",
+          "social media icon",
+          "thumbs up",
+          "detailed alien spacecraft",
+          "flying saucer",
+          "visible ghost",
+          "alien creature"
+        ],
+        "words": 17,
+        "weight": 0.14782608695652175,
+        "visual_intent_6_7": "CTA",
+        "visual_mode": "abstract_context",
+        "truth_refiner_6_7": "reuse_verified_story_visual",
+        "cta_reuse_6_7": true,
+        "shot_type": "close_up"
+      }
+    ]
+  },
+  "video": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/videos/short_v6_2026-09-01_1310.mp4",
+    "version": "V6",
+    "duration_seconds": 43.733333,
+    "width": 1080,
+    "height": 1920,
+    "fps": 30.0,
+    "video_codec": "h264",
+    "audio_codec": "aac"
+  },
+  "quality": {
+    "video_exists": true,
+    "scene_map_count": 12,
+    "physical_scene_count": 12,
+    "resolution_ok": true,
+    "fps_ok": true,
+    "audio_exists": true
+  },
+  "log": "/data/data/com.termux/files/home/ShortAutoPro/logs/producao/short_2026-09-01_1310.log"
+}

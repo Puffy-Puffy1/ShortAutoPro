@@ -1,0 +1,16 @@
+{
+  "short_id": "2026-09-01_0008",
+  "changed": false,
+  "before": "Em 1952, testemunhas viram uma luz no céu e encontraram uma criatura aterrorizante.",
+  "before_score": 80.0,
+  "after": "Em 1952, testemunhas viram uma luz no céu e encontraram uma criatura aterrorizante.",
+  "candidate_after": "Uma criatura brilhante atacou testemunhas após a queda de uma luz misteriosa em 1952.",
+  "candidate_score": 65.0,
+  "improvement": -15.0,
+  "problems": [
+    "cold_open_fraco=65.0",
+    "melhoria_insuficiente=-15.0"
+  ],
+  "reason": "A primeira frase tem 12 palavras, destaca o ataque da criatura intrigante logo no início, criando uma forte lacuna de curiosidade sem violar os fatos. A segunda frase contextualiza o início da investigação do grupo, mantendo a contagem total de palavras dentro da faixa permitida (113 palavras) e preservando todos os elementos factuais e o CTA final.",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/short_pre_cold_open_2026-09-01_0008.txt"
+}

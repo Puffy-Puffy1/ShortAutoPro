@@ -1,0 +1,223 @@
+{
+  "short_id": "2026-09-01_0008",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_pre_visual_2026-09-01_0008.json",
+  "shot_repetitions": 0,
+  "scenes": [
+    {
+      "scene": 1,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "bright meteor streak across dark night sky",
+      "after_query": "mysterious bright light streak in 1952 night sky",
+      "must_have": [
+        "night sky",
+        "light"
+      ],
+      "avoid": [
+        "daytime",
+        "sun",
+        "indoor"
+      ],
+      "shot_type": "wide establishing shot",
+      "reason": "Establishes the initial sighting of an unexplained light in the sky during the historical year."
+    },
+    {
+      "scene": 2,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "dark eerie forest woods at night",
+      "after_query": "dark eerie woods atmosphere at night fog",
+      "must_have": [
+        "woods",
+        "night"
+      ],
+      "avoid": [
+        "friendly",
+        "cartoon",
+        "bright room"
+      ],
+      "shot_type": "medium environmental shot",
+      "reason": "Represents the dark location where witnesses encountered the unusual presence."
+    },
+    {
+      "scene": 3,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "thick fog covering dark hill at night",
+      "after_query": "group of people walking up dark hill in thick fog",
+      "must_have": [
+        "fog",
+        "hill"
+      ],
+      "avoid": [
+        "desert",
+        "sunny beach",
+        "city street"
+      ],
+      "shot_type": "wide action shot",
+      "reason": "Depicts a group ascending the hill into the atmospheric fog."
+    },
+    {
+      "scene": 4,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "vintage flashlight beam cutting through dark fog",
+      "after_query": "vintage flashlight beam cutting through dark foggy woods",
+      "must_have": [
+        "flashlight",
+        "beam"
+      ],
+      "avoid": [
+        "daylight",
+        "office",
+        "car"
+      ],
+      "shot_type": "close-up object shot",
+      "reason": "Focuses on the beam of light illuminating the dark local environment."
+    },
+    {
+      "scene": 5,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "mysterious glowing shape in dark woods atmosphere",
+      "after_query": "unexplained tall shadowy figure glowing in dark woods",
+      "must_have": [
+        "shadow",
+        "glowing"
+      ],
+      "avoid": [
+        "animal",
+        "dog",
+        "cat"
+      ],
+      "shot_type": "medium mystery shot",
+      "reason": "Ambiguously captures the unusual tall shape described in the encounter without breaking paranormal rules."
+    },
+    {
+      "scene": 6,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "dark misty forest path at night eerie",
+      "after_query": "dark misty forest path moving forward fast atmosphere",
+      "must_have": [
+        "mist",
+        "forest path"
+      ],
+      "avoid": [
+        "happy people",
+        "dancing",
+        "bright colors"
+      ],
+      "shot_type": "POV moving shot",
+      "reason": "Shows movement along the misty path conveying the tense confrontation."
+    },
+    {
+      "scene": 7,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "shadowy figures running away in dark forest panic",
+      "after_query": "shadowy figures running away in dark forest panic",
+      "must_have": [
+        "running",
+        "shadows"
+      ],
+      "avoid": [
+        "smiling",
+        "calm",
+        "reading"
+      ],
+      "shot_type": "wide panic shot",
+      "reason": "Visualizes the flight and panic of the witnesses."
+    },
+    {
+      "scene": 8,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "vintage 1950s medical report paper on dark desk",
+      "after_query": "vintage 1950s medical report paper on dark wooden desk",
+      "must_have": [
+        "document",
+        "paper"
+      ],
+      "avoid": [
+        "eating",
+        "cooking",
+        "happy"
+      ],
+      "shot_type": "documentary evidence shot",
+      "reason": "Transitions to the aftermath symptoms documented in historical records."
+    },
+    {
+      "scene": 9,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "old medical case file documents 1950s archive",
+      "after_query": "old medical case file documents 1950s archive papers",
+      "must_have": [
+        "archive",
+        "documents"
+      ],
+      "avoid": [
+        "healthy",
+        "athlete",
+        "party"
+      ],
+      "shot_type": "close-up archive shot",
+      "reason": "Reinforces the medical reporting of symptoms through historical files."
+    },
+    {
+      "scene": 10,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "investigative skeptical report papers on wooden desk",
+      "after_query": "investigative skeptical report papers on wooden desk vintage",
+      "must_have": [
+        "documents",
+        "desk"
+      ],
+      "avoid": [
+        "children playing",
+        "cooking",
+        "beach"
+      ],
+      "shot_type": "neutral documentary shot",
+      "reason": "Represents the later investigation and rational explanation phase."
+    },
+    {
+      "scene": 11,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "barn owl perched on tree branch at night wildlife",
+      "after_query": "barn owl perched on tree branch at night wildlife",
+      "must_have": [
+        "owl",
+        "branch"
+      ],
+      "avoid": [
+        "alien",
+        "spaceship",
+        "robot"
+      ],
+      "shot_type": "wildlife close-up",
+      "reason": "Depicts the rational explanation of the creature being an owl."
+    },
+    {
+      "scene": 12,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "small American town street with neon sign at night",
+      "after_query": "small American town street with tourism neon sign at night",
+      "must_have": [
+        "neon sign",
+        "street"
+      ],
+      "avoid": [
+        "empty desert",
+        "forest fire",
+        "ocean"
+      ],
+      "shot_type": "wide town establishing shot",
+      "reason": "Shows the tourist-friendly town profiting from the local legend."
+    }
+  ]
+}

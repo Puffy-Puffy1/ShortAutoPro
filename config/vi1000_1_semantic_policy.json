@@ -1,0 +1,110 @@
+{
+  "version": "1000.1",
+
+  "entity_policy": {
+    "minimum_entity_words": 2,
+    "remove_single_name_fragments": true,
+    "deduplicate_aliases": true,
+
+    "false_anchor_words": [
+      "nele",
+      "nela",
+      "eles",
+      "elas",
+      "comente",
+      "compartilhe",
+      "curta",
+      "siga",
+      "inscreva",
+      "quando",
+      "depois",
+      "antes",
+      "cinco",
+      "segundo",
+      "segundos",
+      "minutos",
+      "naquele",
+      "naquela",
+      "então",
+      "entao"
+    ],
+
+    "location_prefixes": [
+      "hotel",
+      "motel",
+      "hospital",
+      "universidade",
+      "university",
+      "rua",
+      "street",
+      "avenida",
+      "avenue",
+      "estação",
+      "estacao",
+      "station"
+    ]
+  },
+
+  "semantic_policy": {
+    "factual_threshold": 2.5,
+    "identity_inference_confidence": 75,
+    "specific_location_inference_confidence": 72,
+
+    "specific_person_requires_identity_media": true,
+    "generic_human_identity_attribution": false,
+
+    "query_text_is_evidence": false,
+    "file_namespace_is_document_evidence": false,
+
+    "generic_location_proves_named_location": false,
+    "generic_object_proves_case_object": false,
+
+    "illustrative_media_requires_label": true,
+    "factual_scene_requires_case_specific_candidate": true
+  },
+
+  "hook_policy": {
+    "scene_1_case_specific_preferred": true,
+    "scene_1_generic_fallback_allowed": false
+  },
+
+  "candidate_policy": {
+    "minimum_image_pixels": 800000,
+
+    "accepted_licenses": [
+      "public domain",
+      "cc0",
+      "cc by",
+      "cc-by",
+      "creative commons attribution"
+    ]
+  },
+
+  "diversity_policy": {
+    "minimum_unique_source_ratio": 0.67,
+    "minimum_unique_source_groups_for_12_scenes": 8,
+    "minimum_unique_sources_per_6_scene_window": 4,
+    "maximum_consecutive_same_source_group": 2,
+
+    "verified_specific_location_max_scenes": 2,
+    "authentic_case_archive_max_scenes": 3,
+    "generic_source_max_scenes": 1
+  },
+
+  "fallback_policy": [
+    "CASE_SPECIFIC_VERIFIED",
+    "ENTITY_SPECIFIC_VERIFIED",
+    "ROLE_CORRECT_LICENSED",
+    "CONTEXTUAL_ILLUSTRATIVE_LICENSED",
+    "CURRENT_MEDIA_IF_SAFE",
+    "HOLD_SCENE"
+  ],
+
+  "dry_run_policy": {
+    "network": false,
+    "downloads": false,
+    "ffmpeg": false,
+    "video_generation": false,
+    "renderer_activation": false
+  }
+}

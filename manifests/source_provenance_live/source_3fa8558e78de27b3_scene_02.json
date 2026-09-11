@@ -1,0 +1,19 @@
+{
+  "schema": "SHORTAUTOPRO_SOURCE_PROVENANCE_V1",
+  "provider": "",
+  "title": "",
+  "license": "",
+  "artist": "",
+  "source_group": "",
+  "source_url": "https://cdn.pixabay.com/video/2021/11/07/94979-644694704_large.mp4",
+  "remote_url": "https://cdn.pixabay.com/video/2021/11/07/94979-644694704_large.mp4",
+  "local_path": "/data/data/com.termux/files/home/ShortAutoPro/imagens/short_2026-09-02_2358/scene_02.mp4",
+  "sha256": "3fa8558e78de27b30ea829807553c9311b79d0f61e36eebcb15ba42e7ce858db",
+  "bytes": 15958312,
+  "suffix": ".mp4",
+  "capture_method": "baixar_candidato_5_2_hardened_v1",
+  "captured_at_unix": 1788410946.126587,
+  "query_used_as_evidence": false,
+  "search_used_as_evidence": false,
+  "topic_used_as_evidence": false
+}

@@ -1,0 +1,278 @@
+{
+  "short_id": "2026-09-01_0008",
+  "created_at": "2026-09-01T00:15:05.681435",
+  "status": "QUALITY_PASS",
+  "topic": "O monstro de Flatwoods",
+  "hook": "Em 1952, testemunhas viram uma luz no céu e encontraram uma criatura aterrorizante.",
+  "script": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/short_2026-09-01_0008.txt",
+    "text": "Em 1952, testemunhas viram uma luz no céu e encontraram uma criatura aterrorizante. Um grupo subiu a colina e relatou uma névoa pungente. Ao iluminarem o local, viram uma entidade alta com cabeça em formato de diamante e rosto brilhante, que emitiu um assobio estridente e se moveu na direção deles, gerando pânico. Várias pessoas do grupo relataram sintomas como irritação no nariz, inchaço na garganta, vômitos e convulsões. Anos mais tarde, investigadores concluíram que a luz era um meteoro e a criatura, provavelmente uma coruja. Contudo, entusiastas afirmam que era um alienígena, o que ajudou a cidade a lucrar muito com o turismo. Você visitaria esse lugar?"
+  },
+  "source": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/fonte_2026-09-01_0008.txt"
+  },
+  "publish": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/publish_2026-09-01_0008.json",
+    "chosen_title": "O aterrorizante Monstro de Flatwoods",
+    "titles": [
+      "O misterioso Monstro de Flatwoods 👽",
+      "Criatura ou coruja em 1952?",
+      "O aterrorizante Monstro de Flatwoods"
+    ],
+    "description": "Em 1952, testemunhas viram uma luz no céu e encontraram uma criatura aterrorizante em Flatwoods. Seria um alienígena ou apenas uma coruja? Deixe sua teoria nos comentários!",
+    "hashtags": [
+      "#Shorts",
+      "#MonstroDeFlatwoods",
+      "#Misterio",
+      "#Ufologia",
+      "#Curiosidades"
+    ],
+    "pinned_comment": "Para você, o que realmente apareceu em Flatwoods em 1952: um alienígena ou uma coruja?"
+  },
+  "scenes": {
+    "map_path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_2026-09-01_0008.json",
+    "count": 12,
+    "physical_count": 12,
+    "items": [
+      {
+        "scene": 1,
+        "segment": "Em 1952, testemunhas viram uma luz no céu",
+        "query": "mysterious bright light streak in 1952 night sky",
+        "must_have": [
+          "night sky",
+          "light"
+        ],
+        "avoid": [
+          "daytime",
+          "sun",
+          "indoor"
+        ],
+        "words": 8,
+        "weight": 0.07407407407407407,
+        "visual_mode": "environment",
+        "shot_type": "wide"
+      },
+      {
+        "scene": 2,
+        "segment": "e encontraram uma criatura aterrorizante.",
+        "query": "dark eerie woods atmosphere at night fog",
+        "must_have": [
+          "woods",
+          "night"
+        ],
+        "avoid": [
+          "friendly",
+          "cartoon",
+          "bright room"
+        ],
+        "words": 5,
+        "weight": 0.046296296296296294,
+        "visual_mode": "location",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 3,
+        "segment": "Um grupo subiu a colina e relatou uma névoa pungente.",
+        "query": "group of people walking up dark hill in thick fog",
+        "must_have": [
+          "fog",
+          "hill"
+        ],
+        "avoid": [
+          "desert",
+          "sunny beach",
+          "city street",
+          "detailed alien spacecraft",
+          "flying saucer",
+          "visible ghost",
+          "alien creature"
+        ],
+        "words": 10,
+        "weight": 0.09259259259259259,
+        "visual_mode": "environment",
+        "shot_type": "wide"
+      },
+      {
+        "scene": 4,
+        "segment": "Ao iluminarem o local, viram uma entidade alta",
+        "query": "vintage flashlight beam cutting through dark foggy woods",
+        "must_have": [
+          "flashlight",
+          "beam"
+        ],
+        "avoid": [
+          "daylight",
+          "office",
+          "car"
+        ],
+        "words": 8,
+        "weight": 0.07407407407407407,
+        "visual_mode": "object",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 5,
+        "segment": "com cabeça em formato de diamante e rosto brilhante,",
+        "query": "unexplained tall shadowy figure glowing in dark woods",
+        "must_have": [
+          "shadow",
+          "glowing"
+        ],
+        "avoid": [
+          "animal",
+          "dog",
+          "cat"
+        ],
+        "words": 9,
+        "weight": 0.08333333333333333,
+        "visual_mode": "abstract_context",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 6,
+        "segment": "que emitiu um assobio estridente e se moveu na direção deles,",
+        "query": "dark misty forest path moving forward fast atmosphere",
+        "must_have": [
+          "mist",
+          "forest path"
+        ],
+        "avoid": [
+          "happy people",
+          "dancing",
+          "bright colors"
+        ],
+        "words": 11,
+        "weight": 0.10185185185185185,
+        "visual_mode": "environment",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 7,
+        "segment": "gerando pânico.",
+        "query": "shadowy figures running away in dark forest panic",
+        "must_have": [
+          "running",
+          "shadows"
+        ],
+        "avoid": [
+          "smiling",
+          "calm",
+          "reading"
+        ],
+        "words": 2,
+        "weight": 0.018518518518518517,
+        "visual_mode": "human_context",
+        "shot_type": "wide"
+      },
+      {
+        "scene": 8,
+        "segment": "Várias pessoas do grupo relataram sintomas como irritação no nariz,",
+        "query": "vintage 1950s medical report paper on dark wooden desk",
+        "must_have": [
+          "document",
+          "paper"
+        ],
+        "avoid": [
+          "eating",
+          "cooking",
+          "happy"
+        ],
+        "words": 10,
+        "weight": 0.09259259259259259,
+        "visual_mode": "document",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 9,
+        "segment": "inchaço na garganta, vômitos e convulsões.",
+        "query": "old medical case file documents 1950s archive papers",
+        "must_have": [
+          "archive",
+          "documents"
+        ],
+        "avoid": [
+          "healthy",
+          "athlete",
+          "party"
+        ],
+        "words": 6,
+        "weight": 0.05555555555555555,
+        "visual_mode": "evidence",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 10,
+        "segment": "Anos mais tarde, investigadores concluíram que a luz era um meteoro",
+        "query": "investigative skeptical report papers on wooden desk vintage",
+        "must_have": [
+          "documents",
+          "desk"
+        ],
+        "avoid": [
+          "children playing",
+          "cooking",
+          "beach"
+        ],
+        "words": 11,
+        "weight": 0.10185185185185185,
+        "visual_mode": "document",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 11,
+        "segment": "e a criatura, provavelmente uma coruja.",
+        "query": "barn owl perched on tree branch at night wildlife",
+        "must_have": [
+          "owl",
+          "branch"
+        ],
+        "avoid": [
+          "alien",
+          "spaceship",
+          "robot"
+        ],
+        "words": 6,
+        "weight": 0.05555555555555555,
+        "visual_mode": "evidence",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 12,
+        "segment": "Contudo, entusiastas afirmam que era um alienígena, o que ajudou a cidade a lucrar muito com o turismo. Você visitaria esse lugar?",
+        "query": "small American town street with tourism neon sign at night",
+        "must_have": [
+          "neon sign",
+          "street"
+        ],
+        "avoid": [
+          "empty desert",
+          "forest fire",
+          "ocean"
+        ],
+        "words": 22,
+        "weight": 0.2037037037037037,
+        "visual_mode": "architecture",
+        "shot_type": "wide"
+      }
+    ]
+  },
+  "video": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/videos/short_v6_2026-09-01_0008.mp4",
+    "version": "V6",
+    "duration_seconds": 38.366667,
+    "width": 1080,
+    "height": 1920,
+    "fps": 30.0,
+    "video_codec": "h264",
+    "audio_codec": "aac"
+  },
+  "quality": {
+    "video_exists": true,
+    "scene_map_count": 12,
+    "physical_scene_count": 12,
+    "resolution_ok": true,
+    "fps_ok": true,
+    "audio_exists": true
+  },
+  "log": "/data/data/com.termux/files/home/ShortAutoPro/logs/producao/short_2026-09-01_0008.log"
+}

@@ -1,0 +1,71 @@
+{
+  "short_id": "2026-09-01_0254",
+  "selected": {
+    "topic": "O Sinal Wow!",
+    "score": 69.95,
+    "wiki_title": "Sinal Wow!",
+    "wiki_chars": 0,
+    "wiki_similarity": 1.0,
+    "gemini": {},
+    "objective": {
+      "visual": 0,
+      "hook": 0,
+      "documentation": 0,
+      "title_match": 10,
+      "novelty": 10
+    },
+    "reserve": true
+  },
+  "ranking": [
+    {
+      "topic": "O Sinal Wow!",
+      "score": 69.95,
+      "wiki_title": "Sinal Wow!",
+      "wiki_chars": 0,
+      "wiki_similarity": 1.0,
+      "gemini": {},
+      "objective": {
+        "visual": 0,
+        "hook": 0,
+        "documentation": 0,
+        "title_match": 10,
+        "novelty": 10
+      },
+      "reserve": true
+    }
+  ],
+  "verification": [
+    {
+      "topic": "O Voo 19",
+      "approved": false,
+      "reason": "duplicate",
+      "similar_to": "O Incidente do Voo 19",
+      "similarity": 1.0
+    },
+    {
+      "topic": "As Cartas de Zodiac",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O Desaparecimento de Maura Murray",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O Homem de Somnerton",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O Mistério de Tamam Shud",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "A Ilha de Eilean Mor",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "version": "1310.00",
+
+  "short": {
+    "sid": "2026-09-01_1433"
+  },
+
+  "output": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "video_codec": "libx264",
+    "crf": 19,
+    "preset": "veryfast",
+    "audio_codec": "aac",
+    "audio_bitrate": "192k"
+  },
+
+  "timing": {
+    "minimum_scene_duration": 2.0,
+    "maximum_scene_duration": 6.5,
+    "fade_duration": 0.12
+  },
+
+  "motion": {
+    "enabled": true,
+    "maximum_zoom": 1.045
+  },
+
+  "subtitles": {
+    "required": true,
+    "prefer_ass": true
+  },
+
+  "semantic_labels": {
+    "enabled": true,
+    "font_size": 35,
+    "top_margin": 85
+  },
+
+  "execution": {
+    "network": false,
+    "downloads": false,
+    "ffprobe": true,
+    "ffmpeg": true,
+    "renderer_video_py": false,
+    "production_mutation": false,
+    "publication": false
+  },
+
+  "paths": {
+    "prepared_manifest": "temp/vi1300/prepared_manifest.json",
+    "prepared_root": "temp/vi1300_prepared",
+    "working_root": "temp/vi1310",
+    "canary_root": "videos/canary/vi1310"
+  },
+
+  "source_recovery": {
+    "mode": "SHADOW_ONLY"
+  }
+}

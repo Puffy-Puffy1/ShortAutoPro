@@ -1,0 +1,56 @@
+{
+  "version": "1290.00",
+
+  "target": {
+    "width": 1080,
+    "height": 1920,
+    "aspect_ratio": 0.5625,
+    "fps": 30
+  },
+
+  "quality": {
+    "maximum_fullscreen_upscale": 1.35,
+    "maximum_context_upscale": 2.50,
+    "minimum_insert_width": 480,
+    "minimum_insert_height": 270
+  },
+
+  "presentation": {
+    "allow_center_crop": true,
+    "allow_derived_blurred_background": true,
+    "allow_archival_insert": true,
+    "allow_document_insert": true,
+    "allow_illustrative_media": true,
+
+    "forbid_false_detail_enhancement": true,
+    "forbid_unlabeled_generic_evidence": true,
+    "forbid_document_as_person_portrait": true
+  },
+
+  "special_media": {
+    "webm": {
+      "probe_required_before_render": true,
+      "default_strategy": "ARCHIVAL_VIDEO_INSERT"
+    },
+
+    "pdf": {
+      "rasterization_required_before_render": true,
+      "default_strategy": "DOCUMENT_PAGE_INSERT",
+      "page": 1
+    }
+  },
+
+  "execution": {
+    "network": false,
+    "downloads": false,
+    "ffmpeg": false,
+    "ffprobe": false,
+    "renderer": false,
+    "video_generation": false,
+    "production_mutation": false
+  },
+
+  "source_recovery": {
+    "mode": "SHADOW_ONLY"
+  }
+}

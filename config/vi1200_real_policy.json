@@ -1,0 +1,54 @@
+{
+  "version": "1250.00",
+  "network": {
+    "enabled": true,
+    "timeout_seconds": 20,
+    "retries": 2,
+    "max_commons_results_per_query": 5,
+    "max_archive_results_per_query": 4,
+    "maximum_total_requests": 140,
+    "allowed_hosts": [
+      "commons.wikimedia.org",
+      "archive.org"
+    ],
+    "max_query_variants_per_scene": 10,
+    "minimum_provider_success_ratio": 0.5,
+    "search_expansion_enabled": true
+  },
+  "providers": {
+    "wikimedia_commons": true,
+    "internet_archive": true
+  },
+  "media": {
+    "remote_media_download": false,
+    "thumbnail_download": false,
+    "binary_probe": false
+  },
+  "execution": {
+    "ffmpeg": false,
+    "renderer": false,
+    "video_generation": false,
+    "publication": false,
+    "production_mutation": false
+  },
+  "truth": {
+    "query_is_never_evidence": true,
+    "metadata_required": true,
+    "license_required": true,
+    "case_specific_requires_entity_evidence": true,
+    "file_namespace_is_not_document_proof": true,
+    "generic_location_is_not_named_location_proof": true
+  },
+  "source_recovery": {
+    "mode": "SHADOW_ONLY"
+  },
+  "semantic_precision": {
+    "reject_pdf_outside_document_scene": true,
+    "require_visual_subtype_match": true,
+    "require_human_media_for_human_scene": true,
+    "require_object_media_for_object_scene": true,
+    "require_surveillance_media_for_surveillance_scene": true,
+    "query_text_can_rank_but_never_prove": true,
+    "hold_is_safer_than_semantic_mismatch": true
+  }
+}

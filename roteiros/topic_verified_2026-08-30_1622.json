@@ -1,0 +1,75 @@
+{
+  "short_id": "2026-08-30_1622",
+  "selected": {
+    "topic": "O caso das mortes no Passo Dyatlov",
+    "score": 68.44,
+    "gemini": {
+      "curiosity": 9.0,
+      "visual": 9.0,
+      "documentation": 9.0,
+      "retention": 9.0,
+      "comment_potential": 9.0
+    },
+    "objective": {
+      "visual": 5.0,
+      "hook": 5.0,
+      "documentation": 10.0,
+      "title_match": 6.67,
+      "novelty": 4.300000000000001
+    },
+    "wiki_title": "Incidente do Passo Dyatlov",
+    "wiki_chars": 17807,
+    "wiki_similarity": 0.667
+  },
+  "ranking": [
+    {
+      "topic": "O caso das mortes no Passo Dyatlov",
+      "score": 68.44,
+      "gemini": {
+        "curiosity": 9.0,
+        "visual": 9.0,
+        "documentation": 9.0,
+        "retention": 9.0,
+        "comment_potential": 9.0
+      },
+      "objective": {
+        "visual": 5.0,
+        "hook": 5.0,
+        "documentation": 10.0,
+        "title_match": 6.67,
+        "novelty": 4.300000000000001
+      },
+      "wiki_title": "Incidente do Passo Dyatlov",
+      "wiki_chars": 17807,
+      "wiki_similarity": 0.667
+    }
+  ],
+  "verification": [
+    {
+      "topic": "Desaparecimento de Frederick Valentich",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O caso das mortes no Passo Dyatlov",
+      "approved": true,
+      "score": 68.44,
+      "wiki_title": "Incidente do Passo Dyatlov"
+    },
+    {
+      "topic": "O Homem de Somnerton",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O enigma de Tamam Shud",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O farol das Ilhas Eilean Mor",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    }
+  ]
+}

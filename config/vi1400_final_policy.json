@@ -1,0 +1,24 @@
+{
+  "version": "1400.00",
+
+  "release_score_min": 8.0,
+  "visual_average_target": 8.5,
+
+  "scene_warning_below": 6.5,
+  "scene_block_below": 4.0,
+
+  "subtitle_max_chars": 34,
+  "subtitle_min_duration": 0.28,
+
+  "audio_target_lufs": -14.0,
+  "audio_true_peak": -1.5,
+
+  "disk_free_block_mb": 700,
+  "disk_free_warn_mb": 1500,
+
+  "production_mutation": false,
+  "publication": false,
+  "network": false,
+
+  "source_recovery": "SHADOW_ONLY"
+}

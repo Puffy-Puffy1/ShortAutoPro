@@ -1,0 +1,17 @@
+{
+  "short_id": "2026-09-01_1310",
+  "changed": false,
+  "before": "Uma mulher carbonizada foi achada com etiquetas arrancadas e oito passaportes falsos na Noruega.",
+  "before_score": 65.0,
+  "after": "Uma mulher carbonizada foi achada com etiquetas arrancadas e oito passaportes falsos na Noruega.",
+  "candidate_after": "Encontrar uma mulher queimada com etiquetas arrancadas e oito passaportes falsos foi só o começo.",
+  "candidate_score": 65.0,
+  "improvement": 0.0,
+  "problems": [
+    "nomes_novos:Encontrar",
+    "cold_open_fraco=65.0",
+    "melhoria_insuficiente=0.0"
+  ],
+  "reason": "A primeira frase tem 16 palavras (ajustado para o limite ideal, intrigante e criando lacuna), seguida por uma segunda frase curta que contextualiza o local e a data de forma direta.",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/short_pre_cold_open_2026-09-01_1310.txt"
+}

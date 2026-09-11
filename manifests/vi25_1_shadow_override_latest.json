@@ -1,0 +1,22 @@
+{
+  "status": "VI25_1_SHADOW_OVERRIDE_CERTIFIED",
+  "short_id": "2026-09-01_1433",
+  "scene": 7,
+  "production_target": "/data/data/com.termux/files/home/ShortAutoPro/imagens/short_2026-09-01_1433/scene_07.mp4",
+  "production_family": "VIDEO",
+  "production_sha256": "67becab5abbdc0e8c85282198cdf2f2ec48b3bb9ce235387dfda58152e6c5a47",
+  "candidate": "/data/data/com.termux/files/home/ShortAutoPro/temp/vi20_candidate_sandbox/scene_7_97ec17178805.jpg",
+  "candidate_family": "IMAGE",
+  "candidate_sha256": "31ea8802a6c32646c10096f6321c0c29e05c0e7cdc333947adffdd8f76ec0628",
+  "staged_candidate": "/data/data/com.termux/files/home/ShortAutoPro/temp/vi25_shadow_override/short_2026-09-01_1433/scene_07.jpg",
+  "staged_sha256": "31ea8802a6c32646c10096f6321c0c29e05c0e7cdc333947adffdd8f76ec0628",
+  "shadow_motion_plan": "/data/data/com.termux/files/home/ShortAutoPro/temp/vi25_shadow_override/motion_plan_2026-09-01_1433_vi25_shadow.json",
+  "shadow_motion_plan_sha256": "2105d23b3b8d1be3bd4a1f70f738ca424d32add4113b1f8dcd2d58dfe2994ab9",
+  "vi20_gain": 31.03,
+  "cross_type": true,
+  "production_media_mutated": false,
+  "production_motion_plan_mutated": false,
+  "ffmpeg_executed": false,
+  "video_generated": false,
+  "source_recovery": "SHADOW_ONLY"
+}

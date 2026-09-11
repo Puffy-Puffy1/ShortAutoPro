@@ -1,0 +1,221 @@
+{
+  "short_id": "2026-08-31_0218",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_pre_visual_2026-08-31_0218.json",
+  "shot_repetitions": 0,
+  "scenes": [
+    {
+      "scene": 1,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "vintage hotel elevator interior security camera footage still",
+      "after_query": "vintage hotel elevator interior security camera footage still",
+      "must_have": [
+        "elevator",
+        "security camera"
+      ],
+      "avoid": [
+        "modern smartphone",
+        "youtube logo",
+        "gamer"
+      ],
+      "shot_type": "security camera view",
+      "reason": "Mostra a câmera de segurança e o elevador citados no segmento inicial."
+    },
+    {
+      "scene": 2,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "los angeles city skyline historic downtown street view 2013",
+      "after_query": "los angeles city skyline historic downtown street view 2013",
+      "must_have": [
+        "city",
+        "street"
+      ],
+      "avoid": [
+        "snow",
+        "beach",
+        "airplane"
+      ],
+      "shot_type": "wide establishing shot",
+      "reason": "Estabelece a cidade e o período temporal do desaparecimento em Los Angeles."
+    },
+    {
+      "scene": 3,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "historic Cecil hotel facade exterior building downtown Los Angeles",
+      "after_query": "historic Cecil hotel facade exterior building downtown Los Angeles",
+      "must_have": [
+        "hotel",
+        "building"
+      ],
+      "avoid": [
+        "modern house",
+        "forest",
+        "car"
+      ],
+      "shot_type": "medium shot",
+      "reason": "Foca na fachada do hotel real mencionado na narrativa policial."
+    },
+    {
+      "scene": 4,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "vintage elevator doorway in historic hotel corridor",
+      "after_query": "vintage elevator doorway in historic hotel corridor",
+      "must_have": [
+        "elevator door"
+      ],
+      "avoid": [
+        "happy smiling person",
+        "bright colors",
+        "office"
+      ],
+      "shot_type": "medium shot",
+      "reason": "Representa o corredor e a porta do elevador onde ocorrem os movimentos relatados."
+    },
+    {
+      "scene": 5,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "vintage elevator control panel buttons with old wiring",
+      "after_query": "vintage elevator control panel buttons with old wiring",
+      "must_have": [
+        "elevator buttons"
+      ],
+      "avoid": [
+        "computer screen",
+        "digital display",
+        "smartphone"
+      ],
+      "shot_type": "close-up",
+      "reason": "Ilustra o funcionamento mecânico e os botões do elevador antigo."
+    },
+    {
+      "scene": 6,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "dark eerie hallway hotel corridor with mysterious shadow",
+      "after_query": "dark eerie hallway hotel corridor with mysterious shadow",
+      "must_have": [
+        "hallway",
+        "shadow"
+      ],
+      "avoid": [
+        "sunny park",
+        "kitchen",
+        "party"
+      ],
+      "shot_type": "atmospheric shot",
+      "reason": "Simula o tom de mistério e teorias paranormais associadas aos corredores."
+    },
+    {
+      "scene": 7,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "medical records file paperwork on wooden desk",
+      "after_query": "medical records file paperwork on wooden desk",
+      "must_have": [
+        "papers",
+        "table"
+      ],
+      "avoid": [
+        "doctor office",
+        "hospital bed",
+        "medicine"
+      ],
+      "shot_type": "overhead shot",
+      "reason": "Representa o contexto de registros médicos e histórico de saúde de forma documental."
+    },
+    {
+      "scene": 8,
+      "before_score": 70,
+      "after_score": 70,
+      "before_query": "industrial building rooftop and water tower structure",
+      "after_query": "hotel rooftop industrial structure and water tank background",
+      "must_have": [
+        "rooftop",
+        "water tank"
+      ],
+      "avoid": [
+        "indoor office",
+        "shopping mall",
+        "beach"
+      ],
+      "shot_type": "wide shot",
+      "reason": "Mostra o telhado onde o corpo foi finalmente localizado pelos funcionários."
+    },
+    {
+      "scene": 9,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "large industrial metal water tank on building rooftop",
+      "after_query": "large industrial metal water tank on building rooftop",
+      "must_have": [
+        "water tank",
+        "rooftop"
+      ],
+      "avoid": [
+        "swimming pool",
+        "indoor bathroom",
+        "kitchen sink"
+      ],
+      "shot_type": "medium shot",
+      "reason": "Foca especificamente no tanque de água localizado no topo do prédio."
+    },
+    {
+      "scene": 10,
+      "before_score": 70,
+      "after_score": 70,
+      "before_query": "official coroner autopsy report documents on dark table",
+      "after_query": "official coroner autopsy report documents on dark table",
+      "must_have": [
+        "papers",
+        "table"
+      ],
+      "avoid": [
+        "computer monitor",
+        "smartphone",
+        "happy people"
+      ],
+      "shot_type": "document close-up",
+      "reason": "Evidencia o relatório oficial da autópsia citado no roteiro."
+    },
+    {
+      "scene": 11,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "vintage television set static noise in dark room",
+      "after_query": "vintage television set static noise in dark room",
+      "must_have": [
+        "television",
+        "dark room"
+      ],
+      "avoid": [
+        "modern smartphone",
+        "laptop",
+        "cinema popcorn"
+      ],
+      "shot_type": "medium shot",
+      "reason": "Simula a referência cultural e a repercussão do caso na mídia."
+    },
+    {
+      "scene": 12,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "historic hotel neon sign at night moody atmosphere",
+      "after_query": "historic hotel neon sign at night moody atmosphere",
+      "must_have": [
+        "neon sign",
+        "night"
+      ],
+      "avoid": [
+        "happy bright day",
+        "social media icons",
+        "subscribe button"
+      ],
+      "shot_type": "atmospheric shot",
+      "reason": "Encerra o vídeo com a atmosfera noturna do hotel e o clima de mistério."
+    }
+  ]
+}

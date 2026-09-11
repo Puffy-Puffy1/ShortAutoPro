@@ -1,0 +1,29 @@
+{
+  "short_id": "2026-09-02_2358",
+  "version": "6.7",
+  "changed": 1,
+  "changes": [
+    {
+      "scene": 12,
+      "segment": "Comente sua opinião e siga o canal.",
+      "before": {
+        "query": "police building exterior entrance gates dramatic shadows",
+        "must_have": [
+          "gate",
+          "building"
+        ],
+        "visual_mode": null
+      },
+      "after": {
+        "query": "police building exterior entrance gates dramatic shadows",
+        "must_have": [
+          "gate",
+          "building"
+        ],
+        "visual_mode": "cta_reuse"
+      },
+      "reason": "reuse_verified_story_visual"
+    }
+  ],
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_pre_truth_refiner_2026-09-02_2358.json"
+}

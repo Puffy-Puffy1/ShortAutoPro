@@ -1,0 +1,223 @@
+{
+  "short_id": "2026-08-31_1529",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_pre_visual_2026-08-31_1529.json",
+  "shot_repetitions": 0,
+  "scenes": [
+    {
+      "scene": 1,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "bar entrance hallway security camera mounted on wall",
+      "after_query": "security camera mounted on dark brick wall interior bar hallway",
+      "must_have": [
+        "security camera",
+        "wall"
+      ],
+      "avoid": [
+        "person",
+        "bright daylight",
+        "computer screen"
+      ],
+      "shot_type": "medium shot",
+      "reason": "Representa o monitoramento do bar citado no segmento."
+    },
+    {
+      "scene": 2,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "empty city street at night under dim streetlights",
+      "after_query": "empty urban street at night under dim streetlights atmosphere",
+      "must_have": [
+        "street",
+        "night"
+      ],
+      "avoid": [
+        "daytime",
+        "sun",
+        "crowd"
+      ],
+      "shot_type": "wide environment",
+      "reason": "Estabelece o contexto temporal da madrugada citada."
+    },
+    {
+      "scene": 3,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "college campus walkway at night with dim lighting",
+      "after_query": "dark university campus walkway at night with minimal lighting",
+      "must_have": [
+        "walkway",
+        "night"
+      ],
+      "avoid": [
+        "happy group",
+        "bright colors",
+        "hospital interior"
+      ],
+      "shot_type": "environment",
+      "reason": "Contextualiza o ambiente estudantil do personagem principal."
+    },
+    {
+      "scene": 4,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "columbus ohio city skyline at night cinematic shot",
+      "after_query": "columbus ohio city skyline at night cinematic dark atmosphere",
+      "must_have": [
+        "city skyline",
+        "buildings"
+      ],
+      "avoid": [
+        "rural landscape",
+        "beach",
+        "forest"
+      ],
+      "shot_type": "wide shot",
+      "reason": "Localiza geograficamente o cenário da história em Columbus, Ohio."
+    },
+    {
+      "scene": 5,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "commercial building facade front entrance door at night",
+      "after_query": "commercial building facade front entrance door at night dark",
+      "must_have": [
+        "door",
+        "building facade"
+      ],
+      "avoid": [
+        "bright interior",
+        "sunny day",
+        "beach bar"
+      ],
+      "shot_type": "medium shot",
+      "reason": "Ilustra a única entrada principal mencionada do estabelecimento."
+    },
+    {
+      "scene": 6,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "service metal back door in dark brick alleyway",
+      "after_query": "service metal back door in dark brick alleyway close up",
+      "must_have": [
+        "door",
+        "alley"
+      ],
+      "avoid": [
+        "luxury office",
+        "living room",
+        "kitchen"
+      ],
+      "shot_type": "object close-up",
+      "reason": "Mostra especificamente a porta de serviço para obras citada."
+    },
+    {
+      "scene": 7,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "grainy black and white CCTV security footage freeze frame",
+      "after_query": "grainy black and white CCTV security footage monitor screen",
+      "must_have": [
+        "security camera",
+        "grain"
+      ],
+      "avoid": [
+        "modern smartphone",
+        "color vibrant",
+        "clear ocean"
+      ],
+      "shot_type": "document/evidence",
+      "reason": "Retrata visualmente a falta de registros nas imagens de segurança."
+    },
+    {
+      "scene": 8,
+      "before_score": 70,
+      "after_score": 70,
+      "before_query": "police investigation case files on wooden desk",
+      "after_query": "police investigation case files folder on dark wooden desk",
+      "must_have": [
+        "papers",
+        "desk"
+      ],
+      "avoid": [
+        "bright office",
+        "smiling people",
+        "happy family"
+      ],
+      "shot_type": "document/evidence",
+      "reason": "Representa a investigação policial sobre o desaparecimento."
+    },
+    {
+      "scene": 9,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "tall cell phone tower antenna against dark sky",
+      "after_query": "tall cell phone tower antenna silhouette against dark night sky",
+      "must_have": [
+        "cell tower",
+        "sky"
+      ],
+      "avoid": [
+        "indoor room",
+        "kitchen",
+        "car interior"
+      ],
+      "shot_type": "wide environment",
+      "reason": "Ilustra o sinal emitido pela torre de celular meses depois."
+    },
+    {
+      "scene": 10,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "vintage printed newspaper obituary section macro shot",
+      "after_query": "vintage printed newspaper obituary section macro shot dark tone",
+      "must_have": [
+        "newspaper",
+        "text"
+      ],
+      "avoid": [
+        "digital tablet",
+        "smartphone screen",
+        "modern magazine"
+      ],
+      "shot_type": "document/evidence",
+      "reason": "Mostra a seção de obituário mencionada na narrativa."
+    },
+    {
+      "scene": 11,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "old stone tombstones in a quiet cemetery graveyard",
+      "after_query": "old stone tombstones in a quiet cemetery graveyard at dusk",
+      "must_have": [
+        "tombstone",
+        "graveyard"
+      ],
+      "avoid": [
+        "party",
+        "sunny beach",
+        "wedding"
+      ],
+      "shot_type": "environment",
+      "reason": "Contextualiza o momento após a morte do pai."
+    },
+    {
+      "scene": 12,
+      "before_score": 100,
+      "after_score": 100,
+      "before_query": "foggy mysterious empty street vanishing into dark fog",
+      "after_query": "foggy mysterious empty city street vanishing into dark fog",
+      "must_have": [
+        "fog",
+        "street"
+      ],
+      "avoid": [
+        "bright sunlight",
+        "happy crowd",
+        "busy traffic"
+      ],
+      "shot_type": "wide environment",
+      "reason": "Conclui com o mistério e a incerteza do paradeiro."
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "hooks": [
+    {
+      "text": "Um corpo encontrado dentro de uma caixa de papelão chocou a polícia em 1957.",
+      "curiosity": 9,
+      "clarity": 10,
+      "factuality": 10,
+      "retention": 9,
+      "local_retention_score": 76.0,
+      "combined_score": 82.1
+    },
+    {
+      "text": "Por que um menino foi encontrado morto e abandonado dentro de uma caixa?",
+      "curiosity": 10,
+      "clarity": 9,
+      "factuality": 10,
+      "retention": 10,
+      "local_retention_score": 82.0,
+      "combined_score": 88.7
+    },
+    {
+      "text": "Durante décadas, a identidade deste menino encontrado em uma caixa permaneceu um mistério.",
+      "curiosity": 9,
+      "clarity": 10,
+      "factuality": 10,
+      "retention": 9,
+      "local_retention_score": 76.0,
+      "combined_score": 82.1
+    }
+  ],
+  "chosen": 2,
+  "final_script": "Por que um menino foi encontrado morto e abandonado dentro de uma caixa? Em fevereiro de 1957, o corpo de uma criança nua, severamente espancada, desnutrida e com o cabelo recentemente cortado foi descoberto na Filadélfia. A polícia abriu investigação e colheu impressões digitais, mas ninguém o reconheceu. Panfletos foram distribuídos e a cena foi vasculhada, mas nenhuma solução apareceu por décadas. Teorias sobre um lar adotivo e uma mulher chamada Martha geraram investigações exaustivas sem conclusão definitiva. Em 2022, através de análises modernas de árvore genealógica, a polícia finalmente identificou a vítima como Joseph Augustus Zarelli, nascido em 1953, constatando que seus pais haviam falecido e ele tinha parentes vivos. Compartilhe sua opinião nos comentários."
+}

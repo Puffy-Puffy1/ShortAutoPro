@@ -1,0 +1,226 @@
+{
+  "short_id": "2026-09-01_0008",
+  "topic": "O monstro de Flatwoods",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_pre_documentary_2026-09-01_0008.json",
+  "visual_mode_triple_repetitions": 0,
+  "shot_triple_repetitions": 3,
+  "scenes": [
+    {
+      "scene": 1,
+      "segment": "Em 1952, testemunhas viram uma luz no céu",
+      "visual_mode": "environment",
+      "shot_type": "wide",
+      "query_before": "bright meteor falling across dark night sky",
+      "query_after": "bright meteor streak across dark night sky",
+      "must_have": [
+        "meteor",
+        "night sky"
+      ],
+      "avoid": [
+        "daytime",
+        "sun",
+        "indoor"
+      ],
+      "reason": "Representa o objeto celeste relatado em 1952 sem violar a ambiguidade factual."
+    },
+    {
+      "scene": 2,
+      "segment": "e encontraram uma criatura aterrorizante.",
+      "visual_mode": "location",
+      "shot_type": "medium",
+      "query_before": "scary dark silhouette standing in dark woods",
+      "query_after": "dark eerie forest woods at night",
+      "must_have": [
+        "woods",
+        "night"
+      ],
+      "avoid": [
+        "friendly",
+        "cartoon",
+        "bright room"
+      ],
+      "reason": "Mostra o ambiente exato onde o encontro teria ocorrido."
+    },
+    {
+      "scene": 3,
+      "segment": "Um grupo subiu a colina e relatou uma névoa pungente.",
+      "visual_mode": "environment",
+      "shot_type": "wide",
+      "query_before": "thick foggy hill at night eerie atmosphere",
+      "query_after": "thick fog covering dark hill at night",
+      "must_have": [
+        "fog",
+        "hill"
+      ],
+      "avoid": [
+        "desert",
+        "sunny beach",
+        "city street"
+      ],
+      "reason": "Retrata a névoa pungente mencionada pelas testemunhas na colina."
+    },
+    {
+      "scene": 4,
+      "segment": "Ao iluminarem o local, viram uma entidade alta",
+      "visual_mode": "object",
+      "shot_type": "medium",
+      "query_before": "flashlight beam cutting through dark foggy forest",
+      "query_after": "vintage flashlight beam cutting through dark fog",
+      "must_have": [
+        "flashlight",
+        "beam",
+        "fog"
+      ],
+      "avoid": [
+        "daylight",
+        "office",
+        "car"
+      ],
+      "reason": "Foca no objeto utilizado pelas testemunhas para iluminar o local."
+    },
+    {
+      "scene": 5,
+      "segment": "com cabeça em formato de diamante e rosto brilhante,",
+      "visual_mode": "abstract_context",
+      "shot_type": "medium",
+      "query_before": "mysterious glowing figure in dark woods",
+      "query_after": "mysterious glowing shape in dark woods atmosphere",
+      "must_have": [
+        "glowing",
+        "figure"
+      ],
+      "avoid": [
+        "animal",
+        "dog",
+        "cat"
+      ],
+      "reason": "Usa contexto abstrato ambíguo para respeitar a regra de não mostrar monstros detalhados."
+    },
+    {
+      "scene": 6,
+      "segment": "que emitiu um assobio estridente e se moveu na direção deles,",
+      "visual_mode": "environment",
+      "shot_type": "medium",
+      "query_before": "dark eerie entity moving forward in fog",
+      "query_after": "dark misty forest path at night eerie",
+      "must_have": [
+        "entity",
+        "fog"
+      ],
+      "avoid": [
+        "happy people",
+        "dancing",
+        "bright colors"
+      ],
+      "reason": "Mantém o foco na atmosfera tensa descrita no movimento da entidade."
+    },
+    {
+      "scene": 7,
+      "segment": "gerando pânico.",
+      "visual_mode": "human_context",
+      "shot_type": "wide",
+      "query_before": "scared people running away in dark forest",
+      "query_after": "shadowy figures running away in dark forest panic",
+      "must_have": [
+        "running",
+        "scared"
+      ],
+      "avoid": [
+        "smiling",
+        "calm",
+        "reading"
+      ],
+      "reason": "Ilustra o pânico generalizado do grupo ao fugir do local."
+    },
+    {
+      "scene": 8,
+      "segment": "Várias pessoas do grupo relataram sintomas como irritação no nariz,",
+      "visual_mode": "document",
+      "shot_type": "medium",
+      "query_before": "person coughing holding throat in dark room",
+      "query_after": "vintage 1950s medical report paper on dark desk",
+      "must_have": [
+        "medical report",
+        "document"
+      ],
+      "avoid": [
+        "eating",
+        "cooking",
+        "happy"
+      ],
+      "reason": "Usa registro documental para relatar os sintomas médicos sem atores reais específicos."
+    },
+    {
+      "scene": 9,
+      "segment": "inchaço na garganta, vômitos e convulsões.",
+      "visual_mode": "evidence",
+      "shot_type": "medium",
+      "query_before": "sick person lying down feeling pain indoor",
+      "query_after": "old medical case file documents 1950s archive",
+      "must_have": [
+        "sick",
+        "pain"
+      ],
+      "avoid": [
+        "healthy",
+        "athlete",
+        "party"
+      ],
+      "reason": "Representa os arquivos de investigação sobre os sintomas persistentes."
+    },
+    {
+      "scene": 10,
+      "segment": "Anos mais tarde, investigadores concluíram que a luz era um meteoro",
+      "visual_mode": "document",
+      "shot_type": "medium",
+      "query_before": "scientific researchers examining old documents on desk",
+      "query_after": "investigative skeptical report papers on wooden desk",
+      "must_have": [
+        "researchers",
+        "documents"
+      ],
+      "avoid": [
+        "children playing",
+        "cooking",
+        "beach"
+      ],
+      "reason": "Mostra a investigação cética posterior baseada em relatórios oficiais."
+    },
+    {
+      "scene": 11,
+      "segment": "e a criatura, provavelmente uma coruja.",
+      "visual_mode": "evidence",
+      "shot_type": "medium",
+      "query_before": "barn owl sitting on tree branch at night",
+      "query_after": "barn owl perched on tree branch at night wildlife",
+      "must_have": [
+        "owl",
+        "branch"
+      ],
+      "avoid": [
+        "alien",
+        "spaceship",
+        "robot"
+      ],
+      "reason": "Apresenta a explicação factual dos investigadores sobre a coruja."
+    },
+    {
+      "scene": 12,
+      "segment": "Contudo, entusiastas afirmam que era um alienígena, o que ajudou a cidade a lucrar muito com o turismo. Você visitaria esse lugar?",
+      "visual_mode": "architecture",
+      "shot_type": "wide",
+      "query_before": "neon alien sign glowing in small town street at night",
+      "query_after": "small American town street with neon sign at night",
+      "must_have": [
+        "neon sign",
+        "street"
+      ],
+      "avoid": [
+        "empty desert",
+        "forest fire",
+        "ocean"
+      ],
+      "reason": "Exibe o turismo e o comércio local na cidade de Flatwoods atualmente."
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "version": "1300.00",
+
+  "canvas": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30
+  },
+
+  "fullscreen": {
+    "minimum_width": 720,
+    "minimum_height": 720,
+    "minimum_short_edge": 720
+  },
+
+  "archival": {
+    "low_resolution_fullscreen_allowed": false,
+    "default_strategy": "ARCHIVAL_INSET",
+    "require_context_label_if_restricted": true
+  },
+
+  "document": {
+    "raw_pdf_fullscreen_allowed": false,
+    "strategy": "DOCUMENT_PAGE_PREVIEW",
+    "page": 1,
+    "require_rasterization_before_render": true
+  },
+
+  "illustration": {
+    "required_label": "IMAGEM ILUSTRATIVA"
+  },
+
+  "context": {
+    "required_label": "IMAGEM DE CONTEXTO"
+  },
+
+  "execution": {
+    "network": false,
+    "downloads": false,
+    "ffmpeg": false,
+    "ffprobe": false,
+    "renderer": false,
+    "video_generation": false,
+    "production_mutation": false
+  },
+
+  "source_recovery": {
+    "mode": "SHADOW_ONLY"
+  }
+}

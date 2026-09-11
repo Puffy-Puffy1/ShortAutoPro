@@ -1,0 +1,33 @@
+{
+  "hooks": [
+    {
+      "text": "Em 1970, um corpo carbonizado foi achado na Noruega com dezenas de pílulas e identidades falsas.",
+      "curiosity": 9,
+      "clarity": 10,
+      "factuality": 10,
+      "retention": 9,
+      "local_retention_score": 64.0,
+      "combined_score": 74.9
+    },
+    {
+      "text": "Uma mulher carbonizada foi achada na Noruega em 1970 cercada de malas cheias de perucas.",
+      "curiosity": 9,
+      "clarity": 10,
+      "factuality": 10,
+      "retention": 8,
+      "local_retention_score": 60.0,
+      "combined_score": 70.5
+    },
+    {
+      "text": "Por que todas as etiquetas das roupas daquele corpo carbonizado na Noruega foram apagadas?",
+      "curiosity": 10,
+      "clarity": 9,
+      "factuality": 10,
+      "retention": 9,
+      "local_retention_score": 82.0,
+      "combined_score": 86.7
+    }
+  ],
+  "chosen": 1,
+  "final_script": "Em 1970, um corpo carbonizado foi achado na Noruega com dezenas de pílulas e identidades falsas. A polícia localizou malas com perucas, dinheiro e passaportes. Etiquetas de todas as roupas haviam sido apagadas. A autópsia revelou pílulas para dormir no estômago e fuligem nos pulmões, indicando que ela estava viva ao ser queimada. As autoridades deram um veredicto de provável suicídio, mas a quantidade de identidades falsas gerou fortes suspeitas de espionagem na Guerra Fria. Análises indicaram que ela nasceu por volta de 1930 perto de Nuremberga. O verdadeiro nome da mulher nunca foi descoberto, e investigações e especulações continuaram nos anos seguintes. O mistério permanece. Comente sua teoria e siga para mais casos reais."
+}

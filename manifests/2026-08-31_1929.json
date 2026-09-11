@@ -1,0 +1,282 @@
+{
+  "short_id": "2026-08-31_1929",
+  "created_at": "2026-08-31T19:38:10.046074",
+  "status": "QUALITY_PASS",
+  "topic": "O assassinato de Elizabeth Short",
+  "hook": "Por que cinquenta e nove pessoas confessaram um crime que nunca cometeram?",
+  "script": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/short_2026-08-31_1929.txt",
+    "text": "Por que cinquenta e nove pessoas confessaram um crime que nunca cometeram? Em quinze de janeiro de mil novecentos e quarenta e sete, o corpo de Elizabeth Short foi encontrado mutilado e esquartejado em um terreno baldio em Los Angeles. Ela recebeu o apelido póstumo de Dália Negra, criado por jornais após a repercussão do caso. O crime chocou a América do pós-guerra, gerou dezenas de confissões falsas que foram descartadas e investigou vinte e cinco suspeitos, mas a investigação nunca chegou a uma conclusão definitiva. O mistério permanece sem solução e inspirou livros, filmes e jogos mundialmente famosos. Qual teria sido a verdadeira identidade do assassino? Comente sua opinião e siga o canal para mais mistérios reais."
+  },
+  "source": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/fonte_2026-08-31_1929.txt"
+  },
+  "publish": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/publish_2026-08-31_1929.json",
+    "chosen_title": "Quem matou Elizabeth Short em Los Angeles?",
+    "titles": [
+      "Por que 59 pessoas confessaram a Dália Negra? 🕵️",
+      "O mistério real e não resolvido da Dália Negra",
+      "Quem matou Elizabeth Short em Los Angeles?"
+    ],
+    "description": "Por que dezenas de pessoas confessaram um crime que não cometeram? Descubra a história real do caso da Dália Negra. Deixe sua opinião nos comentários!",
+    "hashtags": [
+      "#Shorts",
+      "#DaliaNegra",
+      "#ElizabethShort",
+      "#MisterioReal",
+      "#TrueCrimeBrasil"
+    ],
+    "pinned_comment": "Qual é a sua teoria sobre este mistério?"
+  },
+  "scenes": {
+    "map_path": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_2026-08-31_1929.json",
+    "count": 12,
+    "physical_count": 12,
+    "items": [
+      {
+        "scene": 1,
+        "segment": "Por que cinquenta e nove pessoas confessaram um crime",
+        "query": "vintage 1940s police interrogation room interior dark moody",
+        "must_have": [
+          "room",
+          "vintage furniture"
+        ],
+        "avoid": [
+          "modern office",
+          "smartphone",
+          "bright lights"
+        ],
+        "words": 9,
+        "weight": 0.07627118644067797,
+        "visual_mode": "architecture",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 2,
+        "segment": "que nunca cometeram?",
+        "query": "old mechanical typewriter on wooden desk dramatic shadow",
+        "must_have": [
+          "typewriter",
+          "desk"
+        ],
+        "avoid": [
+          "computer",
+          "tablet",
+          "neon lights"
+        ],
+        "words": 3,
+        "weight": 0.025423728813559324,
+        "visual_mode": "object",
+        "shot_type": "close_up"
+      },
+      {
+        "scene": 3,
+        "segment": "Em quinze de janeiro de mil novecentos e quarenta e sete,",
+        "query": "vintage january 1947 calendar page black and white",
+        "must_have": [
+          "calendar",
+          "paper"
+        ],
+        "avoid": [
+          "digital clock",
+          "modern calendar",
+          "color"
+        ],
+        "words": 11,
+        "weight": 0.09322033898305085,
+        "visual_mode": "document",
+        "shot_type": "close_up"
+      },
+      {
+        "scene": 4,
+        "segment": "o corpo de Elizabeth Short foi encontrado mutilado e esquartejado",
+        "query": "vintage 1947 crime scene perimeter line dark moody",
+        "must_have": [
+          "outdoor ground",
+          "vintage atmosphere"
+        ],
+        "avoid": [
+          "body",
+          "blood",
+          "corpse"
+        ],
+        "words": 10,
+        "weight": 0.0847457627118644,
+        "visual_mode": "location",
+        "shot_type": "wide"
+      },
+      {
+        "scene": 5,
+        "segment": "em um terreno baldio em Los Angeles.",
+        "query": "los angeles street 1940s vintage buildings architecture noir",
+        "must_have": [
+          "street",
+          "vintage buildings"
+        ],
+        "avoid": [
+          "modern cars",
+          "skyscrapers",
+          "neon signs"
+        ],
+        "words": 7,
+        "weight": 0.059322033898305086,
+        "visual_mode": "location",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 6,
+        "segment": "Ela recebeu o apelido póstumo de Dália Negra,",
+        "query": "dark black dahlia flower close up cinematic lighting",
+        "must_have": [
+          "black flower",
+          "petals"
+        ],
+        "avoid": [
+          "bright red flowers",
+          "garden",
+          "sunlight"
+        ],
+        "words": 8,
+        "weight": 0.06779661016949153,
+        "visual_mode": "object",
+        "shot_type": "close_up"
+      },
+      {
+        "scene": 7,
+        "segment": "criado por jornais após a repercussão do caso.",
+        "query": "vintage 1940s newspaper headlines stacked black and white",
+        "must_have": [
+          "newspaper",
+          "paper"
+        ],
+        "avoid": [
+          "digital tablet",
+          "smartphone",
+          "modern magazine"
+        ],
+        "words": 8,
+        "weight": 0.06779661016949153,
+        "visual_mode": "document",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 8,
+        "segment": "O crime chocou a América do pós-guerra,",
+        "query": "retro 1940s american city street gloomy atmosphere",
+        "must_have": [
+          "street",
+          "vintage cars"
+        ],
+        "avoid": [
+          "modern traffic",
+          "airplanes",
+          "people smiling"
+        ],
+        "words": 7,
+        "weight": 0.059322033898305086,
+        "visual_mode": "environment",
+        "shot_type": "wide"
+      },
+      {
+        "scene": 9,
+        "segment": "gerou dezenas de confissões falsas que foram descartadas",
+        "query": "old police case files stacked on a desk dark room",
+        "must_have": [
+          "paper documents",
+          "desk"
+        ],
+        "avoid": [
+          "computer",
+          "digital screen",
+          "plastic"
+        ],
+        "words": 8,
+        "weight": 0.06779661016949153,
+        "visual_mode": "evidence",
+        "shot_type": "medium"
+      },
+      {
+        "scene": 10,
+        "segment": "e investigou vinte e cinco suspeitos,",
+        "query": "vintage detective magnifying glass over old police investigation map",
+        "must_have": [
+          "magnifying glass",
+          "paper"
+        ],
+        "avoid": [
+          "digital screen",
+          "smartphone",
+          "glasses"
+        ],
+        "words": 6,
+        "weight": 0.05084745762711865,
+        "visual_mode": "evidence",
+        "shot_type": "close_up"
+      },
+      {
+        "scene": 11,
+        "segment": "mas a investigação nunca chegou a uma conclusão definitiva.",
+        "query": "unsolved mystery stamped on old police document paper",
+        "must_have": [
+          "paper",
+          "stamp"
+        ],
+        "avoid": [
+          "computer",
+          "winner trophy",
+          "lights"
+        ],
+        "words": 9,
+        "weight": 0.07627118644067797,
+        "visual_mode": "document",
+        "shot_type": "close_up"
+      },
+      {
+        "scene": 12,
+        "segment": "O mistério permanece sem solução e inspirou livros, filmes e jogos mundialmente famosos. Qual teria sido a verdadeira identidade do assassino? Comente sua opinião e siga o canal para mais mistérios reais.",
+        "query": "dark vintage library old books mysterious shadow background",
+        "must_have": [
+          "bookshelf",
+          "books"
+        ],
+        "avoid": [
+          "smartphone screen",
+          "social media icons",
+          "modern gadgets",
+          "thumbs up",
+          "detailed alien spacecraft",
+          "flying saucer",
+          "visible ghost",
+          "alien creature"
+        ],
+        "words": 32,
+        "weight": 0.2711864406779661,
+        "visual_intent_6_7": "CTA",
+        "visual_mode": "location",
+        "truth_refiner_6_7": "reuse_verified_story_visual",
+        "cta_reuse_6_7": true,
+        "shot_type": "medium"
+      }
+    ]
+  },
+  "video": {
+    "path": "/data/data/com.termux/files/home/ShortAutoPro/videos/short_v6_2026-08-31_1929.mp4",
+    "version": "V6",
+    "duration_seconds": 40.566667,
+    "width": 1080,
+    "height": 1920,
+    "fps": 30.0,
+    "video_codec": "h264",
+    "audio_codec": "aac"
+  },
+  "quality": {
+    "video_exists": true,
+    "scene_map_count": 12,
+    "physical_scene_count": 12,
+    "resolution_ok": true,
+    "fps_ok": true,
+    "audio_exists": true
+  },
+  "log": "/data/data/com.termux/files/home/ShortAutoPro/logs/producao/short_2026-08-31_1929.log"
+}

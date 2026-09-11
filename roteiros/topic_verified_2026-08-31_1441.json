@@ -1,0 +1,75 @@
+{
+  "short_id": "2026-08-31_1441",
+  "selected": {
+    "topic": "A Morte de JonBenét Ramsey",
+    "score": 75.62,
+    "gemini": {
+      "curiosity": 10.0,
+      "visual": 9.0,
+      "documentation": 10.0,
+      "retention": 10.0,
+      "comment_potential": 10.0
+    },
+    "objective": {
+      "visual": 5.0,
+      "hook": 6.2,
+      "documentation": 9.0,
+      "title_match": 6.67,
+      "novelty": 8.83
+    },
+    "wiki_title": "JonBenét Ramsey",
+    "wiki_chars": 6295,
+    "wiki_similarity": 0.667
+  },
+  "ranking": [
+    {
+      "topic": "A Morte de JonBenét Ramsey",
+      "score": 75.62,
+      "gemini": {
+        "curiosity": 10.0,
+        "visual": 9.0,
+        "documentation": 10.0,
+        "retention": 10.0,
+        "comment_potential": 10.0
+      },
+      "objective": {
+        "visual": 5.0,
+        "hook": 6.2,
+        "documentation": 9.0,
+        "title_match": 6.67,
+        "novelty": 8.83
+      },
+      "wiki_title": "JonBenét Ramsey",
+      "wiki_chars": 6295,
+      "wiki_similarity": 0.667
+    }
+  ],
+  "verification": [
+    {
+      "topic": "A Morte de JonBenét Ramsey",
+      "approved": true,
+      "score": 75.62,
+      "wiki_title": "JonBenét Ramsey"
+    },
+    {
+      "topic": "O Desaparecimento de Bobby Dunbar",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "Caso Tamam Shud",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O Homem de Somnerton",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    },
+    {
+      "topic": "O Caso das Caixas de Isotype de Isdal",
+      "approved": false,
+      "reason": "wikipedia_not_verified"
+    }
+  ]
+}

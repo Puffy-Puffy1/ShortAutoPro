@@ -1,0 +1,223 @@
+{
+  "short_id": "2026-08-31_1441",
+  "topic": "A Morte de JonBenét Ramsey",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_pre_documentary_2026-08-31_1441.json",
+  "visual_mode_triple_repetitions": 0,
+  "shot_triple_repetitions": 0,
+  "scenes": [
+    {
+      "scene": 1,
+      "segment": "O pai encontrou o corpo da própria filha no porão",
+      "visual_mode": "location",
+      "shot_type": "medium",
+      "query_before": "dark basement interior stairs dramatic lighting cinematic",
+      "query_after": "dark basement interior stairs dramatic lighting cinematic",
+      "must_have": [
+        "basement",
+        "stairs"
+      ],
+      "avoid": [
+        "sunlight",
+        "happy family",
+        "bright room"
+      ],
+      "reason": "Representa o ambiente exato onde o pai encontrou a menina no porão."
+    },
+    {
+      "scene": 2,
+      "segment": "após um suposto sequestro.",
+      "visual_mode": "architecture",
+      "shot_type": "wide",
+      "query_before": "empty suburban house interior dark room mystery",
+      "query_after": "empty suburban house interior dark room mystery",
+      "must_have": [
+        "empty room",
+        "house interior"
+      ],
+      "avoid": [
+        "people",
+        "sunny park",
+        "happy children"
+      ],
+      "reason": "Contextualiza a atmosfera interna da casa em relação ao suposto sequestro."
+    },
+    {
+      "scene": 3,
+      "segment": "Uma criança de apenas seis anos foi assassinada sob circunstâncias suspeitas",
+      "visual_mode": "evidence",
+      "shot_type": "medium",
+      "query_before": "police tape crime scene residential street night",
+      "query_after": "police tape crime scene residential street night",
+      "must_have": [
+        "police tape",
+        "street"
+      ],
+      "avoid": [
+        "daytime",
+        "smiling people",
+        "party"
+      ],
+      "reason": "Mostra a evidência de isolamento de cena de crime sob circunstâncias suspeitas."
+    },
+    {
+      "scene": 4,
+      "segment": "dentro de sua própria casa e o caso continua sem solução até hoje,",
+      "visual_mode": "location",
+      "shot_type": "wide",
+      "query_before": "american suburban house exterior establishing shot evening",
+      "query_after": "american suburban house exterior establishing shot evening",
+      "must_have": [
+        "house exterior"
+      ],
+      "avoid": [
+        "apartment building",
+        "skyscraper",
+        "forest"
+      ],
+      "reason": "Retrata o local físico onde o crime ocorreu e que permanece sem solução."
+    },
+    {
+      "scene": 5,
+      "segment": "sendo considerado um dos mais notórios dos Estados Unidos.",
+      "visual_mode": "abstract_context",
+      "shot_type": "medium",
+      "query_before": "united states american flag waving dramatic sky",
+      "query_after": "united states american flag waving dramatic sky",
+      "must_have": [
+        "american flag"
+      ],
+      "avoid": [
+        "other flags",
+        "indoor office",
+        "food"
+      ],
+      "reason": "Simboliza a notoriedade do caso dentro dos Estados Unidos de forma abstrata."
+    },
+    {
+      "scene": 6,
+      "segment": "Na manhã de vinte e seis de dezembro de mil novecentos e noventa e seis,",
+      "visual_mode": "document",
+      "shot_type": "close_up",
+      "query_before": "vintage calendar date december retro style",
+      "query_after": "vintage calendar date december retro style",
+      "must_have": [
+        "calendar",
+        "numbers"
+      ],
+      "avoid": [
+        "smartphone",
+        "digital clock",
+        "modern tablet"
+      ],
+      "reason": "Documenta a data exata da ocorrência do crime em dezembro de 1996."
+    },
+    {
+      "scene": 7,
+      "segment": "uma nota de resgate foi encontrada na residência.",
+      "visual_mode": "evidence",
+      "shot_type": "close_up",
+      "query_before": "handwritten ransom note on wooden table close up",
+      "query_after": "handwritten ransom note on wooden table close up",
+      "must_have": [
+        "handwritten note",
+        "paper"
+      ],
+      "avoid": [
+        "computer screen",
+        "bookshelf",
+        "magazine"
+      ],
+      "reason": "Foca na evidência física da nota de resgate encontrada na residência."
+    },
+    {
+      "scene": 8,
+      "segment": "Ela sofreu uma pancada na cabeça, foi estrangulada",
+      "visual_mode": "environment",
+      "shot_type": "medium",
+      "query_before": "dark shadowy hallway forensic investigation atmosphere",
+      "query_after": "dark shadowy hallway forensic investigation atmosphere",
+      "must_have": [
+        "shadows",
+        "hallway"
+      ],
+      "avoid": [
+        "bright lights",
+        "happy colors",
+        "beach"
+      ],
+      "reason": "Representa o ambiente de investigação forense para a dinâmica da agressão sem violência gráfica."
+    },
+    {
+      "scene": 9,
+      "segment": "e a causa oficial da morte foi asfixia associada a traumatismo cranioencefálico.",
+      "visual_mode": "document",
+      "shot_type": "medium",
+      "query_before": "police investigation case file documents dark desk",
+      "query_after": "police investigation case file documents dark desk",
+      "must_have": [
+        "documents",
+        "desk"
+      ],
+      "avoid": [
+        "kitchen food",
+        "sports equipment",
+        "animals"
+      ],
+      "reason": "Exibe documentos de autópsia e arquivos oficiais da causa da morte."
+    },
+    {
+      "scene": 10,
+      "segment": "O bilhete de resgate usava papel da própria família.",
+      "visual_mode": "object",
+      "shot_type": "close_up",
+      "query_before": "notepad paper with handwritten text close up",
+      "query_after": "notepad paper with handwritten text close up",
+      "must_have": [
+        "paper",
+        "handwriting"
+      ],
+      "avoid": [
+        "keyboard",
+        "laptop",
+        "neon lights"
+      ],
+      "reason": "Mostra o objeto específico do bloco de notas usado para o bilhete."
+    },
+    {
+      "scene": 11,
+      "segment": "Anos depois, testes de DNA revelaram material genético desconhecido",
+      "visual_mode": "object",
+      "shot_type": "medium",
+      "query_before": "forensic dna laboratory equipment science close up",
+      "query_after": "forensic dna laboratory equipment science close up",
+      "must_have": [
+        "laboratory",
+        "glass tube"
+      ],
+      "avoid": [
+        "nature",
+        "cars",
+        "kitchen"
+      ],
+      "reason": "Ilustra o laboratório e os testes de DNA realizados anos depois."
+    },
+    {
+      "scene": 12,
+      "segment": "e a polícia reabriu a investigação.",
+      "visual_mode": "evidence",
+      "shot_type": "close_up",
+      "query_before": "police badge and detective case files on table",
+      "query_after": "police badge and detective case files on table",
+      "must_have": [
+        "police badge",
+        "files"
+      ],
+      "avoid": [
+        "children",
+        "party",
+        "beach"
+      ],
+      "reason": "Representa a reabertura oficial da investigação pela polícia."
+    }
+  ]
+}

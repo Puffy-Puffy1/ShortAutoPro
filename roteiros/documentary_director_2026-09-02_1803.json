@@ -1,0 +1,226 @@
+{
+  "short_id": "2026-09-02_1803",
+  "topic": "Gloria Ramirez",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/roteiros/scene_map_pre_documentary_2026-09-02_1803.json",
+  "visual_mode_triple_repetitions": 0,
+  "shot_triple_repetitions": 1,
+  "scenes": [
+    {
+      "scene": 1,
+      "segment": "O corpo desta mulher no hospital era tão tóxico que fez vinte e três pessoas adoecerem.",
+      "visual_mode": "location",
+      "shot_type": "medium",
+      "query_before": "hospital emergency room interior medical staff panic",
+      "query_after": "vintage 1990s hospital emergency room interior atmosphere",
+      "must_have": [
+        "hospital",
+        "emergency room"
+      ],
+      "avoid": [
+        "happy doctors",
+        "sunny park",
+        "bright office"
+      ],
+      "reason": "Estabelece o local exato onde o incidente tóxico ocorreu sem violar regras sobre corpos."
+    },
+    {
+      "scene": 2,
+      "segment": "Em 19 de fevereiro de 1994, Gloria Ramirez foi levada ao Hospital Geral de Riverside",
+      "visual_mode": "architecture",
+      "shot_type": "wide",
+      "query_before": "vintage 1990s hospital exterior building ambulance arriving",
+      "query_after": "Riverside General Hospital exterior building 1990s architecture",
+      "must_have": [
+        "hospital building",
+        "exterior"
+      ],
+      "avoid": [
+        "modern futuristic hospital",
+        "smartphone",
+        "digital clock"
+      ],
+      "reason": "Usa a arquitetura real do hospital mencionado na fonte factual."
+    },
+    {
+      "scene": 3,
+      "segment": "e transformou o pronto-socorro em uma emergência.",
+      "visual_mode": "location",
+      "shot_type": "close_up",
+      "query_before": "medical emergency room chaotic atmosphere blur motion",
+      "query_after": "hospital emergency room medical equipment monitors flashing",
+      "must_have": [
+        "emergency room",
+        "medical equipment"
+      ],
+      "avoid": [
+        "empty room",
+        "calm nurse",
+        "outdoor street"
+      ],
+      "reason": "Foca no ambiente de pronto-socorro agitado conforme o relato de atendimento."
+    },
+    {
+      "scene": 4,
+      "segment": "Um cheiro adocicado de alho e amônia foi notado no ambiente.",
+      "visual_mode": "evidence",
+      "shot_type": "medium",
+      "query_before": "chemical laboratory flask gas vapor close up",
+      "query_after": "chemical laboratory test tube with vapor emission close up",
+      "must_have": [
+        "chemical",
+        "vapor"
+      ],
+      "avoid": [
+        "delicious food",
+        "garlic bulb kitchen",
+        "smiling chef"
+      ],
+      "reason": "Representa de forma neutra e científica o odor e as substâncias mencionadas."
+    },
+    {
+      "scene": 5,
+      "segment": "Segundos depois, uma enfermeira desmaiou ao tentar tirar seu sangue.",
+      "visual_mode": "human_context",
+      "shot_type": "medium",
+      "query_before": "nurse fainting medical uniform hospital hallway fall",
+      "query_after": "medical worker in protective gear inside hospital room",
+      "must_have": [
+        "medical worker",
+        "hospital"
+      ],
+      "avoid": [
+        "happy person",
+        "outdoor nature",
+        "dancing"
+      ],
+      "reason": "Ilustra o momento em que a equipe começou a ser afetada durante o procedimento."
+    },
+    {
+      "scene": 6,
+      "segment": "Outros funcionários sentiram falta de ar e espasmos musculares,",
+      "visual_mode": "human_context",
+      "shot_type": "medium",
+      "query_before": "medical workers coughing wearing protective masks indoor",
+      "query_after": "hospital staff wearing protective masks indoors worried",
+      "must_have": [
+        "medical workers",
+        "masks"
+      ],
+      "avoid": [
+        "party crowd",
+        "beach",
+        "athletes running"
+      ],
+      "reason": "Mostra os sintomas relatados pela equipe médica no pronto-socorro."
+    },
+    {
+      "scene": 7,
+      "segment": "forçando a evacuação do local.",
+      "visual_mode": "architecture",
+      "shot_type": "wide",
+      "query_before": "emergency evacuation hospital corridor people leaving fast",
+      "query_after": "hospital corridor emergency exit sign hallway",
+      "must_have": [
+        "corridor",
+        "exit"
+      ],
+      "avoid": [
+        "shopping mall",
+        "airport terminal",
+        "airplane"
+      ],
+      "reason": "Representa o corredor do hospital que precisou ser evacuado."
+    },
+    {
+      "scene": 8,
+      "segment": "Uma investigação sugeriu que ela usava dimetilsulfóxido para dor,",
+      "visual_mode": "object",
+      "shot_type": "close_up",
+      "query_before": "medical research laboratory bottles pills scientific study",
+      "query_after": "medical research laboratory bottles and pharmaceutical containers",
+      "must_have": [
+        "laboratory",
+        "bottles"
+      ],
+      "avoid": [
+        "kitchen cooking",
+        "sports gym",
+        "shopping"
+      ],
+      "reason": "Foca nos elementos de pesquisa laboratorial sobre o composto DMSO."
+    },
+    {
+      "scene": 9,
+      "segment": "que pode ter se transformado em dimetilsulfato durante o atendimento.",
+      "visual_mode": "evidence",
+      "shot_type": "medium",
+      "query_before": "chemical reaction liquid changing color in beaker",
+      "query_after": "scientific chemical reaction beaker with color change laboratory",
+      "must_have": [
+        "chemical liquid",
+        "beaker"
+      ],
+      "avoid": [
+        "water glass",
+        "coffee cup",
+        "cooking soup"
+      ],
+      "reason": "Ilustra a hipótese da reação química investigada pelo laboratório."
+    },
+    {
+      "scene": 10,
+      "segment": "A causa exata permanece debatida pela comunidade científica.",
+      "visual_mode": "document",
+      "shot_type": "medium",
+      "query_before": "scientists in laboratory discussing medical research documents",
+      "query_after": "scientific forensic research papers and documents on desk",
+      "must_have": [
+        "documents",
+        "desk"
+      ],
+      "avoid": [
+        "sports game",
+        "restaurant dining",
+        "music concert"
+      ],
+      "reason": "Demonstra o debate científico e os relatórios publicados sobre o caso."
+    },
+    {
+      "scene": 11,
+      "segment": "Comente sua opinião e inscreva-se.",
+      "visual_mode": "abstract_context",
+      "shot_type": "close_up",
+      "query_before": "question mark symbol on dark mystery background",
+      "query_after": "question mark symbol on dark mysterious background",
+      "must_have": [
+        "question mark"
+      ],
+      "avoid": [
+        "phone screen",
+        "computer monitor",
+        "hand clicking",
+        "social media icon",
+        "thumbs up"
+      ],
+      "reason": "Mantém o tom analítico e aberto para a pergunta final ao espectador."
+    },
+    {
+      "scene": 12,
+      "segment": "A misteriosa tragédia médica continua sem resposta definitiva.",
+      "visual_mode": "location",
+      "shot_type": "wide",
+      "query_before": "empty dark hospital hallway eerie dramatic lighting",
+      "query_after": "empty dark hospital hallway eerie dramatic lighting",
+      "must_have": [
+        "hospital hallway",
+        "darkness"
+      ],
+      "avoid": [
+        "bright sunny day",
+        "happy people",
+        "crowded street"
+      ],
+      "reason": "Encerra o documentário com o ambiente misterioso do hospital sem respostas definitivas."
+    }
+  ]
+}
