@@ -136,3 +136,23 @@ config.sh
 
 # arquivo avulso ainda não identificado
 aa
+
+# =========================
+# SAÍDAS DE EXECUÇÃO - ROTEIROS
+# =========================
+roteiros/cold_open_*.json
+roteiros/continuity_*.json
+roteiros/documentary_director_*.json
+roteiros/fonte_*.txt
+roteiros/scene_truth_refiner_*.json
+roteiros/semantic_integrity_*.json
+roteiros/short_*.txt
+roteiros/short_pre_*.txt
+roteiros/topic_*.txt
+roteiros/topic_verified_*.json
+roteiros/used_topic_*.txt
+roteiros/visual_director_*.json
+roteiros/visual_risk_*.json
+
+# resultados locais de auditoria
+score_candidate_binding_audit.json
