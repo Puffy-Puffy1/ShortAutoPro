@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from short_id_runtime_v1 import resolve_short_id as _sap_resolve_short_id
 
 import copy
 import hashlib
@@ -21,7 +22,7 @@ VERSION = "900.00"
 BASE = Path.home() / "ShortAutoPro"
 LOG = BASE / "logs/producao"
 
-SHORT_ID = "2026-09-01_1433"
+SHORT_ID = _sap_resolve_short_id()
 
 VI800_MANIFEST = (
     BASE /

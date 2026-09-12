@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from short_id_runtime_v1 import resolve_short_id as _sap_resolve_short_id
 
 import hashlib
 import json
@@ -293,7 +294,7 @@ def evaluate():
             "VI235_MEDIA_PROVENANCE_CERTIFIED",
 
         "short_id":
-            "2026-09-01_1433",
+            _sap_resolve_short_id(),
 
         "scene":
             2,

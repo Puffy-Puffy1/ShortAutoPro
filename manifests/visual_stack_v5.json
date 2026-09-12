@@ -1,0 +1,20 @@
+{
+  "version": "5.0",
+  "timestamp": "20260911_122924",
+  "backup": "/data/data/com.termux/files/home/ShortAutoPro/backups/visual_consolidation_v5_20260911_122924",
+  "files": {
+    "midia.py": "61032280855d2a2a3d01dc78a637af02062f006a2a61d88a5dd9eedfd2e50cb2",
+    "visual_selection_engine_v4.py": "14ab07335b929c67ad2716c254dd05c9c0fd507e8b368b48f5cf033dd5f568be",
+    "visual_engine_unified.py": "5770be8e3936444b1b03089b9c45a71817283603b9fca3e0f53a2b2ad7808007"
+  },
+  "features": {
+    "semantic": true,
+    "geography": true,
+    "false_medical": true,
+    "generic_lifestyle": true,
+    "provider_diversity": true,
+    "type_diversity": true,
+    "single_scene_commit": true,
+    "fail_open": true
+  }
+}

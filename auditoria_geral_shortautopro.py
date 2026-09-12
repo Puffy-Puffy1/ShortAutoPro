@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 
-from __future__ import annotations
-
+from pathlib import Path
+from collections import Counter
 import ast
 import builtins
 import hashlib
+import importlib.util
 import json
 import os
 import py_compile
@@ -12,125 +13,61 @@ import re
 import shutil
 import subprocess
 import symtable
-import sys
 import time
 import traceback
-from collections import Counter, defaultdict
-from datetime import datetime
-from pathlib import Path
 
 
-# ============================================================
-# SHORTAUTOPRO MASTER AUDIT V1
-# ============================================================
+ROOT = Path.home() / "ShortAutoPro"
+os.chdir(ROOT)
 
-ROOT = Path.cwd()
+STAMP = time.strftime("%Y%m%d_%H%M%S")
 
-if ROOT.name != "ShortAutoPro":
-    fallback = Path.home() / "ShortAutoPro"
-
-    if fallback.is_dir():
-        ROOT = fallback
+RESULTS = []
+PASS = 0
+WARN = 0
+FAIL = 0
 
 
-STAMP = datetime.now().strftime(
-    "%Y%m%d_%H%M%S"
-)
+def banner(title):
 
-REPORT_TXT = (
-    ROOT
-    / "temp"
-    / f"AUDITORIA_GERAL_{STAMP}.txt"
-)
-
-REPORT_JSON = (
-    ROOT
-    / "manifests"
-    / f"auditoria_geral_{STAMP}.json"
-)
+    print()
+    print("=" * 78)
+    print(title)
+    print("=" * 78)
 
 
-REPORT_TXT.parent.mkdir(
-    parents=True,
-    exist_ok=True,
-)
+def record(status, name, detail=""):
 
-REPORT_JSON.parent.mkdir(
-    parents=True,
-    exist_ok=True,
-)
-
-
-results = []
-log_lines = []
-
-
-def out(*parts):
-
-    line = " ".join(
-        str(x)
-        for x in parts
-    )
-
-    print(
-        line,
-        flush=True,
-    )
-
-    log_lines.append(
-        line
-    )
-
-
-def section(title):
-
-    out()
-    out("=" * 72)
-    out(title)
-    out("=" * 72)
-
-
-def result(
-    section_name,
-    test,
-    status,
-    detail="",
-):
+    global PASS, WARN, FAIL
 
     status = status.upper()
 
-    if status not in {
-        "PASS",
-        "WARN",
-        "FAIL",
-        "INFO",
-    }:
-        status = "INFO"
+    if status == "PASS":
+        PASS += 1
 
-    item = {
-        "section": section_name,
-        "test": test,
-        "status": status,
-        "detail": str(detail),
-    }
+    elif status == "WARN":
+        WARN += 1
 
-    results.append(
-        item
-    )
+    else:
+        FAIL += 1
+        status = "FAIL"
 
-    line = (
-        f"[{status}] "
-        f"{section_name} :: "
-        f"{test}"
-    )
-
-    if detail:
-        line += (
-            f" -> {detail}"
+    RESULTS.append(
+        (
+            status,
+            name,
+            str(detail),
         )
+    )
 
-    out(
-        line
+    print(
+        f"{status:4} | {name}"
+        +
+        (
+            f" | {detail}"
+            if detail
+            else ""
+        )
     )
 
 
@@ -138,359 +75,321 @@ def sha256(path):
 
     h = hashlib.sha256()
 
-    try:
+    with Path(path).open("rb") as f:
 
-        with path.open(
-            "rb"
-        ) as f:
+        for chunk in iter(
+            lambda: f.read(
+                1024 * 1024
+            ),
+            b"",
+        ):
 
-            for chunk in iter(
-                lambda:
-                    f.read(
-                        1024 * 1024
-                    ),
-                b"",
-            ):
+            h.update(chunk)
 
-                h.update(
-                    chunk
-                )
-
-        return h.hexdigest()
-
-    except Exception:
-
-        return ""
+    return h.hexdigest()
 
 
 def run(
-    cmd,
+    command,
     timeout=30,
-    env=None,
 ):
 
     try:
 
-        p = subprocess.run(
-            cmd,
+        result = subprocess.run(
+            command,
             cwd=ROOT,
-            env=env,
             text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
+            capture_output=True,
             timeout=timeout,
         )
 
         return (
-            p.returncode,
-            p.stdout or "",
+            result.returncode,
+            result.stdout,
+            result.stderr,
         )
 
-    except subprocess.TimeoutExpired as exc:
-
-        text = ""
-
-        if exc.stdout:
-            text += (
-                exc.stdout
-                if isinstance(
-                    exc.stdout,
-                    str,
-                )
-                else
-                exc.stdout.decode(
-                    errors="replace"
-                )
-            )
+    except subprocess.TimeoutExpired:
 
         return (
             124,
-            text
-            + "\nTIMEOUT",
+            "",
+            "TIMEOUT",
         )
 
     except Exception as exc:
 
         return (
             125,
+            "",
             f"{type(exc).__name__}: {exc}",
         )
 
 
-def tail(
-    text,
-    lines=15,
-):
+def production_python_files():
 
-    rows = (
-        text
-        .strip()
-        .splitlines()
-    )
+    files = []
 
-    return "\n".join(
-        rows[-lines:]
-    )
+    for path in ROOT.glob("*.py"):
+
+        name = path.name.casefold()
+
+        if "backup" in name:
+            continue
+
+        if name.startswith("."):
+            continue
+
+        files.append(path)
+
+    return sorted(files)
 
 
-# ============================================================
-# SHORT ID RESOLVER
-# ============================================================
+def discover_short_id():
 
-def resolve_short_id():
-
-    explicit = os.environ.get(
+    env = os.environ.get(
         "SHORT_ID",
         "",
     ).strip()
 
-    if explicit:
-        return explicit
-
-
-    media_root = (
-        ROOT
-        / "imagens"
-    )
-
-    if not media_root.is_dir():
-        return ""
+    if env:
+        return env
 
 
     candidates = []
 
-    for path in media_root.glob(
-        "short_*"
-    ):
+    roteiro_dir = ROOT / "roteiros"
 
-        if not path.is_dir():
-            continue
+    if roteiro_dir.exists():
 
-        try:
-            mtime = path.stat().st_mtime
-        except Exception:
-            mtime = 0
-
-        candidates.append(
-            (
-                mtime,
-                path.name[
-                    len("short_"):
-                ],
-            )
+        pattern = re.compile(
+            r"^short_(\d{4}-\d{2}-\d{2}_\d{4})\.txt$"
         )
 
+        for path in roteiro_dir.glob(
+            "short_*.txt"
+        ):
 
-    if not candidates:
-        return ""
+            match = pattern.match(
+                path.name
+            )
+
+            if not match:
+                continue
+
+            candidates.append(
+                (
+                    path.stat().st_mtime,
+                    match.group(1),
+                )
+            )
 
 
-    candidates.sort(
-        reverse=True
-    )
+    if candidates:
 
-    return candidates[0][1]
+        candidates.sort(
+            reverse=True
+        )
+
+        return candidates[0][1]
 
 
-SHORT_ID = resolve_short_id()
+    return ""
 
 
-# ============================================================
-# HEADER
-# ============================================================
-
-section(
-    "0. AUDIT INFORMATION"
+banner(
+    "SHORTAUTOPRO - AUDITORIA GERAL"
 )
 
-out(
+print(
     f"ROOT={ROOT}"
 )
 
-out(
-    f"DATE={datetime.now().isoformat()}"
+print(
+    f"DATE={time.ctime()}"
 )
 
-out(
-    f"PYTHON={sys.version.split()[0]}"
-)
+SHORT_ID = discover_short_id()
 
-out(
-    f"SHORT_ID={SHORT_ID or 'NOT_RESOLVED'}"
-)
-
-out(
-    "MODE=OFFLINE_SAFE"
-)
-
-out(
-    "NETWORK_ALLOWED=NO"
-)
-
-out(
-    "MEDIA_DOWNLOAD=NO"
-)
-
-out(
-    "VIDEO_RENDER=NO"
+print(
+    f"SHORT_ID={SHORT_ID or 'NOT_DETECTED'}"
 )
 
 
-# ============================================================
-# 1. PROJECT STRUCTURE
-# ============================================================
+# ================================================================
+# 1. STORAGE / ENVIRONMENT
+# ================================================================
 
-section(
-    "1. PROJECT STRUCTURE"
+banner(
+    "1. ENVIRONMENT / STORAGE"
 )
 
-required_dirs = [
-    "roteiros",
-    "imagens",
-    "audios",
-    "videos",
-    "temp",
-    "logs",
-    "manifests",
-    "backups",
-]
+try:
 
+    usage = shutil.disk_usage(ROOT)
 
-for name in required_dirs:
+    free_mb = (
+        usage.free
+        /
+        1024
+        /
+        1024
+    )
 
-    path = ROOT / name
+    total_mb = (
+        usage.total
+        /
+        1024
+        /
+        1024
+    )
 
-    result(
-        "STRUCTURE",
-        name,
-        (
-            "PASS"
-            if path.is_dir()
-            else
-            "WARN"
-        ),
-        path,
+    print(
+        f"DISK_TOTAL_MB={total_mb:.1f}"
+    )
+
+    print(
+        f"DISK_FREE_MB={free_mb:.1f}"
+    )
+
+    if free_mb >= 1000:
+        record(
+            "PASS",
+            "FREE_STORAGE",
+            f"{free_mb:.0f} MB",
+        )
+
+    elif free_mb >= 400:
+        record(
+            "WARN",
+            "FREE_STORAGE",
+            f"somente {free_mb:.0f} MB",
+        )
+
+    else:
+        record(
+            "FAIL",
+            "FREE_STORAGE",
+            f"crítico: {free_mb:.0f} MB",
+        )
+
+except Exception as exc:
+
+    record(
+        "WARN",
+        "DISK_CHECK",
+        exc,
     )
 
 
-required_core = [
+code, out, err = run(
+    [
+        "python",
+        "--version",
+    ]
+)
+
+record(
+    "PASS"
+    if code == 0
+    else "FAIL",
+    "PYTHON",
+    (
+        out.strip()
+        or
+        err.strip()
+    ),
+)
+
+
+code, out, err = run(
+    [
+        "ffmpeg",
+        "-version",
+    ]
+)
+
+record(
+    "PASS"
+    if code == 0
+    else "FAIL",
+    "FFMPEG",
+    (
+        out.splitlines()[0]
+        if out
+        else err
+    ),
+)
+
+
+# ================================================================
+# 2. CORE FILES
+# ================================================================
+
+banner(
+    "2. CORE FILES"
+)
+
+core_files = [
+
+    "gerar_short.sh",
+
     "midia.py",
     "video.py",
     "v6.py",
-    "gerar_short.sh",
+
     "legenda_dinamica.py",
-]
 
-
-for name in required_core:
-
-    path = ROOT / name
-
-    result(
-        "CORE_FILES",
-        name,
-        (
-            "PASS"
-            if path.is_file()
-            else
-            "FAIL"
-        ),
-        path,
-    )
-
-
-# ============================================================
-# 2. CORE HASHES
-# ============================================================
-
-section(
-    "2. CORE HASHES"
-)
-
-core_hash_files = [
-    "midia.py",
-    "video.py",
-    "v6.py",
-    "gerar_short.sh",
-    "visual_selection_engine_v4.py",
     "media_diversity_guard_v1.py",
     "media_provenance_capture_v1.py",
+
+    "visual_selection_engine_v4.py",
+    "visual_selection_final_gate_v3.py",
+
+    "visual_scene_commit_lock_v1.py",
+    "visual_must_rescue_v1.py",
+
     "fresh_render_guard_v1.py",
+    "render_input_fingerprint_v1.py",
 ]
 
 
-for name in core_hash_files:
+for name in core_files:
 
     path = ROOT / name
 
     if path.is_file():
 
-        result(
-            "HASH",
-            name,
-            "INFO",
-            sha256(
-                path
-            ),
+        record(
+            "PASS",
+            f"CORE_{name}",
+            sha256(path)[:16],
         )
 
     else:
 
-        result(
-            "HASH",
-            name,
-            "WARN",
+        record(
+            "FAIL",
+            f"CORE_{name}",
             "arquivo ausente",
         )
 
 
-# ============================================================
-# 3. PYTHON SYNTAX — FULL PROJECT
-# ============================================================
+# ================================================================
+# 3. PYTHON SYNTAX
+# ================================================================
 
-section(
-    "3. PYTHON COMPILE AUDIT"
+banner(
+    "3. PYTHON COMPILE - PRODUCTION"
 )
 
-excluded_parts = {
-    "backups",
-    "temp",
-    "__pycache__",
-    ".git",
-    "storage",
-    ".venv",
-    "venv",
-}
+py_files = production_python_files()
+
+compile_failed = []
 
 
-python_files = []
-
-for path in ROOT.rglob(
-    "*.py"
-):
-
-    relative = path.relative_to(
-        ROOT
-    )
-
-    if any(
-        part in excluded_parts
-        for part in relative.parts
-    ):
-        continue
-
-    python_files.append(
-        path
-    )
-
-
-python_files.sort()
-
-
-compile_failures = []
-
-
-for path in python_files:
+for path in py_files:
 
     try:
 
@@ -501,179 +400,276 @@ for path in python_files:
 
     except Exception as exc:
 
-        compile_failures.append(
+        compile_failed.append(
             (
-                path.relative_to(
-                    ROOT
-                ),
+                path.name,
                 str(exc),
             )
         )
 
 
-result(
-    "PYTHON",
-    "FILES_TESTED",
-    "INFO",
-    len(
-        python_files
-    ),
+print(
+    f"PYTHON_FILES_CHECKED={len(py_files)}"
 )
 
 
-if compile_failures:
+if compile_failed:
 
-    result(
-        "PYTHON",
-        "COMPILE_ALL",
+    record(
         "FAIL",
-        f"{len(compile_failures)} arquivo(s)",
+        "PYTHON_COMPILE",
+        f"{len(compile_failed)} arquivos",
     )
 
-    for path, exc in compile_failures[:30]:
+    for name, error in compile_failed[:50]:
 
-        out(
-            f"COMPILE_FAIL={path} :: {exc}"
+        print(
+            f"  COMPILE_FAIL={name}"
+        )
+
+        print(
+            f"    {error}"
         )
 
 else:
 
-    result(
-        "PYTHON",
-        "COMPILE_ALL",
+    record(
         "PASS",
-        f"{len(python_files)} arquivos",
+        "PYTHON_COMPILE",
+        f"{len(py_files)} arquivos",
     )
 
 
-# ============================================================
-# 4. SHELL SYNTAX
-# ============================================================
+# ================================================================
+# 4. AST PARSE
+# ================================================================
 
-section(
-    "4. SHELL SYNTAX"
+banner(
+    "4. AST STRUCTURE"
 )
 
-shell_files = []
-
-for path in ROOT.rglob(
-    "*.sh"
-):
-
-    relative = path.relative_to(
-        ROOT
-    )
-
-    if any(
-        part in excluded_parts
-        for part in relative.parts
-    ):
-        continue
-
-    shell_files.append(
-        path
-    )
+ast_failed = []
 
 
-shell_failures = []
+for path in py_files:
 
+    try:
 
-for path in sorted(
-    shell_files
-):
+        ast.parse(
+            path.read_text(
+                encoding="utf-8",
+                errors="replace",
+            )
+        )
 
-    code, text = run(
-        [
-            "bash",
-            "-n",
-            str(path),
-        ],
-        timeout=10,
-    )
+    except Exception as exc:
 
-    if code != 0:
-
-        shell_failures.append(
+        ast_failed.append(
             (
-                path.relative_to(
-                    ROOT
-                ),
-                tail(
-                    text,
-                    5,
-                ),
+                path.name,
+                str(exc),
             )
         )
 
 
-result(
-    "SHELL",
-    "FILES_TESTED",
-    "INFO",
-    len(
-        shell_files
-    ),
-)
+if ast_failed:
 
-
-if shell_failures:
-
-    result(
-        "SHELL",
-        "SYNTAX_ALL",
+    record(
         "FAIL",
-        len(
-            shell_failures
-        ),
+        "AST_PARSE",
+        len(ast_failed),
     )
 
-    for path, message in shell_failures:
+    for item in ast_failed:
 
-        out(
-            f"SHELL_FAIL={path} :: {message}"
+        print(
+            "AST_FAIL=",
+            item,
         )
 
 else:
 
-    result(
-        "SHELL",
-        "SYNTAX_ALL",
+    record(
         "PASS",
+        "AST_PARSE",
+        f"{len(py_files)} arquivos",
     )
 
 
-# ============================================================
-# 5. DUPLICATE DEFINITIONS
-# ============================================================
+# ================================================================
+# 5. SHELL SYNTAX
+# ================================================================
 
-section(
-    "5. DUPLICATE FUNCTION / CLASS AUDIT"
+banner(
+    "5. SHELL SYNTAX"
 )
 
-duplicate_count = 0
+shell_files = sorted(
+    ROOT.glob("*.sh")
+)
+
+shell_failed = []
 
 
-for path in python_files:
+for path in shell_files:
+
+    code, out, err = run(
+        [
+            "bash",
+            "-n",
+            str(path),
+        ]
+    )
+
+    if code != 0:
+
+        shell_failed.append(
+            (
+                path.name,
+                err.strip(),
+            )
+        )
+
+
+print(
+    f"SHELL_FILES_CHECKED={len(shell_files)}"
+)
+
+
+if shell_failed:
+
+    record(
+        "FAIL",
+        "SHELL_SYNTAX",
+        len(shell_failed),
+    )
+
+    for item in shell_failed:
+
+        print(
+            "SHELL_FAIL=",
+            item,
+        )
+
+else:
+
+    record(
+        "PASS",
+        "SHELL_SYNTAX",
+        len(shell_files),
+    )
+
+
+# ================================================================
+# 6. GERAR_SHORT DEPENDENCIES
+# ================================================================
+
+banner(
+    "6. MAIN PIPELINE DEPENDENCIES"
+)
+
+gerar = ROOT / "gerar_short.sh"
+
+if gerar.is_file():
+
+    text = gerar.read_text(
+        encoding="utf-8",
+        errors="replace",
+    )
+
+
+    refs = set(
+        re.findall(
+            r"(?:python|python3)\s+(?:-u\s+)?([A-Za-z0-9_./-]+\.py)",
+            text,
+        )
+    )
+
+
+    print(
+        f"PIPELINE_PYTHON_REFERENCES={len(refs)}"
+    )
+
+
+    missing = []
+
+
+    for ref in sorted(refs):
+
+        path = ROOT / ref
+
+        if path.exists():
+
+            print(
+                f"PIPELINE_SCRIPT=PASS | {ref}"
+            )
+
+        else:
+
+            print(
+                f"PIPELINE_SCRIPT=MISSING | {ref}"
+            )
+
+            missing.append(ref)
+
+
+    if missing:
+
+        record(
+            "FAIL",
+            "PIPELINE_DEPENDENCIES",
+            ",".join(missing),
+        )
+
+    else:
+
+        record(
+            "PASS",
+            "PIPELINE_DEPENDENCIES",
+            len(refs),
+        )
+
+
+else:
+
+    record(
+        "FAIL",
+        "PIPELINE_DEPENDENCIES",
+        "gerar_short.sh ausente",
+    )
+
+
+# ================================================================
+# 7. DUPLICATE TOP-LEVEL DEFINITIONS
+# ================================================================
+
+banner(
+    "7. DUPLICATE DEFINITIONS"
+)
+
+duplicate_files = []
+
+
+for path in py_files:
 
     try:
 
-        src = path.read_text(
-            encoding="utf-8",
-            errors="replace",
-        )
-
         tree = ast.parse(
-            src
+            path.read_text(
+                encoding="utf-8",
+                errors="replace",
+            )
         )
 
     except Exception:
-
         continue
 
 
-    names = Counter()
+    names = [
 
-    for node in tree.body:
+        node.name
+
+        for node in tree.body
 
         if isinstance(
             node,
@@ -682,88 +678,78 @@ for path in python_files:
                 ast.AsyncFunctionDef,
                 ast.ClassDef,
             ),
-        ):
-
-            names[
-                node.name
-            ] += 1
-
-
-    duplicated = [
-        name
-        for name, count
-        in names.items()
-        if count > 1
+        )
     ]
 
 
-    if duplicated:
+    counts = Counter(names)
 
-        duplicate_count += (
-            len(
-                duplicated
+    duplicates = {
+
+        name: count
+
+        for name, count
+        in counts.items()
+
+        if count > 1
+    }
+
+
+    if duplicates:
+
+        duplicate_files.append(
+            (
+                path.name,
+                duplicates,
             )
         )
 
-        out(
-            "DUPLICATE_DEFINITION="
-            f"{path.relative_to(ROOT)} :: "
-            f"{','.join(duplicated)}"
+
+if duplicate_files:
+
+    record(
+        "WARN",
+        "DUPLICATE_DEFINITIONS",
+        len(duplicate_files),
+    )
+
+    for name, duplicates in duplicate_files:
+
+        print(
+            f"DUPLICATE={name} | {duplicates}"
         )
 
-
-if duplicate_count:
-
-    result(
-        "AST",
-        "DUPLICATE_DEFINITIONS",
-        "WARN",
-        duplicate_count,
-    )
-
 else:
 
-    result(
-        "AST",
-        "DUPLICATE_DEFINITIONS",
+    record(
         "PASS",
+        "DUPLICATE_DEFINITIONS",
+        "NONE",
     )
 
 
-# ============================================================
-# 6. VSE4 GLOBAL AUDIT
-# ============================================================
+# ================================================================
+# 8. VSE4 GLOBAL AUDIT
+# ================================================================
 
-section(
-    "6. VSE4 STATIC AUDIT"
+banner(
+    "8. VSE4 GLOBAL AUDIT"
 )
 
-vse4 = (
-    ROOT
-    / "visual_selection_engine_v4.py"
-)
+vse = ROOT / "visual_selection_engine_v4.py"
 
-
-if not vse4.is_file():
-
-    result(
-        "VSE4",
-        "FILE",
-        "WARN",
-        "visual_selection_engine_v4.py ausente",
-    )
-
-else:
+if vse.is_file():
 
     try:
 
-        src = vse4.read_text(
+        source = vse.read_text(
             encoding="utf-8",
+            errors="replace",
         )
 
         table = symtable.symtable(
-            src,
-            str(vse4),
+            source,
+            str(vse),
             "exec",
         )
 
@@ -786,25 +772,26 @@ else:
 
 
         builtin_names = set(
-            dir(
-                builtins
-            )
+            dir(builtins)
         )
+
+        ignored = {
+            "__name__",
+            "__file__",
+            "__package__",
+            "__spec__",
+        }
 
         unresolved = set()
 
 
-        def walk_scope(
-            scope,
-        ):
+        def walk(scope):
 
             for child in scope.get_children():
 
                 for symbol in child.get_symbols():
 
-                    name = (
-                        symbol.get_name()
-                    )
+                    name = symbol.get_name()
 
                     if not symbol.is_referenced():
                         continue
@@ -818,442 +805,422 @@ else:
                     if name in builtin_names:
                         continue
 
-                    unresolved.add(
-                        name
-                    )
+                    if name in ignored:
+                        continue
 
-                walk_scope(
-                    child
-                )
+                    unresolved.add(name)
+
+                walk(child)
 
 
-        walk_scope(
-            table
-        )
+        walk(table)
 
 
         if unresolved:
 
-            result(
-                "VSE4",
-                "UNRESOLVED_GLOBALS",
+            record(
                 "FAIL",
+                "VSE4_UNRESOLVED_GLOBALS",
                 ",".join(
-                    sorted(
-                        unresolved
-                    )
+                    sorted(unresolved)
                 ),
             )
 
         else:
 
-            result(
-                "VSE4",
-                "UNRESOLVED_GLOBALS",
+            record(
                 "PASS",
+                "VSE4_UNRESOLVED_GLOBALS",
+                "NONE",
             )
 
 
     except Exception as exc:
 
-        result(
-            "VSE4",
-            "STATIC_AUDIT",
+        record(
             "FAIL",
-            f"{type(exc).__name__}: {exc}",
+            "VSE4_GLOBAL_AUDIT",
+            exc,
         )
 
+else:
 
-# ============================================================
-# 7. VSE4 SELF TEST
-# ============================================================
+    record(
+        "FAIL",
+        "VSE4_GLOBAL_AUDIT",
+        "arquivo ausente",
+    )
 
-section(
-    "7. VSE4 RUNTIME SELF TEST"
+
+# ================================================================
+# 9. VSE4 SELF TEST
+# ================================================================
+
+banner(
+    "9. VSE4 RUNTIME SELF TEST"
 )
 
+if vse.is_file():
 
-if vse4.is_file():
-
-    code, text = run(
+    code, out, err = run(
         [
-            sys.executable,
-            str(vse4),
+            "python",
+            str(vse),
         ],
-        timeout=30,
+        timeout=45,
     )
+
+
+    combined = (
+        out
+        +
+        "\n"
+        +
+        err
+    ).strip()
 
 
     if code == 0:
 
-        result(
-            "VSE4",
-            "SELF_TEST",
+        record(
             "PASS",
+            "VSE4_SELF_TEST",
+            "exit=0",
         )
 
     else:
 
-        result(
-            "VSE4",
-            "SELF_TEST",
+        record(
             "FAIL",
+            "VSE4_SELF_TEST",
             f"exit={code}",
         )
 
-        out(
-            "VSE4_SELF_TEST_TAIL:"
+
+        print()
+        print(
+            "----- VSE4 SELF TEST TAIL -----"
         )
 
-        out(
-            tail(
-                text,
-                30,
-            )
-        )
+        for line in combined.splitlines()[-50:]:
+
+            print(line)
 
 
-# ============================================================
-# 8. VSE4 HARD MISMATCH REGRESSION
-# ============================================================
+else:
 
-section(
-    "8. VSE4 HARD-MISMATCH REGRESSION"
-)
-
-
-if vse4.is_file():
-
-    probe = r'''
-import json
-import runpy
-
-ns = runpy.run_path(
-    "visual_selection_engine_v4.py",
-    run_name="sap_master_audit",
-)
-
-score_candidate = ns["score_candidate"]
-
-state = {
-    "providers": [
-        "pixabay",
-        "pixabay",
-    ],
-    "groups": [],
-    "types": [],
-    "keys": [],
-}
-
-scene = (
-    "Investigação em apartamento "
-    "na cidade de São Paulo"
-)
-
-wrong = {
-    "provider": "Pixabay",
-    "tipo": "foto",
-    "title":
-        "Empire State Building New York",
-    "must": "2/2",
-    "score": 220,
-    "width": 1920,
-    "height": 1080,
-}
-
-correct = {
-    "provider": "Wikimedia",
-    "tipo": "foto",
-    "title":
-        "Apartment building Sao Paulo Brazil",
-    "must": "1/2",
-    "score": 120,
-    "width": 1920,
-    "height": 1080,
-}
-
-a = score_candidate(
-    wrong,
-    scene,
-    state,
-)
-
-b = score_candidate(
-    correct,
-    scene,
-    state,
-)
-
-print(
-    json.dumps(
-        {
-            "wrong_hard":
-                a.get(
-                    "hard_mismatch"
-                ),
-
-            "correct_hard":
-                b.get(
-                    "hard_mismatch"
-                ),
-
-            "wrong_effective":
-                a.get(
-                    "effective"
-                ),
-
-            "correct_effective":
-                b.get(
-                    "effective"
-                ),
-
-            "wrong":
-                a,
-
-            "correct":
-                b,
-        },
-        ensure_ascii=False,
-        default=str,
-    )
-)
-'''
-
-
-    code, text = run(
-        [
-            sys.executable,
-            "-c",
-            probe,
-        ],
-        timeout=30,
+    record(
+        "FAIL",
+        "VSE4_SELF_TEST",
+        "arquivo ausente",
     )
 
 
-    if code != 0:
+# ================================================================
+# 10. VSE4 SEMANTIC / GEO TEST
+# ================================================================
 
-        result(
-            "VSE4",
-            "HARD_MISMATCH_RUNTIME",
-            "FAIL",
-            tail(
-                text,
-                12,
-            ),
+banner(
+    "10. VSE4 SEMANTIC QUALITY TEST"
+)
+
+if vse.is_file():
+
+    try:
+
+        import runpy
+
+        ns = runpy.run_path(
+            str(vse),
+            run_name="shortautopro_general_audit",
         )
 
-    else:
 
-        try:
+        score_candidate = ns.get(
+            "score_candidate"
+        )
 
-            data = json.loads(
-                text.strip()
-                .splitlines()[-1]
-            )
-
-
-            wrong_hard = data.get(
-                "wrong_hard"
-            )
-
-            correct_hard = data.get(
-                "correct_hard"
-            )
+        geo_hits = ns.get(
+            "geo_hits"
+        )
 
 
-            wrong_eff = data.get(
-                "wrong_effective"
-            )
+        if not callable(score_candidate):
 
-            correct_eff = data.get(
-                "correct_effective"
-            )
-
-
-            out(
-                f"WRONG_HARD_MISMATCH={wrong_hard}"
-            )
-
-            out(
-                f"CORRECT_HARD_MISMATCH={correct_hard}"
-            )
-
-            out(
-                f"WRONG_EFFECTIVE={wrong_eff}"
-            )
-
-            out(
-                f"CORRECT_EFFECTIVE={correct_eff}"
-            )
-
-
-            if (
-                wrong_hard is True
-                and
-                correct_hard is False
-                and
-                isinstance(
-                    wrong_eff,
-                    (
-                        int,
-                        float,
-                    ),
-                )
-                and
-                isinstance(
-                    correct_eff,
-                    (
-                        int,
-                        float,
-                    ),
-                )
-                and
-                correct_eff
-                >
-                wrong_eff
-            ):
-
-                result(
-                    "VSE4",
-                    "HARD_MISMATCH",
-                    "PASS",
-                )
-
-            else:
-
-                result(
-                    "VSE4",
-                    "HARD_MISMATCH",
-                    "FAIL",
-                    (
-                        "SP x New York não está "
-                        "sendo tratado corretamente"
-                    ),
-                )
-
-
-        except Exception as exc:
-
-            result(
-                "VSE4",
-                "HARD_MISMATCH_PARSE",
+            record(
                 "FAIL",
-                f"{type(exc).__name__}: {exc}",
+                "VSE4_SCORE_FUNCTION",
+                "score_candidate ausente",
+            )
+
+        else:
+
+            state = {
+                "providers": [
+                    "pixabay",
+                    "pixabay",
+                ],
+                "groups": [],
+                "types": [],
+                "keys": [],
+            }
+
+
+            scene = (
+                "Investigação em apartamento "
+                "na cidade de São Paulo"
             )
 
 
-# ============================================================
-# 9. PROVIDER ACQUISITION MAP
-# ============================================================
+            wrong = {
+                "provider": "Pixabay",
+                "tipo": "foto",
+                "title":
+                    "Empire State Building New York",
+                "must": "2/2",
+                "score": 220,
+                "width": 1920,
+                "height": 1080,
+            }
 
-section(
-    "9. PROVIDER ACQUISITION AUDIT"
+
+            correct = {
+                "provider": "Wikimedia",
+                "tipo": "foto",
+                "title":
+                    "Apartment building Sao Paulo Brazil",
+                "must": "1/2",
+                "score": 120,
+                "width": 1920,
+                "height": 1080,
+            }
+
+
+            a = score_candidate(
+                wrong,
+                scene,
+                state,
+            )
+
+            b = score_candidate(
+                correct,
+                scene,
+                state,
+            )
+
+
+            print(
+                "WRONG_HARD_MISMATCH=",
+                a.get(
+                    "hard_mismatch"
+                ),
+            )
+
+            print(
+                "WRONG_EFFECTIVE=",
+                a.get(
+                    "effective"
+                ),
+            )
+
+            print(
+                "CORRECT_HARD_MISMATCH=",
+                b.get(
+                    "hard_mismatch"
+                ),
+            )
+
+            print(
+                "CORRECT_EFFECTIVE=",
+                b.get(
+                    "effective"
+                ),
+            )
+
+
+            geo_ok = False
+
+            if callable(geo_hits):
+
+                sp_geo = set(
+                    geo_hits(
+                        "São Paulo Brasil"
+                    )
+                )
+
+                ny_geo = set(
+                    geo_hits(
+                        "Empire State Building "
+                        "Manhattan New York"
+                    )
+                )
+
+                print(
+                    "SAO_PAULO_GEO=",
+                    sorted(sp_geo),
+                )
+
+                print(
+                    "NEW_YORK_GEO=",
+                    sorted(ny_geo),
+                )
+
+
+                geo_ok = (
+                    bool(sp_geo)
+                    and
+                    bool(ny_geo)
+                    and
+                    sp_geo != ny_geo
+                )
+
+
+            semantic_ok = (
+                a.get(
+                    "hard_mismatch"
+                )
+                is True
+                and
+                b.get(
+                    "hard_mismatch"
+                )
+                is False
+                and
+                float(
+                    b.get(
+                        "effective",
+                        -999999,
+                    )
+                )
+                >
+                float(
+                    a.get(
+                        "effective",
+                        999999,
+                    )
+                )
+            )
+
+
+            record(
+                "PASS"
+                if geo_ok
+                else "FAIL",
+                "VSE4_GEO_DISTINCTION",
+            )
+
+
+            record(
+                "PASS"
+                if semantic_ok
+                else "FAIL",
+                "VSE4_HARD_MISMATCH_LOGIC",
+                (
+                    "São Paulo vs New York"
+                ),
+            )
+
+
+    except Exception as exc:
+
+        record(
+            "FAIL",
+            "VSE4_SEMANTIC_TEST",
+            f"{type(exc).__name__}: {exc}",
+        )
+
+        traceback.print_exc()
+
+
+# ================================================================
+# 11. PROVIDER ACQUISITION
+# ================================================================
+
+banner(
+    "11. PROVIDER ACQUISITION"
 )
 
-midia = (
-    ROOT
-    / "midia.py"
-)
+midia = ROOT / "midia.py"
 
 
-provider_functions = {
+required_provider_functions = (
     "pexels_video",
     "pexels_foto",
     "pixabay_video",
     "pixabay_foto",
     "coverr_video",
-}
+    "buscar_todos_candidatos",
+)
 
 
-if not midia.is_file():
-
-    result(
-        "MEDIA",
-        "MIDIA_PY",
-        "FAIL",
-        "ausente",
-    )
-
-else:
+if midia.is_file():
 
     try:
 
-        src = midia.read_text(
-            encoding="utf-8",
-            errors="replace",
-        )
-
         tree = ast.parse(
-            src
+            midia.read_text(
+                encoding="utf-8",
+                errors="replace",
+            )
         )
 
 
         definitions = {
-            node.name:
-                node
+
+            node.name: node
+
             for node in tree.body
+
             if isinstance(
                 node,
-                (
-                    ast.FunctionDef,
-                    ast.AsyncFunctionDef,
-                ),
+                ast.FunctionDef,
             )
         }
 
 
-        missing_defs = (
-            provider_functions
-            -
-            set(
-                definitions
-            )
-        )
+        missing = []
 
 
-        if missing_defs:
+        for name in required_provider_functions:
 
-            result(
-                "MEDIA",
-                "PROVIDER_DEFINITIONS",
-                "FAIL",
-                ",".join(
-                    sorted(
-                        missing_defs
-                    )
-                ),
-            )
+            node = definitions.get(name)
 
-        else:
+            if node:
 
-            result(
-                "MEDIA",
-                "PROVIDER_DEFINITIONS",
-                "PASS",
-            )
+                print(
+                    f"PROVIDER_FUNCTION_{name}=PASS "
+                    f"lines={node.lineno}-{node.end_lineno}"
+                )
+
+            else:
+
+                print(
+                    f"PROVIDER_FUNCTION_{name}=MISSING"
+                )
+
+                missing.append(name)
 
 
-        search_fn = definitions.get(
+        buscar = definitions.get(
             "buscar_todos_candidatos"
         )
 
 
-        if search_fn is None:
+        expected_calls = {
+            "pexels_video",
+            "pexels_foto",
+            "pixabay_video",
+            "pixabay_foto",
+            "coverr_video",
+        }
 
-            result(
-                "MEDIA",
-                "BUSCAR_TODOS_CANDIDATOS",
-                "FAIL",
-                "função ausente",
-            )
 
-        else:
+        found_calls = set()
 
-            calls = set()
 
-            for node in ast.walk(
-                search_fn
-            ):
+        if buscar:
+
+            for node in ast.walk(buscar):
 
                 if not isinstance(
                     node,
@@ -1261,946 +1228,801 @@ else:
                 ):
                     continue
 
-                fn = node.func
-
                 if isinstance(
-                    fn,
+                    node.func,
                     ast.Name,
                 ):
 
-                    calls.add(
-                        fn.id
-                    )
+                    if (
+                        node.func.id
+                        in expected_calls
+                    ):
 
-                elif isinstance(
-                    fn,
-                    ast.Attribute,
-                ):
-
-                    calls.add(
-                        fn.attr
-                    )
+                        found_calls.add(
+                            node.func.id
+                        )
 
 
-            for provider_name in sorted(
-                provider_functions
-            ):
+        for name in sorted(
+            expected_calls
+        ):
 
-                result(
-                    "MEDIA_PROVIDER",
-                    provider_name,
-                    (
-                        "PASS"
-                        if provider_name
-                        in calls
-                        else
-                        "FAIL"
-                    ),
-                    (
-                        "chamado em buscar_todos_candidatos"
-                        if provider_name
-                        in calls
-                        else
-                        "NÃO chamado"
-                    ),
+            print(
+                f"ACQUISITION_CALL_{name}="
+                +
+                (
+                    "PASS"
+                    if name in found_calls
+                    else "MISSING"
                 )
+            )
 
 
-            result(
-                "MEDIA_PROVIDER",
-                "CALLS_TOTAL",
-                "INFO",
-                ",".join(
-                    sorted(
-                        calls
-                    )
+        missing_calls = (
+            expected_calls
+            -
+            found_calls
+        )
+
+
+        if missing or missing_calls:
+
+            record(
+                "FAIL",
+                "PROVIDER_ACQUISITION",
+                (
+                    f"functions={missing} "
+                    f"calls={sorted(missing_calls)}"
                 ),
+            )
+
+        else:
+
+            record(
+                "PASS",
+                "PROVIDER_ACQUISITION",
+                "estrutura completa",
             )
 
 
     except Exception as exc:
 
-        result(
-            "MEDIA",
-            "AST_PROVIDER_AUDIT",
+        record(
             "FAIL",
-            f"{type(exc).__name__}: {exc}",
+            "PROVIDER_ACQUISITION",
+            exc,
         )
 
 
-# ============================================================
-# 10. EXTERNAL TOOLS
-# ============================================================
+# ================================================================
+# 12. VSE INTEGRATION STATUS
+# ================================================================
 
-section(
-    "10. EXTERNAL DEPENDENCIES"
+banner(
+    "12. VISUAL ENGINE INTEGRATION"
 )
 
+if midia.is_file():
 
-for command in [
-    "ffmpeg",
-    "ffprobe",
-]:
-
-    binary = shutil.which(
-        command
-    )
-
-    result(
-        "DEPENDENCY",
-        command,
-        (
-            "PASS"
-            if binary
-            else
-            "FAIL"
-        ),
-        binary or "não encontrado",
+    midia_text = midia.read_text(
+        encoding="utf-8",
+        errors="replace",
     )
 
 
-whisper_candidates = [
-    (
-        Path.home()
-        / "whisper.cpp"
-        / "build"
-        / "bin"
-        / "whisper-cli"
-    ),
+    checks = {
 
-    (
-        Path.home()
-        / "whisper.cpp"
-        / "main"
-    ),
-]
+        "VSE4":
+            "visual_selection_engine_v4"
+            in midia_text,
 
-
-whisper_bin = next(
-    (
-        p
-        for p
-        in whisper_candidates
-        if p.is_file()
-    ),
-    None,
-)
-
-
-result(
-    "DEPENDENCY",
-    "WHISPER",
-    (
-        "PASS"
-        if whisper_bin
-        else
-        "WARN"
-    ),
-    whisper_bin or "não encontrado",
-)
-
-
-whisper_model = (
-    Path.home()
-    / "whisper.cpp"
-    / "models"
-    / "ggml-base.bin"
-)
-
-
-result(
-    "DEPENDENCY",
-    "WHISPER_MODEL",
-    (
-        "PASS"
-        if whisper_model.is_file()
-        else
-        "WARN"
-    ),
-    whisper_model,
-)
-
-
-piper = (
-    shutil.which(
-        "piper"
-    )
-    or
-    shutil.which(
-        "piper-tts"
-    )
-    or
-    shutil.which(
-        "piper-tts-cli"
-    )
-)
-
-
-result(
-    "DEPENDENCY",
-    "PIPER",
-    (
-        "PASS"
-        if piper
-        else
-        "WARN"
-    ),
-    piper or "não encontrado",
-)
-
-
-# ============================================================
-# 11. FFMPEG FEATURES
-# ============================================================
-
-section(
-    "11. FFMPEG CAPABILITIES"
-)
-
-
-if shutil.which(
-    "ffmpeg"
-):
-
-    code, filters = run(
-        [
-            "ffmpeg",
-            "-hide_banner",
-            "-filters",
-        ],
-        timeout=20,
-    )
-
-
-    for name in [
-        "ass",
-        "subtitles",
-        "zoompan",
-    ]:
-
-        found = bool(
-            re.search(
-                rf"\b{name}\b",
-                filters,
-            )
-        )
-
-        result(
-            "FFMPEG_FILTER",
-            name,
+        "VSE3":
             (
-                "PASS"
-                if found
-                else
-                "FAIL"
+                "visual_selection_final_gate_v3"
+                in midia_text
+                or
+                "VSE3"
+                in midia_text
             ),
+
+        "DIVERSITY":
+            "media_diversity_guard_v1"
+            in midia_text,
+
+        "PROVENANCE":
+            "media_provenance_capture_v1"
+            in midia_text,
+    }
+
+
+    for name, ok in checks.items():
+
+        print(
+            f"MIDIA_{name}="
+            f"{'PASS' if ok else 'MISSING'}"
         )
 
 
-    code, encoders = run(
-        [
-            "ffmpeg",
-            "-hide_banner",
-            "-encoders",
-        ],
-        timeout=20,
+    if checks["VSE4"]:
+
+        record(
+            "PASS",
+            "VSE4_MIDIA_INTEGRATION",
+        )
+
+    else:
+
+        record(
+            "WARN",
+            "VSE4_MIDIA_INTEGRATION",
+            "VSE4 ainda não está ativo em midia.py",
+        )
+
+
+    if checks["DIVERSITY"]:
+
+        record(
+            "PASS",
+            "DIVERSITY_INTEGRATION",
+        )
+
+    else:
+
+        record(
+            "WARN",
+            "DIVERSITY_INTEGRATION",
+            "não encontrado em midia.py",
+        )
+
+
+# ================================================================
+# 13. COMMIT LOCK
+# ================================================================
+
+banner(
+    "13. SCENE COMMIT LOCK"
+)
+
+commit_module = (
+    ROOT
+    /
+    "visual_scene_commit_lock_v1.py"
+)
+
+if commit_module.is_file():
+
+    text = commit_module.read_text(
+        encoding="utf-8",
+        errors="replace",
     )
 
 
-    result(
-        "FFMPEG_ENCODER",
-        "libx264",
+    markers = (
+        "SCENE_COMMIT_LOCK=COMMITTED"
+        in text
+        and
+        "SCENE_COMMIT_LOCK=BLOCKED"
+        in text
+    )
+
+
+    record(
+        "PASS"
+        if markers
+        else "FAIL",
+        "COMMIT_LOCK_MARKERS",
+    )
+
+
+    integration_found = False
+
+
+    for candidate in (
+        ROOT / "midia.py",
+        ROOT / "media_diversity_guard_v1.py",
+    ):
+
+        if candidate.is_file():
+
+            data = candidate.read_text(
+                encoding="utf-8",
+                errors="replace",
+            )
+
+            if (
+                "visual_scene_commit_lock_v1"
+                in data
+                or
+                "SCENE_COMMIT_LOCK"
+                in data
+            ):
+
+                integration_found = True
+
+
+    record(
+        "PASS"
+        if integration_found
+        else "WARN",
+        "COMMIT_LOCK_INTEGRATION",
         (
-            "PASS"
-            if "libx264"
-            in encoders
-            else
-            "FAIL"
+            "found"
+            if integration_found
+            else "módulo existe, integração não detectada"
         ),
     )
 
-
-# ============================================================
-# 12. CURRENT MEDIA
-# ============================================================
-
-section(
-    "12. CURRENT SHORT MEDIA AUDIT"
-)
-
-
-if not SHORT_ID:
-
-    result(
-        "MEDIA_CURRENT",
-        "SHORT_ID",
-        "WARN",
-        "nenhum short resolvido",
-    )
 
 else:
 
+    record(
+        "FAIL",
+        "COMMIT_LOCK_MODULE",
+        "ausente",
+    )
+
+
+# ================================================================
+# 14. CURRENT MEDIA SET
+# ================================================================
+
+banner(
+    "14. CURRENT MEDIA SET"
+)
+
+if SHORT_ID:
+
     media_dir = (
         ROOT
-        / "imagens"
-        / f"short_{SHORT_ID}"
+        /
+        "imagens"
+        /
+        f"short_{SHORT_ID}"
     )
 
 
-    result(
-        "MEDIA_CURRENT",
-        "MEDIA_DIR",
-        (
-            "PASS"
-            if media_dir.is_dir()
-            else
-            "FAIL"
-        ),
-        media_dir,
-    )
+    if not media_dir.is_dir():
 
-
-    hashes = []
-    scene_bad = 0
-    scene_total = 0
-
-
-    for number in range(
-        1,
-        13,
-    ):
-
-        pattern = (
-            f"scene_{number:02d}.*"
+        record(
+            "WARN",
+            "MEDIA_DIRECTORY",
+            str(media_dir),
         )
 
-        files = [
-            p
-            for p
-            in media_dir.glob(
-                pattern
+    else:
+
+        record(
+            "PASS",
+            "MEDIA_DIRECTORY",
+            str(media_dir),
+        )
+
+
+        bad_scene_count = 0
+        all_media = []
+
+
+        for number in range(
+            1,
+            13,
+        ):
+
+            pattern = (
+                f"scene_{number:02d}.*"
             )
-            if p.is_file()
-        ]
 
 
-        count = len(
-            files
-        )
+            matches = [
+
+                p
+
+                for p
+                in media_dir.glob(pattern)
+
+                if p.is_file()
+            ]
 
 
-        scene_total += count
+            print(
+                f"SCENE_{number:02d}_COUNT="
+                f"{len(matches)}"
+            )
 
 
-        if count != 1:
+            if len(matches) != 1:
 
-            scene_bad += 1
+                bad_scene_count += 1
 
-            result(
-                "MEDIA_SCENE",
-                f"scene_{number:02d}",
+
+            all_media.extend(
+                matches
+            )
+
+
+        if bad_scene_count:
+
+            record(
                 "FAIL",
-                f"count={count}",
+                "MEDIA_SCENE_CARDINALITY",
+                f"{bad_scene_count} cenas inválidas",
             )
-
-            continue
-
-
-        path = files[0]
-
-
-        try:
-
-            size = path.stat().st_size
-
-        except Exception:
-
-            size = 0
-
-
-        digest = sha256(
-            path
-        )
-
-        hashes.append(
-            (
-                number,
-                digest,
-                path,
-            )
-        )
-
-
-        if size < 1024:
-
-            status = "FAIL"
 
         else:
 
-            status = "PASS"
-
-
-        result(
-            "MEDIA_SCENE",
-            f"scene_{number:02d}",
-            status,
-            (
-                f"{path.name} "
-                f"bytes={size} "
-                f"sha={digest[:12]}"
-            ),
-        )
-
-
-        if (
-            path.suffix.lower()
-            in {
-                ".mp4",
-                ".mov",
-                ".mkv",
-                ".webm",
-            }
-            and
-            shutil.which(
-                "ffprobe"
+            record(
+                "PASS",
+                "MEDIA_SCENE_CARDINALITY",
+                "12/12",
             )
-        ):
 
-            code, probe = run(
+
+        # Exact duplicate detection.
+        hash_map = {}
+
+
+        for path in all_media:
+
+            try:
+
+                h = sha256(path)
+
+                hash_map.setdefault(
+                    h,
+                    [],
+                ).append(
+                    path.name
+                )
+
+            except Exception:
+                pass
+
+
+        duplicate_assets = {
+
+            h: names
+
+            for h, names
+            in hash_map.items()
+
+            if len(names) > 1
+        }
+
+
+        if duplicate_assets:
+
+            record(
+                "WARN",
+                "EXACT_MEDIA_DUPLICATES",
+                len(duplicate_assets),
+            )
+
+            for h, names in duplicate_assets.items():
+
+                print(
+                    f"DUPLICATE_MEDIA={h[:16]} | {names}"
+                )
+
+        else:
+
+            record(
+                "PASS",
+                "EXACT_MEDIA_DUPLICATES",
+                "NONE",
+            )
+
+
+        # Technical media health.
+        invalid_media = []
+
+
+        for path in all_media:
+
+            code, out, err = run(
                 [
                     "ffprobe",
                     "-v",
                     "error",
+                    "-select_streams",
+                    "v:0",
                     "-show_entries",
-                    "format=duration",
+                    "stream=codec_name,width,height",
                     "-of",
-                    "default="
-                    "noprint_wrappers=1:"
-                    "nokey=1",
+                    "json",
                     str(path),
                 ],
-                timeout=15,
+                timeout=20,
             )
 
 
             if code != 0:
 
-                result(
-                    "MEDIA_TECH",
-                    path.name,
-                    "FAIL",
-                    tail(
-                        probe,
-                        5,
-                    ),
+                invalid_media.append(
+                    (
+                        path.name,
+                        err.strip(),
+                    )
+                )
+
+                continue
+
+
+            try:
+
+                data = json.loads(out)
+
+                streams = data.get(
+                    "streams",
+                    [],
+                )
+
+                if not streams:
+
+                    invalid_media.append(
+                        (
+                            path.name,
+                            "no video/image stream",
+                        )
+                    )
+
+            except Exception:
+
+                invalid_media.append(
+                    (
+                        path.name,
+                        "ffprobe json invalid",
+                    )
                 )
 
 
-    result(
-        "MEDIA_CURRENT",
-        "MEDIA_TOTAL",
-        (
-            "PASS"
-            if scene_total == 12
-            else
-            "FAIL"
-        ),
-        scene_total,
-    )
+        if invalid_media:
 
+            record(
+                "FAIL",
+                "MEDIA_TECHNICAL_HEALTH",
+                len(invalid_media),
+            )
 
-    result(
-        "MEDIA_CURRENT",
-        "INVALID_SCENES",
-        (
-            "PASS"
-            if scene_bad == 0
-            else
-            "FAIL"
-        ),
-        scene_bad,
-    )
+            for item in invalid_media:
 
+                print(
+                    "INVALID_MEDIA=",
+                    item,
+                )
 
-    # Duplicate media SHA
-    sha_groups = defaultdict(
-        list
-    )
+        else:
 
-
-    for number, digest, path in hashes:
-
-        if digest:
-
-            sha_groups[
-                digest
-            ].append(
-                number
+            record(
+                "PASS",
+                "MEDIA_TECHNICAL_HEALTH",
+                len(all_media),
             )
 
 
-    duplicates = {
-        digest:
-            scenes
-        for digest, scenes
-        in sha_groups.items()
-        if len(
-            scenes
-        ) > 1
-    }
+else:
 
-
-    if duplicates:
-
-        for digest, scenes in duplicates.items():
-
-            out(
-                "DUPLICATE_MEDIA_SHA="
-                f"{digest} "
-                f"scenes={scenes}"
-            )
-
-
-        result(
-            "MEDIA_CURRENT",
-            "DUPLICATE_SHA",
-            "WARN",
-            len(
-                duplicates
-            ),
-        )
-
-    else:
-
-        result(
-            "MEDIA_CURRENT",
-            "DUPLICATE_SHA",
-            "PASS",
-        )
-
-
-    # Overall fingerprint
-    fingerprint_source = "\n".join(
-        (
-            f"{n}:"
-            f"{digest}:"
-            f"{path.name}"
-        )
-        for n, digest, path
-        in sorted(
-            hashes
-        )
+    record(
+        "WARN",
+        "CURRENT_SHORT_ID",
+        "não detectado",
     )
 
 
-    fingerprint = hashlib.sha256(
-        fingerprint_source.encode(
-            "utf-8"
-        )
-    ).hexdigest()
+# ================================================================
+# 15. CURRENT SHORT RENDER INPUTS
+# ================================================================
 
-
-    result(
-        "MEDIA_CURRENT",
-        "FINGERPRINT",
-        "INFO",
-        fingerprint,
-    )
-
-
-# ============================================================
-# 13. CURRENT PIPELINE ASSETS
-# ============================================================
-
-section(
-    "13. PIPELINE ASSET CONSISTENCY"
+banner(
+    "15. RENDER INPUTS"
 )
-
 
 if SHORT_ID:
 
-    assets = {
+    required = {
 
         "AUDIO":
             ROOT
-            / "audios"
-            / f"short_{SHORT_ID}.mp3",
+            /
+            "audios"
+            /
+            f"short_{SHORT_ID}.mp3",
 
         "ASS":
             ROOT
-            / "videos"
-            / f"short_{SHORT_ID}.ass",
+            /
+            "videos"
+            /
+            f"short_{SHORT_ID}.ass",
 
         "VIDEO_BASE":
             ROOT
-            / "temp"
-            / SHORT_ID
-            / "video_sem_audio.mp4",
+            /
+            "temp"
+            /
+            SHORT_ID
+            /
+            "video_sem_audio.mp4",
 
         "FINAL":
             ROOT
-            / "videos"
-            / f"short_v6_{SHORT_ID}.mp4",
-
-        "SCENE_MAP":
-            ROOT
-            / "roteiros"
-            / f"scene_map_{SHORT_ID}.json",
+            /
+            "videos"
+            /
+            f"short_v6_{SHORT_ID}.mp4",
     }
 
 
-    for name, path in assets.items():
+    for name, path in required.items():
 
-        exists = (
+        if (
             path.is_file()
             and
             path.stat().st_size > 0
-        )
-
-
-        status = (
-            "PASS"
-            if exists
-            else
-            "WARN"
-        )
-
-
-        detail = (
-            f"{path} "
-            f"bytes={path.stat().st_size}"
-            if exists
-            else
-            path
-        )
-
-
-        result(
-            "ASSET",
-            name,
-            status,
-            detail,
-        )
-
-
-# ============================================================
-# 14. FRESH RENDER GUARD UNIT TEST
-# ============================================================
-
-section(
-    "14. RENDER CACHE GUARD TEST"
-)
-
-
-guard = (
-    ROOT
-    / "fresh_render_guard_v1.py"
-)
-
-
-if not guard.is_file():
-
-    result(
-        "RENDER_GUARD",
-        "FILE",
-        "WARN",
-        "ausente",
-    )
-
-else:
-
-    test_sid = (
-        "AUDIT_GUARD_"
-        + str(
-            os.getpid()
-        )
-    )
-
-
-    test_code = r'''
-import os
-from pathlib import Path
-
-os.environ["SHORT_ID"] = "__SID__"
-
-from fresh_render_guard_v1 import clean
-
-root = Path.home() / "ShortAutoPro"
-sid = "__SID__"
-
-temp = root / "temp" / sid
-videos = root / "videos"
-
-temp.mkdir(
-    parents=True,
-    exist_ok=True,
-)
-
-videos.mkdir(
-    parents=True,
-    exist_ok=True,
-)
-
-ass = (
-    videos
-    / f"short_{sid}.ass"
-)
-
-audio = (
-    temp
-    / "test.mp3"
-)
-
-intermediate = (
-    temp
-    / "video_sem_audio.mp4"
-)
-
-final = (
-    videos
-    / f"short_v6_{sid}.mp4"
-)
-
-ass.write_text(
-    "ASS_PROTECTED",
-    encoding="utf-8",
-)
-
-audio.write_bytes(
-    b"AUDIO_PROTECTED"
-)
-
-intermediate.write_bytes(
-    b"VIDEO"
-)
-
-final.write_bytes(
-    b"VIDEO"
-)
-
-removed = clean(
-    sid
-)
-
-tests = {
-
-    "ass":
-        ass.exists(),
-
-    "audio":
-        audio.exists(),
-
-    "intermediate_removed":
-        not intermediate.exists(),
-
-    "final_removed":
-        not final.exists(),
-}
-
-print(
-    tests
-)
-
-try:
-    ass.unlink(
-        missing_ok=True
-    )
-    audio.unlink(
-        missing_ok=True
-    )
-    temp.rmdir()
-except Exception:
-    pass
-
-if not all(
-    tests.values()
-):
-    raise SystemExit(1)
-'''.replace(
-        "__SID__",
-        test_sid,
-    )
-
-
-    code, text = run(
-        [
-            sys.executable,
-            "-c",
-            test_code,
-        ],
-        timeout=20,
-    )
-
-
-    result(
-        "RENDER_GUARD",
-        "PROTECTED_INPUTS",
-        (
-            "PASS"
-            if code == 0
-            else
-            "FAIL"
-        ),
-        tail(
-            text,
-            5,
-        ),
-    )
-
-
-# ============================================================
-# 15. PROVENANCE MANIFEST HEALTH
-# ============================================================
-
-section(
-    "15. PROVENANCE HEALTH"
-)
-
-
-prov_dirs = [
-    ROOT
-    / "manifests"
-    / "source_provenance_live",
-
-    ROOT
-    / "manifests",
-]
-
-
-prov_dir = next(
-    (
-        p
-        for p
-        in prov_dirs
-        if p.is_dir()
-    ),
-    None,
-)
-
-
-if prov_dir is None:
-
-    result(
-        "PROVENANCE",
-        "DIRECTORY",
-        "WARN",
-        "não encontrada",
-    )
-
-else:
-
-    json_files = list(
-        prov_dir.glob(
-            "*.json"
-        )
-    )
-
-
-    valid = 0
-    invalid = 0
-
-
-    for path in sorted(
-        json_files,
-        key=lambda p:
-            p.stat().st_mtime,
-        reverse=True,
-    )[:100]:
-
-        try:
-
-            json.loads(
-                path.read_text(
-                    encoding="utf-8",
-                    errors="replace",
-                )
+        ):
+
+            record(
+                "PASS",
+                f"RENDER_{name}",
+                (
+                    f"{path.stat().st_size} bytes"
+                ),
             )
 
-            valid += 1
+        else:
 
-        except Exception:
+            # FINAL / VIDEO_BASE may not exist before render.
+            status = (
+                "WARN"
+                if name in {
+                    "FINAL",
+                    "VIDEO_BASE",
+                }
+                else "FAIL"
+            )
 
-            invalid += 1
+            record(
+                status,
+                f"RENDER_{name}",
+                "ausente",
+            )
 
 
-    result(
-        "PROVENANCE",
-        "JSON_VALID",
-        (
-            "PASS"
-            if invalid == 0
-            else
-            "FAIL"
-        ),
-        (
-            f"valid={valid} "
-            f"invalid={invalid}"
-        ),
+# ================================================================
+# 16. FRESH RENDER GUARD SYNTHETIC TEST
+# ================================================================
+
+banner(
+    "16. FRESH RENDER GUARD SAFETY"
+)
+
+guard_path = (
+    ROOT
+    /
+    "fresh_render_guard_v1.py"
+)
+
+if guard_path.is_file():
+
+    sid = (
+        "AUDIT_GUARD_"
+        +
+        str(os.getpid())
     )
 
 
-# ============================================================
-# 16. STATIC RISK SCAN
-# ============================================================
+    temp_dir = (
+        ROOT
+        /
+        "temp"
+        /
+        sid
+    )
 
-section(
-    "16. STATIC BUG-RISK SCAN"
+    videos_dir = (
+        ROOT
+        /
+        "videos"
+    )
+
+
+    ass = (
+        videos_dir
+        /
+        f"short_{sid}.ass"
+    )
+
+    final = (
+        videos_dir
+        /
+        f"short_v6_{sid}.mp4"
+    )
+
+    audio = (
+        temp_dir
+        /
+        "test.mp3"
+    )
+
+    temp_video = (
+        temp_dir
+        /
+        "video_sem_audio.mp4"
+    )
+
+
+    try:
+
+        temp_dir.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+        videos_dir.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+
+        ass.write_text(
+            "PROTECTED",
+            encoding="utf-8",
+        )
+
+        audio.write_bytes(
+            b"AUDIO"
+        )
+
+        final.write_bytes(
+            b"VIDEO"
+        )
+
+        temp_video.write_bytes(
+            b"VIDEO"
+        )
+
+
+        spec = importlib.util.spec_from_file_location(
+            "sap_render_guard_audit",
+            guard_path,
+        )
+
+        module = importlib.util.module_from_spec(
+            spec
+        )
+
+        spec.loader.exec_module(
+            module
+        )
+
+
+        if not hasattr(
+            module,
+            "clean",
+        ):
+
+            raise RuntimeError(
+                "clean() ausente"
+            )
+
+
+        module.clean(
+            sid
+        )
+
+
+        ass_ok = ass.exists()
+        audio_ok = audio.exists()
+
+        final_removed = (
+            not final.exists()
+        )
+
+        temp_removed = (
+            not temp_video.exists()
+        )
+
+
+        print(
+            f"GUARD_ASS_PROTECTED={ass_ok}"
+        )
+
+        print(
+            f"GUARD_AUDIO_PROTECTED={audio_ok}"
+        )
+
+        print(
+            f"GUARD_FINAL_REMOVED={final_removed}"
+        )
+
+        print(
+            f"GUARD_TEMP_REMOVED={temp_removed}"
+        )
+
+
+        if (
+            ass_ok
+            and
+            audio_ok
+            and
+            final_removed
+            and
+            temp_removed
+        ):
+
+            record(
+                "PASS",
+                "RENDER_GUARD_SYNTHETIC",
+            )
+
+        else:
+
+            record(
+                "FAIL",
+                "RENDER_GUARD_SYNTHETIC",
+            )
+
+
+    except Exception as exc:
+
+        record(
+            "FAIL",
+            "RENDER_GUARD_SYNTHETIC",
+            f"{type(exc).__name__}: {exc}",
+        )
+
+
+    finally:
+
+        try:
+            ass.unlink(
+                missing_ok=True
+            )
+        except Exception:
+            pass
+
+        try:
+            final.unlink(
+                missing_ok=True
+            )
+        except Exception:
+            pass
+
+        try:
+            shutil.rmtree(
+                temp_dir,
+                ignore_errors=True,
+            )
+        except Exception:
+            pass
+
+
+else:
+
+    record(
+        "FAIL",
+        "RENDER_GUARD_SYNTHETIC",
+        "guard ausente",
+    )
+
+
+# ================================================================
+# 17. SHORT_ID CONSISTENCY
+# ================================================================
+
+banner(
+    "17. SHORT_ID CONSISTENCY"
 )
 
+for filename in (
+    "midia.py",
+    "video.py",
+    "v6.py",
+    "legenda_dinamica.py",
+):
 
-risk_patterns = {
-
-    "SHELL_TRUE":
-        re.compile(
-            r"shell\s*=\s*True"
-        ),
-
-    "OS_SYSTEM":
-        re.compile(
-            r"\bos\.system\s*\("
-        ),
-
-    "EVAL":
-        re.compile(
-            r"(?<![\w.])eval\s*\("
-        ),
-
-    "BARE_EXCEPT":
-        re.compile(
-            r"^\s*except\s*:"
-        ),
-
-    "TMP_PATH":
-        re.compile(
-            r"""["']/tmp/"""
-        ),
-
-    "RM_RF":
-        re.compile(
-            r"\brm\s+-rf\b"
-        ),
-}
-
-
-core_scan_files = [
-    ROOT / "midia.py",
-    ROOT / "video.py",
-    ROOT / "v6.py",
-    ROOT / "gerar_short.sh",
-    ROOT / "roteiro.py",
-    ROOT / "legenda_dinamica.py",
-    ROOT / "visual_selection_engine_v4.py",
-]
-
-
-risk_total = 0
-
-
-for path in core_scan_files:
+    path = ROOT / filename
 
     if not path.is_file():
         continue
-
 
     text = path.read_text(
         encoding="utf-8",
@@ -2208,105 +2030,39 @@ for path in core_scan_files:
     )
 
 
-    lines = text.splitlines()
-
-
-    for risk_name, pattern in risk_patterns.items():
-
-        matches = []
-
-        for number, line in enumerate(
-            lines,
-            start=1,
-        ):
-
-            if pattern.search(
-                line
-            ):
-
-                matches.append(
-                    (
-                        number,
-                        line.strip()[:160],
-                    )
-                )
-
-
-        if matches:
-
-            risk_total += (
-                len(
-                    matches
-                )
-            )
-
-
-            result(
-                "STATIC_RISK",
-                (
-                    f"{path.name}:"
-                    f"{risk_name}"
-                ),
-                "WARN",
-                (
-                    f"{len(matches)} ocorrência(s)"
-                ),
-            )
-
-
-            for number, line in matches[:8]:
-
-                out(
-                    f"RISK={path.name}:"
-                    f"{number}:"
-                    f"{risk_name}:"
-                    f"{line}"
-                )
-
-
-if risk_total == 0:
-
-    result(
-        "STATIC_RISK",
-        "CORE_SCAN",
-        "PASS",
+    env_support = (
+        'os.getenv("SHORT_ID"'
+        in text
+        or
+        "os.getenv(\n" in text
+        and
+        '"SHORT_ID"' in text
     )
 
-else:
 
-    result(
-        "STATIC_RISK",
-        "CORE_SCAN",
-        "WARN",
+    record(
+        "PASS"
+        if env_support
+        else "WARN",
+        f"SHORT_ID_ENV_{filename}",
         (
-            f"{risk_total} ocorrência(s) "
-            "para revisão manual"
+            "explicit env support"
+            if env_support
+            else "não detectado"
         ),
     )
 
 
-# ============================================================
-# 17. HARDCODED OLD SHORT IDs
-# ============================================================
-
-section(
-    "17. HARDCODED SHORT-ID AUDIT"
-)
+# Hard-coded IDs in production source.
+hardcoded = []
 
 
-id_pattern = re.compile(
+id_regex = re.compile(
     r"20\d{2}-\d{2}-\d{2}_\d{4}"
 )
 
 
-hardcoded_ids = []
-
-
-for path in core_scan_files:
-
-    if not path.is_file():
-        continue
-
+for path in py_files:
 
     text = path.read_text(
         encoding="utf-8",
@@ -2314,380 +2070,725 @@ for path in core_scan_files:
     )
 
 
-    for number, line in enumerate(
-        text.splitlines(),
-        start=1,
-    ):
+    ids = sorted(
+        set(
+            id_regex.findall(text)
+        )
+    )
 
-        found = id_pattern.findall(
-            line
+
+    if ids:
+
+        hardcoded.append(
+            (
+                path.name,
+                ids,
+            )
         )
 
-        for sid in found:
 
-            hardcoded_ids.append(
-                (
-                    path.name,
-                    number,
-                    sid,
-                )
+if hardcoded:
+
+    record(
+        "WARN",
+        "HARDCODED_SHORT_IDS",
+        len(hardcoded),
+    )
+
+    for item in hardcoded[:30]:
+
+        print(
+            "HARDCODED_ID=",
+            item,
+        )
+
+else:
+
+    record(
+        "PASS",
+        "HARDCODED_SHORT_IDS",
+        "NONE",
+    )
+
+
+# ================================================================
+# 18. RISKY CODE PATTERNS
+# ================================================================
+
+banner(
+    "18. RISKY CODE PATTERNS"
+)
+
+patterns = {
+
+    "SHELL_TRUE":
+        r"shell\s*=\s*True",
+
+    "EVAL":
+        r"\beval\s*\(",
+
+    "EXEC":
+        r"\bexec\s*\(",
+
+    "RM_RF":
+        r"\brm\s+-rf\b",
+
+    "RMTREE":
+        r"shutil\.rmtree\s*\(",
+
+    "UNLINK":
+        r"\.unlink\s*\(",
+
+    "OS_REMOVE":
+        r"os\.remove\s*\(",
+
+    "TMP_PATH":
+        r'["\']/tmp(?:/|["\'])',
+}
+
+
+risk_count = 0
+
+
+for path in py_files:
+
+    text = path.read_text(
+        encoding="utf-8",
+        errors="replace",
+    )
+
+
+    for name, pattern in patterns.items():
+
+        matches = list(
+            re.finditer(
+                pattern,
+                text,
+                re.IGNORECASE,
+            )
+        )
+
+
+        if matches:
+
+            risk_count += len(
+                matches
             )
 
+            lines = text.splitlines()
 
-if hardcoded_ids:
+            for match in matches[:5]:
 
-    for path, number, sid in hardcoded_ids:
+                line = (
+                    text[:match.start()]
+                    .count("\n")
+                    +
+                    1
+                )
 
-        out(
-            f"HARDCODED_SHORT_ID="
-            f"{path}:{number}:{sid}"
-        )
+                content = (
+                    lines[line - 1].strip()
+                    if line <= len(lines)
+                    else ""
+                )
 
 
-    result(
-        "CONFIG",
-        "HARDCODED_SHORT_IDS",
+                print(
+                    f"RISK={name} "
+                    f"FILE={path.name} "
+                    f"LINE={line} "
+                    f"CODE={content[:180]}"
+                )
+
+
+if risk_count:
+
+    record(
         "WARN",
-        len(
-            hardcoded_ids
-        ),
+        "RISKY_CODE_PATTERNS",
+        risk_count,
     )
 
 else:
 
-    result(
-        "CONFIG",
-        "HARDCODED_SHORT_IDS",
+    record(
         "PASS",
+        "RISKY_CODE_PATTERNS",
+        "NONE",
     )
 
 
-# ============================================================
-# 18. CONFIG NAMES — NO SECRET VALUES
-# ============================================================
+# ================================================================
+# 19. NETWORK TIMEOUT AUDIT
+# ================================================================
 
-section(
-    "18. CONFIGURATION AUDIT"
+banner(
+    "19. NETWORK TIMEOUT AUDIT"
 )
 
-
-config_candidates = [
-    ROOT / "config.env",
-    ROOT / ".env",
-]
+network_without_timeout = []
 
 
-for path in config_candidates:
+for path in py_files:
 
-    if not path.is_file():
+    try:
+
+        source = path.read_text(
+            encoding="utf-8",
+            errors="replace",
+        )
+
+        tree = ast.parse(source)
+
+    except Exception:
         continue
 
 
-    keys = []
+    for node in ast.walk(tree):
 
-
-    for line in path.read_text(
-        encoding="utf-8",
-        errors="replace",
-    ).splitlines():
-
-        line = line.strip()
-
-        if (
-            not line
-            or
-            line.startswith(
-                "#"
-            )
-            or
-            "=" not in line
+        if not isinstance(
+            node,
+            ast.Call,
         ):
             continue
 
 
-        key = line.split(
-            "=",
-            1,
-        )[0].strip()
+        func_text = ""
+
+        try:
+            func_text = ast.unparse(
+                node.func
+            )
+        except Exception:
+            continue
 
 
-        if re.fullmatch(
-            r"[A-Za-z_][A-Za-z0-9_]*",
-            key,
+        interesting = any(
+            term in func_text
+            for term in (
+                "requests.get",
+                "requests.post",
+                "requests.request",
+                "session.get",
+                "session.post",
+                "urlopen",
+            )
+        )
+
+
+        if not interesting:
+            continue
+
+
+        has_timeout = any(
+            keyword.arg == "timeout"
+            for keyword in node.keywords
+        )
+
+
+        if (
+            not has_timeout
+            and
+            "urlopen" not in func_text
         ):
 
-            keys.append(
-                key
-            )
-
-
-    result(
-        "CONFIG",
-        path.name,
-        "INFO",
-        (
-            "VARIABLE_NAMES="
-            + ",".join(
-                sorted(
-                    set(
-                        keys
-                    )
+            network_without_timeout.append(
+                (
+                    path.name,
+                    node.lineno,
+                    func_text,
                 )
             )
-        ),
-    )
 
 
-# ============================================================
-# 19. DISK SPACE
-# ============================================================
+if network_without_timeout:
 
-section(
-    "19. STORAGE"
-)
-
-
-try:
-
-    usage = shutil.disk_usage(
-        ROOT
-    )
-
-    free_mb = (
-        usage.free
-        /
-        1024
-        /
-        1024
-    )
-
-
-    status = (
-        "PASS"
-        if free_mb >= 500
-        else
-        (
-            "WARN"
-            if free_mb >= 200
-            else
-            "FAIL"
-        )
-    )
-
-
-    result(
-        "STORAGE",
-        "FREE_SPACE",
-        status,
-        f"{free_mb:.1f} MB",
-    )
-
-except Exception as exc:
-
-    result(
-        "STORAGE",
-        "FREE_SPACE",
+    record(
         "WARN",
-        exc,
+        "NETWORK_CALLS_WITHOUT_TIMEOUT",
+        len(network_without_timeout),
     )
 
+    for item in network_without_timeout[:50]:
 
-# ============================================================
-# 20. FINAL SUMMARY
-# ============================================================
-
-section(
-    "20. FINAL SUMMARY"
-)
-
-
-counts = Counter(
-    item[
-        "status"
-    ]
-    for item
-    in results
-)
-
-
-out(
-    f"PASS={counts.get('PASS', 0)}"
-)
-
-out(
-    f"WARN={counts.get('WARN', 0)}"
-)
-
-out(
-    f"FAIL={counts.get('FAIL', 0)}"
-)
-
-out(
-    f"INFO={counts.get('INFO', 0)}"
-)
-
-
-fails = [
-    item
-    for item
-    in results
-    if item[
-        "status"
-    ] == "FAIL"
-]
-
-
-warnings = [
-    item
-    for item
-    in results
-    if item[
-        "status"
-    ] == "WARN"
-]
-
-
-if fails:
-
-    overall = (
-        "FAIL"
-    )
-
-elif warnings:
-
-    overall = (
-        "PASS_WITH_WARNINGS"
-    )
+        print(
+            "NO_TIMEOUT=",
+            item,
+        )
 
 else:
 
-    overall = (
-        "PASS"
+    record(
+        "PASS",
+        "NETWORK_CALLS_WITHOUT_TIMEOUT",
+        "NONE",
     )
 
 
-out(
-    f"OVERALL_STATUS={overall}"
+# ================================================================
+# 20. RECENT LOG ERRORS
+# ================================================================
+
+banner(
+    "20. RECENT LOG ERROR SCAN"
+)
+
+log_dir = (
+    ROOT
+    /
+    "logs"
+    /
+    "producao"
+)
+
+error_pattern = re.compile(
+    r"Traceback|ERRO|ERROR|FAILED|FAIL\b|Exception",
+    re.IGNORECASE,
 )
 
 
-if fails:
+if log_dir.is_dir():
 
-    out()
-    out(
-        "===== CRITICAL FAILURES ====="
+    logs = sorted(
+        [
+            p
+            for p
+            in log_dir.iterdir()
+            if p.is_file()
+        ],
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )[:20]
+
+
+    logs_with_errors = []
+
+
+    for path in logs:
+
+        try:
+
+            text = path.read_text(
+                encoding="utf-8",
+                errors="replace",
+            )
+
+        except Exception:
+            continue
+
+
+        matches = error_pattern.findall(
+            text
+        )
+
+
+        if matches:
+
+            logs_with_errors.append(
+                (
+                    path.name,
+                    len(matches),
+                )
+            )
+
+
+    print(
+        f"RECENT_LOGS_CHECKED={len(logs)}"
     )
 
-    for item in fails:
 
-        out(
-            "FAIL :: "
-            f"{item['section']} :: "
-            f"{item['test']} :: "
-            f"{item['detail']}"
+    if logs_with_errors:
+
+        record(
+            "WARN",
+            "RECENT_LOG_ERRORS",
+            len(logs_with_errors),
         )
+
+        for item in logs_with_errors:
+
+            print(
+                "LOG_ERROR=",
+                item,
+            )
+
+    else:
+
+        record(
+            "PASS",
+            "RECENT_LOG_ERRORS",
+            "NONE",
+        )
+
+else:
+
+    record(
+        "WARN",
+        "RECENT_LOG_ERRORS",
+        "logs/producao ausente",
+    )
+
+
+# ================================================================
+# 21. FINAL VIDEO HEALTH
+# ================================================================
+
+banner(
+    "21. FINAL VIDEO HEALTH"
+)
+
+if SHORT_ID:
+
+    final = (
+        ROOT
+        /
+        "videos"
+        /
+        f"short_v6_{SHORT_ID}.mp4"
+    )
+
+
+    if final.is_file():
+
+        code, out, err = run(
+            [
+                "ffprobe",
+                "-v",
+                "error",
+                "-show_entries",
+                (
+                    "stream=codec_name,codec_type,"
+                    "width,height,r_frame_rate:"
+                    "format=duration,size,bit_rate"
+                ),
+                "-of",
+                "json",
+                str(final),
+            ],
+            timeout=20,
+        )
+
+
+        if code == 0:
+
+            try:
+
+                data = json.loads(out)
+
+                duration = float(
+                    data.get(
+                        "format",
+                        {},
+                    ).get(
+                        "duration",
+                        0,
+                    )
+                )
+
+
+                streams = data.get(
+                    "streams",
+                    [],
+                )
+
+
+                video_stream = next(
+                    (
+                        s
+                        for s in streams
+                        if s.get(
+                            "codec_type"
+                        )
+                        ==
+                        "video"
+                    ),
+                    None,
+                )
+
+
+                audio_stream = next(
+                    (
+                        s
+                        for s in streams
+                        if s.get(
+                            "codec_type"
+                        )
+                        ==
+                        "audio"
+                    ),
+                    None,
+                )
+
+
+                print(
+                    f"FINAL_DURATION={duration}"
+                )
+
+                print(
+                    f"FINAL_SHA256={sha256(final)}"
+                )
+
+
+                if (
+                    video_stream
+                    and
+                    audio_stream
+                    and
+                    duration > 1
+                ):
+
+                    record(
+                        "PASS",
+                        "FINAL_VIDEO_HEALTH",
+                        (
+                            f"{video_stream.get('width')}x"
+                            f"{video_stream.get('height')} "
+                            f"{duration:.2f}s"
+                        ),
+                    )
+
+                else:
+
+                    record(
+                        "FAIL",
+                        "FINAL_VIDEO_HEALTH",
+                        "stream/duração inválidos",
+                    )
+
+
+            except Exception as exc:
+
+                record(
+                    "FAIL",
+                    "FINAL_VIDEO_HEALTH",
+                    exc,
+                )
+
+
+        else:
+
+            record(
+                "FAIL",
+                "FINAL_VIDEO_HEALTH",
+                err.strip(),
+            )
+
+
+    else:
+
+        record(
+            "WARN",
+            "FINAL_VIDEO_HEALTH",
+            "final não existe",
+        )
+
+
+# ================================================================
+# 22. BACKUP HEALTH
+# ================================================================
+
+banner(
+    "22. BACKUP HEALTH"
+)
+
+backup_dir = ROOT / "backups"
+
+if backup_dir.is_dir():
+
+    items = list(
+        backup_dir.iterdir()
+    )
+
+    record(
+        "PASS",
+        "BACKUPS",
+        f"{len(items)} entradas",
+    )
+
+
+    recent = sorted(
+        items,
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )[:10]
+
+
+    for path in recent:
+
+        print(
+            "RECENT_BACKUP="
+            f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(path.stat().st_mtime))}"
+            f" | {path.name}"
+        )
+
+else:
+
+    record(
+        "WARN",
+        "BACKUPS",
+        "diretório ausente",
+    )
+
+
+# ================================================================
+# 23. CORE HASHES
+# ================================================================
+
+banner(
+    "23. CORE HASHES"
+)
+
+for name in (
+    "midia.py",
+    "video.py",
+    "v6.py",
+    "gerar_short.sh",
+    "visual_selection_engine_v4.py",
+):
+
+    path = ROOT / name
+
+    if path.is_file():
+
+        print(
+            f"SHA256_{name}="
+            f"{sha256(path)}"
+        )
+
+
+# ================================================================
+# 24. FINAL SUMMARY
+# ================================================================
+
+banner(
+    "24. FINAL SUMMARY"
+)
+
+print(
+    f"TOTAL_PASS={PASS}"
+)
+
+print(
+    f"TOTAL_WARN={WARN}"
+)
+
+print(
+    f"TOTAL_FAIL={FAIL}"
+)
+
+
+print()
+print(
+    "---------------- FAILURES ----------------"
+)
+
+failures = [
+    item
+    for item in RESULTS
+    if item[0] == "FAIL"
+]
+
+
+if failures:
+
+    for status, name, detail in failures:
+
+        print(
+            f"FAIL | {name}"
+            +
+            (
+                f" | {detail}"
+                if detail
+                else ""
+            )
+        )
+
+else:
+
+    print(
+        "FAILURES=NONE"
+    )
+
+
+print()
+print(
+    "---------------- WARNINGS ----------------"
+)
+
+warnings = [
+    item
+    for item in RESULTS
+    if item[0] == "WARN"
+]
 
 
 if warnings:
 
-    out()
-    out(
-        "===== WARNINGS ====="
-    )
+    for status, name, detail in warnings:
 
-    for item in warnings[:50]:
-
-        out(
-            "WARN :: "
-            f"{item['section']} :: "
-            f"{item['test']} :: "
-            f"{item['detail']}"
+        print(
+            f"WARN | {name}"
+            +
+            (
+                f" | {detail}"
+                if detail
+                else ""
+            )
         )
 
+else:
 
-payload = {
-
-    "timestamp":
-        datetime.now().isoformat(),
-
-    "root":
-        str(
-            ROOT
-        ),
-
-    "short_id":
-        SHORT_ID,
-
-    "overall":
-        overall,
-
-    "counts":
-        dict(
-            counts
-        ),
-
-    "results":
-        results,
-}
-
-
-try:
-
-    REPORT_JSON.write_text(
-        json.dumps(
-            payload,
-            ensure_ascii=False,
-            indent=2,
-        ),
-        encoding="utf-8",
+    print(
+        "WARNINGS=NONE"
     )
 
-except Exception:
 
-    traceback.print_exc()
+print()
+print(
+    "============================================================"
+)
 
+if FAIL == 0:
 
-REPORT_TXT.write_text(
-    "\n".join(
-        log_lines
+    if WARN == 0:
+
+        print(
+            "AUDIT_STATUS=CLEAN"
+        )
+
+    else:
+
+        print(
+            "AUDIT_STATUS=PASS_WITH_WARNINGS"
+        )
+
+else:
+
+    print(
+        "AUDIT_STATUS=FAIL"
     )
-    + "\n",
-    encoding="utf-8",
+
+
+print(
+    "NETWORK_DOWNLOAD_EXECUTED=NO"
 )
 
-
-out()
-out(
-    f"REPORT_TXT={REPORT_TXT}"
+print(
+    "MEDIA_SELECTION_EXECUTED=NO"
 )
 
-out(
-    f"REPORT_JSON={REPORT_JSON}"
+print(
+    "VIDEO_RENDER_EXECUTED=NO"
 )
 
-out(
-    "NETWORK_EXECUTED=NO"
+print(
+    "PROJECT_FILES_MODIFIED=NO"
 )
 
-out(
-    "MEDIA_DOWNLOADED=NO"
-)
-
-out(
-    "VIDEO_RENDERED=NO"
-)
-
-out(
-    "MIDIA_PY_EXECUTED=NO"
-)
-
-out(
+print(
     "TERMUX_CONTINUA_ABERTO=SIM"
 )
 
-
-if fails:
-
-    raise SystemExit(
-        1
-    )
+print(
+    "============================================================"
+)

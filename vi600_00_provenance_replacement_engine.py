@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from short_id_runtime_v1 import resolve_short_id as _sap_resolve_short_id
 
 import copy
 import hashlib
@@ -2635,7 +2636,7 @@ def evaluate():
         vi550.get(
             "short_id"
         )
-        or "2026-09-01_1433"
+        or _sap_resolve_short_id()
     )
 
     current_map = by_scene(

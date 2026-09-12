@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from short_id_runtime_v1 import resolve_short_id as _sap_resolve_short_id
 
 import ast
 import hashlib
@@ -757,7 +758,7 @@ print("9. CURRENT REAL SCENE STRUCTURE")
 print("=" * 70)
 
 current_sid = (
-    "2026-09-02_2358"
+    _sap_resolve_short_id()
 )
 
 current_media = (

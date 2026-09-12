@@ -1,205 +1,376 @@
 #!/usr/bin/env python3
 
-from pathlib import Path
+from __future__ import annotations
+
 import ast
-import hashlib
-import importlib
+import json
 import os
-import py_compile
+import re
 import subprocess
 import sys
-import traceback
+import time
+from collections import Counter, defaultdict
+from pathlib import Path
 
 
 ROOT = Path.home() / "ShortAutoPro"
 
-os.chdir(ROOT)
+REPORT_DIR = ROOT / "temp"
+REPORT_DIR.mkdir(
+    parents=True,
+    exist_ok=True,
+)
 
+STAMP = time.strftime(
+    "%Y%m%d_%H%M%S"
+)
 
-FAILURES = []
-WARNINGS = []
-PASSES = []
-
-
-def section(name):
-
-    print()
-    print("=" * 72)
-    print(name)
-    print("=" * 72)
-
-
-def passed(name):
-
-    PASSES.append(name)
-
-    print(
-        f"{name}=PASS"
-    )
-
-
-def failed(name, reason=""):
-
-    FAILURES.append(
-        (
-            name,
-            reason,
-        )
-    )
-
-    print(
-        f"{name}=FAIL"
-        +
-        (
-            f" | {reason}"
-            if reason
-            else ""
-        )
-    )
-
-
-def warning(name, reason=""):
-
-    WARNINGS.append(
-        (
-            name,
-            reason,
-        )
-    )
-
-    print(
-        f"{name}=WARN"
-        +
-        (
-            f" | {reason}"
-            if reason
-            else ""
-        )
-    )
-
-
-def sha256(path):
-
-    h = hashlib.sha256()
-
-    with path.open("rb") as f:
-
-        for chunk in iter(
-            lambda: f.read(
-                1024 * 1024
-            ),
-            b"",
-        ):
-
-            h.update(chunk)
-
-    return h.hexdigest()
-
-
-# ============================================================
-# 1. CRITICAL FILES
-# ============================================================
-
-section(
-    "1. CRITICAL FILES"
+REPORT = (
+    REPORT_DIR
+    / f"SHORTAUTOPRO_GENERAL_AUDIT_{STAMP}.txt"
 )
 
 
-critical = [
+# ============================================================
+# CONFIG
+# ============================================================
+
+EXCLUDED_DIRS = {
+    ".git",
+    "__pycache__",
+    "backups",
+    "backup",
+    "node_modules",
+    "whisper.cpp",
+    ".venv",
+    "venv",
+}
+
+
+CRITICAL_FILES = (
     "midia.py",
     "video.py",
     "v6.py",
     "gerar_short.sh",
+)
+
+
+VISUAL_FILES = (
     "visual_selection_engine_v4.py",
-    "media_diversity_guard_v1.py",
+    "visual_selection_bridge_v42.py",
+    "visual_selection_runtime_v42.py",
+    "visual_engine_unified.py",
     "visual_scene_commit_lock_v1.py",
-    "fresh_render_guard_v1.py",
-]
+    "visual_must_rescue_v1.py",
+    "media_diversity_guard_v1.py",
+    "media_provenance_capture_v1.py",
+)
 
 
-for name in critical:
+EXPECTED_PROVIDER_FUNCTIONS = (
+    "pexels_video",
+    "pexels_foto",
+    "pixabay_video",
+    "pixabay_foto",
+    "coverr_video",
+    "buscar_todos_candidatos",
+    "baixar_candidato_5_2",
+)
+
+
+COMMIT_MARKERS = (
+    "commit_candidate",
+    "_vse42_commit_candidate",
+    "_vse42_commit_safe",
+    "note_commit_runtime",
+    "_sap_visual_commit",
+    "note_commit",
+    "VSE42_SCENE_COMMIT",
+    "VSE42_FIRST_SUCCESS_LOCK",
+    "VISUAL_UNIFIED_COMMIT",
+    "SCENE_COMMIT_LOCK",
+)
+
+
+DANGEROUS_PATTERNS = (
+    r"\brm\s+-rf\b",
+    r"\bshutil\.rmtree\b",
+    r"\.unlink\s*\(",
+    r"\bos\.remove\s*\(",
+)
+
+
+# ============================================================
+# OUTPUT
+# ============================================================
+
+LINES = []
+
+COUNTS = Counter()
+
+
+def emit(*parts):
+
+    text = " ".join(
+        str(x)
+        for x in parts
+    )
+
+    print(text)
+
+    LINES.append(text)
+
+
+def section(title):
+
+    emit()
+    emit("=" * 78)
+    emit(title)
+    emit("=" * 78)
+
+
+def finding(
+    severity,
+    code,
+    message,
+):
+
+    severity = severity.upper()
+
+    COUNTS[
+        severity
+    ] += 1
+
+    emit(
+        f"[{severity}]",
+        code,
+        "-",
+        message,
+    )
+
+
+# ============================================================
+# HELPERS
+# ============================================================
+
+def excluded(path: Path):
+
+    try:
+
+        relative = path.relative_to(
+            ROOT
+        )
+
+    except Exception:
+
+        return True
+
+
+    return any(
+        part in EXCLUDED_DIRS
+        for part in relative.parts
+    )
+
+
+def read_text(path: Path):
+
+    try:
+
+        return path.read_text(
+            encoding="utf-8",
+            errors="replace",
+        )
+
+    except Exception as exc:
+
+        finding(
+            "ERROR",
+            "READ_ERROR",
+            f"{path}: "
+            f"{type(exc).__name__}: {exc}",
+        )
+
+        return ""
+
+
+def parse_ast(path: Path):
+
+    src = read_text(
+        path
+    )
+
+    try:
+
+        return (
+            src,
+            ast.parse(
+                src,
+                filename=str(path),
+            ),
+        )
+
+    except SyntaxError as exc:
+
+        finding(
+            "CRITICAL",
+            "PYTHON_SYNTAX",
+            f"{path.name}:{exc.lineno}: "
+            f"{exc.msg}",
+        )
+
+        return (
+            src,
+            None,
+        )
+
+
+def run_command(
+    args,
+    timeout=120,
+):
+
+    try:
+
+        proc = subprocess.run(
+            args,
+            cwd=ROOT,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            timeout=timeout,
+        )
+
+        return (
+            proc.returncode,
+            proc.stdout,
+        )
+
+    except subprocess.TimeoutExpired:
+
+        return (
+            124,
+            "TIMEOUT",
+        )
+
+    except Exception as exc:
+
+        return (
+            125,
+            f"{type(exc).__name__}: {exc}",
+        )
+
+
+# ============================================================
+# 1. PROJECT
+# ============================================================
+
+section(
+    "1. PROJECT STRUCTURE"
+)
+
+emit(
+    "ROOT=",
+    ROOT,
+)
+
+
+if not ROOT.is_dir():
+
+    finding(
+        "CRITICAL",
+        "ROOT_MISSING",
+        str(ROOT),
+    )
+
+    raise SystemExit(1)
+
+
+for name in CRITICAL_FILES:
 
     path = ROOT / name
 
     if path.is_file():
 
-        print(
-            f"FOUND={name}"
+        emit(
+            f"CORE_FILE=PASS {name} "
+            f"bytes={path.stat().st_size}"
         )
 
     else:
 
-        failed(
-            "CRITICAL_FILE_" + name,
-            "missing",
+        finding(
+            "CRITICAL",
+            "CORE_FILE_MISSING",
+            name,
         )
 
 
 # ============================================================
-# 2. COMPILE
+# 2. PYTHON SYNTAX
 # ============================================================
 
 section(
-    "2. PYTHON COMPILE"
+    "2. PYTHON SYNTAX - TOP LEVEL"
 )
 
 
-compile_fail = []
-
-python_files = list(
-    ROOT.glob("*.py")
+python_files = sorted(
+    p
+    for p in ROOT.glob("*.py")
+    if p.is_file()
 )
 
 
-for path in python_files:
-
-    try:
-
-        py_compile.compile(
-            str(path),
-            doraise=True,
-        )
-
-    except Exception as exc:
-
-        compile_fail.append(
-            (
-                path.name,
-                str(exc),
-            )
-        )
-
-
-print(
-    "ROOT_PY_TOTAL=",
+emit(
+    "PYTHON_FILE_COUNT=",
     len(python_files),
 )
 
 
-if compile_fail:
+compile_failures = []
 
-    for name, err in compile_fail[:30]:
 
-        print(
-            f"COMPILE_FAIL={name} | {err}"
+for path in python_files:
+
+    code, output = run_command(
+        [
+            sys.executable,
+            "-m",
+            "py_compile",
+            str(path),
+        ],
+        timeout=30,
+    )
+
+    if code != 0:
+
+        compile_failures.append(
+            path.name
         )
 
-    failed(
-        "ROOT_PY_COMPILE",
-        str(
-            len(compile_fail)
-        ),
+        finding(
+            "CRITICAL",
+            "PY_COMPILE_FAIL",
+            f"{path.name}: "
+            f"{output.strip()[-500:]}",
+        )
+
+
+if not compile_failures:
+
+    emit(
+        "PYTHON_COMPILE_ALL=PASS"
     )
 
 else:
 
-    passed(
-        "ROOT_PY_COMPILE"
+    emit(
+        "PYTHON_COMPILE_ALL=FAIL"
     )
 
 
 # ============================================================
-# 3. SHELL
+# 3. SHELL SYNTAX
 # ============================================================
 
 section(
@@ -207,481 +378,701 @@ section(
 )
 
 
-result = subprocess.run(
-    [
-        "bash",
-        "-n",
-        "gerar_short.sh",
-    ],
-    capture_output=True,
-    text=True,
+shell_files = sorted(
+    p
+    for p in ROOT.glob("*.sh")
+    if p.is_file()
 )
 
 
-if result.returncode == 0:
+shell_failures = []
 
-    passed(
-        "GERAR_SHORT_SYNTAX"
+
+for path in shell_files:
+
+    code, output = run_command(
+        [
+            "bash",
+            "-n",
+            str(path),
+        ],
+        timeout=30,
+    )
+
+    if code != 0:
+
+        shell_failures.append(
+            path.name
+        )
+
+        finding(
+            "CRITICAL",
+            "SHELL_SYNTAX_FAIL",
+            f"{path.name}: "
+            f"{output.strip()}",
+        )
+
+
+emit(
+    "SHELL_FILE_COUNT=",
+    len(shell_files),
+)
+
+
+if not shell_failures:
+
+    emit(
+        "SHELL_SYNTAX_ALL=PASS"
     )
 
 else:
 
-    failed(
-        "GERAR_SHORT_SYNTAX",
-        result.stderr.strip(),
+    emit(
+        "SHELL_SYNTAX_ALL=FAIL"
     )
 
 
 # ============================================================
-# 4. SAFE IMPORTS
+# 4. UNREACHABLE CODE
 # ============================================================
 
 section(
-    "4. CRITICAL IMPORTS"
+    "4. UNREACHABLE / DEAD CODE AUDIT"
 )
 
 
-for module in (
-    "media_diversity_guard_v1",
-    "visual_scene_commit_lock_v1",
-    "visual_selection_engine_v4",
+def analyze_block(
+    body,
+    file_name,
+    scope_name,
 ):
 
-    try:
+    for index, stmt in enumerate(
+        body
+    ):
 
-        result = subprocess.run(
-            [
-                sys.executable,
-                "-c",
-                "import " + module,
-            ],
-            capture_output=True,
-            text=True,
-            timeout=15,
+        terminator = isinstance(
+            stmt,
+            (
+                ast.Break,
+                ast.Continue,
+                ast.Return,
+                ast.Raise,
+            ),
         )
 
-    except subprocess.TimeoutExpired:
+        if (
+            terminator
+            and
+            index + 1 < len(body)
+        ):
 
-        failed(
-            f"IMPORT_{module}",
-            "timeout",
-        )
+            next_stmt = body[
+                index + 1
+            ]
 
+            kind = type(
+                stmt
+            ).__name__
+
+            finding(
+                "ERROR",
+                "UNREACHABLE_CODE",
+                f"{file_name}:"
+                f"{stmt.lineno} "
+                f"{scope_name} -> "
+                f"{kind} followed by statement "
+                f"at line {next_stmt.lineno}",
+            )
+
+
+        nested_lists = []
+
+
+        if isinstance(
+            stmt,
+            (
+                ast.FunctionDef,
+                ast.AsyncFunctionDef,
+                ast.ClassDef,
+            ),
+        ):
+
+            nested_lists.append(
+                (
+                    stmt.body,
+                    f"{scope_name}/{stmt.name}",
+                )
+            )
+
+
+        elif isinstance(
+            stmt,
+            ast.If,
+        ):
+
+            nested_lists.extend(
+                [
+                    (
+                        stmt.body,
+                        f"{scope_name}/if@{stmt.lineno}",
+                    ),
+                    (
+                        stmt.orelse,
+                        f"{scope_name}/else@{stmt.lineno}",
+                    ),
+                ]
+            )
+
+
+        elif isinstance(
+            stmt,
+            (
+                ast.For,
+                ast.AsyncFor,
+                ast.While,
+            ),
+        ):
+
+            nested_lists.extend(
+                [
+                    (
+                        stmt.body,
+                        f"{scope_name}/loop@{stmt.lineno}",
+                    ),
+                    (
+                        stmt.orelse,
+                        f"{scope_name}/loop_else@{stmt.lineno}",
+                    ),
+                ]
+            )
+
+
+        elif isinstance(
+            stmt,
+            ast.Try,
+        ):
+
+            nested_lists.append(
+                (
+                    stmt.body,
+                    f"{scope_name}/try@{stmt.lineno}",
+                )
+            )
+
+            nested_lists.append(
+                (
+                    stmt.orelse,
+                    f"{scope_name}/try_else@{stmt.lineno}",
+                )
+            )
+
+            nested_lists.append(
+                (
+                    stmt.finalbody,
+                    f"{scope_name}/finally@{stmt.lineno}",
+                )
+            )
+
+            for handler in stmt.handlers:
+
+                nested_lists.append(
+                    (
+                        handler.body,
+                        f"{scope_name}/except@{stmt.lineno}",
+                    )
+                )
+
+
+        elif isinstance(
+            stmt,
+            ast.With,
+        ):
+
+            nested_lists.append(
+                (
+                    stmt.body,
+                    f"{scope_name}/with@{stmt.lineno}",
+                )
+            )
+
+
+        for child_body, child_scope in nested_lists:
+
+            if child_body:
+
+                analyze_block(
+                    child_body,
+                    file_name,
+                    child_scope,
+                )
+
+
+for path in python_files:
+
+    src, tree = parse_ast(
+        path
+    )
+
+    if tree is None:
         continue
 
-
-    if result.returncode == 0:
-
-        passed(
-            f"IMPORT_{module}"
-        )
-
-    else:
-
-        failed(
-            f"IMPORT_{module}",
-            (
-                result.stderr.strip()
-                or
-                result.stdout.strip()
-            )[-1200:],
-        )
+    analyze_block(
+        tree.body,
+        path.name,
+        "module",
+    )
 
 
 # ============================================================
-# 5. VSE4 RUNTIME
+# 5. MIDIA.PY CONTROL FLOW
 # ============================================================
 
 section(
-    "5. VSE4 RUNTIME"
+    "5. MIDIA.PY DOWNLOAD / COMMIT CONTROL FLOW"
 )
 
 
-try:
+midia = ROOT / "midia.py"
 
-    import runpy
-
-    vse = runpy.run_path(
-        "visual_selection_engine_v4.py",
-        run_name="sap_general_audit",
-    )
-
-    passed(
-        "VSE4_LOAD"
-    )
-
-
-    score_candidate = vse.get(
-        "score_candidate"
-    )
-
-    if callable(
-        score_candidate
-    ):
-
-        passed(
-            "VSE4_SCORE_API"
-        )
-
-    else:
-
-        failed(
-            "VSE4_SCORE_API",
-            "score_candidate unavailable",
-        )
-
-
-    scene = (
-        "Investigação em apartamento "
-        "na cidade de São Paulo"
-    )
-
-
-    wrong = {
-        "provider":
-            "Pixabay",
-
-        "tipo":
-            "foto",
-
-        "title":
-            "Empire State Building New York",
-
-        "must":
-            "2/2",
-
-        "score":
-            220,
-
-        "width":
-            1920,
-
-        "height":
-            1080,
-    }
-
-
-    correct = {
-        "provider":
-            "Wikimedia",
-
-        "tipo":
-            "foto",
-
-        "title":
-            "Apartment building Sao Paulo Brazil",
-
-        "must":
-            "1/2",
-
-        "score":
-            120,
-
-        "width":
-            1920,
-
-        "height":
-            1080,
-    }
-
-
-    if callable(
-        score_candidate
-    ):
-
-        a = score_candidate(
-            wrong,
-            scene,
-            {
-                "providers": [],
-                "groups": [],
-                "types": [],
-                "keys": [],
-            },
-        )
-
-        b = score_candidate(
-            correct,
-            scene,
-            {
-                "providers": [],
-                "groups": [],
-                "types": [],
-                "keys": [],
-            },
-        )
-
-
-        print(
-            "WRONG_HARD_MISMATCH=",
-            a.get(
-                "hard_mismatch"
-            ),
-        )
-
-        print(
-            "WRONG_EFFECTIVE=",
-            a.get(
-                "effective"
-            ),
-        )
-
-        print(
-            "CORRECT_HARD_MISMATCH=",
-            b.get(
-                "hard_mismatch"
-            ),
-        )
-
-        print(
-            "CORRECT_EFFECTIVE=",
-            b.get(
-                "effective"
-            ),
-        )
-
-
-        if (
-            a.get(
-                "hard_mismatch"
-            )
-            is True
-        ):
-
-            passed(
-                "VSE4_GEO_HARD_MISMATCH"
-            )
-
-        else:
-
-            failed(
-                "VSE4_GEO_HARD_MISMATCH",
-                "São Paulo x New York accepted",
-            )
-
-
-        if (
-            b.get(
-                "hard_mismatch"
-            )
-            is False
-        ):
-
-            passed(
-                "VSE4_CORRECT_GEO_ALLOWED"
-            )
-
-        else:
-
-            failed(
-                "VSE4_CORRECT_GEO_ALLOWED"
-            )
-
-
-        ae = a.get(
-            "effective",
-            0,
-        )
-
-        be = b.get(
-            "effective",
-            0,
-        )
-
-
-        if be > ae:
-
-            passed(
-                "VSE4_CORRECT_RANKS_ABOVE_WRONG"
-            )
-
-        else:
-
-            failed(
-                "VSE4_CORRECT_RANKS_ABOVE_WRONG",
-                f"wrong={ae} correct={be}",
-            )
-
-
-except Exception as exc:
-
-    failed(
-        "VSE4_RUNTIME",
-        (
-            type(exc).__name__
-            +
-            ":"
-            +
-            str(exc)
-        ),
-    )
-
-    traceback.print_exc()
-
-
-# ============================================================
-# 6. MIDIA AST / VSE42
-# ============================================================
-
-section(
-    "6. MIDIA / VSE42 CONTRACT"
+midia_src, midia_tree = parse_ast(
+    midia
 )
 
 
-try:
-
-    src = Path(
-        "midia.py"
-    ).read_text(
-        encoding="utf-8",
-    )
-
-    tree = ast.parse(src)
-
+if midia_tree is not None:
 
     functions = {
-        n.name
-        for n in tree.body
+        node.name:
+            node
+
+        for node in midia_tree.body
+
         if isinstance(
-            n,
+            node,
             ast.FunctionDef,
         )
     }
 
 
-    required_provider_functions = {
-        "pexels_video",
-        "pexels_foto",
-        "pixabay_video",
-        "pixabay_foto",
-        "coverr_video",
-        "buscar_todos_candidatos",
-    }
+    for required in EXPECTED_PROVIDER_FUNCTIONS:
+
+        if required in functions:
+
+            emit(
+                f"FUNCTION_PRESENT=PASS "
+                f"{required} "
+                f"line={functions[required].lineno}"
+            )
+
+        else:
+
+            finding(
+                "ERROR",
+                "FUNCTION_MISSING",
+                required,
+            )
 
 
-    missing_provider = (
-        required_provider_functions
-        -
-        functions
+    # --------------------------------------------------------
+    # Calls to downloader.
+    # --------------------------------------------------------
+
+    downloader_calls = []
+
+
+    for node in ast.walk(
+        midia_tree
+    ):
+
+        if (
+            isinstance(
+                node,
+                ast.Call,
+            )
+            and
+            isinstance(
+                node.func,
+                ast.Name,
+            )
+            and
+            node.func.id
+            ==
+            "baixar_candidato_5_2"
+        ):
+
+            downloader_calls.append(
+                node.lineno
+            )
+
+
+    emit(
+        "DOWNLOAD_CALL_COUNT=",
+        len(
+            downloader_calls
+        ),
+    )
+
+    emit(
+        "DOWNLOAD_CALL_LINES=",
+        ",".join(
+            str(x)
+            for x in downloader_calls
+        ),
     )
 
 
-    if not missing_provider:
+    # --------------------------------------------------------
+    # Commit markers.
+    # --------------------------------------------------------
 
-        passed(
-            "PROVIDER_FUNCTIONS_PRESENT"
+    for marker in COMMIT_MARKERS:
+
+        count = midia_src.count(
+            marker
         )
 
-    else:
+        if count:
 
-        failed(
-            "PROVIDER_FUNCTIONS_PRESENT",
-            ",".join(
-                sorted(
-                    missing_provider
-                )
-            ),
+            emit(
+                f"COMMIT_MARKER "
+                f"{marker} count={count}"
+            )
+
+
+    commit_total = sum(
+        midia_src.count(
+            marker
         )
-
-
-    markers = {
-        "VSE42":
-            "_vse42_",
-
-        "VSE4":
-            "visual_selection_engine_v4",
-
-        "COMMIT":
-            "commit",
-
-        "DIVERSITY":
-            "divers",
-    }
-
-
-    for label, marker in markers.items():
-
-        count = src.casefold().count(
-            marker.casefold()
-        )
-
-        print(
-            f"{label}_MARKER_COUNT={count}"
-        )
-
-
-    if "_vse42_rank_pool" in src:
-
-        passed(
-            "VSE42_RANK_POOL_BRIDGE"
-        )
-
-    else:
-
-        failed(
-            "VSE42_RANK_POOL_BRIDGE"
-        )
-
-
-    if "_vse42_finalize_pool" in src:
-
-        passed(
-            "VSE42_FINAL_POOL_BRIDGE"
-        )
-
-    else:
-
-        warning(
-            "VSE42_FINAL_POOL_BRIDGE",
-            "not found",
-        )
-
-
-except Exception as exc:
-
-    failed(
-        "MIDIA_AST",
-        str(exc),
+        for marker in COMMIT_MARKERS
     )
+
+
+    if commit_total >= 8:
+
+        finding(
+            "WARN",
+            "COMMIT_COMPLEXITY",
+            f"{commit_total} commit-marker references "
+            f"found in midia.py",
+        )
 
 
 # ============================================================
-# 7. PROVIDER CALLS
+# 6. SPECIFIC FIRST-SUCCESS BUG
 # ============================================================
 
 section(
-    "7. PROVIDER ACQUISITION"
+    "6. FIRST-SUCCESS LOCK AUDIT"
 )
 
 
-try:
+if midia_tree is not None:
 
-    fn = next(
-        (
-            n
-            for n in tree.body
-            if (
-                isinstance(
-                    n,
-                    ast.FunctionDef,
-                )
-                and
-                n.name
-                ==
-                "buscar_todos_candidatos"
+    suspicious_success_blocks = 0
+
+
+    for node in ast.walk(
+        midia_tree
+    ):
+
+        if not isinstance(
+            node,
+            ast.If,
+        ):
+            continue
+
+
+        # Detecta "if ok:"
+        if not (
+            isinstance(
+                node.test,
+                ast.Name,
             )
-        ),
-        None,
-    )
+            and
+            node.test.id == "ok"
+        ):
+            continue
 
 
-    provider_calls = set()
+        breaks = [
+            child
+            for child in node.body
+            if isinstance(
+                child,
+                ast.Break,
+            )
+        ]
 
 
-    if fn:
+        if not breaks:
+            continue
+
+
+        first_break = min(
+            x.lineno
+            for x in breaks
+        )
+
+
+        statements_after = [
+            child
+            for child in node.body
+            if child.lineno > first_break
+        ]
+
+
+        emit(
+            f"IF_OK_BLOCK line={node.lineno} "
+            f"first_break={first_break} "
+            f"after_break={len(statements_after)}"
+        )
+
+
+        if statements_after:
+
+            suspicious_success_blocks += 1
+
+            finding(
+                "CRITICAL",
+                "FIRST_SUCCESS_DEAD_CODE",
+                f"midia.py if-ok line {node.lineno}: "
+                f"break at {first_break} leaves "
+                f"{len(statements_after)} direct statements "
+                f"unreachable",
+            )
+
+
+            for child in statements_after[:20]:
+
+                emit(
+                    f"  DEAD_STATEMENT "
+                    f"line={child.lineno} "
+                    f"type={type(child).__name__}"
+                )
+
+
+    if suspicious_success_blocks == 0:
+
+        emit(
+            "FIRST_SUCCESS_DIRECT_DEAD_CODE=NONE"
+        )
+
+
+# ============================================================
+# 7. BREAK BEFORE DESTINO / MARCAR_USADO / COMMIT
+# ============================================================
+
+section(
+    "7. SUCCESS ORDERING AUDIT"
+)
+
+
+if midia_tree is not None:
+
+    lines = midia_src.splitlines()
+
+
+    for call_line in downloader_calls:
+
+        start = max(
+            0,
+            call_line - 5,
+        )
+
+        end = min(
+            len(lines),
+            call_line + 100,
+        )
+
+
+        window = [
+            (
+                idx + 1,
+                lines[idx],
+            )
+            for idx in range(
+                start,
+                end,
+            )
+        ]
+
+
+        ok_line = None
+
+
+        for line_no, text in window:
+
+            if (
+                line_no > call_line
+                and
+                re.search(
+                    r"\bif\s+ok\s*:",
+                    text,
+                )
+            ):
+
+                ok_line = line_no
+                break
+
+
+        if not ok_line:
+            continue
+
+
+        block_window = [
+            (
+                ln,
+                text,
+            )
+            for ln, text in window
+            if (
+                ln >= ok_line
+                and
+                ln <= ok_line + 70
+            )
+        ]
+
+
+        interesting = {}
+
+
+        patterns = {
+            "break":
+                r"^\s*break\s*$",
+
+            "destino":
+                r"\bdestino\s*=\s*destino_teste",
+
+            "marcar_usado":
+                r"\bmarcar_usado\s*\(",
+
+            "visual_commit":
+                r"_sap_visual_commit\s*\(",
+
+            "vse42_commit":
+                r"_vse42_commit_candidate\s*\(",
+
+            "runtime_commit":
+                r"_vse42_note_commit\s*\(",
+
+            "sibling_cleanup":
+                r"_vse42_cleanup_scene_sibling\s*\(",
+        }
+
+
+        for label, pattern in patterns.items():
+
+            for ln, text in block_window:
+
+                if re.search(
+                    pattern,
+                    text,
+                ):
+
+                    interesting[
+                        label
+                    ] = ln
+
+                    break
+
+
+        emit(
+            f"SUCCESS_PATH download_line={call_line} "
+            f"if_ok={ok_line} "
+            f"{interesting}"
+        )
+
+
+        first_break = interesting.get(
+            "break"
+        )
+
+
+        if first_break:
+
+            for label in (
+                "destino",
+                "marcar_usado",
+                "vse42_commit",
+                "runtime_commit",
+                "sibling_cleanup",
+            ):
+
+                target = interesting.get(
+                    label
+                )
+
+                if (
+                    target
+                    and
+                    target > first_break
+                ):
+
+                    finding(
+                        "CRITICAL",
+                        "POST_BREAK_SUCCESS_LOGIC",
+                        f"{label} line {target} "
+                        f"occurs after break "
+                        f"line {first_break}",
+                    )
+
+
+# ============================================================
+# 8. PROVIDER ACQUISITION
+# ============================================================
+
+section(
+    "8. PROVIDER ACQUISITION"
+)
+
+
+provider_names = (
+    "pexels_video",
+    "pexels_foto",
+    "pixabay_video",
+    "pixabay_foto",
+    "coverr_video",
+)
+
+
+if midia_tree is not None:
+
+    buscar = None
+
+
+    for node in midia_tree.body:
+
+        if (
+            isinstance(
+                node,
+                ast.FunctionDef,
+            )
+            and
+            node.name
+            ==
+            "buscar_todos_candidatos"
+        ):
+
+            buscar = node
+            break
+
+
+    if buscar is None:
+
+        finding(
+            "CRITICAL",
+            "BUSCAR_TODOS_MISSING",
+            "buscar_todos_candidatos",
+        )
+
+    else:
+
+        calls = []
+
 
         for node in ast.walk(
-            fn
+            buscar
         ):
 
             if isinstance(
@@ -694,532 +1085,1010 @@ try:
                     ast.Name,
                 ):
 
-                    provider_calls.add(
-                        node.func.id
+                    calls.append(
+                        (
+                            node.func.id,
+                            node.lineno,
+                        )
                     )
 
 
-    for provider_name in (
-        "pexels_video",
-        "pexels_foto",
-        "pixabay_video",
-        "pixabay_foto",
-        "coverr_video",
-    ):
+        for provider_name in provider_names:
 
-        if provider_name in provider_calls:
-
-            passed(
-                "CALL_" + provider_name
-            )
-
-        else:
-
-            warning(
-                "CALL_" + provider_name,
-                "not directly called",
-            )
+            found = [
+                line
+                for name, line in calls
+                if name == provider_name
+            ]
 
 
-except Exception as exc:
+            if found:
 
-    failed(
-        "PROVIDER_CALL_AUDIT",
-        str(exc),
-    )
+                emit(
+                    f"PROVIDER_CALL=PASS "
+                    f"{provider_name} "
+                    f"lines={found}"
+                )
+
+            else:
+
+                finding(
+                    "ERROR",
+                    "PROVIDER_NOT_CALLED",
+                    provider_name,
+                )
 
 
 # ============================================================
-# 8. DOWNLOAD SUCCESS LOOP
+# 9. VSE FILES
 # ============================================================
 
 section(
-    "8. POST-DOWNLOAD FLOW"
+    "9. VISUAL ENGINE FILES"
 )
 
 
-try:
+for name in VISUAL_FILES:
 
-    text = Path(
-        "midia.py"
-    ).read_text(
-        encoding="utf-8",
+    path = ROOT / name
+
+    if path.is_file():
+
+        emit(
+            f"VISUAL_FILE=FOUND "
+            f"{name} "
+            f"bytes={path.stat().st_size}"
+        )
+
+    else:
+
+        emit(
+            f"VISUAL_FILE=MISSING "
+            f"{name}"
+        )
+
+
+# ============================================================
+# 10. VSE4 SELF TEST
+# ============================================================
+
+section(
+    "10. VSE4 SELF TEST"
+)
+
+
+vse4 = ROOT / "visual_selection_engine_v4.py"
+
+
+if vse4.is_file():
+
+    code, output = run_command(
+        [
+            sys.executable,
+            str(vse4),
+        ],
+        timeout=60,
     )
 
 
-    lines = text.splitlines()
+    emit(
+        "VSE4_SELF_TEST_STATUS=",
+        code,
+    )
 
 
-    suspicious = []
+    tail = "\n".join(
+        output.splitlines()[-40:]
+    )
 
 
-    for i, line in enumerate(
-        lines,
-        start=1,
-    ):
+    emit(
+        "VSE4_SELF_TEST_TAIL_BEGIN"
+    )
 
-        if (
-            "baixar_candidato_5_2("
-            in line
+    emit(
+        tail
+    )
+
+    emit(
+        "VSE4_SELF_TEST_TAIL_END"
+    )
+
+
+    if code != 0:
+
+        finding(
+            "ERROR",
+            "VSE4_SELF_TEST_FAIL",
+            "visual_selection_engine_v4.py "
+            f"returned {code}",
+        )
+
+    else:
+
+        emit(
+            "VSE4_SELF_TEST=PASS"
+        )
+
+
+else:
+
+    finding(
+        "WARN",
+        "VSE4_MISSING",
+        "visual_selection_engine_v4.py",
+    )
+
+
+# ============================================================
+# 11. DUPLICATE FUNCTION DEFINITIONS
+# ============================================================
+
+section(
+    "11. DUPLICATE DEFINITIONS"
+)
+
+
+for path in python_files:
+
+    src, tree = parse_ast(
+        path
+    )
+
+    if tree is None:
+        continue
+
+
+    names = defaultdict(
+        list
+    )
+
+
+    for node in tree.body:
+
+        if isinstance(
+            node,
+            (
+                ast.FunctionDef,
+                ast.AsyncFunctionDef,
+                ast.ClassDef,
+            ),
         ):
 
-            snippet = "\n".join(
-                lines[
-                    max(
-                        0,
-                        i - 8
-                    ):
-                    min(
-                        len(lines),
-                        i + 35,
-                    )
-                ]
-            )
-
-            suspicious.append(
-                (
-                    i,
-                    snippet,
-                )
+            names[
+                node.name
+            ].append(
+                node.lineno
             )
 
 
-    print(
-        "DOWNLOAD_CALL_SITES=",
-        len(suspicious),
-    )
+    for name, locations in names.items():
 
+        if len(
+            locations
+        ) > 1:
 
-    unconditional_break_found = False
-
-
-    for line_no, snippet in suspicious:
-
-        print()
-        print(
-            f"DOWNLOAD_SITE_LINE={line_no}"
-        )
-
-        # Heurística conservadora.
-        if "break" in snippet:
-
-            unconditional_break_found = True
-
-
-    if unconditional_break_found:
-
-        passed(
-            "POST_DOWNLOAD_BREAK_PRESENT"
-        )
-
-    else:
-
-        warning(
-            "POST_DOWNLOAD_BREAK_PRESENT",
-            "manual/commit-lock protection required",
-        )
-
-
-except Exception as exc:
-
-    failed(
-        "POST_DOWNLOAD_FLOW",
-        str(exc),
-    )
+            finding(
+                "WARN",
+                "DUPLICATE_DEFINITION",
+                f"{path.name}: {name} "
+                f"lines={locations}",
+            )
 
 
 # ============================================================
-# 9. COMMIT LOCK
+# 12. SHADOWED / MULTIPLE VISUAL ENGINES
 # ============================================================
 
 section(
-    "9. COMMIT LOCK"
+    "12. VISUAL ENGINE OVERLAP"
 )
 
 
-try:
-
-    src_lock = Path(
-        "visual_scene_commit_lock_v1.py"
-    ).read_text(
-        encoding="utf-8",
-    )
-
-    tree_lock = ast.parse(
-        src_lock
-    )
+visual_imports = []
 
 
-    lock_functions = {
-        n.name
-        for n in tree_lock.body
+if midia_tree is not None:
+
+    for node in ast.walk(
+        midia_tree
+    ):
+
         if isinstance(
-            n,
-            ast.FunctionDef,
-        )
-    }
+            node,
+            ast.ImportFrom,
+        ):
+
+            module = (
+                node.module
+                or ""
+            )
+
+            if (
+                "visual" in module.casefold()
+                or
+                "media_diversity" in module.casefold()
+            ):
+
+                visual_imports.append(
+                    (
+                        module,
+                        node.lineno,
+                    )
+                )
 
 
-    print(
-        "COMMIT_LOCK_FUNCTIONS=",
-        sorted(
-            lock_functions
-        ),
+for module, line in visual_imports:
+
+    emit(
+        f"VISUAL_IMPORT "
+        f"line={line} "
+        f"module={module}"
     )
 
 
-    if "install" in lock_functions:
-
-        passed(
-            "COMMIT_LOCK_INSTALL"
-        )
-
-    else:
-
-        warning(
-            "COMMIT_LOCK_INSTALL",
-            "install API absent",
-        )
+modules = {
+    module
+    for module, _ in visual_imports
+}
 
 
-except Exception as exc:
+if len(
+    modules
+) >= 5:
 
-    failed(
-        "COMMIT_LOCK_AUDIT",
-        str(exc),
+    finding(
+        "WARN",
+        "VISUAL_ENGINE_OVERLAP",
+        f"{len(modules)} visual-related modules "
+        f"imported by midia.py",
     )
 
 
 # ============================================================
-# 10. MEDIA RUNS
+# 13. MEDIA FOLDER INTEGRITY
 # ============================================================
 
 section(
-    "10. MEDIA RUN STRUCTURE"
+    "13. MEDIA FOLDER INTEGRITY"
 )
 
 
-media_root = ROOT / "imagens"
+image_root = ROOT / "imagens"
+
+duplicate_scene_folders = []
 
 
-runs = sorted(
-    (
+if image_root.is_dir():
+
+    short_dirs = sorted(
+        image_root.glob(
+            "short_*"
+        )
+    )
+
+
+    emit(
+        "SHORT_MEDIA_DIR_COUNT=",
+        len(short_dirs),
+    )
+
+
+    for directory in short_dirs:
+
+        if not directory.is_dir():
+            continue
+
+
+        scene_files = defaultdict(
+            list
+        )
+
+
+        for media in directory.glob(
+            "scene_*.*"
+        ):
+
+            match = re.match(
+                r"scene_(\d+)\.",
+                media.name,
+            )
+
+            if not match:
+                continue
+
+
+            scene_files[
+                int(
+                    match.group(1)
+                )
+            ].append(
+                media
+            )
+
+
+        duplicates = {
+            scene:
+                files
+
+            for scene, files
+            in scene_files.items()
+
+            if len(files) > 1
+        }
+
+
+        if duplicates:
+
+            duplicate_scene_folders.append(
+                directory.name
+            )
+
+            finding(
+                "ERROR",
+                "DUPLICATE_SCENE_MEDIA",
+                f"{directory.name}: "
+                +
+                "; ".join(
+                    f"{scene:02d}="
+                    +
+                    ",".join(
+                        f.name
+                        for f in files
+                    )
+
+                    for scene, files
+                    in duplicates.items()
+                ),
+            )
+
+
+    if not duplicate_scene_folders:
+
+        emit(
+            "DUPLICATE_SCENE_MEDIA=NONE"
+        )
+
+
+# ============================================================
+# 14. CURRENT/LATEST MEDIA COUNT
+# ============================================================
+
+section(
+    "14. LATEST MEDIA DIRECTORY"
+)
+
+
+if image_root.is_dir():
+
+    dirs = [
         p
-        for p in media_root.glob(
+        for p in image_root.glob(
             "short_*"
         )
         if p.is_dir()
-    ),
-    key=lambda p:
-        p.stat().st_mtime,
-    reverse=True,
+    ]
+
+
+    if dirs:
+
+        latest = max(
+            dirs,
+            key=lambda x:
+                x.stat().st_mtime,
+        )
+
+
+        emit(
+            "LATEST_MEDIA_DIR=",
+            latest.name,
+        )
+
+
+        found = defaultdict(
+            list
+        )
+
+
+        for path in latest.glob(
+            "scene_*.*"
+        ):
+
+            m = re.match(
+                r"scene_(\d+)\.",
+                path.name,
+            )
+
+            if m:
+
+                found[
+                    int(
+                        m.group(1)
+                    )
+                ].append(
+                    path.name
+                )
+
+
+        emit(
+            "LATEST_SCENE_NUMBERS=",
+            sorted(
+                found
+            ),
+        )
+
+
+        missing = [
+            n
+            for n in range(
+                1,
+                13,
+            )
+            if n not in found
+        ]
+
+
+        if missing:
+
+            finding(
+                "ERROR",
+                "LATEST_SCENES_MISSING",
+                str(
+                    missing
+                ),
+            )
+
+
+        duplicates = [
+            n
+            for n, values
+            in found.items()
+            if len(values) != 1
+        ]
+
+
+        if duplicates:
+
+            finding(
+                "ERROR",
+                "LATEST_SCENE_COUNT_INVALID",
+                str(
+                    duplicates
+                ),
+            )
+
+
+# ============================================================
+# 15. JSON INTEGRITY
+# ============================================================
+
+section(
+    "15. JSON INTEGRITY"
 )
 
 
-complete_runs = []
-incomplete_runs = []
+json_roots = (
+    ROOT / "roteiros",
+    ROOT / "manifests",
+)
 
 
-for run in runs[:30]:
-
-    counts = []
-
-    total = 0
+json_files = []
 
 
-    for n in range(
-        1,
-        13,
-    ):
+for base in json_roots:
 
-        files = list(
-            run.glob(
-                f"scene_{n:02d}.*"
+    if not base.is_dir():
+        continue
+
+
+    json_files.extend(
+        [
+            p
+            for p in base.rglob(
+                "*.json"
             )
-        )
-
-        count = len(
-            [
-                f
-                for f in files
-                if f.is_file()
-            ]
-        )
-
-        counts.append(
-            count
-        )
-
-        total += count
-
-
-    valid = (
-        total == 12
-        and
-        all(
-            x == 1
-            for x in counts
-        )
+            if (
+                p.is_file()
+                and not excluded(
+                    p
+                )
+            )
+        ]
     )
 
 
-    if valid:
+# Mais recentes para evitar milhares.
+json_files = sorted(
+    json_files,
+    key=lambda x:
+        x.stat().st_mtime,
+    reverse=True,
+)[:300]
 
-        complete_runs.append(
-            run
+
+json_bad = []
+
+
+for path in json_files:
+
+    try:
+
+        with path.open(
+            "r",
+            encoding="utf-8",
+        ) as file:
+
+            json.load(
+                file
+            )
+
+    except Exception as exc:
+
+        json_bad.append(
+            path
+        )
+
+        finding(
+            "ERROR",
+            "INVALID_JSON",
+            f"{path.relative_to(ROOT)}: "
+            f"{type(exc).__name__}",
+        )
+
+
+emit(
+    "JSON_CHECKED=",
+    len(json_files),
+)
+
+
+if not json_bad:
+
+    emit(
+        "JSON_INTEGRITY=PASS"
+    )
+
+
+# ============================================================
+# 16. DANGEROUS DELETE / CACHE LOGIC
+# ============================================================
+
+section(
+    "16. DELETE / CACHE SAFETY"
+)
+
+
+for path in python_files:
+
+    src = read_text(
+        path
+    )
+
+
+    for pattern in DANGEROUS_PATTERNS:
+
+        for match in re.finditer(
+            pattern,
+            src,
+            flags=re.IGNORECASE,
+        ):
+
+            line = (
+                src.count(
+                    "\n",
+                    0,
+                    match.start(),
+                )
+                + 1
+            )
+
+            emit(
+                f"DELETE_OPERATION "
+                f"{path.name}:{line} "
+                f"pattern={pattern}"
+            )
+
+
+guard = ROOT / "fresh_render_guard_v1.py"
+
+
+if guard.is_file():
+
+    guard_src = read_text(
+        guard
+    )
+
+
+    if ".ass" in guard_src:
+
+        emit(
+            "RENDER_GUARD_ASS_REFERENCE=YES"
+        )
+
+
+    if (
+        "PROTECTED_SUFFIXES"
+        in guard_src
+        and
+        '".ass"'
+        in guard_src
+    ):
+
+        emit(
+            "RENDER_GUARD_ASS_PROTECTION=PASS"
+        )
+
+    elif "'.ass'" in guard_src:
+
+        emit(
+            "RENDER_GUARD_ASS_PROTECTION=POSSIBLE"
         )
 
     else:
 
-        incomplete_runs.append(
-            (
-                run,
-                total,
-                counts,
-            )
+        finding(
+            "WARN",
+            "RENDER_GUARD_ASS_UNKNOWN",
+            "Unable to confirm .ass protection",
         )
 
 
-if runs:
-
-    print(
-        "NEWEST_MEDIA_RUN=",
-        runs[0],
-    )
-
-
-if complete_runs:
-
-    print(
-        "NEWEST_COMPLETE_MEDIA_RUN=",
-        complete_runs[0],
-    )
-
-    passed(
-        "COMPLETE_MEDIA_RUN_AVAILABLE"
-    )
-
-else:
-
-    warning(
-        "COMPLETE_MEDIA_RUN_AVAILABLE",
-        "none in latest 30",
-    )
-
-
-print(
-    "INCOMPLETE_RUN_COUNT=",
-    len(incomplete_runs),
-)
-
-
-for run, total, counts in incomplete_runs[:10]:
-
-    print(
-        "INCOMPLETE="
-        +
-        run.name
-        +
-        f" total={total}"
-        +
-        f" counts={counts}"
-    )
-
-
 # ============================================================
-# 11. DUPLICATE SCENES
+# 17. /tmp USAGE
 # ============================================================
 
 section(
-    "11. DUPLICATE SCENE FILES"
+    "17. TEMP PATH POLICY"
 )
 
 
-duplicate_runs = 0
+tmp_refs = []
 
 
-for run in runs[:30]:
+for path in (
+    python_files
+    +
+    shell_files
+):
 
-    duplicates = []
+    src = read_text(
+        path
+    )
 
 
-    for n in range(
-        1,
-        13,
+    for index, line in enumerate(
+        src.splitlines(),
+        start=1,
     ):
 
-        files = [
-            f
-            for f in run.glob(
-                f"scene_{n:02d}.*"
-            )
-            if f.is_file()
-        ]
+        if "/tmp" in line:
 
-        if len(files) > 1:
-
-            duplicates.append(
+            tmp_refs.append(
                 (
-                    n,
-                    [
-                        f.name
-                        for f in files
-                    ],
+                    path.name,
+                    index,
+                    line.strip(),
                 )
             )
 
 
-    if duplicates:
+for item in tmp_refs[:100]:
 
-        duplicate_runs += 1
-
-        print(
-            "DUPLICATE_RUN=",
-            run.name,
-            duplicates,
-        )
-
-
-if duplicate_runs == 0:
-
-    passed(
-        "NO_SCENE_EXTENSION_DUPLICATES"
+    finding(
+        "WARN",
+        "TMP_REFERENCE",
+        f"{item[0]}:{item[1]} "
+        f"{item[2][:150]}",
     )
 
-else:
 
-    warning(
-        "NO_SCENE_EXTENSION_DUPLICATES",
-        str(
-            duplicate_runs
+if not tmp_refs:
+
+    emit(
+        "TMP_REFERENCES=NONE"
+    )
+
+
+# ============================================================
+# 18. PROVIDER MONOPOLY TELEMETRY
+# ============================================================
+
+section(
+    "18. PROVIDER TELEMETRY FROM LOGS"
+)
+
+
+logs_dir = ROOT / "logs" / "producao"
+
+providers = Counter()
+
+
+if logs_dir.is_dir():
+
+    recent_logs = sorted(
+        logs_dir.glob(
+            "*.log"
+        ),
+        key=lambda x:
+            x.stat().st_mtime,
+        reverse=True,
+    )[:30]
+
+
+    patterns = (
+        re.compile(
+            r"ESCOLHIDO:\s*([^/\n]+)",
+            re.I,
+        ),
+
+        re.compile(
+            r"DOWNLOAD PRIORITÁRIO:\s*([^/\n]+)",
+            re.I,
         ),
     )
 
 
+    for log in recent_logs:
+
+        src = read_text(
+            log
+        )
+
+
+        for pattern in patterns:
+
+            for match in pattern.finditer(
+                src
+            ):
+
+                value = (
+                    match.group(1)
+                    .strip()
+                    .casefold()
+                )
+
+
+                if value:
+
+                    providers[
+                        value
+                    ] += 1
+
+
+emit(
+    "PROVIDER_COUNTS=",
+    dict(
+        providers
+    ),
+)
+
+
+if providers:
+
+    total = sum(
+        providers.values()
+    )
+
+    top_provider, top_count = (
+        providers.most_common(
+            1
+        )[0]
+    )
+
+
+    ratio = (
+        top_count
+        /
+        total
+    )
+
+
+    emit(
+        f"TOP_PROVIDER={top_provider} "
+        f"ratio={ratio:.3f}"
+    )
+
+
+    if (
+        total >= 12
+        and
+        ratio >= 0.85
+    ):
+
+        finding(
+            "WARN",
+            "PROVIDER_MONOPOLY",
+            f"{top_provider} represents "
+            f"{ratio:.1%} of logged selections",
+        )
+
+
 # ============================================================
-# 12. RENDER GUARD
+# 19. MIDIA CORE HASH
 # ============================================================
 
 section(
-    "12. RENDER GUARD"
+    "19. CORE HASHES"
 )
 
 
-try:
+for name in CRITICAL_FILES:
 
-    guard_text = Path(
-        "fresh_render_guard_v1.py"
-    ).read_text(
-        encoding="utf-8",
+    path = ROOT / name
+
+    if not path.is_file():
+        continue
+
+
+    code, output = run_command(
+        [
+            "sha256sum",
+            str(path),
+        ],
+        timeout=10,
     )
 
 
-    if ".ass" in guard_text:
+    if code == 0:
 
-        passed(
-            "RENDER_GUARD_ASS_AWARE"
+        emit(
+            output.strip()
         )
-
-    else:
-
-        warning(
-            "RENDER_GUARD_ASS_AWARE"
-        )
-
-
-except Exception as exc:
-
-    failed(
-        "RENDER_GUARD_AUDIT",
-        str(exc),
-    )
 
 
 # ============================================================
-# 13. FINAL SUMMARY
+# 20. AST CONTROL-FLOW FOCUS AROUND KNOWN LINES
 # ============================================================
 
 section(
-    "GENERAL AUDIT SUMMARY"
+    "20. MIDIA CONTROL-FLOW CONTEXT"
 )
 
 
-print(
-    "PASS_COUNT=",
-    len(PASSES),
-)
+if midia.is_file():
 
-print(
-    "WARNING_COUNT=",
-    len(WARNINGS),
-)
-
-print(
-    "FAIL_COUNT=",
-    len(FAILURES),
-)
+    lines = midia_src.splitlines()
 
 
-if WARNINGS:
-
-    print()
-    print(
-        "===== WARNINGS ====="
+    targets = (
+        1055,
+        3307,
+        4519,
+        4569,
+        4591,
+        4733,
     )
 
-    for name, reason in WARNINGS:
 
-        print(
-            f"WARN={name} | {reason}"
+    for target in targets:
+
+        if target > len(
+            lines
+        ):
+            continue
+
+
+        emit()
+        emit(
+            f"--- CONTEXT line {target} ---"
         )
 
 
-if FAILURES:
+        lo = max(
+            1,
+            target - 12,
+        )
 
-    print()
-    print(
-        "===== FAILURES ====="
-    )
-
-    for name, reason in FAILURES:
-
-        print(
-            f"FAIL={name} | {reason}"
+        hi = min(
+            len(lines),
+            target + 25,
         )
 
 
-print()
+        for n in range(
+            lo,
+            hi + 1,
+        ):
+
+            emit(
+                f"{n:05d} | "
+                f"{lines[n - 1]}"
+            )
 
 
-if not FAILURES:
+# ============================================================
+# 21. SUMMARY
+# ============================================================
 
-    print(
-        "GENERAL_CERTIFICATION=PASS"
+section(
+    "21. FINAL SUMMARY"
+)
+
+
+emit(
+    "CRITICAL_COUNT=",
+    COUNTS[
+        "CRITICAL"
+    ],
+)
+
+emit(
+    "ERROR_COUNT=",
+    COUNTS[
+        "ERROR"
+    ],
+)
+
+emit(
+    "WARN_COUNT=",
+    COUNTS[
+        "WARN"
+    ],
+)
+
+
+if (
+    COUNTS["CRITICAL"] == 0
+    and
+    COUNTS["ERROR"] == 0
+):
+
+    emit(
+        "GENERAL_STATUS=PASS"
     )
+
+
+elif COUNTS[
+    "CRITICAL"
+] == 0:
+
+    emit(
+        "GENERAL_STATUS=PASS_WITH_ERRORS"
+    )
+
 
 else:
 
-    print(
-        "GENERAL_CERTIFICATION=FAIL"
+    emit(
+        "GENERAL_STATUS=FAIL"
     )
 
 
-print(
+emit()
+emit(
     "NETWORK_EXECUTED=NO"
 )
 
-print(
+emit(
     "MEDIA_DOWNLOADED=NO"
 )
 
-print(
+emit(
     "VIDEO_RENDERED=NO"
 )
 
-print(
-    "MIDIA_EXECUTED=NO"
+emit(
+    "CORE_MODIFIED=NO"
 )
 
 
-if __name__ == "__main__":
-    pass
+REPORT.write_text(
+    "\n".join(
+        LINES
+    )
+    +
+    "\n",
+    encoding="utf-8",
+)
+
+
+emit()
+emit(
+    "REPORT=",
+    REPORT,
+)
+
+emit(
+    "AUDIT_COMPLETE=YES"
+)

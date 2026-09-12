@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from short_id_runtime_v1 import resolve_short_id as _sap_resolve_short_id
 
 import json
 import hashlib
@@ -19,7 +20,7 @@ OUT = (
     "vi230_00_current_vs_candidate_ab_latest.json"
 )
 
-SHORT_ID = "2026-09-01_1433"
+SHORT_ID = _sap_resolve_short_id()
 SCENE = 2
 
 TARGET_RATIO = 9 / 16

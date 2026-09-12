@@ -2349,25 +2349,22 @@ def save_state(short_id, state):
 # ============================================================
 
 
-def candidate_text(value):
+def candidate_text(candidate):
     """
-    Constrói texto semântico para VSE4.
+    Converte cena/candidato em texto semântico estável.
 
-    Suporta:
-    - string direta
-    - cena estruturada
-    - candidato de mídia
-    - metadata aninhada
-    - listas/tuplas/sets
+    Aceita:
+    - str
+    - bytes
+    - dict
+    - list/tuple/set
+    - objetos Python
+    - metadata aninhado
 
-    Regra importante:
-    search_query/query do candidato NÃO contam como
-    evidência visual. Isso evita o candidato "provar"
-    relevância apenas repetindo a consulta usada para
-    encontrá-lo.
+    Não modifica o objeto de origem.
     """
 
-    if value is None:
+    if candidate is None:
         return ""
 
 
@@ -2375,12 +2372,37 @@ def candidate_text(value):
     # DIRECT STRING
     # ========================================================
 
+    if isinstance(candidate, str):
+
+        return " ".join(
+            candidate
+            .casefold()
+            .strip()
+            .split()
+        )
+
+
     if isinstance(
-        value,
-        str,
+        candidate,
+        bytes,
     ):
 
-        return value.strip().casefold()
+        try:
+
+            return " ".join(
+                candidate
+                .decode(
+                    "utf-8",
+                    errors="ignore",
+                )
+                .casefold()
+                .strip()
+                .split()
+            )
+
+        except Exception:
+
+            return ""
 
 
     # ========================================================
@@ -2388,7 +2410,7 @@ def candidate_text(value):
     # ========================================================
 
     if isinstance(
-        value,
+        candidate,
         (
             list,
             tuple,
@@ -2398,7 +2420,7 @@ def candidate_text(value):
 
         parts = []
 
-        for item in value:
+        for item in candidate:
 
             text = candidate_text(
                 item
@@ -2411,35 +2433,96 @@ def candidate_text(value):
 
         return " ".join(
             parts
-        ).strip().casefold()
+        )
+
+
+    fields = (
+        "texto",
+        "text",
+        "title",
+        "name",
+        "description",
+        "caption",
+        "alt",
+        "alt_text",
+        "visual_query",
+        "query",
+        "search_query",
+        "subject",
+        "topic",
+        "location",
+        "place",
+        "city",
+        "country",
+        "must_have",
+        "avoid",
+        "tags",
+        "keywords",
+        "terms",
+        "category",
+        "provider",
+        "source_group",
+        "media_type",
+        "type",
+        "tipo",
+        "filename",
+    )
+
+
+    nested_fields = (
+        "metadata",
+        "meta",
+        "source_metadata",
+        "provenance",
+        "scene",
+        "context",
+    )
 
 
     parts = []
 
 
-    def add(item):
+    def add(value):
 
-        if item is None:
+        if value is None:
             return
 
 
         if isinstance(
-            item,
+            value,
             str,
         ):
 
-            item = item.strip()
+            value = value.strip()
 
-            if item:
+            if value:
                 parts.append(
-                    item
+                    value
                 )
 
             return
 
 
         if isinstance(
-            item,
+            value,
+            bytes,
+        ):
+
+            try:
+                add(
+                    value.decode(
+                        "utf-8",
+                        errors="ignore",
+                    )
+                )
+            except Exception:
+                pass
+
+            return
+
+
+        if isinstance(
+            value,
             (
                 int,
                 float,
@@ -2448,14 +2531,14 @@ def candidate_text(value):
         ):
 
             parts.append(
-                str(item)
+                str(value)
             )
 
             return
 
 
         if isinstance(
-            item,
+            value,
             (
                 list,
                 tuple,
@@ -2463,44 +2546,32 @@ def candidate_text(value):
             ),
         ):
 
-            for child in item:
-                add(
-                    child
-                )
+            for item in value:
+                add(item)
 
             return
 
 
         if isinstance(
-            item,
+            value,
             dict,
         ):
 
-            # Somente campos de evidência.
-            for key in (
-                "title",
-                "name",
-                "description",
-                "descricao",
-                "caption",
-                "alt",
-                "alt_text",
-                "tags",
-                "keywords",
-                "terms",
-                "subject",
-                "category",
-                "filename",
-                "location",
-                "city",
-                "country",
-            ):
+            for field in fields:
 
-                if key in item:
-
+                if field in value:
                     add(
-                        item.get(
-                            key
+                        value.get(
+                            field
+                        )
+                    )
+
+            for nested in nested_fields:
+
+                if nested in value:
+                    add(
+                        value.get(
+                            nested
                         )
                     )
 
@@ -2512,167 +2583,69 @@ def candidate_text(value):
     # ========================================================
 
     if isinstance(
-        value,
+        candidate,
         dict,
     ):
 
-        keys = set(
-            value.keys()
-        )
+        for field in fields:
 
-
-        # ----------------------------------------------------
-        # Detecta estrutura de CENA.
-        # ----------------------------------------------------
-
-        scene_markers = {
-            "texto",
-            "text",
-            "narration",
-            "narracao",
-            "roteiro",
-            "visual_query",
-            "must_have",
-            "avoid",
-            "location",
-        }
-
-
-        is_scene = bool(
-            keys
-            &
-            scene_markers
-        )
-
-
-        # ----------------------------------------------------
-        # Campos semânticos comuns.
-        # ----------------------------------------------------
-
-        for field in (
-            "title",
-            "name",
-            "description",
-            "descricao",
-            "caption",
-            "alt",
-            "alt_text",
-            "tags",
-            "keywords",
-            "terms",
-            "subject",
-            "category",
-            "filename",
-            "location",
-            "city",
-            "country",
-        ):
-
-            if field in value:
-
+            if field in candidate:
                 add(
-                    value.get(
+                    candidate.get(
                         field
                     )
                 )
 
 
-        # ----------------------------------------------------
-        # Campos exclusivos de cena.
-        # ----------------------------------------------------
+        for nested in nested_fields:
 
-        if is_scene:
-
-            for field in (
-                "texto",
-                "text",
-                "narration",
-                "narracao",
-                "roteiro",
-                "visual_query",
-                "must_have",
-                "avoid",
-                "location",
-            ):
-
-                if field in value:
-
-                    add(
-                        value.get(
-                            field
-                        )
-                    )
-
-
-        # ----------------------------------------------------
-        # Metadata aninhada.
-        #
-        # Query/search_query/topic ficam deliberadamente
-        # fora da evidência visual do candidato.
-        # ----------------------------------------------------
-
-        for nested_name in (
-            "metadata",
-            "meta",
-            "source_metadata",
-            "provenance",
-        ):
-
-            nested = value.get(
-                nested_name
-            )
-
-            if isinstance(
-                nested,
-                dict,
-            ):
+            if nested in candidate:
 
                 add(
-                    nested
+                    candidate.get(
+                        nested
+                    )
                 )
 
 
     # ========================================================
-    # GENERIC OBJECT
+    # OBJECT
     # ========================================================
 
     else:
 
-        for field in (
-            "title",
-            "name",
-            "description",
-            "descricao",
-            "caption",
-            "alt",
-            "alt_text",
-            "tags",
-            "keywords",
-            "terms",
-            "subject",
-            "category",
-            "filename",
-            "location",
-            "city",
-            "country",
-        ):
+        for field in fields:
 
             try:
 
-                item = getattr(
-                    value,
-                    field,
-                    None,
+                add(
+                    getattr(
+                        candidate,
+                        field,
+                        None,
+                    )
                 )
 
             except Exception:
 
-                item = None
+                pass
 
 
-            add(
-                item
-            )
+        for nested in nested_fields:
+
+            try:
+
+                add(
+                    getattr(
+                        candidate,
+                        nested,
+                        None,
+                    )
+                )
+
+            except Exception:
+
+                pass
 
 
     # ========================================================
@@ -2685,9 +2658,11 @@ def candidate_text(value):
 
     for part in parts:
 
-        part = str(
-            part
-        ).strip()
+        part = " ".join(
+            str(part)
+            .strip()
+            .split()
+        )
 
         if not part:
             continue
@@ -2711,7 +2686,9 @@ def candidate_text(value):
 
     return " ".join(
         clean
-    ).strip().casefold()
+    ).casefold()
+
+
 
 
 
@@ -2882,7 +2859,7 @@ def tokens(value):
 
 
 
-def score_candidate(
+def _score_candidate_stage_01(
     candidate,
     scene_text,
     state,
@@ -2922,9 +2899,149 @@ def score_candidate(
         concept_overlap * 2
     )
 
-    must = must_tier(
-        candidate
+    # --------------------------------------------------
+    # TRUSTED MUST_HAVE VERIFICATION
+    # --------------------------------------------------
+    # Never trust candidate["must"] as ranking evidence.
+    #
+    # When the structured scene exposes explicit must_have
+    # requirements, verify EACH requirement independently
+    # against the candidate itself.
+    #
+    # Geographic requirements use geo_hits().
+    # Semantic requirements use concept_hits().
+    # Plain textual requirements require their complete
+    # normalized token set to be present.
+    #
+    # Only when no explicit must_have exists do we use the
+    # legacy semantic fallback, with declared "must" removed.
+
+    declared_must = (
+        candidate.get("must")
+        if isinstance(candidate, dict)
+        else None
     )
+
+    explicit_must = []
+
+    if isinstance(scene_text, dict):
+        raw_must = scene_text.get(
+            "must_have",
+            [],
+        )
+
+        if isinstance(raw_must, str):
+            explicit_must = [
+                raw_must
+            ]
+
+        elif isinstance(
+            raw_must,
+            (list, tuple, set),
+        ):
+            explicit_must = [
+                item
+                for item in raw_must
+                if item is not None
+                and str(item).strip()
+            ]
+
+    if explicit_must:
+
+        verified_must_hits = 0
+
+        candidate_geo_for_must = geo_hits(
+            ctext
+        )
+
+        for requirement in explicit_must:
+
+            requirement_text = norm(
+                requirement
+            )
+
+            if not requirement_text:
+                continue
+
+            requirement_geo = geo_hits(
+                requirement_text
+            )
+
+            matched = False
+
+            # ------------------------------
+            # Geographic requirement
+            # ------------------------------
+            if requirement_geo:
+
+                matched = bool(
+                    requirement_geo
+                    &
+                    candidate_geo_for_must
+                )
+
+            # ------------------------------
+            # Semantic/textual requirement
+            # ------------------------------
+            else:
+
+                requirement_concepts = concept_hits(
+                    requirement_text
+                )
+
+                if (
+                    requirement_concepts
+                    and
+                    (
+                        requirement_concepts
+                        &
+                        cand_concepts
+                    )
+                ):
+                    matched = True
+
+                else:
+
+                    requirement_tokens = tokens(
+                        requirement_text
+                    )
+
+                    if (
+                        requirement_tokens
+                        and
+                        requirement_tokens.issubset(
+                            cand_tokens
+                        )
+                    ):
+                        matched = True
+
+            if matched:
+                verified_must_hits += 1
+
+        must = min(
+            2,
+            verified_must_hits,
+        )
+
+    else:
+
+        # Backward-compatible fallback for callers/scenes
+        # that do not expose explicit must_have.
+        if isinstance(candidate, dict):
+            must_candidate = dict(
+                candidate
+            )
+            must_candidate.pop(
+                "must",
+                None,
+            )
+        else:
+            must_candidate = candidate
+
+        must = must_tier(
+            must_candidate,
+            scene_text,
+        )
 
     base = base_score(
         candidate
@@ -3794,10 +3911,10 @@ def geo_contradiction_v416(
 
 
 # Guarda a implementação anterior integralmente.
-_score_candidate_pre_v416 = score_candidate
+_score_candidate_pre_v416 = _score_candidate_stage_01
 
 
-def score_candidate(
+def _score_candidate_stage_02(
     *args,
     **kwargs
 ):
@@ -4790,7 +4907,7 @@ def choose_from_context(
 
 # SHORTAUTOPRO VSE4.1.4 SEMANTIC SAFETY
 
-_vse414_score_candidate_core = score_candidate
+_vse414_score_candidate_core = _score_candidate_stage_02
 
 
 def _vse414_flat_text(value):
@@ -4813,138 +4930,6 @@ def _vse414_flat_text(value):
     return []
 
 
-def candidate_text(candidate):
-    """
-    Evidence-only semantic text.
-
-    Important:
-    search_query/query/topic are intentionally excluded from
-    candidate evidence, preventing query leakage from making
-    an irrelevant asset appear relevant.
-    """
-
-    if candidate is None:
-        return ""
-
-    if isinstance(candidate, str):
-        return norm(candidate)
-
-    parts = []
-
-    # Scene fields are legitimate when the object is a scene.
-    scene_fields = (
-        "texto",
-        "text",
-        "narration",
-        "narracao",
-        "visual_query",
-        "must_have",
-        "location",
-        "local",
-        "city",
-        "country",
-    )
-
-    evidence_fields = (
-        "title",
-        "name",
-        "description",
-        "caption",
-        "alt",
-        "alt_text",
-        "tags",
-        "keywords",
-        "terms",
-        "category",
-        "filename",
-        "location",
-        "city",
-        "country",
-    )
-
-    if isinstance(candidate, dict):
-
-        is_scene = any(
-            key in candidate
-            for key in (
-                "texto",
-                "narration",
-                "narracao",
-                "must_have",
-                "visual_query",
-            )
-        )
-
-        fields = (
-            scene_fields
-            if is_scene
-            else evidence_fields
-        )
-
-        for key in fields:
-            parts.extend(
-                _vse414_flat_text(
-                    candidate.get(key)
-                )
-            )
-
-        for nested_name in (
-            "metadata",
-            "meta",
-            "source_metadata",
-            "provenance",
-        ):
-            nested = candidate.get(nested_name)
-
-            if not isinstance(nested, dict):
-                continue
-
-            for key in evidence_fields:
-                parts.extend(
-                    _vse414_flat_text(
-                        nested.get(key)
-                    )
-                )
-
-    else:
-
-        # Object candidate/scene.
-        for key in evidence_fields + scene_fields:
-
-            # Never use query/search/topic as evidence.
-            if key in (
-                "query",
-                "search_query",
-                "topic",
-            ):
-                continue
-
-            try:
-                value = getattr(candidate, key, None)
-            except Exception:
-                value = None
-
-            parts.extend(
-                _vse414_flat_text(value)
-            )
-
-    clean = []
-    seen = set()
-
-    for part in parts:
-
-        value = norm(part)
-
-        if not value:
-            continue
-
-        if value in seen:
-            continue
-
-        seen.add(value)
-        clean.append(value)
-
-    return " ".join(clean)
 
 
 def _vse414_geo_conflict(
@@ -5120,7 +5105,7 @@ def _vse414_number(
         return default
 
 
-def score_candidate(
+def _score_candidate_stage_03(
     candidate,
     scene,
     state=None,
@@ -5610,11 +5595,11 @@ def vse414_context_penalty(
 
 
 _vse414_score_candidate_base = (
-    score_candidate
+    _score_candidate_stage_03
 )
 
 
-def score_candidate(
+def _score_candidate_stage_04(
     candidate,
     scene,
     state=None,
@@ -6206,41 +6191,6 @@ def vse414_self_test():
 _vse417_candidate_text_base = candidate_text
 
 
-def candidate_text(value):
-
-    # Critical fix:
-    # scenes may reach VSE4 directly as strings.
-    if isinstance(value, str):
-
-        return value.casefold().strip()
-
-
-    try:
-
-        result = _vse417_candidate_text_base(
-            value
-        )
-
-        if isinstance(result, str):
-            return result
-
-        if result is None:
-            return ""
-
-        return str(
-            result
-        ).casefold()
-
-
-    except Exception:
-
-        try:
-            return str(
-                value
-            ).casefold()
-
-        except Exception:
-            return ""
 
 
 
@@ -6436,22 +6386,28 @@ def _vse417_token_set(value):
 
 
 def _vse417_concepts(value):
+    """
+    Tri-state concept extraction.
 
+    set({...}) -> successful extraction with concepts
+    set()      -> successful extraction with zero concepts
+    None       -> concept engine failure
+    """
     try:
         return set(
             concept_hits(value)
         )
 
     except Exception:
-        return set()
+        return None
 
 
 
-_vse417_score_candidate_base = score_candidate
+_vse417_score_candidate_base = _score_candidate_stage_04
 
 
 
-def score_candidate(
+def _score_candidate_stage_05(
     candidate,
     scene,
     state=None,
@@ -6538,6 +6494,144 @@ def score_candidate(
     candidate_concepts = _vse417_concepts(
         candidate_txt
     )
+
+    # ========================================================
+    # VSE417_CONCEPT_FAIL_CLOSED_FINAL
+    # ========================================================
+
+    scene_concept_error = (
+        scene_concepts is None
+    )
+
+    candidate_concept_error = (
+        candidate_concepts is None
+    )
+
+    if (
+        scene_concept_error
+        or
+        candidate_concept_error
+    ):
+
+        if not isinstance(
+            info,
+            dict,
+        ):
+            return info
+
+        info = dict(
+            info
+        )
+
+        concept_error_fields = []
+
+        if scene_concept_error:
+            concept_error_fields.append(
+                "scene"
+            )
+
+        if candidate_concept_error:
+            concept_error_fields.append(
+                "candidate"
+            )
+
+        info[
+            "vse417_concept_error"
+        ] = True
+
+        info[
+            "vse417_concept_error_fields"
+        ] = concept_error_fields
+
+        info[
+            "semantic_validation_status"
+        ] = "ERROR"
+
+        info[
+            "technical_reject"
+        ] = True
+
+        info[
+            "technical_reject_reason"
+        ] = "CONCEPT_VALIDATION_ERROR"
+
+        penalties = info.get(
+            "vse417_penalties",
+            [],
+        )
+
+        if not isinstance(
+            penalties,
+            list,
+        ):
+            penalties = []
+
+        penalties = list(
+            penalties
+        )
+
+        if (
+            "CONCEPT_VALIDATION_ERROR"
+            not in penalties
+        ):
+            penalties.append(
+                "CONCEPT_VALIDATION_ERROR"
+            )
+
+        info[
+            "vse417_penalties"
+        ] = penalties
+
+        try:
+            old_effective = float(
+                info.get(
+                    "effective",
+                    0.0,
+                )
+            )
+        except Exception:
+            old_effective = 0.0
+
+        info[
+            "effective_before_concept_error"
+        ] = old_effective
+
+        info[
+            "effective"
+        ] = min(
+            old_effective,
+            -10000000.0,
+        )
+
+        if "effective_score" in info:
+
+            try:
+                old_effective_score = float(
+                    info.get(
+                        "effective_score",
+                        0.0,
+                    )
+                )
+            except Exception:
+                old_effective_score = 0.0
+
+            info[
+                "effective_score_before_concept_error"
+            ] = old_effective_score
+
+            info[
+                "effective_score"
+            ] = min(
+                old_effective_score,
+                -10000000.0,
+            )
+
+        info[
+            "concept_error_score_ceiling"
+        ] = -10000000.0
+
+        return info
+
 
 
     try:
@@ -6805,7 +6899,7 @@ def score_candidate(
 
 # SHORTAUTOPRO VSE4 HARD MISMATCH V4.1.4
 
-_vse414_score_candidate_original = score_candidate
+_vse414_score_candidate_original = _score_candidate_stage_05
 
 
 def _vse414_geo_contradiction(
@@ -7051,7 +7145,7 @@ def _vse414_medicine_penalty(
 
 
 
-def score_candidate(
+def _score_candidate_stage_06(
     candidate,
     scene,
     state=None,
@@ -7180,7 +7274,92 @@ def score_candidate(
                     extra_penalty
                 )
             except Exception:
-                pass
+
+                # Do not silently lose the penalty when the
+                # primary score field is malformed.
+                #
+                # effective_score has not been adjusted yet at
+                # this point, so it can be used as the baseline.
+                try:
+
+                    recovered_value = (
+                        float(
+                            result[
+                                "effective_score"
+                            ]
+                        )
+                        +
+                        extra_penalty
+                    )
+
+                    result[
+                        "effective"
+                    ] = recovered_value
+
+                    recovered_fields = result.get(
+                        "score_state_recovered_fields",
+                        [],
+                    )
+
+                    if not isinstance(
+                        recovered_fields,
+                        list,
+                    ):
+                        recovered_fields = []
+
+                    recovered_fields = list(
+                        recovered_fields
+                    )
+
+                    if "effective" not in recovered_fields:
+                        recovered_fields.append(
+                            "effective"
+                        )
+
+                    result[
+                        "score_state_recovered_fields"
+                    ] = recovered_fields
+
+                    result[
+                        "score_state_recovered"
+                    ] = True
+
+                except Exception:
+
+                    # Both numeric paths are unavailable.
+                    # Never allow malformed score state to remain
+                    # rankable as if penalty application succeeded.
+                    result[
+                        "effective"
+                    ] = -500000.0
+
+                    result[
+                        "score_state_error"
+                    ] = True
+
+                    error_fields = result.get(
+                        "score_state_error_fields",
+                        [],
+                    )
+
+                    if not isinstance(
+                        error_fields,
+                        list,
+                    ):
+                        error_fields = []
+
+                    error_fields = list(
+                        error_fields
+                    )
+
+                    if "effective" not in error_fields:
+                        error_fields.append(
+                            "effective"
+                        )
+
+                    result[
+                        "score_state_error_fields"
+                    ] = error_fields
 
 
         if "effective_score" in result:
@@ -7198,7 +7377,88 @@ def score_candidate(
                     extra_penalty
                 )
             except Exception:
-                pass
+
+                # effective has already received extra_penalty
+                # above, therefore copying it is the correct
+                # synchronized recovery and must NOT add the
+                # penalty a second time.
+                try:
+
+                    result[
+                        "effective_score"
+                    ] = float(
+                        result[
+                            "effective"
+                        ]
+                    )
+
+                    recovered_fields = result.get(
+                        "score_state_recovered_fields",
+                        [],
+                    )
+
+                    if not isinstance(
+                        recovered_fields,
+                        list,
+                    ):
+                        recovered_fields = []
+
+                    recovered_fields = list(
+                        recovered_fields
+                    )
+
+                    if (
+                        "effective_score"
+                        not in recovered_fields
+                    ):
+                        recovered_fields.append(
+                            "effective_score"
+                        )
+
+                    result[
+                        "score_state_recovered_fields"
+                    ] = recovered_fields
+
+                    result[
+                        "score_state_recovered"
+                    ] = True
+
+                except Exception:
+
+                    result[
+                        "effective_score"
+                    ] = -500000.0
+
+                    result[
+                        "score_state_error"
+                    ] = True
+
+                    error_fields = result.get(
+                        "score_state_error_fields",
+                        [],
+                    )
+
+                    if not isinstance(
+                        error_fields,
+                        list,
+                    ):
+                        error_fields = []
+
+                    error_fields = list(
+                        error_fields
+                    )
+
+                    if (
+                        "effective_score"
+                        not in error_fields
+                    ):
+                        error_fields.append(
+                            "effective_score"
+                        )
+
+                    result[
+                        "score_state_error_fields"
+                    ] = error_fields
 
 
         old_penalty = result.get(
@@ -7498,7 +7758,7 @@ def rank_pool(
 # ============================================================
 
 
-_vse423_score_candidate_base = score_candidate
+_vse423_score_candidate_base = _score_candidate_stage_06
 
 
 _VSE423_SERIOUS_CONCEPTS = {
@@ -8013,7 +8273,7 @@ def _vse423_set_hard(
         ]
 
 
-def score_candidate(
+def _score_candidate_stage_07(
     candidate,
     scene,
     state=None,
@@ -8416,7 +8676,7 @@ def score_candidate(
 # SHORTAUTOPRO VSE4 GEO HARD MISMATCH V4.1.4
 
 _VSE4_SCORE_CANDIDATE_BEFORE_GEO_HARD = (
-    score_candidate
+    _score_candidate_stage_07
 )
 
 
@@ -8566,15 +8826,20 @@ def _vse4_geo_conflict(
 
     except Exception:
 
-        # Fail-open:
-        # nunca derruba a seleção por erro do safety layer.
+        # Detector failure is NOT equivalent to a validated
+        # "no conflict" result.
+        #
+        # None creates an explicit third state:
+        #   False -> checked, no conflict
+        #   True  -> checked, contradiction found
+        #   None  -> detector could not validate
         return (
-            False,
-            "",
+            None,
+            "GEO_DETECTOR_ERROR",
         )
 
 
-def score_candidate(
+def _score_candidate_stage_08(
     candidate,
     scene,
     state=None,
@@ -8609,10 +8874,90 @@ def score_candidate(
     )
 
 
-    if not conflict:
+    # --------------------------------------------------
+    # TRI-STATE GEO GUARD
+    # --------------------------------------------------
+    #
+    # False:
+    # detector executou normalmente e não encontrou
+    # contradição.
+    if conflict is False:
 
         return result
 
+
+    # None:
+    # detector falhou. Isso não é uma contradição
+    # comprovada, mas também NÃO é validação segura.
+    #
+    # Fail closed for release/ranking while preserving
+    # a distinct diagnostic state from GEO_CONFLICT.
+    if conflict is None:
+
+        result = dict(
+            result
+        )
+
+        result[
+            "hard_mismatch"
+        ] = True
+
+        result[
+            "hard_reason"
+        ] = (
+            reason
+            or
+            "GEO_DETECTOR_ERROR"
+        )
+
+        result[
+            "geo_conflict"
+        ] = None
+
+        result[
+            "geo_detector_error"
+        ] = True
+
+        result[
+            "geo_validation_status"
+        ] = "ERROR"
+
+        try:
+
+            old_effective = float(
+                result.get(
+                    "effective",
+                    0.0,
+                )
+            )
+
+        except Exception:
+
+            old_effective = 0.0
+
+        result[
+            "effective_before_geo_guard_error"
+        ] = old_effective
+
+        # Mantém distinção entre:
+        #
+        # detector error    -> -500000
+        # conflict proven   -> -1000000
+        #
+        # Ambos ficam abaixo de candidatos validados,
+        # mas preservamos a causa correta.
+        result[
+            "effective"
+        ] = min(
+            old_effective,
+            -500000.0,
+        )
+
+        return result
+
+
+    # conflict is True:
+    # contradição geográfica comprovada.
 
     # Copia para não modificar estrutura compartilhada.
     result = dict(
@@ -8664,6 +9009,415 @@ def score_candidate(
 
 
     return result
+
+
+
+# SHORTAUTOPRO SEMANTIC SAFETY V5
+
+_VSE5_SCORE_CORE = _score_candidate_stage_08
+
+
+_VSE5_GEO_PARENT = {
+
+    "sao_paulo": "brazil",
+    "rio_de_janeiro": "brazil",
+    "brasilia": "brazil",
+
+    "new_york": "usa",
+    "los_angeles": "usa",
+    "washington_dc": "usa",
+
+    "london": "united_kingdom",
+
+    "paris": "france",
+
+    "rome": "italy",
+
+    "tokyo": "japan",
+}
+
+
+_VSE5_COUNTRIES = {
+
+    "brazil",
+    "usa",
+    "united_kingdom",
+    "france",
+    "italy",
+    "germany",
+    "spain",
+    "portugal",
+    "japan",
+    "china",
+    "russia",
+    "ukraine",
+    "mexico",
+    "argentina",
+    "canada",
+    "australia",
+    "india",
+    "south_korea",
+    "egypt",
+}
+
+
+_VSE5_DOCUMENTARY = {
+
+    "police",
+    "investigation",
+    "crime_scene",
+    "evidence",
+    "forensics",
+    "court",
+    "law",
+    "prison",
+    "news",
+    "archive",
+    "military",
+    "war",
+    "laboratory",
+    "hospital",
+    "space",
+    "rocket",
+}
+
+
+def _vse5_geo_roots(groups):
+
+    roots = set()
+
+    for group in groups:
+
+        if group in _VSE5_COUNTRIES:
+
+            roots.add(group)
+
+            continue
+
+
+        parent = _VSE5_GEO_PARENT.get(
+            group
+        )
+
+        if parent:
+            roots.add(parent)
+
+
+    return roots
+
+
+def _vse5_geo_conflict(
+    scene_groups,
+    candidate_groups,
+):
+
+    if (
+        not scene_groups
+        or
+        not candidate_groups
+    ):
+
+        return False
+
+
+    sr = _vse5_geo_roots(
+        scene_groups
+    )
+
+    cr = _vse5_geo_roots(
+        candidate_groups
+    )
+
+
+    if (
+        sr
+        and
+        cr
+        and
+        sr.isdisjoint(cr)
+    ):
+
+        return True
+
+
+    scene_specific = {
+        x
+        for x in scene_groups
+        if x in _VSE5_GEO_PARENT
+    }
+
+    candidate_specific = {
+        x
+        for x in candidate_groups
+        if x in _VSE5_GEO_PARENT
+    }
+
+
+    if (
+        scene_specific
+        and
+        candidate_specific
+    ):
+
+        scene_parents = {
+            _VSE5_GEO_PARENT[x]
+            for x in scene_specific
+        }
+
+        candidate_parents = {
+            _VSE5_GEO_PARENT[x]
+            for x in candidate_specific
+        }
+
+        if scene_parents.isdisjoint(
+            candidate_parents
+        ):
+            return True
+
+
+    return False
+
+
+def score_candidate(
+    candidate,
+    scene,
+    state=None,
+    *args,
+    **kwargs
+):
+
+    result = _VSE5_SCORE_CORE(
+        candidate,
+        scene,
+        state,
+        *args,
+        **kwargs
+    )
+
+
+    if not isinstance(
+        result,
+        dict,
+    ):
+        return result
+
+
+    scene_text = candidate_text(
+        scene
+    )
+
+    media_text = candidate_text(
+        candidate
+    )
+
+
+    scene_geo = set(
+        geo_hits(
+            scene_text
+        )
+    )
+
+    media_geo = set(
+        geo_hits(
+            media_text
+        )
+    )
+
+
+    scene_tokens = set(
+        tokens(
+            scene_text
+        )
+    )
+
+    media_tokens = set(
+        tokens(
+            media_text
+        )
+    )
+
+
+    scene_concepts = set(
+        concept_hits(
+            scene_text
+        )
+    )
+
+
+    reasons = list(
+        result.get(
+            "safety_reasons",
+            [],
+        )
+        or
+        []
+    )
+
+
+    hard = bool(
+        result.get(
+            "hard_mismatch",
+            False,
+        )
+    )
+
+
+    penalty = 0.0
+
+
+    # --------------------------------------------------------
+    # Geografia incompatível.
+    # --------------------------------------------------------
+
+    if _vse5_geo_conflict(
+        scene_geo,
+        media_geo,
+    ):
+
+        hard = True
+
+        reasons.append(
+            "GEO_CONTRADICTION"
+        )
+
+
+    # --------------------------------------------------------
+    # Medicamento sem contexto médico.
+    # --------------------------------------------------------
+
+    medicine = {
+        norm(x)
+        for x in MEDICINE_TERMS
+    }
+
+    medicine_hits = (
+        media_tokens
+        &
+        medicine
+    )
+
+    scene_medicine = (
+        scene_tokens
+        &
+        medicine
+    )
+
+
+    if (
+        medicine_hits
+        and
+        not scene_medicine
+        and
+        (
+            scene_concepts
+            &
+            _VSE5_DOCUMENTARY
+        )
+    ):
+
+        hard = True
+
+        reasons.append(
+            "FALSE_MEDICAL_ASSOCIATION"
+        )
+
+
+    # --------------------------------------------------------
+    # Stock lifestyle genérico.
+    # Soft penalty, não bloqueio absoluto.
+    # --------------------------------------------------------
+
+    lifestyle = {
+        norm(x)
+        for x in GENERIC_LIFESTYLE
+    }
+
+    lifestyle_hits = (
+        media_tokens
+        &
+        lifestyle
+    )
+
+
+    if (
+        lifestyle_hits
+        and
+        (
+            scene_concepts
+            &
+            _VSE5_DOCUMENTARY
+        )
+    ):
+
+        penalty += (
+            85.0
+            +
+            min(
+                45.0,
+                12.0
+                *
+                len(
+                    lifestyle_hits
+                ),
+            )
+        )
+
+        reasons.append(
+            "GENERIC_LIFESTYLE"
+        )
+
+
+    result[
+        "hard_mismatch"
+    ] = hard
+
+
+    result[
+        "safety_reasons"
+    ] = sorted(
+        set(reasons)
+    )
+
+
+    current_effective = result.get(
+        "effective",
+        result.get(
+            "score",
+            0.0,
+        ),
+    )
+
+
+    try:
+        current_effective = float(
+            current_effective
+        )
+
+    except Exception:
+        current_effective = 0.0
+
+
+    current_effective -= penalty
+
+
+    if hard:
+
+        current_effective -= 10000.0
+
+
+    result[
+        "effective"
+    ] = current_effective
+
+
+    result[
+        "safety_penalty"
+    ] = penalty
+
+
+    return result
+
+
 
 
 def self_test():

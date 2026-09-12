@@ -4363,6 +4363,12 @@ for numero, cena in enumerate(
             rota_fonte,
             descricao_anterior
         )
+        # SHORTAUTOPRO VISUAL UNIFIED V5 RERANK
+        try:
+            from visual_engine_unified import rerank_pool_runtime as _sap_visual_rerank
+            pool = _sap_visual_rerank(pool, locals())
+        except Exception as _sap_visual_error:
+            print(f"VISUAL_UNIFIED_RERANK=FAIL_OPEN {type(_sap_visual_error).__name__}: {_sap_visual_error}")
 
         # SHORTAUTOPRO VSE42 FINAL GATE
         try:
@@ -4444,6 +4450,18 @@ for numero, cena in enumerate(
                     locals(),
                     escolhido,
                 )
+
+                # SHORTAUTOPRO VSE42 FINAL RERANK
+                try:
+                    from visual_selection_runtime_bridge_v42 import rerank_pool as _sap_vse42_rerank_pool
+                    pool, _sap_vse42_meta = _sap_vse42_rerank_pool(pool, locals())
+                    if pool:
+                        escolhido = pool[0]
+                    print("VSE42_RERANK=PASS " + str(_sap_vse42_meta.get("summary", "")))
+                    if _sap_vse42_meta.get("rescue_needed"):
+                        print("VSE42_RESCUE_NEEDED=YES")
+                except Exception as _sap_vse42_exc:
+                    print(f"VSE42_RERANK=FAIL_OPEN {type(_sap_vse42_exc).__name__}: {_sap_vse42_exc}")
                 if pool:
                     escolhido = pool[0]
                     print('VSE42_FINAL_POOL_GATE=PASS')
@@ -4510,6 +4528,15 @@ for numero, cena in enumerate(
 
                 sucesso = True
                 escolhido = candidato
+                # SHORTAUTOPRO VISUAL UNIFIED V5 COMMIT
+                try:
+                    from visual_engine_unified import note_commit_runtime as _sap_visual_commit
+                    _sap_visual_commit(candidato, locals())
+                except Exception as _sap_visual_commit_error:
+                    print(f"VISUAL_UNIFIED_COMMIT=FAIL_OPEN {type(_sap_visual_commit_error).__name__}: {_sap_visual_commit_error}")
+                # Primeiro download válido vence.
+                # Impede foto -> vídeo ou vídeo -> foto depois do sucesso.
+                break
                 destino = destino_teste
 
                 marcar_usado(
@@ -4750,6 +4777,13 @@ for numero, cena in enumerate(
                         "  VSE42_SCENE_COMMIT=FIRST_SUCCESS"
                     )
                     _vse42_cleanup_scene_sibling(destino)
+                    # SHORTAUTOPRO SCENE COMMIT V42
+                    try:
+                        from visual_selection_runtime_bridge_v42 import note_selected as _sap_vse42_note_selected
+                        _sap_vse42_note_selected(candidato)
+                        print("SCENE_COMMIT_V42=YES")
+                    except Exception as _sap_vse42_commit_exc:
+                        print(f"SCENE_COMMIT_V42=HISTORY_FAIL_OPEN {type(_sap_vse42_commit_exc).__name__}: {_sap_vse42_commit_exc}")
                     break
 
 

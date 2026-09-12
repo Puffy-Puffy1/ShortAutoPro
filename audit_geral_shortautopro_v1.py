@@ -1,58 +1,60 @@
 #!/usr/bin/env python3
 
-
-# SHORTAUTOPRO RUNTIME SHORT_ID V1
-#
-# O ID do short deve vir da execução atual.
-# Não manter IDs históricos fixos em runtime.
-
-_SAP_RUNTIME_SHORT_ID = os.environ.get(
-    "SHORT_ID",
-    "",
-).strip()
-
-
 from pathlib import Path
-from collections import Counter
 import ast
+import builtins
 import hashlib
+import json
 import os
-import py_compile
 import re
+import runpy
 import subprocess
 import symtable
-import builtins
-import json
+import traceback
+from collections import Counter, defaultdict
 
 
 ROOT = Path.home() / "ShortAutoPro"
-os.chdir(ROOT)
 
-SHORT_ID = os.environ.get(
-    "SHORT_ID",
-    _SAP_RUNTIME_SHORT_ID,
-).strip()
-
-REPORT = {
-    "pass": [],
-    "warn": [],
-    "fail": [],
-}
+VSE = ROOT / "visual_selection_engine_v4.py"
+MIDIA = ROOT / "midia.py"
+VIDEO = ROOT / "video.py"
+V6 = ROOT / "v6.py"
+GERAR = ROOT / "gerar_short.sh"
+GUARD = ROOT / "fresh_render_guard_v1.py"
+COMMIT = ROOT / "visual_scene_commit_lock_v1.py"
 
 
-def ok(msg):
-    REPORT["pass"].append(msg)
-    print(f"PASS | {msg}")
+PASS = []
+WARN = []
+FAIL = []
 
 
-def warn(msg):
-    REPORT["warn"].append(msg)
-    print(f"WARN | {msg}")
+def section(title):
+    print()
+    print("=" * 76)
+    print(f" {title}")
+    print("=" * 76)
 
 
-def fail(msg):
-    REPORT["fail"].append(msg)
-    print(f"FAIL | {msg}")
+def result(name, ok, detail="", warning=False):
+
+    text = (
+        f"{name}="
+        f"{'PASS' if ok else ('WARN' if warning else 'FAIL')}"
+    )
+
+    if detail:
+        text += f" | {detail}"
+
+    print(text)
+
+    if ok:
+        PASS.append(name)
+    elif warning:
+        WARN.append((name, detail))
+    else:
+        FAIL.append((name, detail))
 
 
 def sha256(path):
@@ -70,170 +72,254 @@ def sha256(path):
     return h.hexdigest()
 
 
-def section(title):
-
-    print()
-    print("=" * 74)
-    print(title)
-    print("=" * 74)
-
-
-# ============================================================
-# 1. PROJECT
-# ============================================================
-
-section("1. PROJECT / CORE FILES")
-
-critical = [
-    "midia.py",
-    "video.py",
-    "v6.py",
-    "gerar_short.sh",
-    "legenda_dinamica.py",
-    "visual_selection_engine_v4.py",
-]
-
-for name in critical:
-
-    path = ROOT / name
-
-    if path.is_file():
-
-        ok(f"CORE_FOUND {name}")
-
-        try:
-            print(
-                f"HASH | {name} | "
-                f"{sha256(path)}"
-            )
-        except Exception as exc:
-            warn(
-                f"HASH_ERROR {name}: {exc}"
-            )
-
-    else:
-
-        fail(f"CORE_MISSING {name}")
-
-
-# ============================================================
-# 2. PYTHON COMPILE
-# ============================================================
-
-section("2. PYTHON COMPILE - ACTIVE ROOT")
-
-py_files = sorted(
-    ROOT.glob("*.py")
-)
-
-compile_fail = []
-
-for path in py_files:
+def load_text(path):
 
     try:
+        return path.read_text(
+            encoding="utf-8",
+            errors="replace",
+        )
+    except Exception:
+        return ""
 
-        py_compile.compile(
+
+def compile_python(path):
+
+    p = subprocess.run(
+        [
+            "python",
+            "-m",
+            "py_compile",
             str(path),
-            doraise=True,
-        )
+        ],
+        cwd=ROOT,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
 
-    except Exception as exc:
-
-        compile_fail.append(
-            (
-                path.name,
-                str(exc),
-            )
-        )
-
-        fail(
-            f"PY_COMPILE {path.name}: {exc}"
-        )
+    return (
+        p.returncode == 0,
+        p.stderr.strip(),
+    )
 
 
-print(
-    f"PY_FILES_TESTED={len(py_files)}"
-)
+def shell_syntax(path):
 
-print(
-    f"PY_COMPILE_FAILURES={len(compile_fail)}"
-)
-
-if not compile_fail:
-    ok("ALL_ACTIVE_PYTHON_COMPILE")
-
-
-# ============================================================
-# 3. SHELL SYNTAX
-# ============================================================
-
-section("3. SHELL SYNTAX - ACTIVE ROOT")
-
-sh_files = sorted(
-    ROOT.glob("*.sh")
-)
-
-shell_fail = []
-
-for path in sh_files:
-
-    result = subprocess.run(
+    p = subprocess.run(
         [
             "bash",
             "-n",
             str(path),
         ],
-        capture_output=True,
+        cwd=ROOT,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
         text=True,
     )
 
-    if result.returncode != 0:
-
-        shell_fail.append(
-            path.name
-        )
-
-        fail(
-            f"SHELL_SYNTAX {path.name}: "
-            f"{result.stderr.strip()}"
-        )
+    return (
+        p.returncode == 0,
+        p.stderr.strip(),
+    )
 
 
-print(
-    f"SHELL_FILES_TESTED={len(sh_files)}"
-)
+def latest_media_dir():
 
-print(
-    f"SHELL_FAILURES={len(shell_fail)}"
-)
+    base = ROOT / "imagens"
 
-if not shell_fail:
-    ok("ALL_ACTIVE_SHELL_SYNTAX")
+    if not base.is_dir():
+        return None
+
+    dirs = [
+        p
+        for p in base.glob("short_*")
+        if p.is_dir()
+    ]
+
+    if not dirs:
+        return None
+
+    return max(
+        dirs,
+        key=lambda p: p.stat().st_mtime,
+    )
 
 
 # ============================================================
-# 4. DUPLICATE TOP-LEVEL DEFINITIONS
+# 1. CRITICAL FILES
 # ============================================================
 
-section("4. DUPLICATE FUNCTION / CLASS DEFINITIONS")
+section("1. CRITICAL FILES")
 
-duplicate_total = 0
+critical = [
+    VSE,
+    MIDIA,
+    VIDEO,
+    V6,
+    GERAR,
+    GUARD,
+    COMMIT,
+    ROOT / "media_diversity_guard_v1.py",
+    ROOT / "media_provenance_capture_v1.py",
+    ROOT / "render_input_fingerprint_v1.py",
+]
 
-for path in py_files:
+for path in critical:
+
+    exists = path.is_file()
+
+    result(
+        f"FILE_{path.name}",
+        exists,
+        (
+            f"{path.stat().st_size} bytes"
+            if exists
+            else "missing"
+        ),
+    )
+
+
+# ============================================================
+# 2. CRITICAL HASHES
+# ============================================================
+
+section("2. CRITICAL HASHES")
+
+for path in [
+    VSE,
+    MIDIA,
+    VIDEO,
+    V6,
+    GERAR,
+]:
+
+    if path.is_file():
+        print(
+            f"SHA256 {path.name} "
+            f"{sha256(path)}"
+        )
+
+
+# ============================================================
+# 3. ALL PYTHON SYNTAX
+# ============================================================
+
+section("3. PYTHON SYNTAX - WHOLE PROJECT")
+
+python_files = sorted(
+    ROOT.glob("*.py")
+)
+
+py_failures = []
+
+for path in python_files:
+
+    ok, err = compile_python(path)
+
+    if not ok:
+        py_failures.append(
+            (
+                path.name,
+                err,
+            )
+        )
+
+print(
+    f"PYTHON_FILES_CHECKED={len(python_files)}"
+)
+
+result(
+    "ALL_TOPLEVEL_PYTHON_COMPILE",
+    not py_failures,
+    (
+        "0 failures"
+        if not py_failures
+        else f"{len(py_failures)} failures"
+    ),
+)
+
+for name, error in py_failures[:20]:
+
+    print()
+    print(
+        f"PYTHON_COMPILE_FAILURE={name}"
+    )
+
+    print(
+        error[-1200:]
+    )
+
+
+# ============================================================
+# 4. SHELL SYNTAX
+# ============================================================
+
+section("4. SHELL SYNTAX")
+
+shell_files = sorted(
+    ROOT.glob("*.sh")
+)
+
+shell_failures = []
+
+for path in shell_files:
+
+    ok, err = shell_syntax(path)
+
+    if not ok:
+
+        shell_failures.append(
+            (
+                path.name,
+                err,
+            )
+        )
+
+print(
+    f"SHELL_FILES_CHECKED={len(shell_files)}"
+)
+
+result(
+    "ALL_TOPLEVEL_SHELL_SYNTAX",
+    not shell_failures,
+    (
+        "0 failures"
+        if not shell_failures
+        else f"{len(shell_failures)} failures"
+    ),
+)
+
+for name, error in shell_failures[:20]:
+
+    print(
+        f"SHELL_FAILURE={name} | {error}"
+    )
+
+
+# ============================================================
+# 5. DUPLICATE TOP-LEVEL DEFINITIONS
+# ============================================================
+
+section("5. DUPLICATE TOP-LEVEL DEFINITIONS")
+
+duplicate_records = []
+
+for path in python_files:
 
     try:
 
-        src = path.read_text(
-            encoding="utf-8",
-            errors="replace",
+        tree = ast.parse(
+            load_text(path),
+            filename=str(path),
         )
-
-        tree = ast.parse(src)
 
     except Exception:
         continue
 
-    names = []
+    definitions = defaultdict(
+        list
+    )
 
     for node in tree.body:
 
@@ -245,132 +331,71 @@ for path in py_files:
                 ast.ClassDef,
             ),
         ):
-            names.append(node.name)
 
-    counts = Counter(names)
+            definitions[
+                node.name
+            ].append(
+                node.lineno
+            )
 
-    duplicates = {
-        name: count
-        for name, count in counts.items()
-        if count > 1
-    }
+    for name, lines in definitions.items():
 
-    if duplicates:
+        if len(lines) > 1:
 
-        duplicate_total += len(
-            duplicates
+            duplicate_records.append(
+                (
+                    path.name,
+                    name,
+                    lines,
+                )
+            )
+
+
+if duplicate_records:
+
+    for filename, name, lines in duplicate_records[:50]:
+
+        print(
+            f"DUPLICATE_DEF "
+            f"file={filename} "
+            f"name={name} "
+            f"lines={lines}"
         )
 
-        warn(
-            f"DUPLICATE_DEFS {path.name}: "
-            f"{duplicates}"
-        )
 
-
-if duplicate_total == 0:
-    ok("NO_DUPLICATE_TOPLEVEL_DEFINITIONS")
-
-print(
-    f"DUPLICATE_DEFINITION_GROUPS="
-    f"{duplicate_total}"
+result(
+    "TOPLEVEL_DUPLICATE_DEFS",
+    not duplicate_records,
+    (
+        "none"
+        if not duplicate_records
+        else f"{len(duplicate_records)} duplicate definitions"
+    ),
+    warning=bool(
+        duplicate_records
+    ),
 )
 
 
 # ============================================================
-# 5. VSE4 REQUIRED DEFINITIONS
+# 6. VSE4 TRUE GLOBAL AUDIT
 # ============================================================
 
-section("5. VSE4 STRUCTURE")
+section("6. VSE4 TRUE GLOBAL AUDIT")
 
-vse = ROOT / "visual_selection_engine_v4.py"
+vse_unresolved = set()
 
-required_vse = [
-    "norm",
-    "objget",
-    "number",
-    "provider",
-    "source_group",
-    "media_type",
-    "candidate_key",
-    "base_score",
-    "must_tier",
-    "flatten_candidates",
-    "concept_hits",
-    "geo_hits",
-    "candidate_text",
-    "tokens",
-    "score_candidate",
-    "self_test",
-]
+if VSE.is_file():
 
-if vse.is_file():
-
-    src = vse.read_text(
-        encoding="utf-8",
-        errors="replace",
+    vse_src = load_text(
+        VSE
     )
 
     try:
 
-        tree = ast.parse(src)
-
-        defs = {
-            node.name
-            for node in tree.body
-            if isinstance(
-                node,
-                (
-                    ast.FunctionDef,
-                    ast.AsyncFunctionDef,
-                    ast.ClassDef,
-                ),
-            )
-        }
-
-        missing = [
-            name
-            for name in required_vse
-            if name not in defs
-        ]
-
-        if missing:
-
-            fail(
-                "VSE4_MISSING_DEFINITIONS="
-                + ",".join(missing)
-            )
-
-        else:
-
-            ok(
-                "VSE4_REQUIRED_DEFINITIONS"
-            )
-
-    except Exception as exc:
-
-        fail(
-            f"VSE4_AST_ERROR={exc}"
-        )
-
-
-# ============================================================
-# 6. VSE4 GLOBALS
-# ============================================================
-
-section("6. VSE4 UNRESOLVED GLOBALS")
-
-if vse.is_file():
-
-    try:
-
-        src = vse.read_text(
-            encoding="utf-8",
-            errors="replace",
-        )
-
         table = symtable.symtable(
-            src,
-            str(vse),
+            vse_src,
+            str(VSE),
             "exec",
         )
 
@@ -383,17 +408,16 @@ if vse.is_file():
                 or symbol.is_imported()
                 or symbol.is_namespace()
             ):
+
                 defined.add(
                     symbol.get_name()
                 )
 
-        builtins_set = set(
+        builtin_names = set(
             dir(builtins)
         )
 
-        unresolved = set()
-
-        def walk(scope):
+        def walk_scope(scope):
 
             for child in scope.get_children():
 
@@ -410,225 +434,530 @@ if vse.is_file():
                     if name in defined:
                         continue
 
-                    if name in builtins_set:
+                    if name in builtin_names:
                         continue
 
-                    unresolved.add(name)
+                    vse_unresolved.add(
+                        name
+                    )
 
-                walk(child)
-
-        walk(table)
-
-        if unresolved:
-
-            fail(
-                "VSE4_UNRESOLVED_GLOBALS="
-                + ",".join(
-                    sorted(unresolved)
+                walk_scope(
+                    child
                 )
-            )
 
-        else:
-
-            ok(
-                "VSE4_UNRESOLVED_GLOBALS=NONE"
-            )
+        walk_scope(
+            table
+        )
 
     except Exception as exc:
 
-        fail(
-            f"VSE4_GLOBAL_AUDIT_ERROR={exc}"
-        )
-
-
-# ============================================================
-# 7. VSE4 SELF TEST
-# ============================================================
-
-section("7. VSE4 RUNTIME SELF TEST")
-
-if vse.is_file():
-
-    result = subprocess.run(
-        [
-            "python",
-            str(vse),
-        ],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-    )
-
-    print(
-        f"VSE4_SELF_TEST_STATUS="
-        f"{result.returncode}"
-    )
-
-    output = (
-        result.stdout
-        +
-        "\n"
-        +
-        result.stderr
-    ).strip()
-
-    if output:
-
-        print(
-            "----- VSE4 SELF TEST TAIL -----"
-        )
-
-        print(
-            "\n".join(
-                output.splitlines()[-50:]
+        FAIL.append(
+            (
+                "VSE4_GLOBAL_AUDIT_RUNTIME",
+                repr(exc),
             )
         )
 
-    if result.returncode == 0:
-
-        ok("VSE4_RUNTIME_SELF_TEST")
-
-    else:
-
-        fail("VSE4_RUNTIME_SELF_TEST")
-
-
-# ============================================================
-# 8. LEGACY VSE REFERENCES
-# ============================================================
-
-section("8. LEGACY / MIXED VISUAL ENGINE REFERENCES")
-
-needles = [
-    "visual_selection_engine_v2",
-    "visual_selection_final_gate_v3",
-    "visual_scene_commit_lock_v1",
-    "visual_must_rescue_v1",
-    "SAP_VSE_V2",
-    "SAP_VSE_V3",
-    "VSE3_",
-]
-
-legacy_hits = []
-
-for path in (
-    list(ROOT.glob("*.py"))
-    +
-    list(ROOT.glob("*.sh"))
-):
-
-    try:
-
-        text = path.read_text(
-            encoding="utf-8",
-            errors="replace",
+        print(
+            "GLOBAL_AUDIT_EXCEPTION="
+            f"{type(exc).__name__}: {exc}"
         )
-
-    except Exception:
-        continue
-
-    for needle in needles:
-
-        if needle in text:
-
-            legacy_hits.append(
-                (
-                    path.name,
-                    needle,
-                )
-            )
-
-
-for file_name, needle in legacy_hits:
-
-    print(
-        f"REFERENCE={file_name} | "
-        f"{needle}"
-    )
 
 
 print(
-    f"LEGACY_REFERENCE_COUNT="
-    f"{len(legacy_hits)}"
+    "TRUE_UNRESOLVED_GLOBALS="
+    +
+    (
+        "NONE"
+        if not vse_unresolved
+        else ",".join(
+            sorted(
+                vse_unresolved
+            )
+        )
+    )
 )
 
-if legacy_hits:
-
-    warn(
-        "LEGACY_VISUAL_REFERENCES_PRESENT"
-    )
-
-else:
-
-    ok(
-        "NO_LEGACY_VISUAL_REFERENCES"
-    )
+result(
+    "VSE4_GLOBAL_AUDIT",
+    not vse_unresolved,
+)
 
 
 # ============================================================
-# 9. MIDIA VISUAL HOOKS
+# 7. VSE4 REQUIRED SYMBOLS
 # ============================================================
 
-section("9. MIDIA.PY VISUAL ENGINE HOOKS")
+section("7. VSE4 REQUIRED SYMBOLS")
 
-midia = ROOT / "midia.py"
+vse_ns = None
 
-if midia.is_file():
+try:
 
-    text = midia.read_text(
-        encoding="utf-8",
-        errors="replace",
+    vse_ns = runpy.run_path(
+        str(VSE),
+        run_name="shortautopro_general_audit",
     )
 
-    markers = [
-        "visual_selection_engine_v4",
-        "VSE4",
-        "visual_selection_engine_v2",
-        "VSE3",
-        "SCENE_COMMIT_LOCK",
-        "MUST_RESCUE",
-        "media_diversity_guard",
-        "media_provenance_capture",
-    ]
+    result(
+        "VSE4_MODULE_LOAD",
+        True,
+    )
 
-    found = []
+except Exception as exc:
 
-    for marker in markers:
+    result(
+        "VSE4_MODULE_LOAD",
+        False,
+        f"{type(exc).__name__}: {exc}",
+    )
 
-        count = text.count(marker)
 
-        if count:
+required_symbols = [
+    "score_candidate",
+    "candidate_text",
+    "tokens",
+    "concept_hits",
+    "geo_hits",
+    "objget",
+    "provider",
+    "source_group",
+    "media_type",
+    "candidate_key",
+    "base_score",
+    "must_tier",
+    "flatten_candidates",
+    "resolution_bonus",
+]
 
-            found.append(
-                (
-                    marker,
-                    count,
-                )
+
+missing_symbols = []
+
+if vse_ns is not None:
+
+    for name in required_symbols:
+
+        if name not in vse_ns:
+            missing_symbols.append(
+                name
             )
+
+
+print(
+    "MISSING_VSE4_SYMBOLS="
+    +
+    (
+        "NONE"
+        if not missing_symbols
+        else ",".join(
+            missing_symbols
+        )
+    )
+)
+
+result(
+    "VSE4_REQUIRED_SYMBOLS",
+    not missing_symbols,
+)
+
+
+# ============================================================
+# 8. VSE4 SELF TEST
+# ============================================================
+
+section("8. VSE4 BUILT-IN SELF TEST")
+
+self_test_ok = False
+
+if vse_ns is not None:
+
+    fn = vse_ns.get(
+        "self_test"
+    )
+
+    if callable(fn):
+
+        try:
+
+            fn()
+
+            self_test_ok = True
+
+        except Exception as exc:
 
             print(
-                f"MIDIA_REFERENCE={marker} "
-                f"COUNT={count}"
+                "SELF_TEST_EXCEPTION="
+                f"{type(exc).__name__}: {exc}"
             )
 
-    if found:
-
-        ok(
-            "MIDIA_VISUAL_HOOK_REFERENCES_FOUND"
-        )
+            traceback.print_exc(
+                limit=4
+            )
 
     else:
 
-        warn(
-            "MIDIA_NO_VISUAL_HOOK_REFERENCE_FOUND"
+        print(
+            "SELF_TEST_FUNCTION=MISSING"
+        )
+
+
+result(
+    "VSE4_SELF_TEST",
+    self_test_ok,
+)
+
+
+# ============================================================
+# 9. VSE4 BEHAVIORAL QUALITY SUITE
+# ============================================================
+
+section("9. VSE4 BEHAVIORAL QUALITY SUITE")
+
+behavior_results = {}
+
+if (
+    vse_ns is not None
+    and
+    callable(
+        vse_ns.get(
+            "score_candidate"
+        )
+    )
+):
+
+    score_candidate = vse_ns[
+        "score_candidate"
+    ]
+
+    state = {
+        "providers": [
+            "pixabay",
+            "pixabay",
+        ],
+        "groups": [],
+        "types": [],
+        "keys": [],
+    }
+
+    scenarios = {
+
+        "GEO_WRONG": (
+            "Investigação em apartamento na cidade de São Paulo",
+            {
+                "provider": "Pixabay",
+                "tipo": "foto",
+                "title":
+                    "Empire State Building Manhattan New York",
+                "must": "2/2",
+                "score": 240,
+                "width": 1920,
+                "height": 1080,
+            },
+        ),
+
+        "GEO_CORRECT": (
+            "Investigação em apartamento na cidade de São Paulo",
+            {
+                "provider": "Wikimedia",
+                "tipo": "foto",
+                "title":
+                    "Apartment building Sao Paulo Brazil",
+                "must": "1/2",
+                "score": 120,
+                "width": 1920,
+                "height": 1080,
+            },
+        ),
+
+        "MEDICINE_WRONG": (
+            "Laudo pericial revelou evidências na cena do crime",
+            {
+                "provider": "Pixabay",
+                "tipo": "foto",
+                "title":
+                    "Pills medication pharmacy tablets",
+                "must": "1/2",
+                "score": 200,
+                "width": 1920,
+                "height": 1080,
+            },
+        ),
+
+        "FORENSIC_CORRECT": (
+            "Laudo pericial revelou evidências na cena do crime",
+            {
+                "provider": "Pexels",
+                "tipo": "video",
+                "title":
+                    "Forensic investigation evidence laboratory",
+                "must": "2/2",
+                "score": 150,
+                "width": 1920,
+                "height": 1080,
+            },
+        ),
+
+        "LIFESTYLE_WRONG": (
+            "Polícia iniciou investigação do crime",
+            {
+                "provider": "Pixabay",
+                "tipo": "foto",
+                "title":
+                    "Happy woman relaxing in bedroom lifestyle",
+                "must": "1/2",
+                "score": 210,
+                "width": 1920,
+                "height": 1080,
+            },
+        ),
+
+        "POLICE_CORRECT": (
+            "Polícia iniciou investigação do crime",
+            {
+                "provider": "Pexels",
+                "tipo": "video",
+                "title":
+                    "Police detective investigation crime scene",
+                "must": "2/2",
+                "score": 150,
+                "width": 1920,
+                "height": 1080,
+            },
+        ),
+
+        "NEUTRAL_CITY": (
+            "Movimento intenso no centro da cidade",
+            {
+                "provider": "Pixabay",
+                "tipo": "video",
+                "title":
+                    "Generic urban city traffic street",
+                "must": "1/2",
+                "score": 130,
+                "width": 1920,
+                "height": 1080,
+            },
+        ),
+    }
+
+
+    for name, (
+        scene,
+        candidate,
+    ) in scenarios.items():
+
+        try:
+
+            r = score_candidate(
+                candidate,
+                scene,
+                state,
+            )
+
+            behavior_results[
+                name
+            ] = r
+
+            print()
+            print(
+                f"SCENARIO={name}"
+            )
+
+            print(
+                "hard_mismatch="
+                f"{r.get('hard_mismatch')}"
+            )
+
+            print(
+                "effective="
+                f"{r.get('effective')}"
+            )
+
+            for key in (
+                "hard_reason",
+                "geo_hits",
+                "geo_conflict",
+                "mismatch",
+                "semantic",
+                "must",
+                "must_tier",
+            ):
+
+                if key in r:
+
+                    print(
+                        f"{key}="
+                        f"{r[key]}"
+                    )
+
+        except Exception as exc:
+
+            behavior_results[
+                name
+            ] = {
+                "_exception":
+                    f"{type(exc).__name__}: {exc}"
+            }
+
+            print(
+                f"SCENARIO={name} "
+                f"EXCEPTION="
+                f"{type(exc).__name__}: {exc}"
+            )
+
+
+def hard(name):
+
+    return bool(
+        behavior_results.get(
+            name,
+            {},
+        ).get(
+            "hard_mismatch",
+            False,
+        )
+    )
+
+
+def effective(name):
+
+    try:
+
+        return float(
+            behavior_results.get(
+                name,
+                {},
+            ).get(
+                "effective",
+                0,
+            )
+        )
+
+    except Exception:
+        return 0.0
+
+
+quality_checks = {
+
+    "GEO_WRONG_BLOCKED":
+        hard(
+            "GEO_WRONG"
+        ),
+
+    "GEO_CORRECT_SAFE":
+        not hard(
+            "GEO_CORRECT"
+        ),
+
+    "GEO_CORRECT_RANKS_ABOVE_WRONG":
+        (
+            effective(
+                "GEO_CORRECT"
+            )
+            >
+            effective(
+                "GEO_WRONG"
+            )
+        ),
+
+    "MEDICINE_FALSE_ASSOC_BLOCKED":
+        hard(
+            "MEDICINE_WRONG"
+        ),
+
+    "FORENSIC_CORRECT_SAFE":
+        not hard(
+            "FORENSIC_CORRECT"
+        ),
+
+    "GENERIC_LIFESTYLE_BLOCKED":
+        hard(
+            "LIFESTYLE_WRONG"
+        ),
+
+    "POLICE_CORRECT_SAFE":
+        not hard(
+            "POLICE_CORRECT"
+        ),
+
+    "NEUTRAL_CITY_SAFE":
+        not hard(
+            "NEUTRAL_CITY"
+        ),
+}
+
+
+print()
+
+for name, ok in quality_checks.items():
+
+    result(
+        name,
+        ok,
+    )
+
+
+quality_points = sum(
+    bool(v)
+    for v in quality_checks.values()
+)
+
+print(
+    f"QUALITY_POINTS="
+    f"{quality_points}/"
+    f"{len(quality_checks)}"
+)
+
+
+# ============================================================
+# 10. GEO DIRECT TEST
+# ============================================================
+
+section("10. GEOGRAPHY DIRECT TEST")
+
+if vse_ns is not None:
+
+    geo_hits = vse_ns.get(
+        "geo_hits"
+    )
+
+    if callable(
+        geo_hits
+    ):
+
+        sp = set(
+            geo_hits(
+                "São Paulo Brazil"
+            )
+        )
+
+        ny = set(
+            geo_hits(
+                "Empire State Building Manhattan New York"
+            )
+        )
+
+        print(
+            f"SAO_PAULO_GEO={sorted(sp)}"
+        )
+
+        print(
+            f"NEW_YORK_GEO={sorted(ny)}"
+        )
+
+        result(
+            "GEO_DISTINCT_SP_NY",
+            bool(sp)
+            and bool(ny)
+            and sp != ny,
         )
 
 
 # ============================================================
-# 10. PROVIDER ACQUISITION
+# 11. MEDIA PROVIDER ACQUISITION
 # ============================================================
 
-section("10. PROVIDER ACQUISITION STRUCTURE")
+section("11. MEDIA PROVIDER ACQUISITION")
 
 provider_functions = [
     "pexels_video",
@@ -639,601 +968,711 @@ provider_functions = [
     "buscar_todos_candidatos",
 ]
 
-if midia.is_file():
+
+defs_map = {}
+
+if MIDIA.is_file():
 
     try:
 
-        tree = ast.parse(
-            midia.read_text(
-                encoding="utf-8",
-                errors="replace",
+        mtree = ast.parse(
+            load_text(
+                MIDIA
             )
         )
 
-        functions = {
+        defs_map = {
             node.name: node
-            for node in tree.body
+            for node in mtree.body
             if isinstance(
                 node,
                 ast.FunctionDef,
             )
         }
 
-        for name in provider_functions:
-
-            if name in functions:
-
-                ok(
-                    f"PROVIDER_FUNCTION {name}"
-                )
-
-            else:
-
-                fail(
-                    f"PROVIDER_FUNCTION_MISSING {name}"
-                )
-
-
-        buscar = functions.get(
-            "buscar_todos_candidatos"
-        )
-
-        if buscar:
-
-            calls = []
-
-            for node in ast.walk(buscar):
-
-                if isinstance(
-                    node,
-                    ast.Call,
-                ):
-
-                    try:
-                        call_name = ast.unparse(
-                            node.func
-                        )
-                    except Exception:
-                        continue
-
-                    calls.append(
-                        call_name
-                    )
-
-
-            for wanted in [
-                "pexels_video",
-                "pexels_foto",
-                "pixabay_video",
-                "pixabay_foto",
-                "coverr_video",
-            ]:
-
-                if any(
-                    wanted in call
-                    for call in calls
-                ):
-
-                    ok(
-                        f"ACQUISITION_CALL {wanted}"
-                    )
-
-                else:
-
-                    warn(
-                        f"ACQUISITION_CALL_MISSING "
-                        f"{wanted}"
-                    )
-
     except Exception as exc:
 
-        fail(
-            f"PROVIDER_AST_ERROR={exc}"
+        print(
+            "MIDIA_AST_ERROR="
+            f"{type(exc).__name__}: {exc}"
         )
 
 
-# ============================================================
-# 11. CURRENT SHORT MEDIA
-# ============================================================
+for name in provider_functions:
 
-section("11. CURRENT SHORT MEDIA INTEGRITY")
-
-media_dir = (
-    ROOT
-    / "imagens"
-    / f"short_{SHORT_ID}"
-)
-
-media_hashes = []
-
-bad_scenes = []
-
-for number in range(1, 13):
-
-    stem = f"scene_{number:02d}"
-
-    files = sorted(
-        media_dir.glob(
-            f"{stem}.*"
-        )
-    ) if media_dir.is_dir() else []
-
-    print(
-        f"{stem.upper()}_COUNT="
-        f"{len(files)}"
+    result(
+        f"PROVIDER_FUNCTION_{name}",
+        name in defs_map,
     )
 
-    if len(files) != 1:
 
-        bad_scenes.append(
-            (
-                number,
-                len(files),
+buscar = defs_map.get(
+    "buscar_todos_candidatos"
+)
+
+expected_calls = {
+    "pexels_video",
+    "pexels_foto",
+    "pixabay_video",
+    "pixabay_foto",
+    "coverr_video",
+    "buscar_wikimedia_fotos",
+}
+
+calls = set()
+
+if buscar:
+
+    for node in ast.walk(
+        buscar
+    ):
+
+        if not isinstance(
+            node,
+            ast.Call,
+        ):
+            continue
+
+        if isinstance(
+            node.func,
+            ast.Name,
+        ):
+
+            calls.add(
+                node.func.id
             )
-        )
 
-    for path in files:
+        elif isinstance(
+            node.func,
+            ast.Attribute,
+        ):
 
-        try:
-
-            digest = sha256(path)
-
-            media_hashes.append(
-                (
-                    path.name,
-                    digest,
-                )
+            calls.add(
+                node.func.attr
             )
 
-            print(
-                f"MEDIA={path.name} | "
-                f"{path.stat().st_size} bytes | "
-                f"{digest}"
-            )
 
-        except Exception as exc:
+for name in sorted(
+    expected_calls
+):
 
-            fail(
-                f"MEDIA_HASH_ERROR "
-                f"{path.name}: {exc}"
-            )
+    result(
+        f"BUSCAR_CALL_{name}",
+        name in calls,
+        warning=(
+            name not in calls
+        ),
+    )
 
 
 print(
-    f"MEDIA_TOTAL="
-    f"{len(media_hashes)}"
+    "BUSCAR_TODOS_CALLS="
+    +
+    ",".join(
+        sorted(calls)
+    )
 )
 
-if (
-    len(media_hashes) == 12
-    and
-    not bad_scenes
-):
 
-    ok(
-        "MEDIA_12_OF_12_EXACTLY_ONE_PER_SCENE"
+# ============================================================
+# 12. PROVIDER CONFIG PRESENCE
+# ============================================================
+
+section("12. PROVIDER CONFIG / API KEY NAMES")
+
+midia_src = load_text(
+    MIDIA
+)
+
+possible_provider_envs = sorted(
+    set(
+        re.findall(
+            r'["\']([A-Z][A-Z0-9_]*(?:PEXELS|PIXABAY|COVERR)[A-Z0-9_]*)["\']',
+            midia_src,
+        )
     )
+)
+
+if possible_provider_envs:
+
+    for name in possible_provider_envs:
+
+        value = os.getenv(
+            name
+        )
+
+        print(
+            f"{name}="
+            f"{'SET' if value else 'NOT_SET'}"
+        )
 
 else:
 
-    fail(
-        f"MEDIA_STRUCTURE_BAD={bad_scenes}"
-    )
-
-
-if media_hashes:
-
-    combined = hashlib.sha256()
-
-    for name, digest in media_hashes:
-
-        combined.update(
-            name.encode()
-        )
-
-        combined.update(
-            digest.encode()
-        )
-
     print(
-        "MEDIA_FINGERPRINT="
-        +
-        combined.hexdigest()
+        "PROVIDER_ENV_NAMES=NOT_DETECTED"
     )
 
 
 # ============================================================
-# 12. DUPLICATE MEDIA CONTENT
+# 13. VSE4 ACTIVE IN MIDIA.PY
 # ============================================================
 
-section("12. DUPLICATE MEDIA CONTENT")
+section("13. VSE4 PIPELINE INTEGRATION")
 
-digest_map = {}
+integration_patterns = {
 
-for name, digest in media_hashes:
+    "VSE4_IMPORT":
+        r"visual_selection_engine_v4",
 
-    digest_map.setdefault(
-        digest,
-        [],
-    ).append(name)
+    "VSE4_SCORE_CALL":
+        r"score_candidate",
 
+    "VSE4_MARKER":
+        r"VSE4",
 
-duplicates = {
-    digest: names
-    for digest, names in digest_map.items()
-    if len(names) > 1
+    "FINAL_GATE_V3":
+        r"visual_selection_final_gate_v3",
+
+    "DIVERSITY_GUARD":
+        r"media_diversity_guard_v1",
+
+    "PROVENANCE":
+        r"media_provenance_capture_v1",
 }
 
 
-if duplicates:
+for name, pattern in integration_patterns.items():
 
-    for digest, names in duplicates.items():
-
-        warn(
-            "DUPLICATE_MEDIA_SHA "
-            f"{digest} -> {names}"
+    found = bool(
+        re.search(
+            pattern,
+            midia_src,
+            flags=re.IGNORECASE,
         )
+    )
 
-else:
-
-    ok(
-        "NO_EXACT_MEDIA_DUPLICATES"
+    result(
+        name,
+        found,
+        warning=not found,
     )
 
 
 # ============================================================
-# 13. RENDER CHAIN
+# 14. SCENE COMMIT LOCK
 # ============================================================
 
-section("13. RENDER INPUT CHAIN")
+section("14. SCENE COMMIT LOCK")
 
-render_inputs = [
-    ROOT
-    / "audios"
-    / f"short_{SHORT_ID}.mp3",
-
-    ROOT
-    / "videos"
-    / f"short_{SHORT_ID}.ass",
-
-    ROOT
-    / "temp"
-    / SHORT_ID
-    / "video_sem_audio.mp4",
-]
-
-for path in render_inputs:
-
-    if (
-        path.is_file()
-        and
-        path.stat().st_size > 0
-    ):
-
-        ok(
-            f"RENDER_INPUT {path.relative_to(ROOT)} "
-            f"{path.stat().st_size} bytes"
-        )
-
-    else:
-
-        warn(
-            f"RENDER_INPUT_MISSING "
-            f"{path.relative_to(ROOT)}"
-        )
-
-
-final = (
-    ROOT
-    / "videos"
-    / f"short_v6_{SHORT_ID}.mp4"
+commit_src = load_text(
+    COMMIT
 )
 
-if final.is_file():
+commit_checks = {
 
-    ok(
-        f"FINAL_VIDEO_EXISTS "
-        f"{final.stat().st_size} bytes"
+    "COMMIT_LOCK_MODULE":
+        COMMIT.is_file(),
+
+    "COMMIT_LOCK_COMMITTED_LOG":
+        "COMMITTED" in commit_src,
+
+    "COMMIT_LOCK_BLOCKED_LOG":
+        "BLOCKED" in commit_src,
+
+    "COMMIT_LOCK_KILL_SWITCH":
+        "SAP_SCENE_COMMIT_LOCK"
+        in commit_src,
+}
+
+
+for name, ok in commit_checks.items():
+
+    result(
+        name,
+        ok,
+    )
+
+
+# ============================================================
+# 15. FRESH RENDER GUARD SAFETY
+# ============================================================
+
+section("15. FRESH RENDER GUARD SAFETY")
+
+guard_src = load_text(
+    GUARD
+)
+
+guard_checks = {
+
+    "GUARD_EXISTS":
+        GUARD.is_file(),
+
+    "ASS_PROTECTED":
+        ".ass" in guard_src,
+
+    "AUDIO_PROTECTED":
+        (
+            ".mp3" in guard_src
+            and
+            ".wav" in guard_src
+        ),
+
+    "VIDEO_CLEAN_TARGET":
+        ".mp4" in guard_src,
+
+    "NO_BLIND_RM_RF":
+        "shutil.rmtree"
+        not in guard_src,
+}
+
+
+for name, ok in guard_checks.items():
+
+    result(
+        name,
+        ok,
+        warning=not ok,
+    )
+
+
+# ============================================================
+# 16. LATEST MEDIA DIRECTORY
+# ============================================================
+
+section("16. LATEST MEDIA SET")
+
+media_dir = latest_media_dir()
+
+if media_dir is None:
+
+    result(
+        "LATEST_MEDIA_DIR",
+        False,
+        "no imagens/short_* directory",
+    )
+
+else:
+
+    sid = media_dir.name.removeprefix(
+        "short_"
     )
 
     print(
-        "FINAL_SHA256="
-        +
-        sha256(final)
+        f"LATEST_SHORT_ID={sid}"
     )
 
-else:
-
-    warn(
-        "FINAL_VIDEO_NOT_PRESENT"
+    print(
+        f"MEDIA_DIR={media_dir}"
     )
 
+    scene_bad = []
+    scene_files = []
 
-# ============================================================
-# 14. FRESH RENDER GUARD SAFETY
-# ============================================================
-
-section("14. FRESH RENDER GUARD")
-
-guard = (
-    ROOT
-    / "fresh_render_guard_v1.py"
-)
-
-if guard.is_file():
-
-    text = guard.read_text(
-        encoding="utf-8",
-        errors="replace",
-    )
-
-    if ".ass" in text:
-
-        ok(
-            "RENDER_GUARD_ASS_PROTECTION_REFERENCE"
-        )
-
-    else:
-
-        warn(
-            "RENDER_GUARD_ASS_PROTECTION_NOT_VISIBLE"
-        )
-
-    if "video_sem_audio.mp4" in text:
-
-        ok(
-            "RENDER_GUARD_TEMP_VIDEO_RULE"
-        )
-
-else:
-
-    warn(
-        "FRESH_RENDER_GUARD_MISSING"
-    )
-
-
-# ============================================================
-# 15. HARDCODED CURRENT/OLD SHORT IDs
-# ============================================================
-
-section("15. HARDCODED SHORT-ID / DATE AUDIT")
-
-date_pattern = re.compile(
-    r"20\d{2}-\d{2}-\d{2}_\d{4}"
-)
-
-hardcoded = []
-
-for path in py_files + sh_files:
-
-    if path.name.startswith(
-        "audit_geral_"
+    for i in range(
+        1,
+        13,
     ):
-        continue
 
-    try:
+        prefix = f"scene_{i:02d}."
 
-        text = path.read_text(
-            encoding="utf-8",
-            errors="replace",
-        )
-
-    except Exception:
-        continue
-
-    values = sorted(
-        set(
-            date_pattern.findall(text)
-        )
-    )
-
-    if values:
-
-        hardcoded.append(
-            (
-                path.name,
-                values,
+        files = [
+            p
+            for p in media_dir.iterdir()
+            if (
+                p.is_file()
+                and
+                p.name.startswith(
+                    prefix
+                )
             )
+        ]
+
+        print(
+            f"SCENE_{i:02d}_COUNT="
+            f"{len(files)}"
         )
 
+        for p in files:
 
-for name, values in hardcoded:
+            scene_files.append(
+                p
+            )
 
-    warn(
-        f"HARDCODED_SHORT_ID "
-        f"{name}: {values}"
+            print(
+                f"  {p.name} "
+                f"{p.stat().st_size} bytes"
+            )
+
+        if len(files) != 1:
+
+            scene_bad.append(
+                i
+            )
+
+
+    result(
+        "MEDIA_12_SCENES_UNIQUE",
+        not scene_bad,
+        (
+            "12/12 exactly one media"
+            if not scene_bad
+            else f"bad scenes={scene_bad}"
+        ),
     )
 
 
-if not hardcoded:
+    # --------------------------------------------------------
+    # DUPLICATE CONTENT HASH
+    # --------------------------------------------------------
 
-    ok(
-        "NO_HARDCODED_TIMESTAMP_SHORT_IDS"
+    hash_map = defaultdict(
+        list
+    )
+
+    for path in scene_files:
+
+        try:
+
+            hash_map[
+                sha256(path)
+            ].append(
+                path.name
+            )
+
+        except Exception:
+            pass
+
+
+    duplicates = {
+        h: names
+        for h, names in hash_map.items()
+        if len(names) > 1
+    }
+
+
+    if duplicates:
+
+        for h, names in duplicates.items():
+
+            print(
+                f"DUPLICATE_MEDIA_SHA "
+                f"{h[:16]} "
+                f"{names}"
+            )
+
+
+    result(
+        "MEDIA_NO_EXACT_DUPLICATE_CONTENT",
+        not duplicates,
+        (
+            "none"
+            if not duplicates
+            else f"{len(duplicates)} duplicate hashes"
+        ),
+        warning=bool(
+            duplicates
+        ),
     )
 
 
 # ============================================================
-# 16. CONFIG KEY AUDIT - NO SECRET VALUES
+# 17. V6 INPUT/OUTPUT PATH CONSISTENCY
 # ============================================================
 
-section("16. CONFIG KEYS")
+section("17. RENDER PIPELINE STATIC PATH CHECK")
 
-for config_name in [
-    "config.env",
-    ".env",
+video_src = load_text(
+    VIDEO
+)
+
+v6_src = load_text(
+    V6
+)
+
+render_checks = {
+
+    "VIDEO_USES_SHORT_ID":
+        "SHORT_ID" in video_src,
+
+    "V6_USES_SHORT_ID":
+        "SHORT_ID" in v6_src,
+
+    "V6_EXPECTS_VIDEO_SEM_AUDIO":
+        "video_sem_audio.mp4"
+        in v6_src,
+
+    "V6_EXPECTS_ASS":
+        ".ass"
+        in v6_src,
+
+    "V6_EXPECTS_AUDIO":
+        ".mp3"
+        in v6_src,
+
+    "V6_NAMESPACED_TEMP":
+        (
+            '"temp"' in v6_src
+            or
+            "'temp'" in v6_src
+        )
+        and
+        "SHORT_ID" in v6_src,
+}
+
+
+for name, ok in render_checks.items():
+
+    result(
+        name,
+        ok,
+    )
+
+
+# ============================================================
+# 18. DANGEROUS EMPTY-HASH CERTIFICATION PATTERN
+# ============================================================
+
+section("18. CERTIFICATION SAFETY")
+
+certification_files = [
+    ROOT / "render_output_certifier_v1.py",
+    ROOT / "render_transaction_v1.py",
+]
+
+for path in certification_files:
+
+    if not path.is_file():
+
+        result(
+            f"{path.name}_EXISTS",
+            False,
+            warning=True,
+        )
+
+        continue
+
+    src = load_text(
+        path
+    )
+
+    result(
+        f"{path.name}_COMPILES",
+        compile_python(
+            path
+        )[0],
+    )
+
+    suspicious = (
+        '== ""' in src
+        or "== ''" in src
+    )
+
+    print(
+        f"{path.name}_EMPTY_VALUE_CHECK_PRESENT="
+        f"{'YES' if suspicious else 'UNKNOWN'}"
+    )
+
+
+# ============================================================
+# 19. LARGE FILE / ACCIDENTAL CORRUPTION INDICATORS
+# ============================================================
+
+section("19. FILE SIZE SANITY")
+
+for path in [
+    VSE,
+    MIDIA,
+    VIDEO,
+    V6,
 ]:
-
-    path = ROOT / config_name
 
     if not path.is_file():
         continue
 
-    keys = []
-
-    for line in path.read_text(
-        encoding="utf-8",
-        errors="replace",
-    ).splitlines():
-
-        line = line.strip()
-
-        if (
-            not line
-            or line.startswith("#")
-            or "=" not in line
-        ):
-            continue
-
-        key = line.split(
-            "=",
-            1,
-        )[0].strip()
-
-        if key:
-            keys.append(key)
+    size = path.stat().st_size
 
     print(
-        f"{config_name}_KEY_COUNT="
-        f"{len(keys)}"
+        f"{path.name}_BYTES={size}"
     )
 
-    for key in sorted(
-        set(keys)
+    # Não é erro absoluto, apenas sinal de possível patch
+    # duplicado quando cresce demais.
+    if (
+        path.name
+        == "visual_selection_engine_v4.py"
+        and
+        size > 250_000
     ):
-        print(
-            f"CONFIG_KEY={key}"
+
+        result(
+            "VSE4_SIZE_SANITY",
+            False,
+            f"{size} bytes - review for duplicated patch blocks",
+            warning=True,
         )
 
-    ok(
-        f"CONFIG_KEYS_READ {config_name}"
+
+# ============================================================
+# 20. TODO / FIXME / BROKEN MARKERS
+# ============================================================
+
+section("20. SUSPICIOUS DEVELOPMENT MARKERS")
+
+markers = []
+
+for path in [
+    VSE,
+    MIDIA,
+    VIDEO,
+    V6,
+]:
+
+    src = load_text(
+        path
     )
 
+    for lineno, line in enumerate(
+        src.splitlines(),
+        start=1,
+    ):
 
-# ============================================================
-# 17. SUSPICIOUS BROAD DELETE PATTERNS
-# ============================================================
+        if re.search(
+            r"\b(TODO|FIXME|BROKEN|HACK)\b",
+            line,
+            re.IGNORECASE,
+        ):
 
-section("17. DESTRUCTIVE PATTERN AUDIT")
-
-danger_patterns = [
-    "rm -rf /",
-    "rm -rf $HOME",
-    "shutil.rmtree(ROOT",
-    "shutil.rmtree(BASE",
-]
-
-danger_hits = []
-
-for path in py_files + sh_files:
-
-    try:
-
-        text = path.read_text(
-            encoding="utf-8",
-            errors="replace",
-        )
-
-    except Exception:
-        continue
-
-    for needle in danger_patterns:
-
-        if needle in text:
-
-            danger_hits.append(
+            markers.append(
                 (
                     path.name,
-                    needle,
+                    lineno,
+                    line.strip()[:180],
                 )
             )
 
 
-if danger_hits:
+for item in markers[:50]:
 
-    for hit in danger_hits:
+    print(
+        "MARKER "
+        f"{item[0]}:{item[1]} "
+        f"{item[2]}"
+    )
 
-        fail(
-            f"DANGEROUS_PATTERN "
-            f"{hit[0]} | {hit[1]}"
+
+result(
+    "NO_SUSPICIOUS_DEV_MARKERS",
+    not markers,
+    (
+        "none"
+        if not markers
+        else f"{len(markers)} markers"
+    ),
+    warning=bool(
+        markers
+    ),
+)
+
+
+# ============================================================
+# 21. FINAL SCORE
+# ============================================================
+
+section("21. GENERAL AUDIT SUMMARY")
+
+total = (
+    len(PASS)
+    +
+    len(WARN)
+    +
+    len(FAIL)
+)
+
+print(
+    f"TOTAL_CHECKS={total}"
+)
+
+print(
+    f"PASS_COUNT={len(PASS)}"
+)
+
+print(
+    f"WARN_COUNT={len(WARN)}"
+)
+
+print(
+    f"FAIL_COUNT={len(FAIL)}"
+)
+
+
+if FAIL:
+
+    print()
+    print("===== FAILURES =====")
+
+    for name, detail in FAIL:
+
+        print(
+            f"FAIL | {name}"
+            +
+            (
+                f" | {detail}"
+                if detail
+                else ""
+            )
+        )
+
+
+if WARN:
+
+    print()
+    print("===== WARNINGS =====")
+
+    for name, detail in WARN:
+
+        print(
+            f"WARN | {name}"
+            +
+            (
+                f" | {detail}"
+                if detail
+                else ""
+            )
+        )
+
+
+print()
+print(
+    "QUALITY_POINTS="
+    f"{quality_points}/"
+    f"{len(quality_checks)}"
+)
+
+
+if not FAIL:
+
+    if WARN:
+
+        status = (
+            "PASS_WITH_WARNINGS"
+        )
+
+    else:
+
+        status = (
+            "PASS"
         )
 
 else:
 
-    ok(
-        "NO_OBVIOUS_BROAD_DELETE_PATTERN"
+    status = (
+        "FAIL"
     )
-
-
-# ============================================================
-# 18. SUMMARY
-# ============================================================
-
-section("18. FINAL GENERAL AUDIT SUMMARY")
-
-print(
-    f"SHORT_ID={SHORT_ID}"
-)
-
-print(
-    f"PASS_COUNT={len(REPORT['pass'])}"
-)
-
-print(
-    f"WARN_COUNT={len(REPORT['warn'])}"
-)
-
-print(
-    f"FAIL_COUNT={len(REPORT['fail'])}"
-)
-
-
-if REPORT["fail"]:
-
-    status = "FAIL"
-
-elif REPORT["warn"]:
-
-    status = "WARN"
-
-else:
-
-    status = "PASS"
 
 
 print(
     f"GENERAL_AUDIT_STATUS={status}"
-)
-
-
-print()
-print("===== FAILURES =====")
-
-if REPORT["fail"]:
-
-    for item in REPORT["fail"]:
-        print(f"FAIL={item}")
-
-else:
-
-    print("FAIL=NONE")
-
-
-print()
-print("===== WARNINGS =====")
-
-if REPORT["warn"]:
-
-    for item in REPORT["warn"]:
-        print(f"WARN={item}")
-
-else:
-
-    print("WARN=NONE")
-
-
-print()
-print(
-    "CORE_FILES_MODIFIED=NO"
 )
 
 print(
@@ -1245,13 +1684,13 @@ print(
 )
 
 print(
-    "MIDIA_PY_EXECUTED=NO"
-)
-
-print(
     "VIDEO_RENDERED=NO"
 )
 
 print(
-    "AUDIT_COMPLETE=YES"
+    "PROJECT_FILES_MODIFIED=NO"
+)
+
+print(
+    "TERMUX_CONTINUA_ABERTO=SIM"
 )
