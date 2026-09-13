@@ -1,0 +1,67 @@
+name: ShortAutoPro Remote Control
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Escolha o teste"
+        required: true
+        default: "ENV_CHECK"
+        type: choice
+        options:
+          - ENV_CHECK
+          - REPO_CHECK
+          - PYTHON_COMPILE
+          - ALL_BASIC
+
+permissions:
+  contents: read
+
+jobs:
+  remote-control:
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout ShortAutoPro
+        uses: actions/checkout@v4
+
+      - name: Environment Check
+        if: ${{ inputs.mode == 'ENV_CHECK' || inputs.mode == 'ALL_BASIC' }}
+        shell: cmd
+        run: |
+          echo ==============================
+          echo SHORTAUTOPRO ENVIRONMENT CHECK
+          echo ==============================
+          echo COMPUTER=%COMPUTERNAME%
+          echo.
+          git --version
+          python --version
+          ffmpeg -version
+          where git
+          where python
+          where ffmpeg
+          echo ENV_CHECK=PASS
+
+      - name: Repository Check
+        if: ${{ inputs.mode == 'REPO_CHECK' || inputs.mode == 'ALL_BASIC' }}
+        shell: cmd
+        run: |
+          echo ==============================
+          echo SHORTAUTOPRO REPOSITORY CHECK
+          echo ==============================
+          git status --short
+          git log -1 --oneline
+          git rev-parse --short HEAD
+          echo REPO_CHECK=PASS
+
+      - name: Python Syntax Audit
+        if: ${{ inputs.mode == 'PYTHON_COMPILE' || inputs.mode == 'ALL_BASIC' }}
+        shell: cmd
+        run: |
+          echo ==============================
+          echo SHORTAUTOPRO PYTHON AUDIT
+          echo ==============================
+          python -m compileall -q .
+          if errorlevel 1 exit /b 1
+          echo PYTHON_COMPILE=PASS
