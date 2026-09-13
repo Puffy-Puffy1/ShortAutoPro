@@ -6,7 +6,7 @@ import unicodedata
 
 # =====================================================
 # SHORTAUTO PRO
-# SOURCE IDENTITY GATE 4.0
+# SOURCE IDENTITY GATE 4.1
 # =====================================================
 
 STOP = {
@@ -120,6 +120,26 @@ def tokens(texto):
     }
 
 
+def _contem_alias_exato(texto_normalizado, alias):
+    """Evita falso positivo por substring, ex.: MH370 em MH3700."""
+
+    alias_n = normalizar(alias)
+
+    if not texto_normalizado or not alias_n:
+        return False
+
+    padrao = (
+        r"(?<![a-z0-9])"
+        + re.escape(alias_n)
+        + r"(?![a-z0-9])"
+    )
+
+    return re.search(
+        padrao,
+        texto_normalizado
+    ) is not None
+
+
 def detectar_alias(texto):
 
     n = normalizar(
@@ -128,12 +148,17 @@ def detectar_alias(texto):
 
     for chave, valores in ALIASES.items():
 
-        if (
-            chave in n
-            or any(
-                alias in n
-                for alias in valores
+        candidatos = {
+            chave,
+            *valores
+        }
+
+        if any(
+            _contem_alias_exato(
+                n,
+                alias
             )
+            for alias in candidatos
         ):
             return chave
 
@@ -168,8 +193,6 @@ def conflito_id_numerico(
         wiki_title
     )
 
-    # Sem ID nos dois lados:
-    # não há conflito mensurável.
     if not topic_ids or not title_ids:
         return {
             "conflict": False,
@@ -182,8 +205,6 @@ def conflito_id_numerico(
         & title_ids
     )
 
-    # Existe pelo menos um identificador
-    # numérico igual.
     if compartilhados:
         return {
             "conflict": False,
@@ -191,8 +212,6 @@ def conflito_id_numerico(
             "title_ids": sorted(title_ids)
         }
 
-    # Ambos possuem identificadores,
-    # porém nenhum coincide.
     return {
         "conflict": True,
         "topic_ids": sorted(topic_ids),
@@ -218,25 +237,13 @@ def validar_identidade(
         contexto
     )
 
-
     if not topic_n or not title_n:
 
         return {
-            "valid":
-                False,
-
-            "score":
-                0.0,
-
-            "reason":
-                "empty_identity"
+            "valid": False,
+            "score": 0.0,
+            "reason": "empty_identity"
         }
-
-
-    # =============================================
-    # TRUTH IDENTITY LOCK 6.2
-    # NUMERIC IDENTITY
-    # =============================================
 
     numeric = conflito_id_numerico(
         topic,
@@ -246,33 +253,17 @@ def validar_identidade(
     if numeric["conflict"]:
 
         return {
-            "valid":
-                False,
-
-            "score":
-                0.0,
-
-            "reason":
-                (
-                    "numeric_identity_conflict:"
-                    f"topic={numeric['topic_ids']},"
-                    f"title={numeric['title_ids']}"
-                ),
-
-            "truth_lock":
-                True,
-
-            "topic_ids":
-                numeric["topic_ids"],
-
-            "title_ids":
-                numeric["title_ids"]
+            "valid": False,
+            "score": 0.0,
+            "reason": (
+                "numeric_identity_conflict:"
+                f"topic={numeric['topic_ids']},"
+                f"title={numeric['title_ids']}"
+            ),
+            "truth_lock": True,
+            "topic_ids": numeric["topic_ids"],
+            "title_ids": numeric["title_ids"]
         }
-
-
-    # =============================================
-    # ALIASES CONHECIDOS
-    # =============================================
 
     topic_alias = detectar_alias(
         topic_n
@@ -284,42 +275,23 @@ def validar_identidade(
         + contexto_n[:3000]
     )
 
-
     if topic_alias:
 
         if title_alias == topic_alias:
 
             return {
-                "valid":
-                    True,
-
-                "score":
-                    1.0,
-
-                "reason":
-                    "known_alias_match"
+                "valid": True,
+                "score": 1.0,
+                "reason": "known_alias_match"
             }
 
-
-        # Tema conhecido, mas a fonte aponta
-        # claramente para outra coisa.
         if title_alias and title_alias != topic_alias:
 
             return {
-                "valid":
-                    False,
-
-                "score":
-                    0.0,
-
-                "reason":
-                    "known_alias_conflict"
+                "valid": False,
+                "score": 0.0,
+                "reason": "known_alias_conflict"
             }
-
-
-    # =============================================
-    # TOKEN OVERLAP
-    # =============================================
 
     tt = tokens(
         topic
@@ -333,20 +305,13 @@ def validar_identidade(
         contexto[:5000]
     )
 
-
     if not tt:
 
         return {
-            "valid":
-                False,
-
-            "score":
-                0.0,
-
-            "reason":
-                "topic_without_tokens"
+            "valid": False,
+            "score": 0.0,
+            "reason": "topic_without_tokens"
         }
-
 
     title_hits = len(
         tt.intersection(
@@ -360,7 +325,6 @@ def validar_identidade(
         )
     )
 
-
     title_score = (
         title_hits
         / len(tt)
@@ -371,84 +335,49 @@ def validar_identidade(
         / len(tt)
     )
 
-
-    # Título é a evidência mais forte.
     score = (
         title_score * 0.75
         + context_score * 0.25
     )
 
-
-    # =============================================
-    # REGRAS
-    # =============================================
-
-    # Excelente correspondência no título.
     if title_score >= 0.60:
 
         return {
-            "valid":
-                True,
-
-            "score":
-                score,
-
-            "reason":
-                "strong_title_match"
+            "valid": True,
+            "score": score,
+            "reason": "strong_title_match"
         }
 
-
-    # Correspondência parcial no título +
-    # forte contexto.
     if (
         title_score >= 0.34
         and context_score >= 0.50
     ):
 
         return {
-            "valid":
-                True,
-
-            "score":
-                score,
-
-            "reason":
-                "title_context_match"
+            "valid": True,
+            "score": score,
+            "reason": "title_context_match"
         }
 
-
-    # Título pode ser uma variante histórica,
-    # mas o contexto precisa ser fortíssimo.
     if (
         title_score == 0
         and context_score >= 0.80
     ):
 
         return {
-            "valid":
-                True,
-
-            "score":
-                score,
-
-            "reason":
-                "strong_context_alias"
+            "valid": True,
+            "score": score,
+            "reason": "strong_context_alias"
         }
 
-
     return {
-        "valid":
-            False,
-
-        "score":
-            score,
-
-        "reason":
-            (
-                f"identity_mismatch:"
-                f"title={title_score:.2f},"
-                f"context={context_score:.2f}"
-            )
+        "valid": False,
+        "score": score,
+        "reason": (
+            f"identity_mismatch:"
+            f"title={title_score:.2f},"
+            f"context={context_score:.2f}"
+        )
     }
 
 
@@ -459,23 +388,19 @@ if __name__ == "__main__":
             "Caso Boy in the Box",
             "Nirvana (banda)"
         ),
-
         (
             "Caso Boy in the Box",
             "The Boy in the Striped Pyjamas (filme)"
         ),
-
         (
             "Caso Boy in the Box",
             "Joseph Augustus Zarelli"
         ),
-
         (
             "Frederick Valentich",
             "Desaparecimento de Valentich"
         )
     ]
-
 
     for topic, title in testes:
 
