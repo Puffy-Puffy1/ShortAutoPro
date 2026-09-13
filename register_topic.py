@@ -4,6 +4,8 @@ import os
 import json
 from datetime import datetime
 
+from topic_memory import normalizar
+
 
 BASE = os.path.expanduser(
     "~/ShortAutoPro"
@@ -34,22 +36,18 @@ HISTORICO = os.path.join(
 
 arquivo_topic = None
 
-
 if os.path.exists(
     USED_TOPIC
 ):
-
     arquivo_topic = USED_TOPIC
 
 elif os.path.exists(
     TOPIC_FALLBACK
 ):
-
     arquivo_topic = TOPIC_FALLBACK
 
 
 if not arquivo_topic:
-
     raise SystemExit(0)
 
 
@@ -58,57 +56,66 @@ with open(
     "r",
     encoding="utf-8"
 ) as f:
-
     topic = f.read().strip()
 
 
 if not topic:
-
     raise SystemExit(0)
 
 
 dados = []
-
 
 if os.path.exists(
     HISTORICO
 ):
 
     try:
-
         with open(
             HISTORICO,
             "r",
             encoding="utf-8"
         ) as f:
-
             dados = json.load(f)
 
-        if not isinstance(
-            dados,
-            list
-        ):
+    except Exception as e:
+        raise SystemExit(
+            "ERRO: histórico de assuntos inválido; "
+            f"arquivo preservado sem sobrescrever: {e}"
+        )
 
-            dados = []
+    if not isinstance(
+        dados,
+        list
+    ):
+        raise SystemExit(
+            "ERRO: histórico de assuntos não é uma lista; "
+            "arquivo preservado sem sobrescrever."
+        )
 
-    except Exception:
 
-        dados = []
-
-
-topic_norm = topic.lower().strip()
-
+topic_norm = normalizar(
+    topic
+)
 
 for item in dados:
+
+    if not isinstance(
+        item,
+        dict
+    ):
+        continue
 
     existente = str(
         item.get(
             "topic",
             ""
         )
-    ).lower().strip()
+    ).strip()
 
-    if existente == topic_norm:
+    if (
+        existente
+        and normalizar(existente) == topic_norm
+    ):
 
         print(
             f"Assunto já estava registrado: {topic}"
@@ -121,24 +128,47 @@ dados.append(
     {
         "short_id": SHORT_ID,
         "topic": topic,
-        "created_at":
-            datetime.now().isoformat()
+        "created_at": datetime.now().isoformat()
     }
 )
 
 
-with open(
-    HISTORICO,
-    "w",
-    encoding="utf-8"
-) as f:
+# Escrita atômica: uma interrupção durante json.dump não deve
+# destruir o histórico válido anterior.
+temporario = HISTORICO + ".tmp"
 
-    json.dump(
-        dados,
-        f,
-        ensure_ascii=False,
-        indent=2
+try:
+    with open(
+        temporario,
+        "w",
+        encoding="utf-8"
+    ) as f:
+        json.dump(
+            dados,
+            f,
+            ensure_ascii=False,
+            indent=2
+        )
+        f.flush()
+        os.fsync(
+            f.fileno()
+        )
+
+    os.replace(
+        temporario,
+        HISTORICO
     )
+
+finally:
+    if os.path.exists(
+        temporario
+    ):
+        try:
+            os.remove(
+                temporario
+            )
+        except OSError:
+            pass
 
 
 print(
