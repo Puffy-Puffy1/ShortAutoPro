@@ -6,7 +6,7 @@ import unicodedata
 
 # =====================================================
 # SHORTAUTO PRO
-# SOURCE IDENTITY GATE 4.1
+# SOURCE IDENTITY GATE 4.2
 # =====================================================
 
 STOP = {
@@ -140,11 +140,13 @@ def _contem_alias_exato(texto_normalizado, alias):
     ) is not None
 
 
-def detectar_alias(texto):
+def detectar_aliases(texto):
 
     n = normalizar(
         texto
     )
+
+    encontrados = set()
 
     for chave, valores in ALIASES.items():
 
@@ -160,6 +162,21 @@ def detectar_alias(texto):
             )
             for alias in candidatos
         ):
+            encontrados.add(
+                chave
+            )
+
+    return encontrados
+
+
+def detectar_alias(texto):
+
+    encontrados = detectar_aliases(
+        texto
+    )
+
+    for chave in ALIASES:
+        if chave in encontrados:
             return chave
 
     return None
@@ -265,14 +282,14 @@ def validar_identidade(
             "title_ids": numeric["title_ids"]
         }
 
+    # O título é evidência mais forte que referências incidentais
+    # no corpo do artigo. Contexto é usado apenas separadamente.
     topic_alias = detectar_alias(
         topic_n
     )
 
     title_alias = detectar_alias(
         title_n
-        + " "
-        + contexto_n[:3000]
     )
 
     if topic_alias:
@@ -291,6 +308,31 @@ def validar_identidade(
                 "valid": False,
                 "score": 0.0,
                 "reason": "known_alias_conflict"
+            }
+
+        context_aliases = detectar_aliases(
+            contexto_n[:3000]
+        )
+
+        if context_aliases == {
+            topic_alias
+        }:
+
+            return {
+                "valid": True,
+                "score": 1.0,
+                "reason": "known_alias_context_match"
+            }
+
+        if (
+            context_aliases
+            and topic_alias not in context_aliases
+        ):
+
+            return {
+                "valid": False,
+                "score": 0.0,
+                "reason": "known_alias_context_conflict"
             }
 
     tt = tokens(
