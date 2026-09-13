@@ -6,89 +6,102 @@ BASE="$HOME/ShortAutoPro"
 
 echo
 echo "======================================"
-echo " SHORTAUTO PRO - HEALTH CHECK"
+echo " SHORTAUTO PRO - HEALTH CHECK 2.2"
 echo "======================================"
 echo
 
 ERROS=0
 
 checar_arquivo() {
-    ARQ="$1"
-
-    if [ -f "$BASE/$ARQ" ]; then
-        echo "OK  $ARQ"
+    local arq="$1"
+    if [ -f "$BASE/$arq" ]; then
+        echo "OK  $arq"
     else
-        echo "ERRO  $ARQ"
+        echo "ERRO  $arq"
         ERROS=$((ERROS + 1))
     fi
 }
 
-checar_arquivo "config.sh"
-checar_arquivo "gerar_short.sh"
-checar_arquivo "roteiro.py"
-checar_arquivo "scene_director.py"
-checar_arquivo "documentary_director.py"
-checar_arquivo "visual_director.py"
-checar_arquivo "visual_risk_guard.py"
-checar_arquivo "editorial_continuity.py"
-checar_arquivo "wikimedia_source.py"
-checar_arquivo "wikimedia_query_bridge.py"
-checar_arquivo "source_router.py"
-checar_arquivo "evidence_guard.py"
-checar_arquivo "source_ledger.py"
-checar_arquivo "motion_director.py"
-checar_arquivo "rhythm_director.py"
-checar_arquivo "production_supervisor.py"
-checar_arquivo "editorial_gate.py"
-checar_arquivo "midia.py"
-checar_arquivo "audio.py"
-checar_arquivo "legenda_dinamica.py"
-checar_arquivo "video.py"
-checar_arquivo "v6.py"
-checar_arquivo "limpar_storage.sh"
-checar_arquivo "quality_check.py"
-checar_arquivo "hook_engine.py"
-checar_arquivo "narrative_director.py"
-checar_arquivo "cold_open_director.py"
-checar_arquivo "topic_engine.py"
-checar_arquivo "topic_memory.py"
-checar_arquivo "topic_reserve.py"
-checar_arquivo "topic_index.py"
-checar_arquivo "wiki_client.py"
-checar_arquivo "source_identity.py"
-checar_arquivo "register_topic.py"
-checar_arquivo "used_topic.py"
-checar_arquivo "publish_pack.py"
-checar_arquivo "production_manifest.py"
-checar_arquivo "final_quality.py"
-checar_arquivo "batch_report.py"
-checar_arquivo "batch_queue.sh"
-checar_arquivo "batch_recovery.sh"
-checar_arquivo "control_center.sh"
-checar_arquivo "preflight_check.sh"
-checar_arquivo "diagnostico.sh"
-checar_arquivo "release_check.sh"
+ARQUIVOS=(
+    config.sh
+    gerar_short.sh
+    topic_engine.py
+    topic_memory.py
+    topic_reserve.py
+    topic_index.py
+    wiki_client.py
+    source_identity.py
+    roteiro.py
+    used_topic.py
+    hook_engine.py
+    narrative_director.py
+    cold_open_director.py
+    scene_director.py
+    scene_truth_refiner_6_7.py
+    documentary_director.py
+    visual_director.py
+    visual_risk_guard.py
+    editorial_continuity.py
+    scene_lossless_repair.py
+    post_script_truth_lock.py
+    semantic_integrity_gate.py
+    wikimedia_source.py
+    wikimedia_query_bridge.py
+    source_router.py
+    evidence_guard.py
+    midia.py
+    media_master_gate.py
+    motion_director.py
+    rhythm_director.py
+    production_supervisor.py
+    editorial_gate.py
+    audio.py
+    legenda_dinamica.py
+    video.py
+    v6.py
+    v5.py
+    quality_check.py
+    publish_pack.py
+    source_ledger.py
+    publish_integrity_gate.py
+    production_manifest.py
+    final_quality.py
+    register_topic.py
+    limpar_storage.sh
+    batch_report.py
+    batch_queue.sh
+    batch_recovery.sh
+    control_center.sh
+    preflight_check.sh
+    diagnostico.sh
+    release_check.sh
+)
+
+for arq in "${ARQUIVOS[@]}"; do
+    checar_arquivo "$arq"
+done
 
 echo
 
-if command -v ffmpeg >/dev/null 2>&1; then
-    echo "OK  ffmpeg"
-else
-    echo "ERRO  ffmpeg"
-    ERROS=$((ERROS + 1))
-fi
+for cmd in python ffmpeg ffprobe piper; do
+    if command -v "$cmd" >/dev/null 2>&1; then
+        echo "OK  $cmd"
+    else
+        echo "ERRO  $cmd"
+        ERROS=$((ERROS + 1))
+    fi
+done
 
-if command -v ffprobe >/dev/null 2>&1; then
-    echo "OK  ffprobe"
+VOICE_DIR="$BASE/piper/voice"
+if [ -d "$VOICE_DIR" ]; then
+    if find "$VOICE_DIR" -maxdepth 1 -type f -name 'pt_BR-faber-medium*.onnx' -print -quit 2>/dev/null | grep -q .; then
+        echo "OK  voz Piper pt_BR-faber-medium"
+    else
+        echo "ERRO  modelo Piper pt_BR-faber-medium ausente"
+        ERROS=$((ERROS + 1))
+    fi
 else
-    echo "ERRO  ffprobe"
-    ERROS=$((ERROS + 1))
-fi
-
-if command -v python >/dev/null 2>&1; then
-    echo "OK  python"
-else
-    echo "ERRO  python"
+    echo "ERRO  pasta de voz Piper ausente"
     ERROS=$((ERROS + 1))
 fi
 
@@ -98,7 +111,7 @@ echo "--------------------------------------"
 if [ "$ERROS" -eq 0 ]; then
     echo "STATUS: SAUDÁVEL"
     exit 0
-else
-    echo "STATUS: $ERROS ERRO(S)"
-    exit 1
 fi
+
+echo "STATUS: $ERROS ERRO(S)"
+exit 1
