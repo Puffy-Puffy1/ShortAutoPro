@@ -1515,7 +1515,7 @@ def _sap_cleanup_scene_siblings(
 
 
 # Preserve current hardened installer.
-_sap_install_before_canonical_v1 = install
+_sap_install_before_canonical_v1 = _install_shadowed_preserved_2
 
 
 def install(

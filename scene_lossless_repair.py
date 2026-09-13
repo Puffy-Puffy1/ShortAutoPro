@@ -8,6 +8,164 @@ from collections import Counter
 from datetime import date
 
 
+# ============================================================
+# LOSSLESS_OVERLAP_SAFE_MERGE_6_2_1
+# ============================================================
+
+def _lossless_overlap_tokens_6_2_1(value):
+    import re
+    import unicodedata
+
+    text = str(
+        value or ""
+    )
+
+    text = unicodedata.normalize(
+        "NFKD",
+        text,
+    )
+
+    text = "".join(
+        char
+        for char in text
+        if not unicodedata.combining(char)
+    )
+
+    text = text.casefold()
+
+    return set(
+        re.findall(
+            r"[a-z0-9]+",
+            text,
+        )
+    )
+
+
+def _lossless_split_sentences_6_2_1(value):
+    import re
+
+    text = str(
+        value or ""
+    ).strip()
+
+    if not text:
+        return []
+
+    return [
+        part.strip()
+        for part in re.split(
+            r"(?<=[.!?])\s+",
+            text,
+        )
+        if part.strip()
+    ]
+
+
+def _lossless_merge_source_6_2_1(
+    current,
+    source,
+):
+    """
+    Source-aware Lossless merge.
+
+    1. Source already covered -> no change.
+    2. Existing sentence is a shorter version of source
+       -> replace it with the richer source.
+    3. Distinct source information -> append normally.
+    """
+
+    current = str(
+        current or ""
+    ).strip()
+
+    source = str(
+        source or ""
+    ).strip()
+
+    if not source:
+        return current
+
+    if not current:
+        return source
+
+    source_tokens = (
+        _lossless_overlap_tokens_6_2_1(
+            source
+        )
+    )
+
+    current_tokens = (
+        _lossless_overlap_tokens_6_2_1(
+            current
+        )
+    )
+
+    if not source_tokens:
+        return current
+
+    # Already completely represented in current text.
+    if source_tokens <= current_tokens:
+        return current
+
+    sentences = (
+        _lossless_split_sentences_6_2_1(
+            current
+        )
+    )
+
+    for index, sentence in enumerate(
+        sentences
+    ):
+
+        sentence_tokens = (
+            _lossless_overlap_tokens_6_2_1(
+                sentence
+            )
+        )
+
+        if not sentence_tokens:
+            continue
+
+        # Existing sentence is strictly contained by source.
+        if sentence_tokens < source_tokens:
+
+            overlap_ratio = (
+                len(sentence_tokens)
+                /
+                max(
+                    1,
+                    len(source_tokens),
+                )
+            )
+
+            # High enough to identify an enriched version,
+            # but conservative enough to avoid merging
+            # genuinely separate sentences.
+            if overlap_ratio >= 0.60:
+
+                sentences[index] = source
+
+                return " ".join(
+                    sentences
+                ).strip()
+
+    # Genuinely distinct information.
+    return (
+        current
+        + " "
+        + source
+    ).strip()
+
+
+def _lossless_word_count_6_2_1(value):
+    return len(
+        str(
+            value or ""
+        ).split()
+    )
+
+
+
 # =====================================================
 # SHORTAUTO PRO
 # LOSSLESS SCENE COVERAGE REPAIR 6.2
@@ -619,11 +777,10 @@ for chunk_index, trecho in enumerate(
         continue
 
 
-    novo_segmento = (
-        atual
-        + " "
-        + trecho
-    ).strip()
+    novo_segmento = _lossless_merge_source_6_2_1(
+        atual,
+        trecho,
+    )
 
 
     scenes[
@@ -817,6 +974,33 @@ if after < 0.965:
 # =====================================================
 # WRITE
 # =====================================================
+
+
+# ============================================================
+# LOSSLESS WORD METADATA REFRESH 6.2.1
+# ============================================================
+
+for _lossless_scene_6_2_1 in scenes:
+
+    if not isinstance(
+        _lossless_scene_6_2_1,
+        dict,
+    ):
+        continue
+
+    if not _lossless_scene_6_2_1.get(
+        "lossless_repair_6_2"
+    ):
+        continue
+
+    _lossless_scene_6_2_1[
+        "words"
+    ] = _lossless_word_count_6_2_1(
+        _lossless_scene_6_2_1.get(
+            "segment",
+            "",
+        )
+    )
 
 mapa[
     "scenes"

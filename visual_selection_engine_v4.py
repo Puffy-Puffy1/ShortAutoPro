@@ -4186,6 +4186,140 @@ def rescue_queries(scene_text):
     ]
 
 
+
+# ============================================================
+# INVOKE_SEARCH_FAILURE_SEMANTICS_FINAL
+# ============================================================
+
+class _InvokeSearchResult(list):
+    """
+    Falsey/list-compatible search failure result.
+
+    []                       = valid search, zero candidates
+    _InvokeSearchResult([])  = search infrastructure failure
+    """
+
+    def __init__(
+        self,
+        iterable=(),
+        *,
+        stage=None,
+        error_type=None,
+        error=None,
+        missing_parameter=None,
+    ):
+        super().__init__(
+            iterable
+        )
+
+        self.search_failed = True
+        self.search_failure_stage = stage
+        self.search_error_type = error_type
+        self.search_error = error
+        self.search_missing_parameter = (
+            missing_parameter
+        )
+
+
+def _invoke_search_failure(
+    local_ns,
+    *,
+    stage,
+    exc=None,
+    detail=None,
+    missing_parameter=None,
+):
+    """
+    Record a provider/search infrastructure failure while
+    remaining compatible with existing falsey-list callers.
+    """
+
+    if exc is not None:
+
+        error_type = type(exc).__name__
+
+        error = (
+            f"{error_type}: "
+            f"{exc}"
+        )
+
+    else:
+
+        error_type = (
+            "SearchContractError"
+        )
+
+        error = (
+            str(detail)
+            if detail is not None
+            else stage
+        )
+
+    result = _InvokeSearchResult(
+        (),
+        stage=stage,
+        error_type=error_type,
+        error=error,
+        missing_parameter=missing_parameter,
+    )
+
+    if isinstance(
+        local_ns,
+        dict,
+    ):
+
+        errors = local_ns.get(
+            "invoke_search_errors",
+            [],
+        )
+
+        if not isinstance(
+            errors,
+            list,
+        ):
+            errors = []
+
+        errors = list(
+            errors
+        )
+
+        errors.append(
+            {
+                "stage":
+                    stage,
+
+                "error_type":
+                    error_type,
+
+                "error":
+                    error,
+
+                "missing_parameter":
+                    missing_parameter,
+            }
+        )
+
+        local_ns[
+            "invoke_search_errors"
+        ] = errors[
+            -20:
+        ]
+
+        local_ns[
+            "invoke_search_error_count"
+        ] = len(
+            local_ns[
+                "invoke_search_errors"
+            ]
+        )
+
+        local_ns[
+            "search_validation_status"
+        ] = "ERROR"
+
+    return result
+
+
 def invoke_search(
     fn,
     query,
@@ -4193,14 +4327,23 @@ def invoke_search(
 ):
 
     try:
+
         signature = inspect.signature(
             fn
         )
-    except Exception:
-        return []
+
+    except Exception as exc:
+
+        return _invoke_search_failure(
+            local_ns,
+            stage="SIGNATURE_INSPECTION",
+            exc=exc,
+        )
+
 
     args = []
     kwargs = {}
+
 
     query_names = {
         "busca",
@@ -4212,20 +4355,31 @@ def invoke_search(
         "search_query",
     }
 
+
     for name, parameter in signature.parameters.items():
 
-        lname = norm(name)
+        lname = norm(
+            name
+        )
 
         has_value = False
         value = None
 
+
         if lname in query_names:
+
             value = query
             has_value = True
 
+
         elif name in local_ns:
-            value = local_ns[name]
+
+            value = local_ns[
+                name
+            ]
+
             has_value = True
+
 
         else:
 
@@ -4240,15 +4394,19 @@ def invoke_search(
             ]:
 
                 if (
-                    lname == norm(alias)
+                    lname == norm(
+                        alias
+                    )
                     and
                     alias in local_ns
                 ):
+
                     value = local_ns[
                         alias
                     ]
 
                     has_value = True
+
                     break
 
 
@@ -4259,7 +4417,16 @@ def invoke_search(
                 is
                 inspect.Parameter.empty
             ):
-                return []
+
+                return _invoke_search_failure(
+                    local_ns,
+                    stage="MISSING_REQUIRED_ARGUMENT",
+                    detail=(
+                        "Provider requires unavailable "
+                        f"parameter: {name}"
+                    ),
+                    missing_parameter=name,
+                )
 
             continue
 
@@ -4269,9 +4436,11 @@ def invoke_search(
             ==
             inspect.Parameter.POSITIONAL_ONLY
         ):
+
             args.append(
                 value
             )
+
 
         elif (
             parameter.kind
@@ -4282,10 +4451,14 @@ def invoke_search(
             !=
             inspect.Parameter.VAR_KEYWORD
         ):
-            kwargs[name] = value
+
+            kwargs[
+                name
+            ] = value
 
 
     try:
+
         result = fn(
             *args,
             **kwargs,
@@ -4299,7 +4472,11 @@ def invoke_search(
             f"{exc}"
         )
 
-        return []
+        return _invoke_search_failure(
+            local_ns,
+            stage="PROVIDER_EXECUTION",
+            exc=exc,
+        )
 
 
     return flatten_candidates(

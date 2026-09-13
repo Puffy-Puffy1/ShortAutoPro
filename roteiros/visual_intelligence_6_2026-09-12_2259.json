@@ -1,0 +1,233 @@
+{
+  "version": "6.0-shadow",
+  "short_id": "2026-09-12_2259",
+  "summary": {
+    "storyboard_score": 0,
+    "real_documentary": 0,
+    "safe_context": 0,
+    "illustrative": 0,
+    "misleading": 0,
+    "videos": 0,
+    "photos": 0,
+    "cta_reuse": false,
+    "vi_version": "6.2",
+    "quality_normal": 0,
+    "quality_controlled": 0,
+    "fallback_to_5x": 1,
+    "truth_anchor_failures": 0,
+    "videos_6_2": 0,
+    "photos_6_2": 0,
+    "motion_target_ok": false
+  },
+  "scenes": [
+    {
+      "scene": 1,
+      "intent": "EVIDENCE",
+      "query": "vintage typewriter typing mysterious cipher letters on dark paper",
+      "segment": "Cartas misteriosas e códigos indecifráveis marcaram os crimes",
+      "visual_mode": "document",
+      "candidate_count": 105,
+      "winner": null,
+      "top": [
+        {
+          "fonte": "Pixabay",
+          "tipo": "vídeo",
+          "id": "1335",
+          "url": "https://cdn.pixabay.com/video/2015/11/12/1335-145564309_large.mp4",
+          "descricao": "typewriter, typing, writing, author, book author, journalism, journalist, letters, pages, type, machine, font, print, printing, printmaking, vintage, composing https://pixabay.com/videos/id-1335/",
+          "class": "ILLUSTRATIVE",
+          "risk": "MEDIUM",
+          "blocked": false,
+          "reason": "stock_cannot_be_case_evidence",
+          "score": 27.26,
+          "semantic": 47.8,
+          "provenance": 25.0,
+          "continuity": 85.0,
+          "diversity": 90.0,
+          "motion": 85.0,
+          "family": "OTHER",
+          "named_context": 1.0,
+          "truth_ok": true,
+          "truth_anchor": {
+            "truth_ok": true,
+            "documentary": false,
+            "penalty": 0.0,
+            "reason": "not_wikimedia"
+          },
+          "motion_balance": {
+            "adjustment": 10.0,
+            "reason": "video_needed"
+          },
+          "quality_tier": "REJECT",
+          "wiki_query_tier": null,
+          "wiki_anchor_ratio": null,
+          "evidence_class": null,
+          "topic_overlap": null,
+          "segment_overlap": null,
+          "reuse": false
+        },
+        {
+          "fonte": "Pixabay",
+          "tipo": "vídeo",
+          "id": "1335",
+          "url": "https://cdn.pixabay.com/video/2015/11/12/1335-145564309_medium.mp4",
+          "descricao": "typewriter, typing, writing, author, book author, journalism, journalist, letters, pages, type, machine, font, print, printing, printmaking, vintage, composing https://pixabay.com/videos/id-1335/",
+          "class": "ILLUSTRATIVE",
+          "risk": "MEDIUM",
+          "blocked": false,
+          "reason": "stock_cannot_be_case_evidence",
+          "score": 27.03,
+          "semantic": 47.16,
+          "provenance": 25.0,
+          "continuity": 85.0,
+          "diversity": 90.0,
+          "motion": 85.0,
+          "family": "OTHER",
+          "named_context": 1.0,
+          "truth_ok": true,
+          "truth_anchor": {
+            "truth_ok": true,
+            "documentary": false,
+            "penalty": 0.0,
+            "reason": "not_wikimedia"
+          },
+          "motion_balance": {
+            "adjustment": 10.0,
+            "reason": "video_needed"
+          },
+          "quality_tier": "REJECT",
+          "wiki_query_tier": null,
+          "wiki_anchor_ratio": null,
+          "evidence_class": null,
+          "topic_overlap": null,
+          "segment_overlap": null,
+          "reuse": false
+        },
+        {
+          "fonte": "Pixabay",
+          "tipo": "vídeo",
+          "id": "1335",
+          "url": "https://cdn.pixabay.com/video/2015/11/12/1335-145564309_small.mp4",
+          "descricao": "typewriter, typing, writing, author, book author, journalism, journalist, letters, pages, type, machine, font, print, printing, printmaking, vintage, composing https://pixabay.com/videos/id-1335/",
+          "class": "ILLUSTRATIVE",
+          "risk": "MEDIUM",
+          "blocked": false,
+          "reason": "stock_cannot_be_case_evidence",
+          "score": 26.68,
+          "semantic": 46.2,
+          "provenance": 25.0,
+          "continuity": 85.0,
+          "diversity": 90.0,
+          "motion": 85.0,
+          "family": "OTHER",
+          "named_context": 1.0,
+          "truth_ok": true,
+          "truth_anchor": {
+            "truth_ok": true,
+            "documentary": false,
+            "penalty": 0.0,
+            "reason": "not_wikimedia"
+          },
+          "motion_balance": {
+            "adjustment": 10.0,
+            "reason": "video_needed"
+          },
+          "quality_tier": "REJECT",
+          "wiki_query_tier": null,
+          "wiki_anchor_ratio": null,
+          "evidence_class": null,
+          "topic_overlap": null,
+          "segment_overlap": null,
+          "reuse": false
+        },
+        {
+          "fonte": "Pixabay",
+          "tipo": "vídeo",
+          "id": "1335",
+          "url": "https://cdn.pixabay.com/video/2015/11/12/1335-145564309_tiny.mp4",
+          "descricao": "typewriter, typing, writing, author, book author, journalism, journalist, letters, pages, type, machine, font, print, printing, printmaking, vintage, composing https://pixabay.com/videos/id-1335/",
+          "class": "ILLUSTRATIVE",
+          "risk": "MEDIUM",
+          "blocked": false,
+          "reason": "stock_cannot_be_case_evidence",
+          "score": 26.68,
+          "semantic": 46.2,
+          "provenance": 25.0,
+          "continuity": 85.0,
+          "diversity": 90.0,
+          "motion": 85.0,
+          "family": "OTHER",
+          "named_context": 1.0,
+          "truth_ok": true,
+          "truth_anchor": {
+            "truth_ok": true,
+            "documentary": false,
+            "penalty": 0.0,
+            "reason": "not_wikimedia"
+          },
+          "motion_balance": {
+            "adjustment": 10.0,
+            "reason": "video_needed"
+          },
+          "quality_tier": "REJECT",
+          "wiki_query_tier": null,
+          "wiki_anchor_ratio": null,
+          "evidence_class": null,
+          "topic_overlap": null,
+          "segment_overlap": null,
+          "reuse": false
+        },
+        {
+          "fonte": "Pixabay",
+          "tipo": "vídeo",
+          "id": "1334",
+          "url": "https://cdn.pixabay.com/video/2015/11/12/1334-145564293_large.mp4",
+          "descricao": "typewriter top, typing, writing, author, book author, writer, pages, type, machine, font, print, printing, printmaking, vintage, old fashioned, composing https://pixabay.com/videos/id-1334/",
+          "class": "ILLUSTRATIVE",
+          "risk": "MEDIUM",
+          "blocked": false,
+          "reason": "stock_cannot_be_case_evidence",
+          "score": 25.81,
+          "semantic": 43.78,
+          "provenance": 25.0,
+          "continuity": 85.0,
+          "diversity": 90.0,
+          "motion": 85.0,
+          "family": "OTHER",
+          "named_context": 1.0,
+          "truth_ok": true,
+          "truth_anchor": {
+            "truth_ok": true,
+            "documentary": false,
+            "penalty": 0.0,
+            "reason": "not_wikimedia"
+          },
+          "motion_balance": {
+            "adjustment": 10.0,
+            "reason": "video_needed"
+          },
+          "quality_tier": "REJECT",
+          "wiki_query_tier": null,
+          "wiki_anchor_ratio": null,
+          "evidence_class": null,
+          "topic_overlap": null,
+          "segment_overlap": null,
+          "reuse": false
+        }
+      ],
+      "fallback_to_5x": true,
+      "decision": "FALLBACK_TO_5X",
+      "quality_floor": {
+        "normal": 55.0,
+        "controlled": 40.0
+      },
+      "motion_target": {
+        "min": 4,
+        "max": 6,
+        "videos_before_scene": 0
+      },
+      "vi_version": "6.2"
+    }
+  ],
+  "vi_version": "6.2"
+}

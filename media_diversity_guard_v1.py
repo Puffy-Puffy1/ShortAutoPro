@@ -659,3 +659,12 @@ if __name__ == "__main__":
     print(
         "MEDIA_DIVERSITY_GUARD_V21=READY"
     )
+
+# ============================================================
+# SAP_PUBLIC_INSTALL_API_RESTORE_V1
+# Restore the public installer API expected by midia.py.
+# The target is the latest preserved installer from the
+# pre-shadowing chain; no implementation logic is duplicated.
+# ============================================================
+install = install_runtime
+

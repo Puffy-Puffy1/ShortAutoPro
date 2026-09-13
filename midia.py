@@ -1095,6 +1095,58 @@ def _vse42_commit_safe(candidate):
 
 
 
+
+
+# ============================================================
+# SAP_PROVIDER_DIAGNOSTICS_V1
+# ============================================================
+
+def _sap_provider_diag_v1(
+    provider,
+    reason,
+    line=None,
+    exc=None,
+    response=None,
+):
+    try:
+        parts = [
+            "SAP_PROVIDER_DIAG",
+            f"provider={provider}",
+            f"reason={reason}",
+        ]
+
+        if line is not None:
+            parts.append(
+                f"line={line}"
+            )
+
+        if response is not None:
+            parts.append(
+                "http="
+                + str(
+                    getattr(
+                        response,
+                        "status_code",
+                        None,
+                    )
+                )
+            )
+
+        if exc is not None:
+            parts.append(
+                "error="
+                + type(exc).__name__
+                + ":"
+                + str(exc)
+            )
+
+        print(
+            " ".join(parts)
+        )
+
+    except Exception:
+        pass
+
 def pexels_video(
     busca,
     must_have,
@@ -1102,6 +1154,7 @@ def pexels_video(
 ):
 
     if not USAR_PEXELS or not PEXELS_KEY:
+        _sap_provider_diag_v1('pexels_video', 'EMPTY_RETURN', line=1105, response=locals().get('r'))
         return []
 
     try:
@@ -1120,10 +1173,12 @@ def pexels_video(
             timeout=30
         )
 
-    except Exception:
+    except Exception as _sap_provider_exc_v1:
+        _sap_provider_diag_v1('pexels_video', 'EXCEPTION', line=1123, exc=_sap_provider_exc_v1, response=locals().get('r'))
         return []
 
     if not r.ok:
+        _sap_provider_diag_v1('pexels_video', 'EMPTY_RETURN', line=1127, response=locals().get('r'))
         return []
 
     saida = []
@@ -1220,6 +1275,7 @@ def pexels_foto(
 ):
 
     if not USAR_PEXELS or not PEXELS_KEY:
+        _sap_provider_diag_v1('pexels_foto', 'EMPTY_RETURN', line=1223, response=locals().get('r'))
         return []
 
     try:
@@ -1238,10 +1294,12 @@ def pexels_foto(
             timeout=30
         )
 
-    except Exception:
+    except Exception as _sap_provider_exc_v1:
+        _sap_provider_diag_v1('pexels_foto', 'EXCEPTION', line=1241, exc=_sap_provider_exc_v1, response=locals().get('r'))
         return []
 
     if not r.ok:
+        _sap_provider_diag_v1('pexels_foto', 'EMPTY_RETURN', line=1245, response=locals().get('r'))
         return []
 
     saida = []
@@ -1332,6 +1390,7 @@ def pixabay_video(
 ):
 
     if not USAR_PIXABAY or not PIXABAY_KEY:
+        _sap_provider_diag_v1('pixabay_video', 'EMPTY_RETURN', line=1335, response=locals().get('r'))
         return []
 
     try:
@@ -1349,10 +1408,12 @@ def pixabay_video(
             timeout=30
         )
 
-    except Exception:
+    except Exception as _sap_provider_exc_v1:
+        _sap_provider_diag_v1('pixabay_video', 'EXCEPTION', line=1352, exc=_sap_provider_exc_v1, response=locals().get('r'))
         return []
 
     if not r.ok:
+        _sap_provider_diag_v1('pixabay_video', 'EMPTY_RETURN', line=1356, response=locals().get('r'))
         return []
 
     saida = []
@@ -1453,6 +1514,7 @@ def pixabay_foto(
 ):
 
     if not USAR_PIXABAY or not PIXABAY_KEY:
+        _sap_provider_diag_v1('pixabay_foto', 'EMPTY_RETURN', line=1456, response=locals().get('r'))
         return []
 
     try:
@@ -1471,10 +1533,12 @@ def pixabay_foto(
             timeout=30
         )
 
-    except Exception:
+    except Exception as _sap_provider_exc_v1:
+        _sap_provider_diag_v1('pixabay_foto', 'EXCEPTION', line=1474, exc=_sap_provider_exc_v1, response=locals().get('r'))
         return []
 
     if not r.ok:
+        _sap_provider_diag_v1('pixabay_foto', 'EMPTY_RETURN', line=1478, response=locals().get('r'))
         return []
 
     saida = []
@@ -1558,6 +1622,7 @@ def coverr_video(
 ):
 
     if not USAR_COVERR or not COVERR_KEY:
+        _sap_provider_diag_v1('coverr_video', 'EMPTY_RETURN', line=1561, response=locals().get('r'))
         return []
 
     try:
@@ -1577,10 +1642,12 @@ def coverr_video(
             timeout=30
         )
 
-    except Exception:
+    except Exception as _sap_provider_exc_v1:
+        _sap_provider_diag_v1('coverr_video', 'EXCEPTION', line=1580, exc=_sap_provider_exc_v1, response=locals().get('r'))
         return []
 
     if not r.ok:
+        _sap_provider_diag_v1('coverr_video', 'EMPTY_RETURN', line=1584, response=locals().get('r'))
         return []
 
     saida = []

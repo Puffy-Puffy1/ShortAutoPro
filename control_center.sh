@@ -342,6 +342,13 @@ while true; do
     echo "13) Preflight Check"
     echo "14) Gerar Batch Report"
     echo "15) Diagnóstico completo"
+    echo
+    echo "──────── Git / GitHub ────────"
+    echo "16) Sincronizar / iniciar trabalho"
+    echo "17) Salvar alterações no GitHub"
+    echo "18) Ver status do Git"
+    echo "19) Ver últimos commits"
+    echo "20) Status da sincronização"
     echo "0) Sair"
     echo
 
@@ -457,6 +464,98 @@ while true; do
         15)
             cabecalho
             "$BASE/diagnostico.sh"
+            pausa
+            ;;
+
+        16)
+            cabecalho
+            echo "Sincronizando ShortAutoPro com GitHub..."
+            echo
+            sap-iniciar
+            pausa
+            ;;
+
+        17)
+            cabecalho
+            echo "Salvando alterações do ShortAutoPro..."
+            echo
+            sap-salvar
+            pausa
+            ;;
+
+        18)
+            cabecalho
+            echo "========================================"
+            echo " STATUS DO GIT"
+            echo "========================================"
+            echo
+            git -C "$BASE" status
+            echo
+            pausa
+            ;;
+
+        19)
+            cabecalho
+            echo "========================================"
+            echo " ÚLTIMOS COMMITS"
+            echo "========================================"
+            echo
+            git -C "$BASE" --no-pager log                 --oneline                 --decorate                 -10
+            echo
+            pausa
+            ;;
+
+        20)
+            cabecalho
+            echo "========================================"
+            echo " STATUS DA SINCRONIZAÇÃO"
+            echo "========================================"
+            echo
+
+            cd "$BASE" || {
+                echo "ERRO: projeto não encontrado."
+                pausa
+                continue
+            }
+
+            echo "Branch:"
+            git branch --show-current
+            echo
+
+            echo "Commit local:"
+            git --no-pager log -1 --oneline
+            echo
+
+            echo "Consultando GitHub..."
+            if git fetch origin; then
+                echo
+
+                ATRAS_LOCAL="$(git rev-list --count HEAD..origin/main 2>/dev/null || echo 0)"
+                ATRAS_REMOTO="$(git rev-list --count origin/main..HEAD 2>/dev/null || echo 0)"
+
+                echo "Commits existentes no GitHub e ausentes no celular: $ATRAS_LOCAL"
+                echo "Commits existentes no celular e ausentes no GitHub: $ATRAS_REMOTO"
+                echo
+
+                if [ "$ATRAS_LOCAL" -eq 0 ] && [ "$ATRAS_REMOTO" -eq 0 ]; then
+                    echo "STATUS: SINCRONIZADO"
+                elif [ "$ATRAS_LOCAL" -gt 0 ] && [ "$ATRAS_REMOTO" -eq 0 ]; then
+                    echo "STATUS: GITHUB TEM ATUALIZAÇÕES"
+                elif [ "$ATRAS_LOCAL" -eq 0 ] && [ "$ATRAS_REMOTO" -gt 0 ]; then
+                    echo "STATUS: CELULAR TEM COMMITS PARA ENVIAR"
+                else
+                    echo "STATUS: HISTÓRICOS DIVERGIRAM"
+                    echo "Não faça merge automático."
+                fi
+            else
+                echo
+                echo "Não foi possível consultar o GitHub."
+            fi
+
+            echo
+            echo "Arquivos locais:"
+            git status --short
+            echo
             pausa
             ;;
 
