@@ -4,6 +4,7 @@ import os
 import sys
 import json
 import glob
+import math
 from datetime import datetime
 
 BASE = os.path.expanduser("~/ShortAutoPro")
@@ -38,17 +39,46 @@ QTD = max(
 )
 
 
+def dict_seguro(valor):
+    return valor if isinstance(valor, dict) else {}
+
+
+def numero_seguro(valor):
+    if not isinstance(valor, (int, float)):
+        return None
+
+    valor = float(valor)
+
+    if not math.isfinite(valor):
+        return None
+
+    return valor
+
+
 # =========================================
 # LER MANIFESTS
 # =========================================
 
+# final_quality.py também grava JSON em manifests/, com sufixo
+# _quality.json. Esses arquivos não são manifests de produção e
+# não podem entrar no cálculo do lote.
+todos_arquivos = glob.glob(
+    os.path.join(
+        MANIFEST_DIR,
+        "*.json"
+    )
+)
+
+arquivos = [
+    path
+    for path in todos_arquivos
+    if not os.path.basename(path).endswith(
+        "_quality.json"
+    )
+]
+
 arquivos = sorted(
-    glob.glob(
-        os.path.join(
-            MANIFEST_DIR,
-            "*.json"
-        )
-    ),
+    arquivos,
     key=os.path.getmtime,
     reverse=True
 )[:QTD]
@@ -79,89 +109,110 @@ for arquivo in reversed(arquivos):
     except Exception:
         continue
 
+    if not isinstance(
+        dados,
+        dict
+    ):
+        continue
 
-    publish = dados.get(
-        "publish",
-        {}
+    publish = dict_seguro(
+        dados.get(
+            "publish",
+            {}
+        )
     )
 
-    video = dados.get(
-        "video",
-        {}
+    video = dict_seguro(
+        dados.get(
+            "video",
+            {}
+        )
     )
 
-    quality = dados.get(
-        "quality",
-        {}
+    quality = dict_seguro(
+        dados.get(
+            "quality",
+            {}
+        )
     )
 
+    duracao = numero_seguro(
+        video.get(
+            "duration_seconds"
+        )
+    )
 
     producoes.append(
         {
-            "short_id":
+            "short_id": str(
                 dados.get(
                     "short_id",
                     ""
-                ),
+                )
+            ),
 
-            "status":
+            "status": str(
                 dados.get(
                     "status",
                     ""
-                ),
+                )
+            ),
 
-            "topic":
+            "topic": str(
                 dados.get(
                     "topic",
                     ""
-                ),
+                )
+            ),
 
-            "hook":
+            "hook": str(
                 dados.get(
                     "hook",
                     ""
-                ),
+                )
+            ),
 
-            "title":
+            "title": str(
                 publish.get(
                     "chosen_title",
                     ""
-                ),
+                )
+            ),
 
-            "duration":
-                video.get(
-                    "duration_seconds"
-                ),
+            "duration": duracao,
 
-            "video":
+            "video": str(
                 video.get(
                     "path",
                     ""
-                ),
+                )
+            ),
 
-            "resolution_ok":
+            "resolution_ok": bool(
                 quality.get(
                     "resolution_ok",
                     False
-                ),
+                )
+            ),
 
-            "fps_ok":
+            "fps_ok": bool(
                 quality.get(
                     "fps_ok",
                     False
-                ),
+                )
+            ),
 
-            "audio_ok":
+            "audio_ok": bool(
                 quality.get(
                     "audio_exists",
                     False
-                ),
-
-            "scenes":
-                quality.get(
-                    "physical_scene_count",
-                    0
                 )
+            ),
+
+            "scenes": quality.get(
+                "physical_scene_count",
+                0
+            )
         }
     )
 
@@ -227,26 +278,15 @@ TXT_PATH = os.path.join(
 
 
 relatorio = {
-    "created_at":
-        datetime.now().isoformat(),
-
-    "total":
-        total,
-
-    "quality_pass":
-        passes,
-
-    "failures":
-        falhas,
-
-    "average_duration":
-        round(
-            duracao_media,
-            2
-        ),
-
-    "productions":
-        producoes
+    "created_at": datetime.now().isoformat(),
+    "total": total,
+    "quality_pass": passes,
+    "failures": falhas,
+    "average_duration": round(
+        duracao_media,
+        2
+    ),
+    "productions": producoes
 }
 
 
@@ -363,7 +403,7 @@ with open(
 
 print()
 print("================================")
-print("BATCH REPORT - STABLE 2.2")
+print("BATCH REPORT - STABLE 2.2.1")
 print("================================")
 print()
 
@@ -380,8 +420,7 @@ print(
 )
 
 print(
-    f"Duração média: "
-    f"{duracao_media:.2f}s"
+    f"Duração média: {duracao_media:.2f}s"
 )
 
 print()
@@ -393,8 +432,7 @@ for numero, p in enumerate(
 ):
 
     print(
-        f"{numero}. "
-        f"{p['topic']}"
+        f"{numero}. {p['topic']}"
     )
 
     print(
