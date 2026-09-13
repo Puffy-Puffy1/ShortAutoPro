@@ -226,7 +226,7 @@ for i in range(1, len(scenes)):
 status = "BLOCK" if critical else "PASS"
 report = {
     "short_id": SHORT_ID,
-    "version": "5.2",
+    "version": "5.2.1",
     "status": status,
     "topic": topic,
     "wiki_title": wiki_title,
@@ -249,14 +249,14 @@ with open(REPORT, "w", encoding="utf-8") as f:
 
 print()
 print("================================")
-print("SEMANTIC INTEGRITY GATE 5.2")
+print("SEMANTIC INTEGRITY GATE 5.2.1")
 print("================================")
 print()
 print(f"Roteiro: {len(script_words)} palavras")
 print(f"Cenas: {len(scenes)}/{QTD_CENAS}")
-print(f"Cobertura roteiro→cenas: {coverage * 100:.1f}%")
+print(f"Cobertura roteiro->cenas: {coverage * 100:.1f}%")
 print(f"Conteúdo extra: {extra_ratio * 100:.1f}%")
-print(f"Overflow bruto cenas→roteiro: {extra_occurrence_ratio * 100:.1f}%")
+print(f"Overflow bruto cenas->roteiro: {extra_occurrence_ratio * 100:.1f}%")
 print(f"Conteúdo lexical realmente novo: {novel_extra_ratio * 100:.1f}%")
 print("Lossless overlap verificado:", verified_lossless_overlap)
 print()
