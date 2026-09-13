@@ -1,75 +1,35 @@
 #!/usr/bin/env python3
 
-import os
 import json
-import re
 import math
+import os
+import re
+import sys
 from datetime import date
 
-
 BASE = os.path.expanduser("~/ShortAutoPro")
-
-SHORT_ID = os.getenv(
-    "SHORT_ID",
-    date.today().isoformat()
-)
+SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat())
 
 try:
-    QTD_CENAS = int(
-        os.getenv(
-            "SHORT_QTD_CENAS",
-            "12"
-        )
-    )
+    QTD_CENAS = int(os.getenv("SHORT_QTD_CENAS", "12"))
 except ValueError:
     QTD_CENAS = 12
+QTD_CENAS = max(6, min(QTD_CENAS, 20))
 
-QTD_CENAS = max(
-    6,
-    min(QTD_CENAS, 20)
-)
-
-MANIFEST = os.path.join(
-    BASE,
-    "manifests",
-    f"{SHORT_ID}.json"
-)
-
-PUBLISH = os.path.join(
-    BASE,
-    "roteiros",
-    f"publish_{SHORT_ID}.json"
-)
-
-ROTEIRO = os.path.join(
-    BASE,
-    "roteiros",
-    f"short_{SHORT_ID}.txt"
-)
-
-HOOK = os.path.join(
-    BASE,
-    "roteiros",
-    f"hook_{SHORT_ID}.txt"
-)
-
-SAIDA = os.path.join(
-    BASE,
-    "manifests",
-    f"{SHORT_ID}_quality.json"
-)
+MANIFEST = os.path.join(BASE, "manifests", f"{SHORT_ID}.json")
+PUBLISH = os.path.join(BASE, "roteiros", f"publish_{SHORT_ID}.json")
+ROTEIRO = os.path.join(BASE, "roteiros", f"short_{SHORT_ID}.txt")
+HOOK = os.path.join(BASE, "roteiros", f"hook_{SHORT_ID}.txt")
+SAIDA = os.path.join(BASE, "manifests", f"{SHORT_ID}_quality.json")
 
 
 def ler_json(path):
     if not os.path.exists(path):
         return {}
-
     try:
         with open(path, "r", encoding="utf-8") as f:
-            d = json.load(f)
-
-        return d if isinstance(d, dict) else {}
-
+            dados = json.load(f)
+        return dados if isinstance(dados, dict) else {}
     except Exception:
         return {}
 
@@ -77,11 +37,9 @@ def ler_json(path):
 def ler_txt(path):
     if not os.path.exists(path):
         return ""
-
     try:
         with open(path, "r", encoding="utf-8") as f:
             return f.read().strip()
-
     except Exception:
         return ""
 
@@ -94,8 +52,8 @@ def contar_palavras(texto):
     return len(
         re.findall(
             r"\b[\wÀ-ÿ'-]+\b",
-            texto,
-            flags=re.UNICODE
+            str(texto),
+            flags=re.UNICODE,
         )
     )
 
@@ -105,324 +63,111 @@ publish = ler_json(PUBLISH)
 roteiro = ler_txt(ROTEIRO)
 hook = ler_txt(HOOK)
 
-
-# =========================================
-# 1. ROTEIRO - 25 PONTOS
-# =========================================
-
 script_score = 25.0
-
-qtd_palavras = contar_palavras(
-    roteiro
-)
-
+qtd_palavras = contar_palavras(roteiro)
 if not 105 <= qtd_palavras <= 125:
     script_score -= 12
 
+frases = [x.strip() for x in re.split(r"[.!?]+", roteiro) if x.strip()]
+frases_longas = sum(1 for frase in frases if contar_palavras(frase) > 24)
+script_score -= min(6, frases_longas * 2)
 
-frases = [
-    x.strip()
-    for x in re.split(
-        r"[.!?]+",
-        roteiro
-    )
-    if x.strip()
-]
-
-frases_longas = sum(
-    1
-    for f in frases
-    if contar_palavras(f) > 24
-)
-
-script_score -= min(
-    6,
-    frases_longas * 2
-)
-
-
-abertura = " ".join(
-    roteiro.split()[:15]
-).lower()
-
+abertura = " ".join(roteiro.split()[:15]).lower()
 fracas = [
     "hoje vamos",
     "neste vídeo",
     "nesse vídeo",
     "você sabia",
     "voce sabia",
-    "vamos falar"
+    "vamos falar",
 ]
-
-if any(
-    abertura.startswith(x)
-    for x in fracas
-):
+if any(abertura.startswith(x) for x in fracas):
     script_score -= 6
-
-
-script_score = max(
-    0,
-    script_score
-)
-
-
-# =========================================
-# 2. HOOK - 25 PONTOS
-# =========================================
+script_score = max(0, script_score)
 
 hook_score = 0.0
-
 if hook:
-
-    palavras_hook = contar_palavras(
-        hook
-    )
-
+    palavras_hook = contar_palavras(hook)
     hook_score = 14.0
-
     if 7 <= palavras_hook <= 16:
         hook_score += 5
-
     elif palavras_hook > 22:
         hook_score -= 4
 
-    gatilhos = [
-        "nunca",
-        "ninguém",
-        "ninguem",
-        "desapareceu",
-        "morte",
-        "corpo",
-        "mistério",
-        "misterio",
-        "prova",
-        "verdade",
-        "como",
-        "por que",
-        "o que"
+    termos_hook = [
+        "nunca", "ninguém", "ninguem", "desapareceu", "morte", "corpo",
+        "mistério", "misterio", "prova", "verdade", "como", "por que", "o que",
     ]
-
     lower = hook.lower()
+    hits = sum(1 for x in termos_hook if x in lower)
+    hook_score += min(hits * 2, 6)
+hook_score = max(0, min(hook_score, 25))
 
-    hits = sum(
-        1
-        for x in gatilhos
-        if x in lower
-    )
-
-    hook_score += min(
-        hits * 2,
-        6
-    )
-
-
-hook_score = max(
-    0,
-    min(
-        hook_score,
-        25
-    )
-)
-
-
-# =========================================
-# 3. VISUAL + TÉCNICO - 30 PONTOS
-# =========================================
-
-quality = dict_seguro(
-    manifest.get(
-        "quality",
-        {}
-    )
-)
-
-video = dict_seguro(
-    manifest.get(
-        "video",
-        {}
-    )
-)
-
-scenes = dict_seguro(
-    manifest.get(
-        "scenes",
-        {}
-    )
-)
+quality = dict_seguro(manifest.get("quality", {}))
+video = dict_seguro(manifest.get("video", {}))
+scenes = dict_seguro(manifest.get("scenes", {}))
 
 visual_score = 0.0
-
-
-if quality.get(
-    "resolution_ok"
-):
+if quality.get("resolution_ok"):
     visual_score += 7
-
-
-if quality.get(
-    "fps_ok"
-):
+if quality.get("fps_ok"):
+    visual_score += 5
+if quality.get("audio_exists"):
     visual_score += 5
 
-
-if quality.get(
-    "audio_exists"
-):
-    visual_score += 5
-
-
-scene_count = scenes.get(
-    "count",
-    0
-)
-
-physical_count = scenes.get(
-    "physical_count",
-    0
-)
-
+scene_count = scenes.get("count", 0)
+physical_count = scenes.get("physical_count", 0)
 if scene_count == QTD_CENAS:
     visual_score += 6
-
-
 if physical_count == QTD_CENAS:
     visual_score += 7
+visual_score = min(visual_score, 30)
 
-
-visual_score = min(
-    visual_score,
-    30
-)
-
-
-# =========================================
-# 4. PUBLISH - 20 PONTOS
-# =========================================
-
-publish_score_raw = publish.get(
-    "publish_score"
-)
-
+publish_score_raw = publish.get("publish_score")
 publish_score = 0.0
 
-
 if (
-    isinstance(
-        publish_score_raw,
-        (int, float)
-    )
-    and math.isfinite(
-        float(publish_score_raw)
-    )
+    isinstance(publish_score_raw, (int, float))
+    and not isinstance(publish_score_raw, bool)
+    and math.isfinite(float(publish_score_raw))
 ):
-
-    publish_score = (
-        max(
-            0,
-            min(
-                float(publish_score_raw),
-                100
-            )
-        )
-        / 100
-        * 20
-    )
-
+    publish_score = max(0, min(float(publish_score_raw), 100)) / 100 * 20
 else:
-
-    titulo = str(
-        publish.get(
-            "chosen_title",
-            ""
-        )
-    ).strip()
-
-    descricao = str(
-        publish.get(
-            "description",
-            ""
-        )
-    ).strip()
-
-    hashtags = publish.get(
-        "hashtags",
-        []
-    )
-
+    titulo = str(publish.get("chosen_title", "")).strip()
+    descricao = str(publish.get("description", "")).strip()
+    hashtags = publish.get("hashtags", [])
     if titulo:
         publish_score += 8
-
     if 35 <= len(titulo) <= 70:
         publish_score += 4
-
     if descricao:
         publish_score += 4
-
-    if (
-        isinstance(hashtags, list)
-        and len(hashtags) == 5
-    ):
+    if isinstance(hashtags, list) and len(hashtags) == 5:
         publish_score += 4
 
-
-publish_score = min(
-    publish_score,
-    20
-)
-
-
-# =========================================
-# TOTAL
-# =========================================
-
-total = (
-    script_score
-    + hook_score
-    + visual_score
-    + publish_score
-)
-
-total = round(
-    total,
-    1
-)
-
+publish_score = min(publish_score, 20)
+total = round(script_score + hook_score + visual_score + publish_score, 1)
 
 if total >= 85:
     nivel = "EXCELLENT"
-
 elif total >= 75:
     nivel = "GOOD"
-
 elif total >= 65:
     nivel = "ACCEPTABLE"
-
 else:
     nivel = "WEAK"
 
-
+aprovado = total >= 65
 resultado = {
     "short_id": SHORT_ID,
     "total_score": total,
     "level": nivel,
+    "approved": aprovado,
     "components": {
-        "script": round(
-            script_score,
-            1
-        ),
-        "hook": round(
-            hook_score,
-            1
-        ),
-        "visual_technical": round(
-            visual_score,
-            1
-        ),
-        "publish": round(
-            publish_score,
-            1
-        )
+        "script": round(script_score, 1),
+        "hook": round(hook_score, 1),
+        "visual_technical": round(visual_score, 1),
+        "publish": round(publish_score, 1),
     },
     "details": {
         "script_words": qtd_palavras,
@@ -430,97 +175,45 @@ resultado = {
         "expected_scene_count": QTD_CENAS,
         "scene_count": scene_count,
         "physical_scene_count": physical_count,
-        "duration_seconds": video.get(
-            "duration_seconds"
-        )
-    }
+        "duration_seconds": video.get("duration_seconds"),
+    },
 }
 
-
-os.makedirs(
-    os.path.dirname(SAIDA),
-    exist_ok=True
-)
-
-
+os.makedirs(os.path.dirname(SAIDA), exist_ok=True)
 temporario = SAIDA + ".tmp"
-
 try:
-    with open(
-        temporario,
-        "w",
-        encoding="utf-8"
-    ) as f:
-
-        json.dump(
-            resultado,
-            f,
-            ensure_ascii=False,
-            indent=2
-        )
+    with open(temporario, "w", encoding="utf-8") as f:
+        json.dump(resultado, f, ensure_ascii=False, indent=2)
         f.flush()
-        os.fsync(
-            f.fileno()
-        )
-
-    os.replace(
-        temporario,
-        SAIDA
-    )
-
+        os.fsync(f.fileno())
+    os.replace(temporario, SAIDA)
 finally:
-    if os.path.exists(
-        temporario
-    ):
+    if os.path.exists(temporario):
         try:
-            os.remove(
-                temporario
-            )
+            os.remove(temporario)
         except OSError:
             pass
 
-
 print()
 print("================================")
-print("FINAL QUALITY SCORE - 2.3.9")
+print("FINAL QUALITY SCORE - 2.4.0")
 print("================================")
 print()
-
-print(
-    f"Roteiro: {script_score:.1f}/25"
-)
-
-print(
-    f"Hook: {hook_score:.1f}/25"
-)
-
-print(
-    f"Visual/Técnico: {visual_score:.1f}/30"
-)
-
-print(
-    f"Publish: {publish_score:.1f}/20"
-)
-
+print(f"Roteiro: {script_score:.1f}/25")
+print(f"Hook: {hook_score:.1f}/25")
+print(f"Visual/Técnico: {visual_score:.1f}/30")
+print(f"Publish: {publish_score:.1f}/20")
 print()
-print(
-    f"NOTA FINAL: {total:.1f}/100"
-)
-
-print(
-    f"NÍVEL: {nivel}"
-)
-
+print(f"NOTA FINAL: {total:.1f}/100")
+print(f"NÍVEL: {nivel}")
+print()
+print(f"Arquivo:\n{SAIDA}")
 print()
 
-print(
-    f"Arquivo:\n{SAIDA}"
-)
+if not aprovado:
+    print("FINAL QUALITY SCORE: BLOCK")
+    print()
+    sys.exit(1)
 
-print()
-
-print(
-    "FINAL QUALITY SCORE: OK"
-)
-
+print("FINAL QUALITY SCORE: PASS")
 print()
