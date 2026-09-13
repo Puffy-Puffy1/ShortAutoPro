@@ -5,9 +5,6 @@ import unicodedata
 from difflib import SequenceMatcher
 
 
-# Palavras genéricas que não ajudam muito
-# a identificar um caso específico.
-
 STOPWORDS = {
     "o", "a", "os", "as",
     "um", "uma", "uns", "umas",
@@ -32,10 +29,6 @@ STOPWORDS = {
 }
 
 
-# =====================================================
-# NORMALIZAÇÃO
-# =====================================================
-
 def remover_acentos(texto):
 
     texto = unicodedata.normalize(
@@ -55,8 +48,6 @@ def normalizar(texto):
     texto = remover_acentos(
         texto
     ).lower()
-
-    # Normalizações conhecidas
 
     texto = re.sub(
         r"\bmalaysia airlines flight\s*370\b",
@@ -116,10 +107,6 @@ def normalizar(texto):
     ).strip()
 
 
-# =====================================================
-# TOKENS
-# =====================================================
-
 def tokens(texto):
 
     return set(
@@ -129,9 +116,41 @@ def tokens(texto):
     )
 
 
-# =====================================================
-# SIMILARIDADE
-# =====================================================
+def identificadores_especiais(tokens_):
+    """Retorna IDs fortes sem considerar anos comuns como identidade única."""
+
+    saida = set()
+
+    for token in tokens_:
+
+        if len(token) < 3:
+            continue
+
+        if not any(
+            c.isdigit()
+            for c in token
+        ):
+            continue
+
+        if any(
+            c.isalpha()
+            for c in token
+        ):
+            saida.add(token)
+            continue
+
+        try:
+            numero = int(token)
+        except ValueError:
+            continue
+
+        if 1800 <= numero <= 2099:
+            continue
+
+        saida.add(token)
+
+    return saida
+
 
 def similaridade(a, b):
 
@@ -140,9 +159,6 @@ def similaridade(a, b):
 
     if not na or not nb:
         return 0.0
-
-    # Correspondência exata depois
-    # da normalização.
 
     if na == nb:
         return 1.0
@@ -155,30 +171,13 @@ def similaridade(a, b):
         nb.split()
     )
 
-    # Se ambos contêm um identificador
-    # muito específico como MH370.
+    especiais_a = identificadores_especiais(
+        ta
+    )
 
-    especiais_a = {
-        x for x in ta
-        if (
-            any(
-                c.isdigit()
-                for c in x
-            )
-            and len(x) >= 3
-        )
-    }
-
-    especiais_b = {
-        x for x in tb
-        if (
-            any(
-                c.isdigit()
-                for c in x
-            )
-            and len(x) >= 3
-        )
-    }
+    especiais_b = identificadores_especiais(
+        tb
+    )
 
     if (
         especiais_a
@@ -189,8 +188,6 @@ def similaridade(a, b):
     ):
 
         return 1.0
-
-    # Jaccard dos tokens
 
     intersecao = ta.intersection(tb)
     uniao = ta.union(tb)
@@ -205,24 +202,6 @@ def similaridade(a, b):
     else:
 
         jaccard = 0.0
-
-
-    # =================================
-    # OVERLAP DO NÚCLEO
-    # =================================
-    #
-    # Exemplo:
-    #
-    # "Mary Celeste"
-    # "tripulacao Mary Celeste"
-    #
-    # ou:
-    #
-    # "navio Mary Celeste"
-    # "tripulacao Mary Celeste"
-    #
-    # compartilham o mesmo núcleo
-    # específico do assunto.
 
     menor = min(
         len(ta),
@@ -240,21 +219,12 @@ def similaridade(a, b):
 
         overlap = 0.0
 
-
-    # Correspondência completa do
-    # título menor dentro do maior.
-
     if (
         menor >= 2
         and overlap == 1.0
     ):
 
         return 0.96
-
-
-    # Dois ou mais termos específicos em
-    # comum e pelo menos 2/3 do título
-    # menor coincidem.
 
     if (
         len(intersecao) >= 2
@@ -267,37 +237,27 @@ def similaridade(a, b):
 
         bonus_core = 0.0
 
-
-    # Similaridade textual
-
     sequence = SequenceMatcher(
         None,
         na,
         nb
     ).ratio()
 
-
     score_base = (
         jaccard * 0.65
         + sequence * 0.35
     )
-
 
     score = max(
         score_base,
         bonus_core
     )
 
-
     return min(
         score,
         1.0
     )
 
-
-# =====================================================
-# DETECTOR DE DUPLICATA
-# =====================================================
 
 def encontrar_duplicata(
     assunto,
@@ -341,7 +301,6 @@ def encontrar_duplicata(
             melhor_score = score
             melhor = existente
 
-
     if (
         melhor
         and melhor_score >= limite
@@ -350,28 +309,21 @@ def encontrar_duplicata(
         return {
             "duplicate": True,
             "topic": melhor,
-            "similarity":
-                round(
-                    melhor_score,
-                    3
-                )
+            "similarity": round(
+                melhor_score,
+                3
+            )
         }
-
 
     return {
         "duplicate": False,
         "topic": melhor,
-        "similarity":
-            round(
-                melhor_score,
-                3
-            )
+        "similarity": round(
+            melhor_score,
+            3
+        )
     }
 
-
-# =====================================================
-# TESTE MANUAL
-# =====================================================
 
 if __name__ == "__main__":
 
@@ -411,16 +363,9 @@ if __name__ == "__main__":
             b
         )
 
-        print(
-            f"{a}"
-        )
-
-        print(
-            f"{b}"
-        )
-
+        print(a)
+        print(b)
         print(
             f"similaridade={score:.3f}"
         )
-
         print()
