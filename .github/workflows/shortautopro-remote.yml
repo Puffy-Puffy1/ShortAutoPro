@@ -100,68 +100,26 @@ jobs:
 
       - name: ShortAutoPro Windows Health Check
         if: ${{ github.event_name == 'push' || inputs.mode == 'HEALTH_CHECK' || inputs.mode == 'FULL_CHECK' }}
-        shell: powershell
+        shell: cmd
         run: |
-          Write-Host "======================================"
-          Write-Host "SHORTAUTOPRO WINDOWS HEALTH CHECK"
-          Write-Host "======================================"
-
-          $required = @(
-            'config.sh','gerar_short.sh','roteiro.py','scene_director.py',
-            'documentary_director.py','visual_director.py','visual_risk_guard.py',
-            'editorial_continuity.py','wikimedia_source.py','wikimedia_query_bridge.py',
-            'source_router.py','evidence_guard.py','source_ledger.py','motion_director.py',
-            'rhythm_director.py','production_supervisor.py','editorial_gate.py','midia.py',
-            'audio.py','legenda_dinamica.py','video.py','v6.py','limpar_storage.sh',
-            'quality_check.py','hook_engine.py','narrative_director.py','cold_open_director.py',
-            'topic_engine.py','topic_memory.py','topic_reserve.py','topic_index.py','wiki_client.py',
-            'source_identity.py','register_topic.py','used_topic.py','publish_pack.py',
-            'production_manifest.py','final_quality.py','batch_report.py','batch_queue.sh',
-            'batch_recovery.sh','control_center.sh','preflight_check.sh','diagnostico.sh',
-            'release_check.sh','health_check.sh'
-          )
-
-          $missing = @()
-          foreach ($file in $required) {
-            if (Test-Path $file) {
-              Write-Host "OK  $file"
-            } else {
-              Write-Host "ERRO  $file"
-              $missing += $file
-            }
-          }
-
-          foreach ($cmd in @('git','python','ffmpeg','ffprobe')) {
-            if (Get-Command $cmd -ErrorAction SilentlyContinue) {
-              Write-Host "OK  $cmd"
-            } else {
-              Write-Host "ERRO  $cmd"
-              $missing += "command:$cmd"
-            }
-          }
-
-          if (-not (Test-Path 'piper')) {
-            Write-Host 'ERRO  pasta piper'
-            $missing += 'piper'
-          } else {
-            Write-Host 'OK  pasta piper'
-          }
-
-          if ($missing.Count -gt 0) {
-            Write-Host "HEALTH_CHECK=FAIL"
-            Write-Host ("MISSING=" + ($missing -join ','))
-            exit 1
-          }
-
-          Write-Host "HEALTH_CHECK=PASS"
+          echo ======================================
+          echo SHORTAUTOPRO WINDOWS HEALTH CHECK
+          echo ======================================
+          set ERR=0
+          for %%F in (config.sh gerar_short.sh roteiro.py scene_director.py documentary_director.py visual_director.py visual_risk_guard.py editorial_continuity.py wikimedia_source.py wikimedia_query_bridge.py source_router.py evidence_guard.py source_ledger.py motion_director.py rhythm_director.py production_supervisor.py editorial_gate.py midia.py audio.py legenda_dinamica.py video.py v6.py limpar_storage.sh quality_check.py hook_engine.py narrative_director.py cold_open_director.py topic_engine.py topic_memory.py topic_reserve.py topic_index.py wiki_client.py source_identity.py register_topic.py used_topic.py publish_pack.py production_manifest.py final_quality.py batch_report.py batch_queue.sh batch_recovery.sh control_center.sh preflight_check.sh diagnostico.sh release_check.sh health_check.sh) do @if not exist "%%F" (echo ERRO  %%F & set ERR=1) else echo OK  %%F
+          where git >nul 2>&1 || set ERR=1
+          where python >nul 2>&1 || set ERR=1
+          where ffmpeg >nul 2>&1 || set ERR=1
+          where ffprobe >nul 2>&1 || set ERR=1
+          if not exist piper (echo ERRO  pasta piper & set ERR=1) else echo OK  pasta piper
+          if "%ERR%"=="1" exit /b 1
+          echo HEALTH_CHECK=PASS
 
       - name: Final Summary
         if: ${{ always() }}
-        shell: powershell
+        shell: cmd
         run: |
-          $mode = '${{ inputs.mode }}'
-          if ([string]::IsNullOrWhiteSpace($mode)) { $mode = 'AUTO_FULL_CHECK' }
-          Write-Host "======================================"
-          Write-Host "SHORTAUTOPRO REMOTE CONTROL FINISHED"
-          Write-Host "MODE=$mode"
-          Write-Host "======================================"
+          echo ======================================
+          echo SHORTAUTOPRO REMOTE CONTROL FINISHED
+          echo MODE=${{ inputs.mode }}
+          echo ======================================
