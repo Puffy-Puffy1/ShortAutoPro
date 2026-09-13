@@ -15,11 +15,15 @@ on:
           - PYTHON_COMPILE
           - BASH_SYNTAX
           - HEALTH_CHECK
+          - DIAGNOSTIC
+          - RELEASE_AUDIT
           - FULL_CHECK
   push:
     branches: [main]
     paths:
-      - .github/workflows/shortautopro-remote.yml
+      - "**.py"
+      - "**.sh"
+      - ".github/workflows/**"
 
 permissions:
   contents: read
@@ -34,7 +38,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Environment Check
-        if: ${{ github.event_name == 'push' || inputs.mode == 'ENV_CHECK' || inputs.mode == 'FULL_CHECK' }}
+        if: ${{ github.event_name == 'push' || inputs.mode == 'ENV_CHECK' || inputs.mode == 'FULL_CHECK' || inputs.mode == 'RELEASE_AUDIT' || inputs.mode == 'DIAGNOSTIC' }}
         shell: cmd
         run: |
           echo ======================================
@@ -54,7 +58,7 @@ jobs:
           echo ENV_CHECK=PASS
 
       - name: Repository Check
-        if: ${{ github.event_name == 'push' || inputs.mode == 'REPO_CHECK' || inputs.mode == 'FULL_CHECK' }}
+        if: ${{ github.event_name == 'push' || inputs.mode == 'REPO_CHECK' || inputs.mode == 'FULL_CHECK' || inputs.mode == 'RELEASE_AUDIT' || inputs.mode == 'DIAGNOSTIC' }}
         shell: cmd
         run: |
           echo ======================================
@@ -66,17 +70,21 @@ jobs:
           echo REPO_CHECK=PASS
 
       - name: Project Inventory
-        if: ${{ inputs.mode == 'PROJECT_INVENTORY' || inputs.mode == 'FULL_CHECK' }}
+        if: ${{ inputs.mode == 'PROJECT_INVENTORY' || inputs.mode == 'FULL_CHECK' || inputs.mode == 'DIAGNOSTIC' }}
         shell: cmd
         run: |
           echo ======================================
           echo SHORTAUTOPRO PROJECT INVENTORY
           echo ======================================
+          echo --- ROOT ---
           dir /b
+          echo --- COUNTS ---
+          for /f %%C in ('dir /s /b *.py ^| find /c /v ""') do echo PYTHON_FILES=%%C
+          for /f %%C in ('dir /s /b *.sh ^| find /c /v ""') do echo SHELL_FILES=%%C
           echo PROJECT_INVENTORY=PASS
 
       - name: Python Syntax Audit
-        if: ${{ github.event_name == 'push' || inputs.mode == 'PYTHON_COMPILE' || inputs.mode == 'FULL_CHECK' }}
+        if: ${{ github.event_name == 'push' || inputs.mode == 'PYTHON_COMPILE' || inputs.mode == 'FULL_CHECK' || inputs.mode == 'RELEASE_AUDIT' }}
         shell: cmd
         run: |
           echo ======================================
@@ -87,7 +95,7 @@ jobs:
           echo PYTHON_COMPILE=PASS
 
       - name: Bash Syntax Audit
-        if: ${{ github.event_name == 'push' || inputs.mode == 'BASH_SYNTAX' || inputs.mode == 'FULL_CHECK' }}
+        if: ${{ github.event_name == 'push' || inputs.mode == 'BASH_SYNTAX' || inputs.mode == 'FULL_CHECK' || inputs.mode == 'RELEASE_AUDIT' }}
         shell: cmd
         run: |
           echo ======================================
@@ -99,7 +107,7 @@ jobs:
           echo BASH_SYNTAX=PASS
 
       - name: ShortAutoPro Windows Health Check
-        if: ${{ github.event_name == 'push' || inputs.mode == 'HEALTH_CHECK' || inputs.mode == 'FULL_CHECK' }}
+        if: ${{ github.event_name == 'push' || inputs.mode == 'HEALTH_CHECK' || inputs.mode == 'FULL_CHECK' || inputs.mode == 'RELEASE_AUDIT' }}
         shell: cmd
         run: |
           echo ======================================
@@ -116,11 +124,42 @@ jobs:
           if "%ERR%"=="1" exit /b 1
           echo HEALTH_CHECK=PASS
 
+      - name: FFmpeg Release Capabilities
+        if: ${{ inputs.mode == 'RELEASE_AUDIT' || inputs.mode == 'FULL_CHECK' }}
+        shell: cmd
+        run: |
+          echo ======================================
+          echo FFMPEG RELEASE CAPABILITIES
+          echo ======================================
+          ffmpeg -hide_banner -filters 2>nul | findstr /C:"loudnorm" >nul
+          if errorlevel 1 (echo ERRO loudnorm ausente & exit /b 1) else echo OK loudnorm
+          ffmpeg -hide_banner -filters 2>nul | findstr /C:"sidechaincompress" >nul
+          if errorlevel 1 (echo ERRO sidechaincompress ausente & exit /b 1) else echo OK sidechaincompress
+          echo FFMPEG_CAPABILITIES=PASS
+
+      - name: Diagnostic Snapshot
+        if: ${{ inputs.mode == 'DIAGNOSTIC' || inputs.mode == 'FULL_CHECK' }}
+        shell: cmd
+        run: |
+          echo ======================================
+          echo SHORTAUTOPRO DIAGNOSTIC SNAPSHOT
+          echo ======================================
+          echo COMPUTER=%COMPUTERNAME%
+          echo USER=%USERNAME%
+          echo WORKSPACE=%GITHUB_WORKSPACE%
+          echo --- DISK ---
+          wmic logicaldisk where "DeviceID='C:'" get DeviceID,FreeSpace,Size 2>nul || echo WMIC indisponivel
+          echo --- GIT ---
+          git status --short
+          git log -3 --oneline
+          echo DIAGNOSTIC=PASS
+
       - name: Final Summary
         if: ${{ always() }}
         shell: cmd
         run: |
           echo ======================================
           echo SHORTAUTOPRO REMOTE CONTROL FINISHED
+          echo EVENT=%GITHUB_EVENT_NAME%
           echo MODE=${{ inputs.mode }}
           echo ======================================
