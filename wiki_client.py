@@ -26,7 +26,7 @@ API = "https://pt.wikipedia.org/w/api.php"
 
 HEADERS = {
     "User-Agent":
-        "ShortAutoPro/2.2.1 "
+        "ShortAutoPro/2.2.2 "
         "(educational-video-automation)"
 }
 
@@ -118,10 +118,12 @@ def _salvar_cache(
         chave
     )
 
+    temporario = path + ".tmp"
+
     try:
 
         with open(
-            path,
+            temporario,
             "w",
             encoding="utf-8"
         ) as f:
@@ -131,17 +133,35 @@ def _salvar_cache(
                 f,
                 ensure_ascii=False
             )
+            f.flush()
+            os.fsync(
+                f.fileno()
+            )
+
+        os.replace(
+            temporario,
+            path
+        )
 
     except Exception:
         pass
+
+    finally:
+        if os.path.exists(
+            temporario
+        ):
+            try:
+                os.remove(
+                    temporario
+                )
+            except OSError:
+                pass
 
 
 def _get(
     params,
     tentativas=5
 ):
-
-    global _ultima_requisicao
 
     espera = 4
 
@@ -179,7 +199,6 @@ def _get(
 
             continue
 
-
         if r.status_code == 429:
 
             retry = r.headers.get(
@@ -187,15 +206,11 @@ def _get(
             )
 
             try:
-
                 retry = int(
                     retry
                 )
-
             except Exception:
-
                 retry = espera
-
 
             retry = max(
                 5,
@@ -204,7 +219,6 @@ def _get(
                     60
                 )
             )
-
 
             print(
                 f"Wikipedia 429. "
@@ -222,7 +236,6 @@ def _get(
 
             continue
 
-
         if r.status_code in [
             500,
             502,
@@ -231,7 +244,6 @@ def _get(
         ]:
 
             if tentativa == tentativas:
-
                 raise RuntimeError(
                     f"Wikipedia HTTP "
                     f"{r.status_code}"
@@ -248,11 +260,24 @@ def _get(
 
             continue
 
-
         r.raise_for_status()
 
-        return r.json()
+        try:
+            dados = r.json()
+        except Exception as e:
+            raise RuntimeError(
+                f"Wikipedia JSON inválido: {e}"
+            )
 
+        if not isinstance(
+            dados,
+            dict
+        ):
+            raise RuntimeError(
+                "Wikipedia respondeu em formato inesperado."
+            )
+
+        return dados
 
     raise WikiRateLimit(
         "Wikipedia indisponível por excesso de requisições."
@@ -264,8 +289,25 @@ def search(
     limit=5
 ):
 
+    query = str(
+        query or ""
+    ).strip()
+
+    if not query:
+        return []
+
+    try:
+        limit = int(limit)
+    except (TypeError, ValueError):
+        limit = 5
+
+    limit = max(
+        1,
+        min(limit, 20)
+    )
+
     chave = (
-        query.strip().lower()
+        query.lower()
         + f"|{limit}"
     )
 
@@ -274,9 +316,11 @@ def search(
         chave
     )
 
-    if cache is not None:
+    if isinstance(
+        cache,
+        list
+    ):
         return cache
-
 
     dados = _get(
         {
@@ -289,19 +333,33 @@ def search(
         }
     )
 
-
-    resultados = (
-        dados
-        .get(
-            "query",
-            {}
-        )
-        .get(
-            "search",
-            []
-        )
+    query_data = dados.get(
+        "query",
+        {}
     )
 
+    if not isinstance(
+        query_data,
+        dict
+    ):
+        query_data = {}
+
+    resultados = query_data.get(
+        "search",
+        []
+    )
+
+    if not isinstance(
+        resultados,
+        list
+    ):
+        resultados = []
+
+    resultados = [
+        item
+        for item in resultados
+        if isinstance(item, dict)
+    ]
 
     _salvar_cache(
         "search",
@@ -316,14 +374,24 @@ def extract(
     title
 ):
 
-    chave = title.strip().lower()
+    title = str(
+        title or ""
+    ).strip()
+
+    if not title:
+        return ""
+
+    chave = title.lower()
 
     cache = _ler_cache(
         "extract",
         chave
     )
 
-    if cache is not None:
+    if isinstance(
+        cache,
+        dict
+    ):
 
         return str(
             cache.get(
@@ -331,7 +399,6 @@ def extract(
                 ""
             )
         )
-
 
     dados = _get(
         {
@@ -344,23 +411,37 @@ def extract(
         }
     )
 
-
-    pages = (
-        dados
-        .get(
-            "query",
-            {}
-        )
-        .get(
-            "pages",
-            {}
-        )
+    query_data = dados.get(
+        "query",
+        {}
     )
 
+    if not isinstance(
+        query_data,
+        dict
+    ):
+        query_data = {}
+
+    pages = query_data.get(
+        "pages",
+        {}
+    )
+
+    if not isinstance(
+        pages,
+        dict
+    ):
+        pages = {}
 
     texto = ""
 
     for page in pages.values():
+
+        if not isinstance(
+            page,
+            dict
+        ):
+            continue
 
         texto = str(
             page.get(
@@ -371,7 +452,6 @@ def extract(
 
         if texto:
             break
-
 
     _salvar_cache(
         "extract",
