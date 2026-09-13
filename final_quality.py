@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
 import os
-import sys
 import json
 import re
+import math
 from datetime import date
 
 
@@ -12,6 +12,21 @@ BASE = os.path.expanduser("~/ShortAutoPro")
 SHORT_ID = os.getenv(
     "SHORT_ID",
     date.today().isoformat()
+)
+
+try:
+    QTD_CENAS = int(
+        os.getenv(
+            "SHORT_QTD_CENAS",
+            "12"
+        )
+    )
+except ValueError:
+    QTD_CENAS = 12
+
+QTD_CENAS = max(
+    6,
+    min(QTD_CENAS, 20)
 )
 
 MANIFEST = os.path.join(
@@ -69,6 +84,10 @@ def ler_txt(path):
 
     except Exception:
         return ""
+
+
+def dict_seguro(valor):
+    return valor if isinstance(valor, dict) else {}
 
 
 def contar_palavras(texto):
@@ -211,19 +230,25 @@ hook_score = max(
 # 3. VISUAL + TÉCNICO - 30 PONTOS
 # =========================================
 
-quality = manifest.get(
-    "quality",
-    {}
+quality = dict_seguro(
+    manifest.get(
+        "quality",
+        {}
+    )
 )
 
-video = manifest.get(
-    "video",
-    {}
+video = dict_seguro(
+    manifest.get(
+        "video",
+        {}
+    )
 )
 
-scenes = manifest.get(
-    "scenes",
-    {}
+scenes = dict_seguro(
+    manifest.get(
+        "scenes",
+        {}
+    )
 )
 
 visual_score = 0.0
@@ -257,11 +282,11 @@ physical_count = scenes.get(
     0
 )
 
-if scene_count == 12:
+if scene_count == QTD_CENAS:
     visual_score += 6
 
 
-if physical_count == 12:
+if physical_count == QTD_CENAS:
     visual_score += 7
 
 
@@ -282,9 +307,14 @@ publish_score_raw = publish.get(
 publish_score = 0.0
 
 
-if isinstance(
-    publish_score_raw,
-    (int, float)
+if (
+    isinstance(
+        publish_score_raw,
+        (int, float)
+    )
+    and math.isfinite(
+        float(publish_score_raw)
+    )
 ):
 
     publish_score = (
@@ -373,58 +403,36 @@ else:
 
 
 resultado = {
-    "short_id":
-        SHORT_ID,
-
-    "total_score":
-        total,
-
-    "level":
-        nivel,
-
+    "short_id": SHORT_ID,
+    "total_score": total,
+    "level": nivel,
     "components": {
-        "script":
-            round(
-                script_score,
-                1
-            ),
-
-        "hook":
-            round(
-                hook_score,
-                1
-            ),
-
-        "visual_technical":
-            round(
-                visual_score,
-                1
-            ),
-
-        "publish":
-            round(
-                publish_score,
-                1
-            )
+        "script": round(
+            script_score,
+            1
+        ),
+        "hook": round(
+            hook_score,
+            1
+        ),
+        "visual_technical": round(
+            visual_score,
+            1
+        ),
+        "publish": round(
+            publish_score,
+            1
+        )
     },
-
     "details": {
-        "script_words":
-            qtd_palavras,
-
-        "long_sentences":
-            frases_longas,
-
-        "scene_count":
-            scene_count,
-
-        "physical_scene_count":
-            physical_count,
-
-        "duration_seconds":
-            video.get(
-                "duration_seconds"
-            )
+        "script_words": qtd_palavras,
+        "long_sentences": frases_longas,
+        "expected_scene_count": QTD_CENAS,
+        "scene_count": scene_count,
+        "physical_scene_count": physical_count,
+        "duration_seconds": video.get(
+            "duration_seconds"
+        )
     }
 }
 
@@ -435,44 +443,63 @@ os.makedirs(
 )
 
 
-with open(
-    SAIDA,
-    "w",
-    encoding="utf-8"
-) as f:
+temporario = SAIDA + ".tmp"
 
-    json.dump(
-        resultado,
-        f,
-        ensure_ascii=False,
-        indent=2
+try:
+    with open(
+        temporario,
+        "w",
+        encoding="utf-8"
+    ) as f:
+
+        json.dump(
+            resultado,
+            f,
+            ensure_ascii=False,
+            indent=2
+        )
+        f.flush()
+        os.fsync(
+            f.fileno()
+        )
+
+    os.replace(
+        temporario,
+        SAIDA
     )
 
+finally:
+    if os.path.exists(
+        temporario
+    ):
+        try:
+            os.remove(
+                temporario
+            )
+        except OSError:
+            pass
+
 
 print()
 print("================================")
-print("FINAL QUALITY SCORE - 2.3.8")
+print("FINAL QUALITY SCORE - 2.3.9")
 print("================================")
 print()
 
 print(
-    f"Roteiro: "
-    f"{script_score:.1f}/25"
+    f"Roteiro: {script_score:.1f}/25"
 )
 
 print(
-    f"Hook: "
-    f"{hook_score:.1f}/25"
+    f"Hook: {hook_score:.1f}/25"
 )
 
 print(
-    f"Visual/Técnico: "
-    f"{visual_score:.1f}/30"
+    f"Visual/Técnico: {visual_score:.1f}/30"
 )
 
 print(
-    f"Publish: "
-    f"{publish_score:.1f}/20"
+    f"Publish: {publish_score:.1f}/20"
 )
 
 print()
