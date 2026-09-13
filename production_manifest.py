@@ -4,6 +4,7 @@ import glob
 import json
 import os
 import subprocess
+import sys
 from datetime import date, datetime
 
 BASE = os.path.expanduser("~/ShortAutoPro")
@@ -211,7 +212,7 @@ finally:
 
 print()
 print("================================")
-print("PRODUCTION MANIFEST - 1.9")
+print("PRODUCTION MANIFEST - 1.9.1")
 print("================================")
 print()
 print(f"ID: {SHORT_ID}")
@@ -226,5 +227,11 @@ if video:
 print()
 print(f"Manifest:\n{SAIDA}")
 print()
+
+if not quality_pass:
+    print("PRODUCTION MANIFEST: INCOMPLETE")
+    print()
+    sys.exit(1)
+
 print("PRODUCTION MANIFEST: OK")
 print()
