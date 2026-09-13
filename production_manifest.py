@@ -16,6 +16,21 @@ SHORT_ID = os.getenv(
     date.today().isoformat()
 )
 
+try:
+    QTD_CENAS = int(
+        os.getenv(
+            "SHORT_QTD_CENAS",
+            "12"
+        )
+    )
+except ValueError:
+    QTD_CENAS = 12
+
+QTD_CENAS = max(
+    6,
+    min(QTD_CENAS, 20)
+)
+
 MANIFEST_DIR = os.path.join(
     BASE,
     "manifests"
@@ -176,8 +191,14 @@ def ffprobe(path):
             text=True
         )
 
-        return json.loads(
+        dados = json.loads(
             saida
+        )
+
+        return (
+            dados
+            if isinstance(dados, dict)
+            else {}
         )
 
     except Exception:
@@ -272,10 +293,22 @@ formato = video_info.get(
     {}
 )
 
+if not isinstance(
+    formato,
+    dict
+):
+    formato = {}
+
 streams = video_info.get(
     "streams",
     []
 )
+
+if not isinstance(
+    streams,
+    list
+):
+    streams = []
 
 
 try:
@@ -293,6 +326,12 @@ except Exception:
 
 
 for stream in streams:
+
+    if not isinstance(
+        stream,
+        dict
+    ):
+        continue
 
     tipo = stream.get(
         "codec_type"
@@ -312,28 +351,32 @@ for stream in streams:
             "height"
         )
 
-        fps_raw = stream.get(
-            "avg_frame_rate",
-            "0/1"
+        fps_raw = str(
+            stream.get(
+                "avg_frame_rate",
+                "0/1"
+            )
         )
 
         try:
 
             num, den = fps_raw.split(
-                "/"
+                "/",
+                1
             )
+
+            den_float = float(den)
 
             fps = (
                 float(num)
-                / float(den)
-                if float(den) != 0
+                / den_float
+                if den_float != 0
                 else 0
             )
 
         except Exception:
 
             fps = None
-
 
     elif tipo == "audio":
 
@@ -386,29 +429,19 @@ cenas_fisicas.sort()
 # =====================================================
 
 quality = {
-    "video_exists":
-        bool(video),
-
-    "scene_map_count":
-        len(scenes),
-
-    "physical_scene_count":
-        len(cenas_fisicas),
-
-    "resolution_ok":
-        (
-            width == 1080
-            and height == 1920
-        ),
-
-    "fps_ok":
-        (
-            fps is not None
-            and 29 <= fps <= 31
-        ),
-
-    "audio_exists":
-        codec_audio is not None
+    "video_exists": bool(video),
+    "expected_scene_count": QTD_CENAS,
+    "scene_map_count": len(scenes),
+    "physical_scene_count": len(cenas_fisicas),
+    "resolution_ok": (
+        width == 1080
+        and height == 1920
+    ),
+    "fps_ok": (
+        fps is not None
+        and 29 <= fps <= 31
+    ),
+    "audio_exists": codec_audio is not None
 }
 
 
@@ -428,10 +461,10 @@ quality_pass = all(
         ],
         quality[
             "scene_map_count"
-        ] == 12,
+        ] == QTD_CENAS,
         quality[
             "physical_scene_count"
-        ] == 12
+        ] == QTD_CENAS
     ]
 )
 
@@ -441,127 +474,68 @@ quality_pass = all(
 # =====================================================
 
 manifest = {
-    "short_id":
-        SHORT_ID,
-
-    "created_at":
-        datetime.now().isoformat(),
-
-    "status":
-        (
-            "QUALITY_PASS"
-            if quality_pass
-            else "INCOMPLETE"
+    "short_id": SHORT_ID,
+    "created_at": datetime.now().isoformat(),
+    "status": (
+        "QUALITY_PASS"
+        if quality_pass
+        else "INCOMPLETE"
+    ),
+    "topic": assunto,
+    "hook": ler_txt(HOOK),
+    "script": {
+        "path": ROTEIRO,
+        "text": ler_txt(
+            ROTEIRO
+        )
+    },
+    "source": {
+        "path": FONTE
+    },
+    "publish": {
+        "path": PUBLISH,
+        "chosen_title": publish.get(
+            "chosen_title",
+            ""
         ),
-
-    "topic":
-        assunto,
-
-    "hook":
-        ler_txt(HOOK),
-
-    "script":
-        {
-            "path":
-                ROTEIRO,
-
-            "text":
-                ler_txt(
-                    ROTEIRO
-                )
-        },
-
-    "source":
-        {
-            "path":
-                FONTE
-        },
-
-    "publish":
-        {
-            "path":
-                PUBLISH,
-
-            "chosen_title":
-                publish.get(
-                    "chosen_title",
-                    ""
-                ),
-
-            "titles":
-                publish.get(
-                    "titles",
-                    []
-                ),
-
-            "description":
-                publish.get(
-                    "description",
-                    ""
-                ),
-
-            "hashtags":
-                publish.get(
-                    "hashtags",
-                    []
-                ),
-
-            "pinned_comment":
-                publish.get(
-                    "pinned_comment",
-                    ""
-                )
-        },
-
-    "scenes":
-        {
-            "map_path":
-                SCENE_MAP,
-
-            "count":
-                len(scenes),
-
-            "physical_count":
-                len(
-                    cenas_fisicas
-                ),
-
-            "items":
-                scenes
-        },
-
-    "video":
-        {
-            "path":
-                video,
-
-            "version":
-                video_version,
-
-            "duration_seconds":
-                duracao,
-
-            "width":
-                width,
-
-            "height":
-                height,
-
-            "fps":
-                fps,
-
-            "video_codec":
-                codec_video,
-
-            "audio_codec":
-                codec_audio
-        },
-
-    "quality":
-        quality,
-
-    "log":
-        LOG
+        "titles": publish.get(
+            "titles",
+            []
+        ),
+        "description": publish.get(
+            "description",
+            ""
+        ),
+        "hashtags": publish.get(
+            "hashtags",
+            []
+        ),
+        "pinned_comment": publish.get(
+            "pinned_comment",
+            ""
+        )
+    },
+    "scenes": {
+        "map_path": SCENE_MAP,
+        "expected_count": QTD_CENAS,
+        "count": len(scenes),
+        "physical_count": len(
+            cenas_fisicas
+        ),
+        "items": scenes
+    },
+    "video": {
+        "path": video,
+        "version": video_version,
+        "duration_seconds": duracao,
+        "width": width,
+        "height": height,
+        "fps": fps,
+        "video_codec": codec_video,
+        "audio_codec": codec_audio
+    },
+    "quality": quality,
+    "log": LOG
 }
 
 
@@ -569,18 +543,41 @@ manifest = {
 # SALVAR
 # =====================================================
 
-with open(
-    SAIDA,
-    "w",
-    encoding="utf-8"
-) as f:
+temporario = SAIDA + ".tmp"
 
-    json.dump(
-        manifest,
-        f,
-        ensure_ascii=False,
-        indent=2
+try:
+    with open(
+        temporario,
+        "w",
+        encoding="utf-8"
+    ) as f:
+
+        json.dump(
+            manifest,
+            f,
+            ensure_ascii=False,
+            indent=2
+        )
+        f.flush()
+        os.fsync(
+            f.fileno()
+        )
+
+    os.replace(
+        temporario,
+        SAIDA
     )
+
+finally:
+    if os.path.exists(
+        temporario
+    ):
+        try:
+            os.remove(
+                temporario
+            )
+        except OSError:
+            pass
 
 
 # =====================================================
@@ -589,7 +586,7 @@ with open(
 
 print()
 print("================================")
-print("PRODUCTION MANIFEST - 1.7")
+print("PRODUCTION MANIFEST - 1.8")
 print("================================")
 print()
 
@@ -598,29 +595,27 @@ print(
 )
 
 print(
-    f"Status: "
-    f"{manifest['status']}"
+    f"Status: {manifest['status']}"
 )
 
 print(
-    f"Assunto: "
-    f"{assunto}"
+    f"Assunto: {assunto}"
 )
 
 print(
-    f"Cenas: "
-    f"{len(cenas_fisicas)}/12"
+    f"Cenas: {len(cenas_fisicas)}/{QTD_CENAS}"
 )
 
 if video:
 
-    print(
-        f"Vídeo: "
-        f"{width}x{height} "
-        f"{fps:.2f}fps"
-        if fps is not None
-        else "Vídeo encontrado"
-    )
+    if fps is not None:
+        print(
+            f"Vídeo: {width}x{height} {fps:.2f}fps"
+        )
+    else:
+        print(
+            "Vídeo encontrado"
+        )
 
 print()
 
