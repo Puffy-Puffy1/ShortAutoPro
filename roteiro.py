@@ -1,377 +1,226 @@
 #!/usr/bin/env python3
 
 import os
+import re
 import sys
 import time
-import re
-import requests
 from datetime import date
 
-from wiki_client import search as wiki_search_client
-from wiki_client import extract as wiki_extract_client
-from wiki_client import WikiRateLimit
+import requests
 
 from source_identity import validar_identidade
-
+from wiki_client import WikiRateLimit
+from wiki_client import extract as wiki_extract_client
+from wiki_client import search as wiki_search_client
 
 BASE = os.path.expanduser("~/ShortAutoPro")
+ROTEIRO_DIR = os.path.join(BASE, "roteiros")
+os.makedirs(ROTEIRO_DIR, exist_ok=True)
 
-ROTEIRO_DIR = os.path.join(
-    BASE,
-    "roteiros"
-)
-
-os.makedirs(
-    ROTEIRO_DIR,
-    exist_ok=True
-)
-
-SHORT_ID = os.getenv(
-    "SHORT_ID",
-    date.today().isoformat()
-)
-
-GEMINI_KEY = os.getenv(
-    "GEMINI_API_KEY"
-)
-
-if not GEMINI_KEY:
-    sys.exit(
-        "ERRO: GEMINI_API_KEY não configurada."
-    )
-
-MODEL = os.getenv(
-    "GEMINI_MODEL",
-    "gemini-3.5-flash-lite"
-)
-
-TEMA = os.getenv(
-    "SHORT_TEMA",
-    "mistérios, casos inexplicáveis e true crime"
-)
-
-TOPIC_FILE = os.path.join(
-    BASE,
-    "roteiros",
-    f"topic_{SHORT_ID}.txt"
-)
+SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat())
+GEMINI_KEY = os.getenv("GEMINI_API_KEY")
+MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
+TEMA = os.getenv("SHORT_TEMA", "mistérios, casos inexplicáveis e true crime")
+TOPIC_FILE = os.path.join(ROTEIRO_DIR, f"topic_{SHORT_ID}.txt")
 
 try:
-    QTD_CENAS = int(
-        os.getenv(
-            "SHORT_QTD_CENAS",
-            "12"
-        )
-    )
+    QTD_CENAS = int(os.getenv("SHORT_QTD_CENAS", "12"))
 except ValueError:
     QTD_CENAS = 12
+QTD_CENAS = max(6, min(QTD_CENAS, 20))
 
-QTD_CENAS = max(
-    6,
-    min(QTD_CENAS, 20)
-)
+if not GEMINI_KEY:
+    sys.exit("ERRO: GEMINI_API_KEY não configurada.")
 
 GEMINI_URL = (
     "https://generativelanguage.googleapis.com/"
     f"v1beta/models/{MODEL}:generateContent"
 )
-
 HEADERS = {
     "Content-Type": "application/json",
-    "x-goog-api-key": GEMINI_KEY
+    "x-goog-api-key": GEMINI_KEY,
 }
 
 
-# =====================================================
-# GEMINI
-# =====================================================
-
-def chamar_gemini(
-    prompt,
-    temperatura=0.5,
-    tokens=1600
-):
-
+def chamar_gemini(prompt, temperatura=0.5, tokens=1600):
     payload = {
-        "contents": [
-            {
-                "parts": [
-                    {
-                        "text": prompt
-                    }
-                ]
-            }
-        ],
+        "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {
             "temperature": temperatura,
-            "maxOutputTokens": tokens
-        }
+            "maxOutputTokens": tokens,
+        },
     }
 
     for tentativa in range(1, 5):
-
-        print(
-            f"Gemini tentativa {tentativa}/4..."
-        )
-
+        print(f"Gemini tentativa {tentativa}/4...")
         try:
-
             r = requests.post(
                 GEMINI_URL,
                 headers=HEADERS,
                 json=payload,
-                timeout=120
+                timeout=120,
             )
-
-        except Exception as e:
-
+        except Exception as exc:
             if tentativa == 4:
-                raise RuntimeError(
-                    str(e)
-                )
-
+                raise RuntimeError(str(exc))
             time.sleep(5)
             continue
 
         if r.ok:
-
-            dados = r.json()
-
             try:
+                dados = r.json()
+                texto = dados["candidates"][0]["content"]["parts"][0]["text"]
+                texto = str(texto).strip()
+                if not texto:
+                    raise ValueError("texto vazio")
+                return texto
+            except Exception as exc:
+                raise RuntimeError(f"Gemini respondeu sem texto utilizável: {exc}")
 
-                return (
-                    dados["candidates"][0]
-                    ["content"]["parts"][0]["text"]
-                    .strip()
-                )
-
-            except Exception:
-
-                raise RuntimeError(
-                    "Gemini respondeu sem texto utilizável."
-                )
-
-        if (
-            r.status_code
-            in [429, 500, 502, 503, 504]
-            and tentativa < 4
-        ):
-
-            print(
-                f"Gemini HTTP {r.status_code}. "
-                "Tentando novamente..."
-            )
-
+        if r.status_code in {429, 500, 502, 503, 504} and tentativa < 4:
+            print(f"Gemini HTTP {r.status_code}. Tentando novamente...")
             time.sleep(8)
             continue
 
-        raise RuntimeError(
-            f"HTTP {r.status_code}: {r.text}"
-        )
+        raise RuntimeError(f"HTTP {r.status_code}: {r.text[:1200]}")
 
-    raise RuntimeError(
-        "Gemini não respondeu."
-    )
+    raise RuntimeError("Gemini não respondeu.")
 
-
-# =====================================================
-# UTILIDADES
-# =====================================================
 
 def contar_palavras(texto):
-
     return len(
         re.findall(
             r"\b[\wÀ-ÿ'-]+\b",
-            texto,
-            flags=re.UNICODE
+            str(texto),
+            flags=re.UNICODE,
         )
     )
 
 
 def limpar_roteiro(texto):
-
     texto = (
-        texto
+        str(texto)
         .replace("```text", "")
         .replace("```markdown", "")
         .replace("```", "")
         .strip()
     )
-
     texto = re.sub(
-        r"^\s*?\s*roteiro\s*?\s*:?\s*",
+        r"^\s*(?:roteiro)\s*:?\s*",
         "",
         texto,
-        flags=re.IGNORECASE
+        flags=re.IGNORECASE,
     )
-
     return texto.strip()
 
 
 def limpar_assunto(texto):
-
     texto = (
-        texto
+        str(texto)
         .replace("*", "")
         .replace('"', "")
         .replace("`", "")
         .strip()
     )
-
     texto = re.sub(
         r"^(caso|assunto)\s*:\s*",
         "",
         texto,
-        flags=re.IGNORECASE
+        flags=re.IGNORECASE,
     )
-
     return texto.strip()
 
 
-# =====================================================
-# WIKIPEDIA
-# =====================================================
+def atomic_text(path, text):
+    tmp = f"{path}.{os.getpid()}.tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.write(str(text))
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+    finally:
+        if os.path.exists(tmp):
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+
 
 def wiki_search(query):
-
-    return wiki_search_client(
-        query,
-        limit=6
-    )
+    return wiki_search_client(query, limit=6)
 
 
 def wiki_extract(title):
-
-    return wiki_extract_client(
-        title
-    )
+    return wiki_extract_client(title)
 
 
 def variacoes_busca(assunto):
-
     candidatos = [
         assunto,
-
-        re.sub(
-            r"^(O|A|Os|As)\s+",
-            "",
-            assunto,
-            flags=re.IGNORECASE
-        ),
-
-        re.sub(
-            r"^(O|A)\s+Caso\s+",
-            "",
-            assunto,
-            flags=re.IGNORECASE
-        ),
-
-        re.sub(
-            r"^Caso\s+",
-            "",
-            assunto,
-            flags=re.IGNORECASE
-        ),
-
-        assunto.replace(
-            "Farol das ",
-            "",
-            1
-        ),
-
-        assunto.replace(
-            "Mistério de ",
-            "",
-            1
-        ),
-
-        assunto.replace(
-            "Mistério do ",
-            "",
-            1
-        ),
-
-        assunto.replace(
-            "Incidente de ",
-            "",
-            1
-        ),
-
-        " ".join(
-            assunto.split()[:6]
-        )
+        re.sub(r"^(O|A|Os|As)\s+", "", assunto, flags=re.IGNORECASE),
+        re.sub(r"^(O|A)\s+Caso\s+", "", assunto, flags=re.IGNORECASE),
+        re.sub(r"^Caso\s+", "", assunto, flags=re.IGNORECASE),
+        assunto.replace("Farol das ", "", 1),
+        assunto.replace("Mistério de ", "", 1),
+        assunto.replace("Mistério do ", "", 1),
+        assunto.replace("Incidente de ", "", 1),
+        " ".join(assunto.split()[:6]),
     ]
 
     saida = []
-
+    vistos = set()
     for item in candidatos:
-
-        item = item.strip()
-
-        if not item:
-            continue
-
-        if item.lower() in [
-            x.lower()
-            for x in saida
-        ]:
-            continue
-
-        saida.append(
-            item
-        )
-
+        item = str(item).strip()
+        key = item.casefold()
+        if item and key not in vistos:
+            vistos.add(key)
+            saida.append(item)
     return saida
 
 
 def buscar_artigo(assunto):
+    """Procura até achar um artigo que também passe pelo gate de identidade."""
 
-    for consulta in variacoes_busca(
-        assunto
-    ):
-
-        print(
-            f"Buscando Wikipedia: {consulta}"
-        )
-
-        resultados = wiki_search(
-            consulta
-        )
-
-        if not resultados:
+    for consulta in variacoes_busca(assunto):
+        print(f"Buscando Wikipedia: {consulta}")
+        resultados = wiki_search(consulta)
+        if not isinstance(resultados, list):
             continue
 
         for resultado in resultados:
+            if not isinstance(resultado, dict):
+                continue
 
-            titulo = resultado.get(
-                "title",
-                ""
-            )
-
+            titulo = str(resultado.get("title", "")).strip()
             if not titulo:
                 continue
 
-            texto = wiki_extract(
-                titulo
+            texto = wiki_extract(titulo)
+            if len(texto) < 700:
+                continue
+
+            identidade = validar_identidade(
+                assunto,
+                titulo,
+                texto,
             )
 
-            if len(texto) >= 700:
+            print(
+                "  candidato:",
+                titulo,
+                "->",
+                "PASS" if identidade.get("valid") else "REJEITADO",
+                identidade.get("reason", ""),
+            )
 
-                return (
-                    titulo,
-                    texto
-                )
+            if not identidade.get("valid"):
+                continue
 
-    return (
-        "",
-        ""
-    )
+            return titulo, texto, identidade
 
+    return "", "", None
 
-# =====================================================
-# ESCOLHER ASSUNTO COM RETRY
-# =====================================================
 
 print()
 print("================================")
@@ -380,476 +229,206 @@ print("================================")
 print()
 
 assuntos_rejeitados = []
-
 assunto = ""
 titulo = ""
 fonte = ""
-
+identidade_fonte = None
 assunto_preselecionado = ""
 
 if os.path.exists(TOPIC_FILE):
-
     try:
-
-        with open(
-            TOPIC_FILE,
-            "r",
-            encoding="utf-8"
-        ) as f:
-
-            assunto_preselecionado = (
-                f.read().strip()
-            )
-
+        with open(TOPIC_FILE, "r", encoding="utf-8") as f:
+            assunto_preselecionado = f.read().strip()
     except Exception:
-
         assunto_preselecionado = ""
 
+for tentativa_assunto in range(1, 5):
+    rejeitados = ", ".join(assuntos_rejeitados) if assuntos_rejeitados else "nenhum"
 
-for tentativa_assunto in range(
-    1,
-    5
-):
-
-    rejeitados = (
-        ", ".join(
-            assuntos_rejeitados
-        )
-        if assuntos_rejeitados
-        else "nenhum"
-    )
-
-    prompt_assunto = f"""
+    if tentativa_assunto == 1 and assunto_preselecionado:
+        assunto = assunto_preselecionado
+        print("Usando assunto do Topic Engine.")
+    else:
+        prompt_assunto = f"""
 Escolha UM caso REAL e documentado dentro do tema:
-
 {TEMA}
 
 REQUISITOS:
-
-- precisa ser real;
-- precisa possuir documentação pública;
-- precisa ser conhecido o suficiente para provavelmente
-  possuir artigo na Wikipedia em português;
-- precisa ter fatos suficientes para um Short
-  de aproximadamente 30 a 45 segundos;
-- não invente nomes;
-- não invente casos;
-- não invente eventos.
+- precisa ser real e possuir documentação pública;
+- conhecido o suficiente para provavelmente possuir artigo na Wikipedia em português;
+- fatos suficientes para um Short de 30 a 45 segundos;
+- não invente nomes, casos ou eventos.
 
 NÃO escolha novamente:
-
 {rejeitados}
 
-Prefira casos conhecidos e bem documentados.
-
 Responda SOMENTE com o nome do caso ou evento.
-
-Sem explicação.
 """
-
-    print()
-    print(
-        f"Escolhendo assunto "
-        f"{tentativa_assunto}/4..."
-    )
-
-    if (
-        tentativa_assunto == 1
-        and assunto_preselecionado
-    ):
-
-        assunto = assunto_preselecionado
-
-        print(
-            "Usando assunto do Topic Engine."
-        )
-
-    else:
-
+        print(f"Escolhendo assunto {tentativa_assunto}/4...")
         try:
-
             assunto = chamar_gemini(
                 prompt_assunto,
                 temperatura=0.70,
-                tokens=100
+                tokens=100,
             )
+        except Exception as exc:
+            sys.exit(f"ERRO escolhendo assunto: {exc}")
 
-        except Exception as e:
+    assunto = limpar_assunto(assunto)
+    if not assunto:
+        assuntos_rejeitados.append("assunto_vazio")
+        continue
 
-            sys.exit(
-                f"ERRO escolhendo assunto: {e}"
-            )
+    print(f"Assunto escolhido: {assunto}")
 
-    assunto = limpar_assunto(
-        assunto
-    )
+    try:
+        titulo, fonte, identidade_fonte = buscar_artigo(assunto)
+    except WikiRateLimit:
+        sys.exit("ERRO: Wikipedia temporariamente limitada. Tente novamente depois.")
+    except Exception as exc:
+        print(f"AVISO Wikipedia: {exc}")
+        titulo, fonte, identidade_fonte = "", "", None
 
-    print(
-        f"Assunto escolhido: {assunto}"
-    )
-
-    titulo, fonte = buscar_artigo(
-        assunto
-    )
-
-
-    # =====================================================
-    # SOURCE IDENTITY GATE 4.0 - ROTEIRO
-    # =====================================================
-
-    if fonte and titulo:
-
-        identidade_fonte = validar_identidade(
-            assunto,
-            titulo,
-            fonte
-        )
-
+    if fonte and titulo and identidade_fonte and identidade_fonte.get("valid"):
         print()
         print("================================")
-        print("SOURCE IDENTITY GATE 4.0")
+        print("SOURCE IDENTITY GATE 4.2")
         print("================================")
+        print(f"ASSUNTO: {assunto}")
+        print(f"FONTE: Wikipedia - {titulo}")
+        print(f"IDENTITY SCORE: {float(identidade_fonte.get('score', 0)):.3f}")
+        print(f"MOTIVO: {identidade_fonte.get('reason', '')}")
+        print("SOURCE IDENTITY: PASS")
         print()
-
-        print(
-            f"ASSUNTO: {assunto}"
-        )
-
-        print(
-            f"FONTE ENCONTRADA: "
-            f"Wikipedia — {titulo}"
-        )
-
-        print(
-            f"IDENTITY SCORE: "
-            f"{identidade_fonte['score']:.3f}"
-        )
-
-        print(
-            f"MOTIVO: "
-            f"{identidade_fonte['reason']}"
-        )
-
-        if not identidade_fonte[
-            "valid"
-        ]:
-
-            print()
-            print(
-                "FONTE REJEITADA: "
-                "não corresponde ao assunto."
-            )
-
-            print(
-                "Descartando esta fonte "
-                "e tentando outro assunto..."
-            )
-
-            fonte = ""
-            titulo = ""
-
-        else:
-
-            print()
-            print(
-                "SOURCE IDENTITY: PASS"
-            )
-
-    if fonte:
-
-        print()
-        print(
-            "Fonte factual encontrada:"
-        )
-
-        print(
-            f"Wikipedia — {titulo}"
-        )
-
         break
 
-    print()
-    print(
-        "Fonte factual suficiente "
-        "não encontrada."
-    )
-
-    print(
-        "Descartando assunto e tentando outro..."
-    )
-
-    assuntos_rejeitados.append(
-        assunto
-    )
-
+    print("Fonte factual válida não encontrada. Tentando outro assunto...")
+    assuntos_rejeitados.append(assunto)
 
 if not fonte:
-
-    sys.exit(
-        "ERRO: não consegui encontrar uma "
-        "fonte factual após 4 assuntos."
-    )
-
+    sys.exit("ERRO: não consegui encontrar uma fonte factual válida após 4 assuntos.")
 
 fonte = fonte[:16000]
-
-print(
-    f"Contexto recuperado: "
-    f"{len(fonte)} caracteres"
-)
-
-
-# =====================================================
-# GERAR ROTEIRO
-# =====================================================
+print(f"Contexto recuperado: {len(fonte)} caracteres")
 
 prompt_criacao = f"""
 Você é roteirista profissional de YouTube Shorts.
 
 ASSUNTO:
-
 {assunto}
 
 FONTE FACTUAL:
-
 ========================
-
 {fonte}
-
 ========================
 
-Use SOMENTE informações sustentadas
-pela fonte acima.
+Use SOMENTE informações sustentadas pela fonte acima.
+Não invente datas, nomes, números, locais, ferimentos, causas ou acontecimentos.
+Não transforme teoria ou especulação em fato.
 
-CLASSIFIQUE MENTALMENTE:
-
-FATO:
-pode ser narrado diretamente.
-
-DECLARAÇÃO HISTÓRICA:
-preserve a atribuição.
-
-TEORIA:
-nunca apresente como fato.
-
-CONCLUSÃO MODERNA:
-deixe claro quando vier de investigação posterior.
-
-REGRAS FACTUAIS:
-
-- não invente datas;
-- não invente nomes;
-- não invente números;
-- não invente locais;
-- não invente ferimentos;
-- não invente causas;
-- não invente acontecimentos;
-- não transforme teorias em fatos;
-- não acrescente detalhes apenas por suspense.
-
-REGRAS DO ROTEIRO:
-
+ROTEIRO:
 - português do Brasil;
 - entre 105 e 125 palavras REAIS;
-- nunca menos de 105;
-- nunca mais de 125;
 - gancho forte na primeira frase;
-- ritmo rápido;
-- frases naturais;
-- curiosidade progressiva;
+- ritmo rápido e frases naturais;
 - fácil para voz neural;
 - CTA final curto.
 
 Depois escreva exatamente:
-
 CENAS:
 
-Crie exatamente {QTD_CENAS}
-buscas visuais em INGLÊS.
-
-REGRAS:
-
-- acompanhe a ordem da narração;
-- 4 a 9 palavras;
-- algo concreto e visível;
-- pessoas, lugares, objetos ou ações;
-- compatível com Pexels, Pixabay e Coverr;
-- sem logos;
-- sem interface de rede social;
-- sem representar CTA com celular;
-- última cena fecha visualmente a história.
-
-Não numere.
-
-Não use colchetes.
+Crie exatamente {QTD_CENAS} buscas visuais em INGLÊS, uma por linha.
+Cada busca deve ter 4 a 9 palavras, acompanhar a ordem da narração e representar algo concreto.
+Sem logos, interface de rede social ou CTA visual com celular.
+Não numere e não use colchetes.
 
 Responda SOMENTE:
-
 roteiro
-
 CENAS:
 busca
 busca
 ...
 """
 
-
 roteiro = None
-cenas_texto = None
+cenas_texto = ""
 ultimo_roteiro_recebido = ""
 ultimas_cenas_recebidas = ""
 
-
-for tentativa in range(
-    1,
-    4
-):
-
-    print()
-    print(
-        f"Gerando roteiro inicial "
-        f"({tentativa}/3)..."
-    )
-
+for tentativa in range(1, 4):
+    print(f"Gerando roteiro inicial ({tentativa}/3)...")
     try:
-
         bruto = chamar_gemini(
             prompt_criacao,
             temperatura=0.50,
-            tokens=1600
+            tokens=1600,
         )
-
-    except Exception as e:
-
-        sys.exit(
-            f"ERRO gerando roteiro: {e}"
-        )
+    except Exception as exc:
+        sys.exit(f"ERRO gerando roteiro: {exc}")
 
     bruto = (
-        bruto
-        .replace("```text", "")
+        bruto.replace("```text", "")
         .replace("```markdown", "")
         .replace("```", "")
         .strip()
     )
 
     if "CENAS:" not in bruto:
-
-        print(
-            "Formato inválido. "
-            "Tentando novamente..."
-        )
-
+        print("Formato inválido. Tentando novamente...")
         continue
 
-    r, c = bruto.split(
-        "CENAS:",
-        1
-    )
-
-    r = limpar_roteiro(
-        r
-    )
-
-    qtd = contar_palavras(
-        r
-    )
-
+    r, c = bruto.split("CENAS:", 1)
+    r = limpar_roteiro(r)
     ultimo_roteiro_recebido = r
     ultimas_cenas_recebidas = c
-
-    print(
-        f"Palavras recebidas: {qtd}"
-    )
+    qtd = contar_palavras(r)
+    print(f"Palavras recebidas: {qtd}")
 
     if 105 <= qtd <= 125:
-
         roteiro = r
         cenas_texto = c
-
         break
 
-    print(
-        "Quantidade fora do limite. "
-        "Tentando novamente..."
-    )
-
-
 if not roteiro:
+    if not ultimo_roteiro_recebido:
+        sys.exit("ERRO: Gemini não retornou roteiro reparável.")
 
-    print()
-    print(
-        "Tentativas normais ficaram fora do limite."
-    )
-
-    print(
-        "Executando reparo final de tamanho..."
-    )
-
-    # Gera uma última versão de forma mais rígida.
+    print("Tentativas normais ficaram fora do limite. Executando reparo final...")
     prompt_reparo = f"""
 Reescreva o roteiro abaixo mantendo SOMENTE os mesmos fatos.
 
 ROTEIRO:
-
-{{r}}
+{ultimo_roteiro_recebido}
 
 REGRAS OBRIGATÓRIAS:
-
 - entre 108 e 122 palavras REAIS;
-- preserve os fatos;
-- preserve o gancho;
-- preserve o CTA;
+- preserve fatos, gancho e CTA;
 - não adicione informação;
-- não invente nada;
-- corte palavras e frases redundantes;
+- corte redundâncias;
 - português do Brasil;
 - responda SOMENTE com o roteiro final.
 """
 
     try:
-
-        reparado = chamar_gemini(
-            prompt_reparo,
-            temperatura=0.10,
-            tokens=700
-        )
-
         reparado = limpar_roteiro(
-            reparado
-        )
-
-        qtd_reparada = contar_palavras(
-            reparado
-        )
-
-        print(
-            f"Palavras após reparo: "
-            f"{qtd_reparada}"
-        )
-
-        if 105 <= qtd_reparada <= 125:
-
-            roteiro = reparado
-            cenas_texto = ultimas_cenas_recebidas
-
-        else:
-
-            sys.exit(
-                "ERRO: reparo final ainda ficou "
-                f"fora do limite: {qtd_reparada} palavras."
+            chamar_gemini(
+                prompt_reparo,
+                temperatura=0.10,
+                tokens=700,
             )
+        )
+    except Exception as exc:
+        sys.exit(f"ERRO no reparo final do roteiro: {exc}")
 
-    except Exception as e:
-
+    qtd_reparada = contar_palavras(reparado)
+    print(f"Palavras após reparo: {qtd_reparada}")
+    if not 105 <= qtd_reparada <= 125:
         sys.exit(
-            f"ERRO no reparo final do roteiro: {e}"
+            f"ERRO: reparo final ainda fora do limite: {qtd_reparada} palavras."
         )
 
-
-# =====================================================
-# AUDITORIA FACTUAL
-# =====================================================
+    roteiro = reparado
+    cenas_texto = ultimas_cenas_recebidas
 
 print()
 print("================================")
@@ -857,475 +436,183 @@ print("AUDITORIA FACTUAL")
 print("================================")
 print()
 
-
 prompt_auditoria = f"""
 Você é um auditor factual rigoroso.
 
 FONTE:
-
 ========================
-
 {fonte}
-
 ========================
 
 ROTEIRO:
-
 ========================
-
 {roteiro}
-
 ========================
 
 Compare cada afirmação com a fonte.
-
-REGRAS:
-
 - remova ou corrija informação não sustentada;
 - não acrescente informação nova;
-- preserve fatos documentados;
-- preserve atribuições;
-- diferencie fato, teoria e especulação;
-- diferencie teoria de conclusão moderna;
-- não transforme especulação em fato;
+- preserve fatos documentados e atribuições;
+- diferencie fato, teoria, especulação e conclusão posterior;
 - preserve gancho e ritmo;
 - resultado final entre 105 e 125 palavras REAIS.
 
 Responda SOMENTE com o roteiro revisado.
-
-Sem explicações.
-Sem títulos.
 """
 
-
 roteiro_auditado = None
-
-
-for auditoria in range(
-    1,
-    4
-):
-
-    print(
-        f"Auditoria {auditoria}/3..."
-    )
-
+for auditoria in range(1, 4):
+    print(f"Auditoria {auditoria}/3...")
     try:
-
-        revisado = chamar_gemini(
-            prompt_auditoria,
-            temperatura=0.15,
-            tokens=900
+        revisado = limpar_roteiro(
+            chamar_gemini(
+                prompt_auditoria,
+                temperatura=0.15,
+                tokens=900,
+            )
         )
-
-    except Exception as e:
-
-        print(
-            f"Falha na auditoria: {e}"
-        )
-
+    except Exception as exc:
+        print(f"Falha na auditoria: {exc}")
         continue
 
-    revisado = limpar_roteiro(
-        revisado
-    )
-
-    qtd = contar_palavras(
-        revisado
-    )
-
-    print(
-        f"Palavras após auditoria: {qtd}"
-    )
-
+    qtd = contar_palavras(revisado)
+    print(f"Palavras após auditoria: {qtd}")
     if 105 <= qtd <= 125:
-
         roteiro_auditado = revisado
-
-        print(
-            "Auditoria factual: OK"
-        )
-
         break
 
-    print(
-        "Auditoria saiu do limite. "
-        "Tentando novamente..."
+if not roteiro_auditado:
+    sys.exit(
+        "ERRO: auditoria factual não produziu um roteiro válido após 3 tentativas; produção bloqueada."
     )
 
-
-if roteiro_auditado:
-
-    roteiro = roteiro_auditado
-
-else:
-
-    print(
-        "AVISO: auditor não manteve "
-        "o limite."
-    )
-
-    print(
-        "Usando roteiro inicial validado."
-    )
-
-
-
-# =====================================================
-# LANGUAGE GUARD 2.3.2
-# =====================================================
+roteiro = roteiro_auditado
+print("Auditoria factual: PASS")
 
 PALAVRAS_INGLES_COMUNS = {
-    "tragically",
-    "however",
-    "although",
-    "meanwhile",
-    "therefore",
-    "apparently",
-    "mysteriously",
-    "suddenly",
-    "eventually",
-    "finally",
-    "according",
-    "despite",
-    "afterwards",
-    "later",
-    "before",
-    "during"
+    "tragically", "however", "although", "meanwhile", "therefore", "apparently",
+    "mysteriously", "suddenly", "eventually", "finally", "according", "despite",
+    "afterwards", "later", "before", "during",
 }
 
 
 def detectar_ingles(texto):
-
-    palavras = re.findall(
-        r"\b[a-zA-Z]+\b",
-        texto
-    )
-
-    encontrados = []
-
-    for palavra in palavras:
-
-        p = palavra.lower()
-
-        if p in PALAVRAS_INGLES_COMUNS:
-            encontrados.append(
-                palavra
-            )
-
-    return encontrados
+    return [
+        palavra
+        for palavra in re.findall(r"\b[a-zA-Z]+\b", str(texto))
+        if palavra.lower() in PALAVRAS_INGLES_COMUNS
+    ]
 
 
-ingles_detectado = detectar_ingles(
-    roteiro
-)
-
-
+ingles_detectado = detectar_ingles(roteiro)
 if ingles_detectado:
+    print("Termos em inglês detectados: " + ", ".join(ingles_detectado))
+    corrigido_final = None
 
-    print()
-    print("================================")
-    print("LANGUAGE GUARD")
-    print("================================")
-    print()
-
-    print(
-        "Termos em inglês detectados: "
-        + ", ".join(
-            ingles_detectado
-        )
-    )
-
-    prompt_idioma = f"""
+    for tentativa in range(1, 3):
+        prompt_idioma = f"""
 Reescreva o roteiro abaixo inteiramente em português do Brasil.
 
 ROTEIRO:
-
 {roteiro}
 
 REGRAS:
-
-- preserve exatamente os mesmos fatos;
-- preserve o mesmo sentido;
+- preserve exatamente os mesmos fatos e sentido;
 - não acrescente informação;
-- não remova fatos importantes;
-- traduza qualquer palavra ou expressão em inglês;
+- traduza palavras ou expressões em inglês;
 - mantenha entre 105 e 125 palavras REAIS;
 - preserve gancho e CTA;
 - responda SOMENTE com o roteiro corrigido.
 """
-
-    try:
-
-        corrigido = chamar_gemini(
-            prompt_idioma,
-            temperatura=0.10,
-            tokens=700
-        )
-
-        corrigido = limpar_roteiro(
-            corrigido
-        )
-
-        qtd_corrigida = contar_palavras(
-            corrigido
-        )
-
-        ingles_restante = detectar_ingles(
-            corrigido
-        )
-
-        print(
-            f"Palavras após correção: "
-            f"{qtd_corrigida}"
-        )
-
-        if (
-            105 <= qtd_corrigida <= 125
-            and not ingles_restante
-        ):
-
-            roteiro = corrigido
-
-            print(
-                "Language Guard: OK"
+        try:
+            candidato = limpar_roteiro(
+                chamar_gemini(
+                    prompt_idioma,
+                    temperatura=0.10,
+                    tokens=700,
+                )
             )
+        except Exception as exc:
+            print(f"Falha Language Guard {tentativa}/2: {exc}")
+            continue
 
-        else:
-
-            print(
-                "AVISO: correção de idioma "
-                "não passou na validação."
-            )
-
-            print(
-                "Mantendo roteiro auditado."
-            )
-
-    except Exception as e:
-
-        print(
-            f"AVISO Language Guard: {e}"
-        )
-
-        print(
-            "Mantendo roteiro auditado."
-        )
-
-
-# =====================================================
-# SCRIPT QUALITY GATE 2.3.5
-# =====================================================
-
-def avaliar_qualidade_roteiro(texto):
-
-    score = 100
-    problemas = []
-
-    qtd = contar_palavras(
-        texto
-    )
-
-    if not 105 <= qtd <= 125:
-
-        score -= 50
-        problemas.append(
-            f"palavras={qtd}"
-        )
-
-
-    frases = [
-        x.strip()
-        for x in re.split(
-            r"[.!?]+",
-            texto
-        )
-        if x.strip()
-    ]
-
-
-    # Frases muito longas prejudicam
-    # TTS e ritmo de Shorts.
-    longas = [
-        f
-        for f in frases
-        if contar_palavras(f) > 24
-    ]
-
-    if longas:
-
-        score -= min(
-            20,
-            len(longas) * 7
-        )
-
-        problemas.append(
-            f"frases_longas={len(longas)}"
-        )
-
-
-    inicio = " ".join(
-        texto.split()[:18]
-    ).lower()
-
-
-    aberturas_fracas = [
-        "hoje vamos",
-        "neste vídeo",
-        "nesse vídeo",
-        "você sabia",
-        "voce sabia",
-        "vamos falar",
-        "essa é a história",
-        "essa e a historia"
-    ]
-
-
-    for termo in aberturas_fracas:
-
-        if inicio.startswith(
-            termo
-        ):
-
-            score -= 20
-
-            problemas.append(
-                "abertura_fraca"
-            )
-
+        if 105 <= contar_palavras(candidato) <= 125 and not detectar_ingles(candidato):
+            corrigido_final = candidato
             break
 
+    if not corrigido_final:
+        sys.exit(
+            "ERRO: Language Guard não conseguiu remover termos em inglês sem quebrar o roteiro."
+        )
+    roteiro = corrigido_final
+    print("Language Guard: PASS")
 
-    # CTA final
-    final = " ".join(
-        texto.split()[-20:]
-    ).lower()
 
+def avaliar_qualidade_roteiro(texto):
+    score = 100
+    problemas = []
+    qtd = contar_palavras(texto)
+    if not 105 <= qtd <= 125:
+        score -= 50
+        problemas.append(f"palavras={qtd}")
 
+    frases = [x.strip() for x in re.split(r"[.!?]+", texto) if x.strip()]
+    longas = [f for f in frases if contar_palavras(f) > 24]
+    if longas:
+        score -= min(20, len(longas) * 7)
+        problemas.append(f"frases_longas={len(longas)}")
+
+    inicio = " ".join(texto.split()[:18]).lower()
+    for termo in [
+        "hoje vamos", "neste vídeo", "nesse vídeo", "você sabia", "voce sabia",
+        "vamos falar", "essa é a história", "essa e a historia",
+    ]:
+        if inicio.startswith(termo):
+            score -= 20
+            problemas.append("abertura_fraca")
+            break
+
+    final = " ".join(texto.split()[-20:]).lower()
     sinais_cta = [
-        "comente",
-        "qual sua opinião",
-        "qual sua opiniao",
-        "o que você acha",
-        "o que voce acha",
-        "siga",
-        "curta",
-        "inscreva"
+        "comente", "qual sua opinião", "qual sua opiniao", "o que você acha",
+        "o que voce acha", "siga", "curta", "inscreva",
     ]
-
-
-    if not any(
-        x in final
-        for x in sinais_cta
-    ):
-
+    if not any(x in final for x in sinais_cta):
         score -= 8
-        problemas.append(
-            "cta_fraco_ou_ausente"
-        )
+        problemas.append("cta_fraco_ou_ausente")
+
+    return max(0, score), problemas
 
 
-    return (
-        max(
-            0,
-            score
-        ),
-        problemas
-    )
-
-
-script_score, script_problemas = (
-    avaliar_qualidade_roteiro(
-        roteiro
-    )
-)
-
-
+script_score, script_problemas = avaliar_qualidade_roteiro(roteiro)
 print()
 print("================================")
-print("SCRIPT QUALITY GATE 2.3.5")
+print("SCRIPT QUALITY GATE 2.3.6")
 print("================================")
-print()
-
-print(
-    f"Score: {script_score}/100"
-)
-
-
+print(f"Score: {script_score}/100")
 if script_problemas:
-
-    print(
-        "Observações: "
-        + ", ".join(
-            script_problemas
-        )
-    )
-
-
+    print("Observações: " + ", ".join(script_problemas))
 if script_score < 70:
-
-    print(
-        "AVISO: roteiro abaixo do padrão."
-    )
-
-    print(
-        "Mantendo o roteiro porque ele já "
-        "passou pela auditoria factual."
-    )
-
+    print("AVISO: roteiro abaixo do padrão de qualidade; o gate final decidirá a liberação.")
 else:
-
-    print(
-        "SCRIPT QUALITY: PASS"
-    )
-
-# =====================================================
-# PROCESSAR CENAS
-# =====================================================
+    print("SCRIPT QUALITY: PASS")
 
 cenas = []
-
-for linha in cenas_texto.splitlines():
-
+for linha in str(cenas_texto).splitlines():
     linha = linha.strip()
-
     if not linha:
         continue
-
-    linha = (
-        linha
-        .lstrip("[")
-        .rstrip("]")
-        .strip()
-    )
-
+    linha = linha.lstrip("[").rstrip("]").strip()
+    linha = re.sub(r"^\s*\d+[\.\)\:\-]\s*", "", linha)
     linha = re.sub(
-        r"^\s*\d+[\.\)\:\-]\s*",
-        "",
-        linha
-    )
-
-    linha = re.sub(
-        r"^\s*(scene|cena)\s*\d*"
-        r"[\.\:\-\)]*\s*",
+        r"^\s*(scene|cena)\s*\d*[\.\:\-\)]*\s*",
         "",
         linha,
-        flags=re.IGNORECASE
+        flags=re.IGNORECASE,
     )
-
-    linha = linha.strip(
-        ' "[]'
-    )
-
+    linha = linha.strip(' "[]')
     if linha:
-        cenas.append(
-            linha
-        )
-
-
-# =====================================================
-# FALLBACK VISUAL
-# =====================================================
+        cenas.append(linha)
 
 fallback = [
     "isolated location cinematic wide shot",
@@ -1339,183 +626,43 @@ fallback = [
     "empty location dark atmospheric shot",
     "search operation cinematic wide shot",
     "case files desk dramatic lighting",
-    "mysterious landscape at night cinematic"
+    "mysterious landscape at night cinematic",
 ]
-
 
 indice = 0
-
 while len(cenas) < QTD_CENAS:
-
-    cenas.append(
-        fallback[
-            indice
-            % len(fallback)
-        ]
-    )
-
+    cenas.append(fallback[indice % len(fallback)])
     indice += 1
-
-
 cenas = cenas[:QTD_CENAS]
 
-
-# =====================================================
-# EVITAR ÚLTIMA CENA DE CTA
-# =====================================================
-
 bloqueadas = [
-    "phone",
-    "smartphone",
-    "comment",
-    "comments",
-    "like",
-    "subscribe",
-    "social media",
-    "typing"
+    "phone", "smartphone", "comment", "comments", "like", "subscribe",
+    "social media", "typing",
 ]
+if any(termo in cenas[-1].lower() for termo in bloqueadas):
+    cenas[-1] = "mysterious location at night cinematic"
 
+roteiro_path = os.path.join(ROTEIRO_DIR, f"short_{SHORT_ID}.txt")
+cenas_path = os.path.join(ROTEIRO_DIR, f"keywords_{SHORT_ID}.txt")
+fonte_path = os.path.join(ROTEIRO_DIR, f"fonte_{SHORT_ID}.txt")
 
-if any(
-    termo in cenas[-1].lower()
-    for termo in bloqueadas
-):
-
-    cenas[-1] = (
-        "mysterious location at night cinematic"
-    )
-
-
-# =====================================================
-# SALVAR
-# =====================================================
-
-roteiro_path = os.path.join(
-    ROTEIRO_DIR,
-    f"short_{SHORT_ID}.txt"
-)
-
-cenas_path = os.path.join(
-    ROTEIRO_DIR,
-    f"keywords_{SHORT_ID}.txt"
-)
-
-fonte_path = os.path.join(
-    ROTEIRO_DIR,
-    f"fonte_{SHORT_ID}.txt"
-)
-
-
-with open(
-    roteiro_path,
-    "w",
-    encoding="utf-8"
-) as f:
-
-    f.write(
-        roteiro
-    )
-
-
-with open(
-    cenas_path,
-    "w",
-    encoding="utf-8"
-) as f:
-
-    f.write(
-        "\n".join(cenas)
-    )
-
-
-with open(
+atomic_text(roteiro_path, roteiro)
+atomic_text(cenas_path, "\n".join(cenas))
+atomic_text(
     fonte_path,
-    "w",
-    encoding="utf-8"
-) as f:
-
-    f.write(
-        f"ASSUNTO: {assunto}\n"
-    )
-
-    f.write(
-        f"FONTE: Wikipedia — {titulo}\n\n"
-    )
-
-    f.write(
-        fonte
-    )
-
-
-# =====================================================
-# RESULTADO
-# =====================================================
+    f"ASSUNTO: {assunto}\nFONTE: Wikipedia — {titulo}\n\n{fonte}",
+)
 
 print()
 print("================================")
 print("ROTEIRO AUDITADO PRONTO!")
 print("================================")
+print(f"Assunto: {assunto}")
+print(f"Fonte: Wikipedia - {titulo}")
+print(f"Palavras: {contar_palavras(roteiro)}")
+print(f"Cenas: {len(cenas)}/{QTD_CENAS}")
 print()
-
-print(
-    f"Assunto: {assunto}"
-)
-
-print(
-    f"Fonte: Wikipedia — {titulo}"
-)
-
-print(
-    f"Palavras: "
-    f"{contar_palavras(roteiro)}"
-)
-
-print()
-
-print(
-    roteiro
-)
-
-print()
-print("================================")
-print("DIREÇÃO VISUAL")
-print("================================")
-print()
-
-
-for numero, cena in enumerate(
-    cenas,
-    start=1
-):
-
-    print(
-        f"{numero:02d}. {cena}"
-    )
-
-
-print()
-
-print(
-    f"Cenas: "
-    f"{len(cenas)}/{QTD_CENAS}"
-)
-
-print()
-
-print(
-    f"Roteiro:\n{roteiro_path}"
-)
-
-print()
-
-print(
-    f"Buscas visuais:\n{cenas_path}"
-)
-
-print()
-
-print(
-    f"Fonte factual:\n{fonte_path}"
-)
-
+print(f"Roteiro:\n{roteiro_path}")
+print(f"Buscas visuais:\n{cenas_path}")
+print(f"Fonte factual:\n{fonte_path}")
 print()
