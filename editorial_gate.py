@@ -5,7 +5,6 @@ import json
 import glob
 from datetime import date
 
-
 BASE = os.path.expanduser(
     "~/ShortAutoPro"
 )
@@ -13,6 +12,21 @@ BASE = os.path.expanduser(
 SHORT_ID = os.getenv(
     "SHORT_ID",
     date.today().isoformat()
+)
+
+try:
+    QTD_CENAS = int(
+        os.getenv(
+            "SHORT_QTD_CENAS",
+            "12"
+        )
+    )
+except ValueError:
+    QTD_CENAS = 12
+
+QTD_CENAS = max(
+    6,
+    min(QTD_CENAS, 20)
 )
 
 MEDIA = os.path.join(
@@ -43,21 +57,17 @@ def load(path):
             encoding="utf-8"
         ) as f:
 
-            return json.load(f)
+            dados = json.load(f)
+
+        return dados if isinstance(dados, dict) else {}
 
     except Exception:
 
         return {}
 
 
-scene_map = load(
-    MAP
-)
-
-motion = load(
-    MOTION
-)
-
+scene_map = load(MAP)
+motion = load(MOTION)
 
 scenes = scene_map.get(
     "scenes",
@@ -69,12 +79,15 @@ motion_scenes = motion.get(
     []
 )
 
+if not isinstance(scenes, list):
+    scenes = []
+
+if not isinstance(motion_scenes, list):
+    motion_scenes = []
 
 files = []
 
-if os.path.isdir(
-    MEDIA
-):
+if os.path.isdir(MEDIA):
 
     files = [
         x
@@ -84,9 +97,7 @@ if os.path.isdir(
                 "scene_*"
             )
         )
-        if os.path.splitext(
-            x
-        )[1].lower()
+        if os.path.splitext(x)[1].lower()
         in {
             ".jpg",
             ".jpeg",
@@ -96,89 +107,67 @@ if os.path.isdir(
         }
     ]
 
-
 problemas = []
 
-
-if len(scenes) != 12:
-
+if len(scenes) != QTD_CENAS:
     problemas.append(
         f"scene_map={len(scenes)}"
     )
 
-
-if len(files) != 12:
-
+if len(files) != QTD_CENAS:
     problemas.append(
         f"midias={len(files)}"
     )
 
-
-if len(motion_scenes) != 12:
-
+if len(motion_scenes) != QTD_CENAS:
     problemas.append(
         f"motion={len(motion_scenes)}"
     )
 
-
 for i in range(
     1,
-    13
+    QTD_CENAS + 1
 ):
 
     existe = any(
-        os.path.basename(
-            x
-        ).startswith(
+        os.path.basename(x).startswith(
             f"scene_{i:02d}"
         )
         for x in files
     )
 
     if not existe:
-
         problemas.append(
             f"scene_{i:02d}_media_missing"
         )
 
-
 print()
 print("================================")
-print("FINAL EDITORIAL GATE 5.0")
+print("FINAL EDITORIAL GATE 5.1")
 print("================================")
 print()
 
 print(
-    f"Scene Map: {len(scenes)}/12"
+    f"Scene Map: {len(scenes)}/{QTD_CENAS}"
 )
-
 print(
-    f"Mídias: {len(files)}/12"
+    f"Mídias: {len(files)}/{QTD_CENAS}"
 )
-
 print(
-    f"Motion Plan: {len(motion_scenes)}/12"
+    f"Motion Plan: {len(motion_scenes)}/{QTD_CENAS}"
 )
-
 print()
-
 
 if problemas:
 
-    print(
-        "EDITORIAL GATE: BLOCK"
-    )
+    print("EDITORIAL GATE: BLOCK")
 
     for p in problemas:
-
         print(
             f"  - {p}"
         )
 
     raise SystemExit(1)
 
-
-print(
-    "EDITORIAL GATE: PASS"
-)
+print("EDITORIAL GATE: PASS")
 print()
