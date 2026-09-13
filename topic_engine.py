@@ -1,326 +1,182 @@
 #!/usr/bin/env python3
 
-import os
-import sys
 import json
-import re
-import time
 import math
-import requests
+import os
+import re
+import sys
+import time
 from datetime import date
 
-from topic_memory import encontrar_duplicata
-from topic_reserve import melhor_reserva
-from wiki_client import search as wiki_search_client
-from wiki_client import extract as wiki_extract_client
-from source_identity import validar_identidade
-from wiki_client import WikiRateLimit
+import requests
 
+from source_identity import validar_identidade
+from topic_memory import encontrar_duplicata, normalizar as normalizar_memoria
+from topic_reserve import melhor_reserva
+from wiki_client import WikiRateLimit
+from wiki_client import extract as wiki_extract_client
+from wiki_client import search as wiki_search_client
 
 BASE = os.path.expanduser("~/ShortAutoPro")
-
-SHORT_ID = os.getenv(
-    "SHORT_ID",
-    date.today().isoformat()
-)
-
-TEMA = os.getenv(
-    "SHORT_TEMA",
-    "mistérios, casos inexplicáveis e true crime"
-)
-
-API_KEY = os.getenv(
-    "GEMINI_API_KEY"
-)
-
-MODEL = os.getenv(
-    "GEMINI_MODEL",
-    "gemini-3.5-flash-lite"
-)
-
-HISTORICO = os.path.join(
-    BASE,
-    "historico_assuntos.json"
-)
-
-SAIDA = os.path.join(
-    BASE,
-    "roteiros",
-    f"topic_{SHORT_ID}.txt"
-)
-
-VERIFICACAO = os.path.join(
-    BASE,
-    "roteiros",
-    f"topic_verified_{SHORT_ID}.json"
-)
-
-os.makedirs(
-    os.path.dirname(SAIDA),
-    exist_ok=True
-)
+SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat())
+TEMA = os.getenv("SHORT_TEMA", "mistérios, casos inexplicáveis e true crime")
+API_KEY = os.getenv("GEMINI_API_KEY")
+MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
+HISTORICO = os.path.join(BASE, "historico_assuntos.json")
+SAIDA = os.path.join(BASE, "roteiros", f"topic_{SHORT_ID}.txt")
+VERIFICACAO = os.path.join(BASE, "roteiros", f"topic_verified_{SHORT_ID}.json")
+os.makedirs(os.path.dirname(SAIDA), exist_ok=True)
 
 if not API_KEY:
-    sys.exit(
-        "ERRO: GEMINI_API_KEY não configurada."
-    )
+    sys.exit("ERRO: GEMINI_API_KEY não configurada.")
 
-
-# =====================================================
-# UTILIDADES
-# =====================================================
 
 def normalizar(texto):
-
     texto = str(texto).lower()
-
-    texto = re.sub(
-        r"[^\wÀ-ÿ]+",
-        " ",
-        texto
-    )
-
-    return " ".join(
-        texto.split()
-    )
+    texto = re.sub(r"[^\wÀ-ÿ]+", " ", texto)
+    return " ".join(texto.split())
 
 
 def carregar_historico():
-
-    if not os.path.exists(
-        HISTORICO
-    ):
+    if not os.path.exists(HISTORICO):
         return []
-
     try:
-
-        with open(
-            HISTORICO,
-            "r",
-            encoding="utf-8"
-        ) as f:
-
+        with open(HISTORICO, "r", encoding="utf-8") as f:
             dados = json.load(f)
+    except Exception as exc:
+        sys.exit(
+            "ERRO: histórico de assuntos inválido; seleção bloqueada para evitar repetição: "
+            f"{exc}"
+        )
+    if not isinstance(dados, list):
+        sys.exit(
+            "ERRO: histórico de assuntos não é uma lista; seleção bloqueada para evitar repetição."
+        )
+    return dados
 
-        if isinstance(
-            dados,
-            list
-        ):
-            return dados
 
-    except Exception:
-        pass
+def nota_segura(valor):
+    try:
+        nota = float(valor)
+    except (TypeError, ValueError):
+        return 0.0
+    if not math.isfinite(nota):
+        return 0.0
+    return max(0.0, min(nota, 10.0))
 
-    return []
+
+def atomic_text(path, text):
+    tmp = f"{path}.{os.getpid()}.tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.write(text)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+    finally:
+        if os.path.exists(tmp):
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+
+
+def atomic_json(path, data):
+    tmp = f"{path}.{os.getpid()}.tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+    finally:
+        if os.path.exists(tmp):
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
 
 
 historico = carregar_historico()
 
 
-# =====================================================
-# WIKIPEDIA
-# =====================================================
-
-HEADERS_WIKI = {
-    "User-Agent":
-        "ShortAutoPro-Stable-1.5/1.0"
-}
-
-
 def wiki_search(query):
-
-    return wiki_search_client(
-        query,
-        limit=5
-    )
+    return wiki_search_client(query, limit=5)
 
 
 def wiki_extract(title):
-
-    return wiki_extract_client(
-        title
-    )
+    return wiki_extract_client(title)
 
 
 def variacoes_busca(nome):
-
     candidatos = [
         nome,
-
-        re.sub(
-            r"^(O|A|Os|As)\s+",
-            "",
-            nome,
-            flags=re.IGNORECASE
-        ),
-
-        re.sub(
-            r"^(O|A)\s+Caso\s+",
-            "",
-            nome,
-            flags=re.IGNORECASE
-        ),
-
-        re.sub(
-            r"^Caso\s+",
-            "",
-            nome,
-            flags=re.IGNORECASE
-        )
+        re.sub(r"^(O|A|Os|As)\s+", "", nome, flags=re.IGNORECASE),
+        re.sub(r"^(O|A)\s+Caso\s+", "", nome, flags=re.IGNORECASE),
+        re.sub(r"^Caso\s+", "", nome, flags=re.IGNORECASE),
     ]
-
     saida = []
-
+    vistos = set()
     for item in candidatos:
-
         item = item.strip()
-
-        if not item:
-            continue
-
-        if item.lower() in [
-            x.lower()
-            for x in saida
-        ]:
-            continue
-
-        saida.append(
-            item
-        )
-
+        key = item.casefold()
+        if item and key not in vistos:
+            vistos.add(key)
+            saida.append(item)
     return saida
 
 
 def verificar_wikipedia(nome):
+    stop_titulo = {
+        "o", "a", "os", "as", "de", "da", "do", "das", "dos", "e", "em",
+        "no", "na", "caso", "incidente", "desaparecimento", "misterio", "mistério",
+    }
 
-    for consulta in variacoes_busca(
-        nome
-    ):
-
-        resultados = wiki_search(
-            consulta
-        )
-
+    for consulta in variacoes_busca(nome):
+        resultados = wiki_search(consulta)
         if not resultados:
             continue
-
         for resultado in resultados:
-
-            titulo = str(
-                resultado.get(
-                    "title",
-                    ""
-                )
-            ).strip()
-
+            if not isinstance(resultado, dict):
+                continue
+            titulo = str(resultado.get("title", "")).strip()
             if not titulo:
                 continue
-
-            texto = wiki_extract(
-                titulo
-            )
-
+            texto = wiki_extract(titulo)
             if len(texto) < 700:
                 continue
 
-            stop_titulo = {
-                "o", "a", "os", "as",
-                "de", "da", "do", "das", "dos",
-                "e", "em", "no", "na",
-                "caso", "incidente",
-                "desaparecimento",
-                "misterio", "mistério"
-            }
-
             nome_tokens = {
-                x
-                for x in normalizar(nome).split()
-                if x not in stop_titulo
+                x for x in normalizar(nome).split() if x not in stop_titulo
             }
-
             titulo_tokens = {
-                x
-                for x in normalizar(titulo).split()
-                if x not in stop_titulo
+                x for x in normalizar(titulo).split() if x not in stop_titulo
             }
-
             if not nome_tokens:
                 continue
 
-            comuns = (
-                nome_tokens
-                .intersection(
-                    titulo_tokens
-                )
-            )
-
+            comuns = nome_tokens & titulo_tokens
             inter = len(comuns)
+            semelhanca = inter / len(nome_tokens)
 
-            semelhanca = (
-                inter
-                / len(nome_tokens)
-            )
-
-            # Uma única palavra genérica não basta.
-            #
-            # Exemplos que DEVEM ser rejeitados:
-            # Boy in the Box -> Boy in the Striped Pyjamas
-            # Falcon Lake -> The Loud House
-            #
-            # Para nomes curtos de 1 termo significativo,
-            # exige correspondência exata desse termo.
             if len(nome_tokens) == 1:
-
                 if inter != 1:
                     continue
-
             else:
-
-                if inter < 2:
+                if inter < 2 or semelhanca < 0.45:
                     continue
 
-                if semelhanca < 0.45:
-                    continue
-
-            # =========================================
-            # SOURCE IDENTITY GATE 4.1
-            # =========================================
-
-            identidade = validar_identidade(
-                nome,
-                titulo,
-                texto
-            )
-
-            if not identidade[
-                "valid"
-            ]:
-
+            identidade = validar_identidade(nome, titulo, texto)
+            if not identidade.get("valid"):
                 continue
-
 
             return {
                 "ok": True,
                 "wiki_title": titulo,
                 "chars": len(texto),
-                "similarity": round(
-                    semelhanca,
-                    3
-                ),
-                "identity_score": round(
-                    float(
-                        identidade.get(
-                            "score",
-                            0.0
-                        )
-                    ),
-                    3
-                ),
-                "identity_reason":
-                    identidade.get(
-                        "reason",
-                        ""
-                    )
+                "similarity": round(semelhanca, 3),
+                "identity_score": round(float(identidade.get("score", 0.0)), 3),
+                "identity_reason": identidade.get("reason", ""),
             }
 
     return {
@@ -329,522 +185,194 @@ def verificar_wikipedia(nome):
         "chars": 0,
         "similarity": 0,
         "identity_score": 0.0,
-        "identity_reason": "no_valid_source"
+        "identity_reason": "no_valid_source",
     }
 
 
-# =====================================================
-# SINAIS DO ASSUNTO
-# =====================================================
-
 PALAVRAS_VISUAIS = {
-    "hotel",
-    "elevator",
-    "elevador",
-    "aircraft",
-    "avião",
-    "aviao",
-    "ship",
-    "navio",
-    "forest",
-    "floresta",
-    "mountain",
-    "montanha",
-    "island",
-    "ilha",
-    "ocean",
-    "oceano",
-    "snow",
-    "neve",
-    "police",
-    "polícia",
-    "policia",
-    "house",
-    "casa",
-    "road",
-    "estrada",
-    "train",
-    "trem",
-    "car",
-    "carro",
-    "building",
-    "prédio",
-    "predio",
-    "water",
-    "água",
-    "agua",
-    "room",
-    "quarto",
-    "cave",
-    "caverna",
-    "desert",
-    "deserto"
+    "hotel", "elevator", "elevador", "aircraft", "avião", "aviao", "ship", "navio",
+    "forest", "floresta", "mountain", "montanha", "island", "ilha", "ocean", "oceano",
+    "snow", "neve", "police", "polícia", "policia", "house", "casa", "road", "estrada",
+    "train", "trem", "car", "carro", "building", "prédio", "predio", "water", "água",
+    "agua", "room", "quarto", "cave", "caverna", "desert", "deserto",
 }
 
-
 PALAVRAS_HOOK = {
-    "desapareceu",
-    "desaparecimento",
-    "sumiu",
-    "morreu",
-    "morte",
-    "encontrado",
-    "encontrada",
-    "mistério",
-    "misterio",
-    "sem",
-    "nunca",
-    "último",
-    "ultimo",
-    "corpo",
-    "tripulação",
-    "tripulacao",
-    "avião",
-    "aviao",
-    "navio",
-    "ilha",
-    "hotel",
-    "elevador",
-    "neve"
+    "desapareceu", "desaparecimento", "sumiu", "morreu", "morte", "encontrado",
+    "encontrada", "mistério", "misterio", "sem", "nunca", "último", "ultimo", "corpo",
+    "tripulação", "tripulacao", "avião", "aviao", "navio", "ilha", "hotel", "elevador", "neve",
 }
 
 
 def score_visual_nome(nome):
-
-    toks = set(
-        normalizar(nome).split()
-    )
-
-    hits = len(
-        toks.intersection(
-            PALAVRAS_VISUAIS
-        )
-    )
-
-    return min(
-        10.0,
-        5.0 + hits * 1.5
-    )
+    hits = len(set(normalizar(nome).split()) & PALAVRAS_VISUAIS)
+    return min(10.0, 5.0 + hits * 1.5)
 
 
 def score_hook_nome(nome):
-
-    toks = set(
-        normalizar(nome).split()
-    )
-
-    hits = len(
-        toks.intersection(
-            PALAVRAS_HOOK
-        )
-    )
-
-    return min(
-        10.0,
-        5.0 + hits * 1.2
-    )
+    hits = len(set(normalizar(nome).split()) & PALAVRAS_HOOK)
+    return min(10.0, 5.0 + hits * 1.2)
 
 
 def score_documentacao(chars):
-
     if chars >= 12000:
         return 10.0
-
     if chars >= 8000:
         return 9.5
-
     if chars >= 5000:
         return 9.0
-
     if chars >= 3000:
         return 8.0
-
     if chars >= 1800:
         return 7.0
-
     if chars >= 1000:
         return 6.0
-
     return 5.0
 
 
 def score_titulo(similarity):
-
-    return max(
-        0.0,
-        min(
-            10.0,
-            similarity * 10
-        )
-    )
+    return max(0.0, min(10.0, similarity * 10))
 
 
 def score_novidade(nome):
-
     if not historico:
         return 10.0
-
-    dup = encontrar_duplicata(
-        nome,
-        historico,
-        limite=1.1
-    )
-
-    sim = float(
-        dup.get(
-            "similarity",
-            0
-        )
-    )
-
-    return max(
-        0.0,
-        10.0 - sim * 10
-    )
+    dup = encontrar_duplicata(nome, historico, limite=1.1)
+    sim = float(dup.get("similarity", 0) or 0)
+    return max(0.0, 10.0 - sim * 10)
 
 
-# =====================================================
-# GEMINI
-# =====================================================
-
-URL = (
-    "https://generativelanguage.googleapis.com/"
-    f"v1beta/models/{MODEL}:generateContent"
-)
-
-HEADERS = {
-    "Content-Type":
-        "application/json",
-    "x-goog-api-key":
-        API_KEY
-}
+URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent"
+HEADERS = {"Content-Type": "application/json", "x-goog-api-key": API_KEY}
 
 
 def chamar_gemini(prompt):
-
     payload = {
-        "contents": [
-            {
-                "parts": [
-                    {
-                        "text": prompt
-                    }
-                ]
-            }
-        ],
-        "generationConfig": {
-            "temperature": 0.65,
-            "maxOutputTokens": 1800
-        }
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {"temperature": 0.65, "maxOutputTokens": 1800},
     }
-
-    for tentativa in range(
-        1,
-        4
-    ):
-
-        print(
-            f"Topic Engine tentativa "
-            f"{tentativa}/3..."
-        )
-
+    for tentativa in range(1, 4):
+        print(f"Topic Engine tentativa {tentativa}/3...")
         try:
-
-            r = requests.post(
-                URL,
-                headers=HEADERS,
-                json=payload,
-                timeout=100
-            )
-
-        except Exception as e:
-
+            r = requests.post(URL, headers=HEADERS, json=payload, timeout=100)
+        except Exception as exc:
             if tentativa == 3:
-                raise RuntimeError(
-                    str(e)
-                )
-
+                raise RuntimeError(str(exc))
             time.sleep(4)
             continue
 
         if r.ok:
-
-            dados = r.json()
-
             try:
+                dados = r.json()
+                return dados["candidates"][0]["content"]["parts"][0]["text"].strip()
+            except Exception as exc:
+                raise RuntimeError(f"Gemini retornou resposta inválida: {exc}")
 
-                return (
-                    dados["candidates"][0]
-                    ["content"]["parts"][0]["text"]
-                    .strip()
-                )
-
-            except Exception:
-
-                raise RuntimeError(
-                    "Gemini retornou resposta inválida."
-                )
-
-        if (
-            r.status_code
-            in [429, 500, 502, 503, 504]
-            and tentativa < 3
-        ):
-
+        if r.status_code in {429, 500, 502, 503, 504} and tentativa < 3:
             time.sleep(6)
             continue
+        raise RuntimeError(f"HTTP {r.status_code}: {r.text[:1000]}")
+    raise RuntimeError("Gemini não respondeu.")
 
-        raise RuntimeError(
-            f"HTTP {r.status_code}: {r.text}"
-        )
-
-    raise RuntimeError(
-        "Gemini não respondeu."
-    )
-
-
-# =====================================================
-# PROMPT
-# =====================================================
 
 usados = [
-    str(
-        item.get(
-            "topic",
-            ""
-        )
-    )
+    str(item.get("topic", ""))
     for item in historico[-60:]
-    if isinstance(
-        item,
-        dict
-    )
+    if isinstance(item, dict) and str(item.get("topic", "")).strip()
 ]
-
-usados_texto = (
-    "\n".join(
-        f"- {x}"
-        for x in usados
-    )
-    if usados
-    else "nenhum"
-)
-
+usados_texto = "\n".join(f"- {x}" for x in usados) if usados else "nenhum"
 
 prompt = f"""
 Você é pesquisador de temas para YouTube Shorts.
 
 Tema do canal:
-
 {TEMA}
 
 Gere EXATAMENTE 10 candidatos de casos REAIS.
 
 IMPORTANTE:
-
 - apenas casos documentados;
 - não combine casos diferentes;
-- não invente nomes;
-- não invente crimes;
-- não invente desaparecimentos;
-- prefira casos conhecidos;
-- prefira casos com artigo provável na Wikipedia;
+- não invente nomes, crimes ou desaparecimentos;
+- prefira casos conhecidos com artigo provável na Wikipedia;
 - evite assuntos já utilizados;
 - varie países, épocas e tipos de mistério;
-- priorize histórias com começo forte;
-- priorize casos com bons elementos visuais.
+- priorize histórias com começo forte e bons elementos visuais.
 
 ASSUNTOS JÁ UTILIZADOS:
-
 {usados_texto}
 
 Para cada candidato dê notas de 0 a 10:
+curiosity, visual, documentation, retention, comment_potential.
 
-curiosity
-visual
-documentation
-retention
-comment_potential
-
-RESPONDA SOMENTE EM JSON:
-
-{{
-  "topics": [
-    {{
-      "topic": "nome exato",
-      "curiosity": 0,
-      "visual": 0,
-      "documentation": 0,
-      "retention": 0,
-      "comment_potential": 0
-    }}
-  ]
-}}
-
+RESPONDA SOMENTE EM JSON, sem markdown e sem explicações:
+{{"topics":[{{"topic":"nome exato","curiosity":0,"visual":0,"documentation":0,"retention":0,"comment_potential":0}}]}}
 Exatamente 10 itens.
-Sem markdown.
-Sem explicações.
 """
 
-
-# =====================================================
-# EXECUÇÃO
-# =====================================================
-
 print()
 print("================================")
-print("VIRAL TOPIC ENGINE - STABLE 1.5")
+print("VIRAL TOPIC ENGINE - STABLE 1.6")
 print("================================")
 print()
-
-print(
-    f"Assuntos no histórico: "
-    f"{len(historico)}"
-)
-
+print(f"Assuntos no histórico: {len(historico)}")
 print()
 
-
 try:
+    bruto = chamar_gemini(prompt)
+except Exception as exc:
+    sys.exit(f"ERRO Topic Engine: {exc}")
 
-    bruto = chamar_gemini(
-        prompt
-    )
-
-except Exception as e:
-
-    sys.exit(
-        f"ERRO Topic Engine: {e}"
-    )
-
-
-bruto = (
-    bruto
-    .replace(
-        "```json",
-        ""
-    )
-    .replace(
-        "```",
-        ""
-    )
-    .strip()
-)
-
-
+bruto = bruto.replace("```json", "").replace("```", "").strip()
 try:
-
-    dados = json.loads(
-        bruto
-    )
-
+    dados = json.loads(bruto)
 except Exception:
-
     print(bruto)
+    sys.exit("ERRO: JSON inválido.")
 
-    sys.exit(
-        "ERRO: JSON inválido."
-    )
-
-
-topics = dados.get(
-    "topics",
-    []
-)
-
-
+if not isinstance(dados, dict):
+    sys.exit("ERRO: resposta do Topic Engine não é um objeto JSON.")
+topics = dados.get("topics", [])
+if not isinstance(topics, list):
+    sys.exit("ERRO: campo topics inválido.")
 if len(topics) < 8:
-
-    sys.exit(
-        "ERRO: poucos candidatos."
-    )
-
-
-# =====================================================
-# PRÉ-RANKING + VERIFICAÇÃO REDUZIDA
-# =====================================================
+    sys.exit("ERRO: poucos candidatos.")
 
 aprovados = []
 relatorio = []
-
 pre_candidatos = []
+vistos = set()
 
 for item in topics:
-
-    nome = str(
-        item.get(
-            "topic",
-            ""
-        )
-    ).strip()
-
+    if not isinstance(item, dict):
+        continue
+    nome = str(item.get("topic", "")).strip()
     if not nome:
         continue
 
-    duplicata = encontrar_duplicata(
-        nome,
-        historico,
-        limite=0.72
-    )
+    chave = normalizar_memoria(nome) or nome.casefold()
+    if chave in vistos:
+        relatorio.append({"topic": nome, "approved": False, "reason": "duplicate_in_batch"})
+        continue
+    vistos.add(chave)
 
+    duplicata = encontrar_duplicata(nome, historico, limite=0.72)
     if duplicata["duplicate"]:
-
-        relatorio.append(
-            {
-                "topic": nome,
-                "approved": False,
-                "reason": "duplicate",
-                "similar_to":
-                    duplicata["topic"],
-                "similarity":
-                    duplicata["similarity"]
-            }
-        )
-
+        relatorio.append({
+            "topic": nome,
+            "approved": False,
+            "reason": "duplicate",
+            "similar_to": duplicata["topic"],
+            "similarity": duplicata["similarity"],
+        })
         continue
 
-    try:
+    curiosity = nota_segura(item.get("curiosity"))
+    visual_gemini = nota_segura(item.get("visual"))
+    documentation_gemini = nota_segura(item.get("documentation"))
+    retention = nota_segura(item.get("retention"))
+    comment_potential = nota_segura(item.get("comment_potential"))
 
-        curiosity = float(
-            item.get(
-                "curiosity",
-                0
-            )
-        )
-
-        visual_gemini = float(
-            item.get(
-                "visual",
-                0
-            )
-        )
-
-        documentation_gemini = float(
-            item.get(
-                "documentation",
-                0
-            )
-        )
-
-        retention = float(
-            item.get(
-                "retention",
-                0
-            )
-        )
-
-        comment_potential = float(
-            item.get(
-                "comment_potential",
-                0
-            )
-        )
-
-    except Exception:
-        continue
-
-
-    # Pré-score sem Wikipedia.
     pre_score = (
         curiosity * 1.20
         + visual_gemini * 0.80
@@ -852,166 +380,50 @@ for item in topics:
         + retention * 1.30
         + comment_potential * 0.90
     )
+    pre_candidatos.append({
+        "nome": nome,
+        "pre_score": pre_score,
+        "scores": {
+            "curiosity": curiosity,
+            "visual": visual_gemini,
+            "documentation": documentation_gemini,
+            "retention": retention,
+            "comment_potential": comment_potential,
+        },
+    })
 
-
-    pre_candidatos.append(
-        {
-            "item": item,
-            "nome": nome,
-            "pre_score": pre_score
-        }
-    )
-
-
-pre_candidatos.sort(
-    key=lambda x: x["pre_score"],
-    reverse=True
-)
-
-
-# Só verifica os 5 melhores.
+pre_candidatos.sort(key=lambda x: x["pre_score"], reverse=True)
 pre_candidatos = pre_candidatos[:5]
-
-
-print(
-    "Verificando apenas os melhores "
-    "candidatos na Wikipedia..."
-)
-
+print("Verificando apenas os melhores candidatos na Wikipedia...")
 print()
 
-
-for numero, pre in enumerate(
-    pre_candidatos,
-    start=1
-):
-
-    item = pre["item"]
+for numero, pre in enumerate(pre_candidatos, start=1):
     nome = pre["nome"]
-
-    nome = str(
-        item.get(
-            "topic",
-            ""
-        )
-    ).strip()
-
-    if not nome:
-        continue
-
-
     try:
-
-        verificacao = verificar_wikipedia(
-            nome
-        )
-
+        verificacao = verificar_wikipedia(nome)
     except WikiRateLimit:
-
-        sys.exit(
-            "ERRO: Wikipedia temporariamente "
-            "limitada. Tente novamente depois."
-        )
-
-    except Exception as e:
-
-        print(
-            f"AVISO Wikipedia: {e}"
-        )
-
+        sys.exit("ERRO: Wikipedia temporariamente limitada. Tente novamente depois.")
+    except Exception as exc:
+        print(f"AVISO Wikipedia: {exc}")
         continue
 
-
-    if not verificacao[
-        "ok"
-    ]:
-
-        print(
-            f"{numero:02d}. REJEITADO "
-            f"(sem fonte): {nome}"
-        )
-
-        relatorio.append(
-            {
-                "topic": nome,
-                "approved": False,
-                "reason":
-                    "wikipedia_not_verified"
-            }
-        )
-
+    if not verificacao["ok"]:
+        print(f"{numero:02d}. REJEITADO (sem fonte): {nome}")
+        relatorio.append({"topic": nome, "approved": False, "reason": "wikipedia_not_verified"})
         continue
 
+    scores = pre["scores"]
+    curiosity = scores["curiosity"]
+    visual_gemini = scores["visual"]
+    documentation_gemini = scores["documentation"]
+    retention = scores["retention"]
+    comment_potential = scores["comment_potential"]
 
-    try:
-
-        curiosity = float(
-            item.get(
-                "curiosity",
-                0
-            )
-        )
-
-        visual_gemini = float(
-            item.get(
-                "visual",
-                0
-            )
-        )
-
-        documentation_gemini = float(
-            item.get(
-                "documentation",
-                0
-            )
-        )
-
-        retention = float(
-            item.get(
-                "retention",
-                0
-            )
-        )
-
-        comment_potential = float(
-            item.get(
-                "comment_potential",
-                0
-            )
-        )
-
-    except Exception:
-
-        continue
-
-
-    visual_obj = score_visual_nome(
-        nome
-    )
-
-    hook_obj = score_hook_nome(
-        nome
-    )
-
-    doc_obj = score_documentacao(
-        verificacao[
-            "chars"
-        ]
-    )
-
-    titulo_obj = score_titulo(
-        verificacao[
-            "similarity"
-        ]
-    )
-
-    novidade_obj = score_novidade(
-        nome
-    )
-
-
-    # Gemini contribui,
-    # mas sinais verificáveis têm peso grande.
+    visual_obj = score_visual_nome(nome)
+    hook_obj = score_hook_nome(nome)
+    doc_obj = score_documentacao(verificacao["chars"])
+    titulo_obj = score_titulo(verificacao["similarity"])
+    novidade_obj = score_novidade(nome)
 
     score = (
         curiosity * 1.10
@@ -1019,7 +431,6 @@ for numero, pre in enumerate(
         + comment_potential * 0.90
         + visual_gemini * 0.55
         + documentation_gemini * 0.45
-
         + visual_obj * 1.10
         + hook_obj * 1.15
         + doc_obj * 1.25
@@ -1027,298 +438,99 @@ for numero, pre in enumerate(
         + novidade_obj * 0.75
     )
 
-
     aprovado = {
         "topic": nome,
-
-        "score":
-            round(
-                score,
-                2
-            ),
-
-        "gemini": {
-            "curiosity":
-                curiosity,
-            "visual":
-                visual_gemini,
-            "documentation":
-                documentation_gemini,
-            "retention":
-                retention,
-            "comment_potential":
-                comment_potential
-        },
-
+        "score": round(score, 2),
+        "gemini": scores,
         "objective": {
-            "visual":
-                visual_obj,
-            "hook":
-                hook_obj,
-            "documentation":
-                doc_obj,
-            "title_match":
-                titulo_obj,
-            "novelty":
-                novidade_obj
+            "visual": visual_obj,
+            "hook": hook_obj,
+            "documentation": doc_obj,
+            "title_match": titulo_obj,
+            "novelty": novidade_obj,
         },
-
-        "wiki_title":
-            verificacao[
-                "wiki_title"
-            ],
-
-        "wiki_chars":
-            verificacao[
-                "chars"
-            ],
-
-        "wiki_similarity":
-            verificacao[
-                "similarity"
-            ]
+        "wiki_title": verificacao["wiki_title"],
+        "wiki_chars": verificacao["chars"],
+        "wiki_similarity": verificacao["similarity"],
     }
+    aprovados.append(aprovado)
+    relatorio.append({
+        "topic": nome,
+        "approved": True,
+        "score": round(score, 2),
+        "wiki_title": verificacao["wiki_title"],
+    })
 
-
-    aprovados.append(
-        aprovado
-    )
-
-
-    print(
-        f"{numero:02d}. APROVADO: "
-        f"{nome}"
-    )
-
-    print(
-        f"    score viral: "
-        f"{score:.1f}"
-    )
-
-    print(
-        f"    wiki: "
-        f"{verificacao['wiki_title']}"
-    )
-
-    print(
-        f"    contexto: "
-        f"{verificacao['chars']} chars"
-    )
-
-
-    relatorio.append(
-        {
-            "topic": nome,
-            "approved": True,
-            "score":
-                round(
-                    score,
-                    2
-                ),
-            "wiki_title":
-                verificacao[
-                    "wiki_title"
-                ]
-        }
-    )
-
+    print(f"{numero:02d}. APROVADO: {nome}")
+    print(f"    score viral: {score:.1f}")
+    print(f"    wiki: {verificacao['wiki_title']}")
+    print(f"    contexto: {verificacao['chars']} chars")
 
     if len(aprovados) >= 3:
-
         print()
-        print(
-            "Já existem 3 temas verificados. "
-            "Encerrando consultas à Wikipedia."
-        )
-
+        print("Já existem 3 temas verificados. Encerrando consultas à Wikipedia.")
         break
 
-
-# =====================================================
-# RESULTADO
-# =====================================================
-
 if not aprovados:
+    print()
+    print("Nenhum tema novo foi aprovado.")
+    print("Consultando Verified Topic Reserve...")
+    reserva = melhor_reserva()
+    if not reserva:
+        sys.exit("ERRO: nenhum tema novo aprovado e nenhuma reserva verificada disponível.")
 
     print()
-    print(
-        "Nenhum tema novo foi aprovado."
-    )
+    print("TEMA DE RESERVA ENCONTRADO:")
+    print(reserva["topic"])
+    print("Wikipedia:")
+    print(reserva["wiki_title"])
 
-    print(
-        "Consultando Verified Topic Reserve..."
-    )
-
-    reserva = melhor_reserva()
-
-
-    if reserva:
-
-        print()
-        print(
-            "TEMA DE RESERVA ENCONTRADO:"
-        )
-
-        print(
-            reserva["topic"]
-        )
-
-        print(
-            "Wikipedia:"
-        )
-
-        print(
-            reserva["wiki_title"]
-        )
-
-
-        escolhido = {
-            "topic":
-                reserva["topic"],
-
-            "score":
-                reserva["score"],
-
-            "wiki_title":
-                reserva["wiki_title"],
-
-            "wiki_chars":
-                0,
-
-            "wiki_similarity":
-                1.0,
-
-            "gemini": {},
-
-            "objective": {
-                "visual": 0,
-                "hook": 0,
-                "documentation": 0,
-                "title_match": 10,
-                "novelty": 10
-            },
-
-            "reserve":
-                True
-        }
-
-
-        aprovados = [
-            escolhido
-        ]
-
-
-    else:
-
-        sys.exit(
-            "ERRO: nenhum tema novo aprovado "
-            "e nenhuma reserva verificada disponível."
-        )
-
-
-aprovados.sort(
-    key=lambda x: x[
-        "score"
-    ],
-    reverse=True
-)
-
-
-escolhido = aprovados[
-    0
-]
-
-
-with open(
-    SAIDA,
-    "w",
-    encoding="utf-8"
-) as f:
-
-    f.write(
-        escolhido[
-            "topic"
-        ]
-    )
-
-
-with open(
-    VERIFICACAO,
-    "w",
-    encoding="utf-8"
-) as f:
-
-    json.dump(
-        {
-            "short_id":
-                SHORT_ID,
-
-            "selected":
-                escolhido,
-
-            "ranking":
-                aprovados,
-
-            "verification":
-                relatorio
+    aprovados = [{
+        "topic": reserva["topic"],
+        "score": reserva["score"],
+        "wiki_title": reserva["wiki_title"],
+        "wiki_chars": 0,
+        "wiki_similarity": 1.0,
+        "gemini": {},
+        "objective": {
+            "visual": 0,
+            "hook": 0,
+            "documentation": 0,
+            "title_match": 10,
+            "novelty": 10,
         },
-        f,
-        ensure_ascii=False,
-        indent=2
-    )
+        "reserve": True,
+    }]
 
+aprovados.sort(key=lambda x: x["score"], reverse=True)
+escolhido = aprovados[0]
+
+atomic_text(SAIDA, escolhido["topic"])
+atomic_json(VERIFICACAO, {
+    "short_id": SHORT_ID,
+    "selected": escolhido,
+    "ranking": aprovados,
+    "verification": relatorio,
+})
 
 print()
 print("================================")
 print("RANKING VIRAL")
 print("================================")
 print()
-
-
-for numero, item in enumerate(
-    aprovados,
-    start=1
-):
-
-    marca = (
-        " <-- ESCOLHIDO"
-        if numero == 1
-        else ""
-    )
-
+for numero, item in enumerate(aprovados, start=1):
+    marca = " <-- ESCOLHIDO" if numero == 1 else ""
+    print(f"{numero}. {item['topic']} score={item['score']:.1f}{marca}")
     print(
-        f"{numero}. "
-        f"{item['topic']} "
-        f"score={item['score']:.1f}"
-        f"{marca}"
+        f"   visual={item['objective']['visual']:.1f} "
+        f"hook={item['objective']['hook']:.1f} "
+        f"doc={item['objective']['documentation']:.1f} "
+        f"novidade={item['objective']['novelty']:.1f}"
     )
-
-    print(
-        f"   visual="
-        f"{item['objective']['visual']:.1f} "
-        f"hook="
-        f"{item['objective']['hook']:.1f} "
-        f"doc="
-        f"{item['objective']['documentation']:.1f} "
-        f"novidade="
-        f"{item['objective']['novelty']:.1f}"
-    )
-
 
 print()
-print(
-    "Assunto escolhido:"
-)
-
-print(
-    escolhido[
-        "topic"
-    ]
-)
-
+print("Assunto escolhido:")
+print(escolhido["topic"])
 print()
-print(
-    "VIRAL TOPIC ENGINE: OK"
-)
-
+print("VIRAL TOPIC ENGINE: OK")
 print()
