@@ -15,6 +15,7 @@ on:
           - PYTHON_COMPILE
           - BASH_SYNTAX
           - HEALTH_CHECK
+          - SIM_TESTS
           - DIAGNOSTIC
           - RELEASE_AUDIT
           - FULL_CHECK
@@ -38,7 +39,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Environment Check
-        if: ${{ github.event_name == 'push' || inputs.mode == 'ENV_CHECK' || inputs.mode == 'FULL_CHECK' || inputs.mode == 'RELEASE_AUDIT' || inputs.mode == 'DIAGNOSTIC' }}
+        if: ${{ github.event_name == 'push' || inputs.mode == 'ENV_CHECK' || inputs.mode == 'FULL_CHECK' || inputs.mode == 'RELEASE_AUDIT' || inputs.mode == 'DIAGNOSTIC' || inputs.mode == 'SIM_TESTS' }}
         shell: cmd
         run: |
           echo ======================================
@@ -58,7 +59,7 @@ jobs:
           echo ENV_CHECK=PASS
 
       - name: Repository Check
-        if: ${{ github.event_name == 'push' || inputs.mode == 'REPO_CHECK' || inputs.mode == 'FULL_CHECK' || inputs.mode == 'RELEASE_AUDIT' || inputs.mode == 'DIAGNOSTIC' }}
+        if: ${{ github.event_name == 'push' || inputs.mode == 'REPO_CHECK' || inputs.mode == 'FULL_CHECK' || inputs.mode == 'RELEASE_AUDIT' || inputs.mode == 'DIAGNOSTIC' || inputs.mode == 'SIM_TESTS' }}
         shell: cmd
         run: |
           echo ======================================
@@ -84,7 +85,7 @@ jobs:
           echo PROJECT_INVENTORY=PASS
 
       - name: Python Syntax Audit
-        if: ${{ github.event_name == 'push' || inputs.mode == 'PYTHON_COMPILE' || inputs.mode == 'FULL_CHECK' || inputs.mode == 'RELEASE_AUDIT' }}
+        if: ${{ github.event_name == 'push' || inputs.mode == 'PYTHON_COMPILE' || inputs.mode == 'FULL_CHECK' || inputs.mode == 'RELEASE_AUDIT' || inputs.mode == 'SIM_TESTS' }}
         shell: cmd
         run: |
           echo ======================================
@@ -93,6 +94,17 @@ jobs:
           python -m compileall -q .
           if errorlevel 1 exit /b 1
           echo PYTHON_COMPILE=PASS
+
+      - name: Simulated Regression Tests
+        if: ${{ github.event_name == 'push' || inputs.mode == 'SIM_TESTS' || inputs.mode == 'FULL_CHECK' || inputs.mode == 'RELEASE_AUDIT' }}
+        shell: cmd
+        run: |
+          echo ======================================
+          echo SHORTAUTOPRO SIMULATED REGRESSION TESTS
+          echo ======================================
+          python -m unittest discover -s tests_sim -p "test_*.py" -v
+          if errorlevel 1 exit /b 1
+          echo SIM_TESTS=PASS
 
       - name: Bash Syntax Audit
         if: ${{ github.event_name == 'push' || inputs.mode == 'BASH_SYNTAX' || inputs.mode == 'FULL_CHECK' || inputs.mode == 'RELEASE_AUDIT' }}
