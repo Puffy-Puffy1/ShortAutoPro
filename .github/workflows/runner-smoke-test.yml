@@ -13,21 +13,20 @@ jobs:
 
     steps:
       - name: Runner info
-        shell: powershell
+        shell: cmd
         run: |
-          Write-Host "RUNNER_SMOKE_TEST=START"
-          Write-Host "COMPUTER=$env:COMPUTERNAME"
-          Write-Host "USER=$(whoami)"
+          echo RUNNER_SMOKE_TEST=START
+          echo COMPUTER=%COMPUTERNAME%
+          echo USER=%USERNAME%
           git --version
-          Write-Host "POWERSHELL=$($PSVersionTable.PSVersion)"
 
       - name: Checkout ShortAutoPro
         uses: actions/checkout@v4
 
       - name: Verify repository
-        shell: powershell
+        shell: cmd
         run: |
-          Write-Host "REPO=$env:GITHUB_REPOSITORY"
-          Write-Host "SHA=$(git rev-parse --short HEAD)"
-          Write-Host "BRANCH=$env:GITHUB_REF_NAME"
-          Write-Host "RUNNER_SMOKE_TEST=PASS"
+          echo REPO=%GITHUB_REPOSITORY%
+          git rev-parse --short HEAD
+          echo BRANCH=%GITHUB_REF_NAME%
+          echo RUNNER_SMOKE_TEST=PASS
