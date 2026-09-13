@@ -3,6 +3,7 @@
 import os
 import json
 import glob
+import math
 
 from topic_memory import encontrar_duplicata
 from source_identity import validar_identidade
@@ -28,10 +29,6 @@ INDEX = os.path.join(
 )
 
 
-# =====================================================
-# HISTÓRICO
-# =====================================================
-
 def carregar_historico():
 
     if not os.path.exists(
@@ -49,16 +46,29 @@ def carregar_historico():
 
             dados = json.load(f)
 
-        if isinstance(
-            dados,
-            list
-        ):
-            return dados
-
     except Exception:
-        pass
+        return None
 
-    return []
+    if isinstance(
+        dados,
+        list
+    ):
+        return dados
+
+    return None
+
+
+def score_seguro(valor):
+
+    try:
+        score = float(valor)
+    except (TypeError, ValueError):
+        return 0.0
+
+    if not math.isfinite(score):
+        return 0.0
+
+    return score
 
 
 # =====================================================
@@ -83,9 +93,13 @@ def carregar_do_indice():
             dados = json.load(f)
 
     except Exception:
-
         return []
 
+    if not isinstance(
+        dados,
+        dict
+    ):
+        return []
 
     topics = dados.get(
         "topics",
@@ -98,11 +112,12 @@ def carregar_do_indice():
     ):
         return []
 
-
     historico = carregar_historico()
 
-    saida = []
+    if historico is None:
+        return []
 
+    saida = []
 
     for item in topics:
 
@@ -111,7 +126,6 @@ def carregar_do_indice():
             dict
         ):
             continue
-
 
         nome = str(
             item.get(
@@ -122,11 +136,6 @@ def carregar_do_indice():
 
         if not nome:
             continue
-
-
-        # Nunca confiar apenas no campo "used"
-        # salvo no índice. Conferimos novamente
-        # com o histórico atual.
 
         duplicata = encontrar_duplicata(
             nome,
@@ -139,7 +148,6 @@ def carregar_do_indice():
         ]:
             continue
 
-
         wiki_title = str(
             item.get(
                 "wiki_title",
@@ -150,7 +158,6 @@ def carregar_do_indice():
         if not wiki_title:
             continue
 
-
         identidade = validar_identidade(
             nome,
             wiki_title
@@ -159,40 +166,21 @@ def carregar_do_indice():
         if not identidade[
             "valid"
         ]:
-
             continue
-
-
-        try:
-
-            score = float(
-                item.get(
-                    "score",
-                    0
-                )
-            )
-
-        except Exception:
-
-            score = 0.0
-
 
         saida.append(
             {
-                "topic":
-                    nome,
-
-                "wiki_title":
-                    wiki_title,
-
-                "score":
-                    score,
-
-                "source":
-                    "topic_index"
+                "topic": nome,
+                "wiki_title": wiki_title,
+                "score": score_seguro(
+                    item.get(
+                        "score",
+                        0
+                    )
+                ),
+                "source": "topic_index"
             }
         )
-
 
     saida.sort(
         key=lambda x: x[
@@ -212,6 +200,9 @@ def carregar_dos_verified():
 
     historico = carregar_historico()
 
+    if historico is None:
+        return []
+
     arquivos = glob.glob(
         os.path.join(
             ROTEIROS,
@@ -220,7 +211,6 @@ def carregar_dos_verified():
     )
 
     candidatos = {}
-
 
     for arquivo in arquivos:
 
@@ -235,9 +225,13 @@ def carregar_dos_verified():
                 dados = json.load(f)
 
         except Exception:
-
             continue
 
+        if not isinstance(
+            dados,
+            dict
+        ):
+            continue
 
         ranking = (
             dados.get(
@@ -249,13 +243,11 @@ def carregar_dos_verified():
             or []
         )
 
-
         if not isinstance(
             ranking,
             list
         ):
             continue
-
 
         for item in ranking:
 
@@ -264,7 +256,6 @@ def carregar_dos_verified():
                 dict
             ):
                 continue
-
 
             nome = str(
                 item.get(
@@ -276,7 +267,6 @@ def carregar_dos_verified():
             if not nome:
                 continue
 
-
             wiki_title = str(
                 item.get(
                     "wiki_title",
@@ -286,7 +276,6 @@ def carregar_dos_verified():
 
             if not wiki_title:
                 continue
-
 
             duplicata = encontrar_duplicata(
                 nome,
@@ -299,28 +288,28 @@ def carregar_dos_verified():
             ]:
                 continue
 
+            identidade = validar_identidade(
+                nome,
+                wiki_title
+            )
 
-            try:
+            if not identidade[
+                "valid"
+            ]:
+                continue
 
-                score = float(
-                    item.get(
-                        "score",
-                        0
-                    )
+            score = score_seguro(
+                item.get(
+                    "score",
+                    0
                 )
-
-            except Exception:
-
-                score = 0.0
-
+            )
 
             chave = nome.lower()
-
 
             atual = candidatos.get(
                 chave
             )
-
 
             if (
                 atual is None
@@ -332,21 +321,13 @@ def carregar_dos_verified():
                 candidatos[
                     chave
                 ] = {
-                    "topic":
-                        nome,
-
-                    "wiki_title":
-                        wiki_title,
-
-                    "score":
-                        score,
-
-                    "source":
-                        os.path.basename(
-                            arquivo
-                        )
+                    "topic": nome,
+                    "wiki_title": wiki_title,
+                    "score": score,
+                    "source": os.path.basename(
+                        arquivo
+                    )
                 }
-
 
     saida = list(
         candidatos.values()
@@ -368,18 +349,10 @@ def carregar_dos_verified():
 
 def carregar_reserva():
 
-    # Primeiro tenta o índice central.
     candidatos = carregar_do_indice()
 
     if candidatos:
-
         return candidatos
-
-
-    # Se índice estiver ausente,
-    # vazio ou corrompido,
-    # mantém compatibilidade com
-    # os arquivos antigos.
 
     return carregar_dos_verified()
 
@@ -404,10 +377,9 @@ if __name__ == "__main__":
 
     print()
     print("==============================")
-    print("VERIFIED TOPIC RESERVE 2.2.6")
+    print("VERIFIED TOPIC RESERVE 2.2.7")
     print("==============================")
     print()
-
 
     if not candidatos:
 
@@ -416,7 +388,6 @@ if __name__ == "__main__":
         )
 
         raise SystemExit(0)
-
 
     for numero, item in enumerate(
         candidatos[:20],
@@ -444,7 +415,6 @@ if __name__ == "__main__":
         )
 
         print()
-
 
     print(
         "MELHOR RESERVA:"
