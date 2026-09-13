@@ -1,5 +1,4 @@
 import json
-import math
 import os
 import tempfile
 import unittest
@@ -36,6 +35,27 @@ class TopicReserveTests(unittest.TestCase):
 
             self.assertEqual([x["topic"] for x in result], ["Beta Mystery", "Alpha Mystery"])
             self.assertTrue(all(x["source"] == "topic_index" for x in result))
+
+    def test_index_deduplicates_semantically_equivalent_topic_names(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            index_path = os.path.join(tmp, "topic_index.json")
+            history_path = os.path.join(tmp, "historico_assuntos.json")
+            with open(history_path, "w", encoding="utf-8") as f:
+                json.dump([], f)
+            with open(index_path, "w", encoding="utf-8") as f:
+                json.dump({
+                    "topics": [
+                        {"topic": "Caso Elisa Lam", "wiki_title": "Elisa Lam", "score": 10},
+                        {"topic": "Morte de Elisa Lam", "wiki_title": "Elisa Lam", "score": 30},
+                    ]
+                }, f)
+
+            with patch.object(topic_reserve, "INDEX", index_path), patch.object(topic_reserve, "HISTORICO", history_path):
+                result = topic_reserve.carregar_do_indice()
+
+            self.assertEqual(len(result), 1)
+            self.assertEqual(result[0]["topic"], "Morte de Elisa Lam")
+            self.assertEqual(result[0]["score"], 30.0)
 
     def test_corrupt_history_blocks_reserve_instead_of_reusing_topics(self):
         with tempfile.TemporaryDirectory() as tmp:
