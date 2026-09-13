@@ -1,79 +1,17 @@
 #!/usr/bin/env python3
 
-import os
-import sys
 import json
+import os
 import re
+import sys
 from datetime import date
 
 
-BASE = os.path.expanduser(
-    "~/ShortAutoPro"
-)
+BASE = os.path.expanduser("~/ShortAutoPro")
+SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat())
+SCENE_MAP = os.path.join(BASE, "roteiros", f"scene_map_{SHORT_ID}.json")
+REPORT = os.path.join(BASE, "roteiros", f"visual_risk_{SHORT_ID}.json")
 
-SHORT_ID = os.getenv(
-    "SHORT_ID",
-    date.today().isoformat()
-)
-
-SCENE_MAP = os.path.join(
-    BASE,
-    "roteiros",
-    f"scene_map_{SHORT_ID}.json"
-)
-
-REPORT = os.path.join(
-    BASE,
-    "roteiros",
-    f"visual_risk_{SHORT_ID}.json"
-)
-
-
-if not os.path.exists(
-    SCENE_MAP
-):
-
-    sys.exit(
-        "ERRO: scene_map não encontrado."
-    )
-
-
-try:
-
-    with open(
-        SCENE_MAP,
-        "r",
-        encoding="utf-8"
-    ) as f:
-
-        mapa = json.load(f)
-
-except Exception as e:
-
-    sys.exit(
-        f"ERRO lendo scene_map: {e}"
-    )
-
-
-cenas = mapa.get(
-    "scenes",
-    []
-)
-
-
-if not isinstance(
-    cenas,
-    list
-):
-
-    sys.exit(
-        "ERRO: scenes inválido."
-    )
-
-
-# =====================================================
-# TERMOS DE RISCO
-# =====================================================
 
 RISCOS = {
     "ufo": "mysterious unidentified light",
@@ -81,425 +19,178 @@ RISCOS = {
     "alien spacecraft": "mysterious light in distance",
     "alien": "unidentified distant figure",
     "extraterrestrial": "unexplained distant light",
-
     "ghost": "shadowy silhouette",
     "paranormal entity": "unexplained shadow",
     "spirit": "shadowy atmosphere",
-
     "dead body": "covered stretcher",
     "corpse": "forensic scene context",
-
     "blood": "crime scene evidence",
     "bloody": "forensic scene",
-
-    "murder scene": "police investigation scene"
+    "murder scene": "police investigation scene",
 }
 
-
 TERMOS_ALEGACAO = [
-    "alleged",
-    "claimed",
-    "reported",
-    "reportedly",
-    "theory",
-    "theories",
-    "speculation",
-    "speculated",
-    "mysterious",
-    "unexplained",
-    "unknown",
-    "possible",
-    "possibly",
+    "alleged", "claimed", "reported", "reportedly", "theory", "theories",
+    "speculation", "speculated", "mysterious", "unexplained", "unknown",
+    "possible", "possibly", "alegou", "alegação", "alegacoes", "alegações",
+    "relatou", "relato", "teoria", "teorias", "especulação", "especulacao",
+    "mistério", "misterio", "inexplicável", "inexplicavel", "desconhecido",
+]
 
-    "alegou",
-    "alegação",
-    "alegacoes",
-    "alegações",
-    "relatou",
-    "relato",
-    "teoria",
-    "teorias",
-    "especulação",
-    "especulacao",
-    "mistério",
-    "misterio",
-    "inexplicável",
-    "inexplicavel",
-    "desconhecido"
+PARANORMAL_SEMPRE = {
+    "ufo", "flying saucer", "alien spacecraft", "alien", "extraterrestrial",
+    "ghost", "paranormal entity", "spirit",
+}
+
+AVOID_INCERTO = [
+    "detailed alien spacecraft",
+    "flying saucer",
+    "visible ghost",
+    "alien creature",
 ]
 
 
-# =====================================================
-# HELPERS
-# =====================================================
+def normalizar(texto):
+    return " ".join(str(texto or "").replace("\n", " ").split())
 
-def normalizar(
-    texto
-):
 
-    return " ".join(
-        str(texto)
-        .replace("\n", " ")
-        .split()
+def _padrao_termo(termo):
+    """Casa termos completos e evita substring: 'alien' não casa 'Australian'."""
+    return re.compile(
+        r"(?<![a-z0-9])" + re.escape(str(termo)) + r"(?![a-z0-9])",
+        flags=re.IGNORECASE,
     )
 
 
-def tem_contexto_incerto(
-    segmento
-):
-
-    texto = normalizar(
-        segmento
-    ).lower()
-
-    return any(
-        termo in texto
-        for termo in TERMOS_ALEGACAO
-    )
+def contem_termo(texto, termo):
+    return _padrao_termo(termo).search(normalizar(texto)) is not None
 
 
-def remover_duplicatas(
-    lista
-):
+def substituir_termo(texto, termo, substituto):
+    return _padrao_termo(termo).sub(str(substituto), normalizar(texto))
 
+
+def tem_contexto_incerto(segmento):
+    texto = normalizar(segmento)
+    return any(contem_termo(texto, termo) for termo in TERMOS_ALEGACAO)
+
+
+def remover_duplicatas(lista):
     saida = []
-
-    for x in lista:
-
-        x = normalizar(
-            x
-        ).lower()
-
-        if (
-            x
-            and x not in saida
-        ):
-
-            saida.append(
-                x
-            )
-
+    for item in lista:
+        item_n = normalizar(item).lower()
+        if item_n and item_n not in saida:
+            saida.append(item_n)
     return saida
 
 
-# =====================================================
-# PROCESSAR
-# =====================================================
+def processar_mapa(mapa):
+    if not isinstance(mapa, dict):
+        raise ValueError("scene_map deve ser um objeto JSON")
 
-mudancas = []
+    cenas = mapa.get("scenes", [])
+    if not isinstance(cenas, list):
+        raise ValueError("scenes inválido")
 
+    mudancas = []
 
-for cena in cenas:
+    for cena in cenas:
+        if not isinstance(cena, dict):
+            raise ValueError("cena inválida: esperado objeto")
 
-    numero = cena.get(
-        "scene"
-    )
-
-    segmento = normalizar(
-        cena.get(
-            "segment",
-            ""
-        )
-    )
-
-    query_original = normalizar(
-        cena.get(
-            "query",
-            ""
-        )
-    )
-
-    query = query_original
-
-    must = [
-        normalizar(x).lower()
-        for x in cena.get(
-            "must_have",
-            []
-        )
-    ]
-
-    avoid = [
-        normalizar(x).lower()
-        for x in cena.get(
-            "avoid",
-            []
-        )
-    ]
-
-
-    contexto_incerto = (
-        tem_contexto_incerto(
-            segmento
-        )
-    )
-
-
-    alterada = False
-    motivos = []
-
-
-    # ---------------------------------
-    # QUERY
-    # ---------------------------------
-
-    query_lower = query.lower()
-
-
-    for termo, substituto in RISCOS.items():
-
-        if termo not in query_lower:
-            continue
-
-
-        # UFO / paranormal sempre devem
-        # ser contextualizados visualmente.
-        if (
-            contexto_incerto
-            or termo in [
-                "ufo",
-                "flying saucer",
-                "alien spacecraft",
-                "alien",
-                "extraterrestrial",
-                "ghost",
-                "paranormal entity",
-                "spirit"
-            ]
-        ):
-
-            query = re.sub(
-                re.escape(
-                    termo
-                ),
-                substituto,
-                query,
-                flags=re.IGNORECASE
-            )
-
-            motivos.append(
-                f"query:{termo}"
-            )
-
-            alterada = True
-
-
-    # ---------------------------------
-    # MUST
-    # ---------------------------------
-
-    must_novo = []
-
-
-    for item in must:
-
-        novo_item = item
-
+        numero = cena.get("scene")
+        segmento = normalizar(cena.get("segment", ""))
+        query_original = normalizar(cena.get("query", ""))
+        query = query_original
+        must = [normalizar(x).lower() for x in (cena.get("must_have", []) or [])]
+        avoid = [normalizar(x).lower() for x in (cena.get("avoid", []) or [])]
+        contexto_incerto = tem_contexto_incerto(segmento)
+        alterada = False
+        motivos = []
 
         for termo, substituto in RISCOS.items():
+            if not contem_termo(query, termo):
+                continue
+            if contexto_incerto or termo in PARANORMAL_SEMPRE:
+                query = substituir_termo(query, termo, substituto)
+                motivos.append(f"query:{termo}")
+                alterada = True
 
-            if termo in novo_item:
-
-                if (
-                    contexto_incerto
-                    or termo in [
-                        "ufo",
-                        "flying saucer",
-                        "alien spacecraft",
-                        "alien",
-                        "extraterrestrial",
-                        "ghost",
-                        "paranormal entity",
-                        "spirit"
-                    ]
-                ):
-
-                    novo_item = (
-                        substituto
-                    )
-
-                    motivos.append(
-                        f"must:{termo}"
-                    )
-
+        must_novo = []
+        for item in must:
+            novo_item = item
+            for termo, substituto in RISCOS.items():
+                if not contem_termo(novo_item, termo):
+                    continue
+                if contexto_incerto or termo in PARANORMAL_SEMPRE:
+                    novo_item = substituto
+                    motivos.append(f"must:{termo}")
                     alterada = True
+            must_novo.append(novo_item)
+
+        if contexto_incerto:
+            for item in AVOID_INCERTO:
+                if item not in avoid:
+                    avoid.append(item)
+
+        cena["query"] = normalizar(query)
+        cena["must_have"] = remover_duplicatas(must_novo)
+        cena["avoid"] = remover_duplicatas(avoid)
+
+        if alterada:
+            mudancas.append({
+                "scene": numero,
+                "segment": segmento,
+                "query_before": query_original,
+                "query_after": cena["query"],
+                "reasons": motivos,
+            })
+
+    mapa["visual_risk_guard"] = {
+        "version": "3.0.3",
+        "changes": len(mudancas),
+    }
+    return mapa, mudancas
 
 
-        must_novo.append(
-            novo_item
-        )
+def main():
+    if not os.path.exists(SCENE_MAP):
+        sys.exit("ERRO: scene_map não encontrado.")
 
+    try:
+        with open(SCENE_MAP, "r", encoding="utf-8") as f:
+            mapa = json.load(f)
+        mapa, mudancas = processar_mapa(mapa)
+    except Exception as exc:
+        sys.exit(f"ERRO lendo/processando scene_map: {exc}")
 
-    # ---------------------------------
-    # AVOID EXTRA
-    # ---------------------------------
+    with open(SCENE_MAP, "w", encoding="utf-8") as f:
+        json.dump(mapa, f, ensure_ascii=False, indent=2)
 
-    if contexto_incerto:
+    with open(REPORT, "w", encoding="utf-8") as f:
+        json.dump({"short_id": SHORT_ID, "changes": mudancas}, f, ensure_ascii=False, indent=2)
 
-        extras = [
-            "detailed alien spacecraft",
-            "flying saucer",
-            "visible ghost",
-            "alien creature"
-        ]
+    cenas = mapa.get("scenes", [])
+    print()
+    print("================================")
+    print("FACTUAL VISUAL RISK GUARD 3.0.3")
+    print("================================")
+    print()
+    print(f"Cenas analisadas: {len(cenas)}")
+    print(f"Cenas ajustadas: {len(mudancas)}")
+    print()
 
+    for item in mudancas:
+        numero = item.get("scene")
+        rotulo = f"{numero:02d}" if isinstance(numero, int) else str(numero or "?")
+        print(f"Cena {rotulo}:")
+        print(f"  ANTES: {item['query_before']}")
+        print(f"  DEPOIS: {item['query_after']}")
+        print()
 
-        for x in extras:
-
-            if x not in avoid:
-
-                avoid.append(
-                    x
-                )
-
-
-    must_novo = remover_duplicatas(
-        must_novo
-    )
-
-    avoid = remover_duplicatas(
-        avoid
-    )
-
-
-    # ---------------------------------
-    # SALVAR CENA
-    # ---------------------------------
-
-    cena[
-        "query"
-    ] = normalizar(
-        query
-    )
-
-    cena[
-        "must_have"
-    ] = must_novo
-
-    cena[
-        "avoid"
-    ] = avoid
-
-
-    if alterada:
-
-        mudancas.append(
-            {
-                "scene":
-                    numero,
-
-                "segment":
-                    segmento,
-
-                "query_before":
-                    query_original,
-
-                "query_after":
-                    cena[
-                        "query"
-                    ],
-
-                "reasons":
-                    motivos
-            }
-        )
-
-
-# =====================================================
-# SALVAR
-# =====================================================
-
-mapa[
-    "visual_risk_guard"
-] = {
-    "version":
-        "3.0.2",
-
-    "changes":
-        len(
-            mudancas
-        )
-}
-
-
-with open(
-    SCENE_MAP,
-    "w",
-    encoding="utf-8"
-) as f:
-
-    json.dump(
-        mapa,
-        f,
-        ensure_ascii=False,
-        indent=2
-    )
-
-
-with open(
-    REPORT,
-    "w",
-    encoding="utf-8"
-) as f:
-
-    json.dump(
-        {
-            "short_id":
-                SHORT_ID,
-
-            "changes":
-                mudancas
-        },
-        f,
-        ensure_ascii=False,
-        indent=2
-    )
-
-
-# =====================================================
-# TERMINAL
-# =====================================================
-
-print()
-print("================================")
-print("FACTUAL VISUAL RISK GUARD 3.0.2")
-print("================================")
-print()
-
-print(
-    f"Cenas analisadas: "
-    f"{len(cenas)}"
-)
-
-print(
-    f"Cenas ajustadas: "
-    f"{len(mudancas)}"
-)
-
-print()
-
-
-for item in mudancas:
-
-    print(
-        f"Cena {item['scene']:02d}:"
-    )
-
-    print(
-        f"  ANTES: "
-        f"{item['query_before']}"
-    )
-
-    print(
-        f"  DEPOIS: "
-        f"{item['query_after']}"
-    )
-
+    print("VISUAL RISK GUARD: OK")
     print()
 
 
-print(
-    "VISUAL RISK GUARD: OK"
-)
-
-print()
+if __name__ == "__main__":
+    main()
