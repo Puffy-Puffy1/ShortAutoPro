@@ -3,201 +3,96 @@
 set -u
 
 BASE="$HOME/ShortAutoPro"
-
 ERROS=0
 AVISOS=0
 
-ok() {
-    echo "OK     $1"
-}
-
-aviso() {
-    echo "AVISO  $1"
-    AVISOS=$((AVISOS + 1))
-}
-
-erro() {
-    echo "ERRO   $1"
-    ERROS=$((ERROS + 1))
-}
+ok() { echo "OK     $1"; }
+aviso() { echo "AVISO  $1"; AVISOS=$((AVISOS + 1)); }
+erro() { echo "ERRO   $1"; ERROS=$((ERROS + 1)); }
 
 echo
 echo "======================================"
-echo " SHORTAUTO PRO - PREFLIGHT CHECK 2.1"
+echo " SHORTAUTO PRO - PREFLIGHT CHECK 2.2"
 echo "======================================"
 echo
-
-# ======================================
-# CONFIG
-# ======================================
 
 if [ -f "$BASE/config.sh" ]; then
+    # shellcheck disable=SC1091
     source "$BASE/config.sh"
     ok "config.sh"
 else
     erro "config.sh ausente"
 fi
 
-# ======================================
-# CHAVES
-# ======================================
+if [ -n "${GEMINI_API_KEY:-}" ]; then ok "GEMINI_API_KEY"; else erro "GEMINI_API_KEY não configurada"; fi
+if [ -n "${PEXELS_API_KEY:-}" ]; then ok "PEXELS_API_KEY"; else aviso "PEXELS_API_KEY ausente"; fi
+if [ -n "${PIXABAY_API_KEY:-}" ]; then ok "PIXABAY_API_KEY"; else aviso "PIXABAY_API_KEY ausente"; fi
+if [ -n "${COVERR_API_KEY:-}" ]; then ok "COVERR_API_KEY"; else aviso "COVERR_API_KEY ausente"; fi
 
-if [ -n "${GEMINI_API_KEY:-}" ]; then
-    ok "GEMINI_API_KEY"
-else
-    erro "GEMINI_API_KEY não configurada"
-fi
-
-if [ -n "${PEXELS_API_KEY:-}" ]; then
-    ok "PEXELS_API_KEY"
-else
-    aviso "PEXELS_API_KEY ausente"
-fi
-
-if [ -n "${PIXABAY_API_KEY:-}" ]; then
-    ok "PIXABAY_API_KEY"
-else
-    aviso "PIXABAY_API_KEY ausente"
-fi
-
-if [ -n "${COVERR_API_KEY:-}" ]; then
-    ok "COVERR_API_KEY"
-else
-    aviso "COVERR_API_KEY ausente"
-fi
-
-# ======================================
-# COMANDOS
-# ======================================
-
-for CMD in python ffmpeg ffprobe; do
-
-    if command -v "$CMD" >/dev/null 2>&1; then
-        ok "$CMD"
+for cmd in python ffmpeg ffprobe piper bash; do
+    if command -v "$cmd" >/dev/null 2>&1; then
+        ok "$cmd"
     else
-        erro "$CMD não encontrado"
+        erro "$cmd não encontrado"
     fi
-
 done
-
-# ======================================
-# SCRIPTS OBRIGATÓRIOS
-# ======================================
 
 ARQUIVOS=(
     gerar_short.sh
-    topic_engine.py
-    topic_memory.py
-    topic_reserve.py
-    topic_index.py
-    roteiro.py
-    used_topic.py
-    hook_engine.py
-    scene_director.py
-    midia.py
-    audio.py
-    legenda_dinamica.py
-    video.py
-    v6.py
-    quality_check.py
-    publish_pack.py
-    production_manifest.py
-    register_topic.py
-    health_check.sh
-    limpar_storage.sh
+    topic_engine.py topic_memory.py topic_reserve.py topic_index.py wiki_client.py source_identity.py
+    roteiro.py used_topic.py hook_engine.py narrative_director.py cold_open_director.py
+    scene_director.py scene_truth_refiner_6_7.py documentary_director.py visual_director.py
+    visual_risk_guard.py editorial_continuity.py scene_lossless_repair.py post_script_truth_lock.py
+    semantic_integrity_gate.py wikimedia_source.py wikimedia_query_bridge.py source_router.py evidence_guard.py
+    midia.py media_master_gate.py motion_director.py rhythm_director.py production_supervisor.py editorial_gate.py
+    audio.py legenda_dinamica.py video.py v6.py v5.py quality_check.py publish_pack.py source_ledger.py
+    publish_integrity_gate.py production_manifest.py final_quality.py register_topic.py
+    health_check.sh limpar_storage.sh batch_queue.sh batch_recovery.sh control_center.sh
 )
 
-for ARQ in "${ARQUIVOS[@]}"; do
-
-    if [ -f "$BASE/$ARQ" ]; then
-        ok "$ARQ"
-    else
-        erro "$ARQ ausente"
-    fi
-
+for arq in "${ARQUIVOS[@]}"; do
+    if [ -f "$BASE/$arq" ]; then ok "$arq"; else erro "$arq ausente"; fi
 done
 
-# ======================================
-# PASTAS
-# ======================================
-
-PASTAS=(
-    roteiros
-    audios
-    imagens
-    videos
-    temp
-    logs
-    manifests
-    backups
-)
-
-for PASTA in "${PASTAS[@]}"; do
-
-    if [ -d "$BASE/$PASTA" ]; then
-        ok "pasta $PASTA"
+PASTAS=(roteiros audios imagens videos temp logs manifests backups queue credits)
+for pasta in "${PASTAS[@]}"; do
+    if [ -d "$BASE/$pasta" ]; then
+        ok "pasta $pasta"
     else
-        aviso "criando pasta $PASTA"
-        mkdir -p "$BASE/$PASTA" || erro "falha criando $PASTA"
+        aviso "criando pasta $pasta"
+        mkdir -p "$BASE/$pasta" || erro "falha criando $pasta"
     fi
-
 done
 
-# ======================================
-# PIPER / VOZ
-# ======================================
-
-if [ -d "$BASE/piper" ]; then
-    ok "Piper"
+VOICE_DIR="$BASE/piper/voice"
+if [ -d "$VOICE_DIR" ] && find "$VOICE_DIR" -maxdepth 1 -type f -name 'pt_BR-faber-medium*.onnx' -print -quit 2>/dev/null | grep -q .; then
+    ok "voz Piper pt_BR-faber-medium"
 else
-    erro "pasta Piper ausente"
+    erro "voz Piper pt_BR-faber-medium ausente"
 fi
 
-# ======================================
-# ESPAÇO LIVRE
-# ======================================
-
-LIVRE_KB="$(
-    df -Pk "$HOME" 2>/dev/null \
-    | awk 'NR==2 {print $4}'
-)"
-
+LIVRE_KB="$(df -Pk "$HOME" 2>/dev/null | awk 'NR==2 {print $4}')"
 if [[ "${LIVRE_KB:-}" =~ ^[0-9]+$ ]]; then
-
     LIVRE_MB=$((LIVRE_KB / 1024))
-
     if [ "$LIVRE_MB" -ge 2000 ]; then
         ok "espaço livre: ${LIVRE_MB} MB"
-
     elif [ "$LIVRE_MB" -ge 800 ]; then
         aviso "espaço livre baixo: ${LIVRE_MB} MB"
-
     else
         erro "espaço insuficiente: ${LIVRE_MB} MB"
     fi
-
 else
     aviso "não consegui medir espaço livre"
 fi
 
-# ======================================
-# HISTÓRICO
-# ======================================
-
 if [ -f "$BASE/historico_assuntos.json" ]; then
-
-    if python - <<'PY' >/dev/null 2>&1
+    if BASE_CHECK="$BASE" python - <<'PY' >/dev/null 2>&1
 import json
+import os
 from pathlib import Path
-
-p = Path.home() / "ShortAutoPro" / "historico_assuntos.json"
-
-with open(
-    p,
-    encoding="utf-8"
-) as f:
+p = Path(os.environ["BASE_CHECK"]) / "historico_assuntos.json"
+with p.open(encoding="utf-8") as f:
     d = json.load(f)
-
 assert isinstance(d, list)
 PY
     then
@@ -205,80 +100,33 @@ PY
     else
         erro "historico_assuntos.json inválido"
     fi
-
 else
     aviso "histórico ainda não existe"
 fi
 
-# ======================================
-# SINTAXE BASH
-# ======================================
-
-for ARQ in \
-    gerar_short.sh \
-    health_check.sh \
-    limpar_storage.sh \
-    batch_queue.sh \
-    batch_recovery.sh \
-    control_center.sh
-do
-
-    if [ -f "$BASE/$ARQ" ]; then
-
-        if bash -n "$BASE/$ARQ" >/dev/null 2>&1; then
-            ok "sintaxe $ARQ"
-        else
-            erro "erro de sintaxe em $ARQ"
-        fi
-
+SHELL_FILES=(gerar_short.sh health_check.sh limpar_storage.sh batch_queue.sh batch_recovery.sh control_center.sh preflight_check.sh diagnostico.sh release_check.sh)
+for arq in "${SHELL_FILES[@]}"; do
+    if [ -f "$BASE/$arq" ]; then
+        if bash -n "$BASE/$arq" >/dev/null 2>&1; then ok "sintaxe $arq"; else erro "erro de sintaxe em $arq"; fi
     fi
-
 done
-
-# ======================================
-# PYTHON COMPILE
-# ======================================
 
 PY_FILES=(
-    topic_engine.py
-    topic_memory.py
-    topic_reserve.py
-    topic_index.py
-    roteiro.py
-    used_topic.py
-    hook_engine.py
-    scene_director.py
-    midia.py
-    audio.py
-    legenda_dinamica.py
-    video.py
-    v6.py
-    quality_check.py
-    publish_pack.py
-    production_manifest.py
-    register_topic.py
+    topic_engine.py topic_memory.py topic_reserve.py topic_index.py wiki_client.py source_identity.py
+    roteiro.py used_topic.py hook_engine.py narrative_director.py cold_open_director.py
+    scene_director.py scene_truth_refiner_6_7.py documentary_director.py visual_director.py
+    visual_risk_guard.py editorial_continuity.py scene_lossless_repair.py post_script_truth_lock.py
+    semantic_integrity_gate.py wikimedia_source.py wikimedia_query_bridge.py source_router.py evidence_guard.py
+    midia.py media_master_gate.py motion_director.py rhythm_director.py production_supervisor.py editorial_gate.py
+    audio.py legenda_dinamica.py video.py v6.py v5.py quality_check.py publish_pack.py source_ledger.py
+    publish_integrity_gate.py production_manifest.py final_quality.py register_topic.py
 )
 
-for ARQ in "${PY_FILES[@]}"; do
-
-    if [ -f "$BASE/$ARQ" ]; then
-
-        if python -m py_compile \
-            "$BASE/$ARQ" \
-            >/dev/null 2>&1
-        then
-            ok "Python $ARQ"
-        else
-            erro "erro Python em $ARQ"
-        fi
-
+for arq in "${PY_FILES[@]}"; do
+    if [ -f "$BASE/$arq" ]; then
+        if python -m py_compile "$BASE/$arq" >/dev/null 2>&1; then ok "Python $arq"; else erro "erro Python em $arq"; fi
     fi
-
 done
-
-# ======================================
-# RESULTADO
-# ======================================
 
 echo
 echo "======================================"
@@ -290,15 +138,9 @@ echo "Avisos: $AVISOS"
 echo
 
 if [ "$ERROS" -eq 0 ]; then
-
     echo "STATUS: PRONTO PARA PRODUÇÃO"
-
     exit 0
-
-else
-
-    echo "STATUS: NÃO PRONTO"
-
-    exit 1
-
 fi
+
+echo "STATUS: NÃO PRONTO"
+exit 1
