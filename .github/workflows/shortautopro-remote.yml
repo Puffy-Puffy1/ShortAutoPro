@@ -4,15 +4,18 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "Escolha o teste"
+        description: "Escolha a ação"
         required: true
-        default: "ENV_CHECK"
+        default: "FULL_CHECK"
         type: choice
         options:
           - ENV_CHECK
           - REPO_CHECK
+          - PROJECT_INVENTORY
           - PYTHON_COMPILE
-          - ALL_BASIC
+          - BASH_SYNTAX
+          - HEALTH_CHECK
+          - FULL_CHECK
 
 permissions:
   contents: read
@@ -20,48 +23,109 @@ permissions:
 jobs:
   remote-control:
     runs-on: [self-hosted, Windows, X64]
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     steps:
       - name: Checkout ShortAutoPro
         uses: actions/checkout@v4
 
       - name: Environment Check
-        if: ${{ inputs.mode == 'ENV_CHECK' || inputs.mode == 'ALL_BASIC' }}
+        if: ${{ inputs.mode == 'ENV_CHECK' || inputs.mode == 'FULL_CHECK' }}
         shell: cmd
         run: |
-          echo ==============================
+          echo ======================================
           echo SHORTAUTOPRO ENVIRONMENT CHECK
-          echo ==============================
+          echo ======================================
           echo COMPUTER=%COMPUTERNAME%
-          echo.
           git --version
           python --version
           ffmpeg -version
+          ffprobe -version
           where git
           where python
           where ffmpeg
+          where ffprobe
+          if not exist "C:\Program Files\Git\bin\bash.exe" exit /b 1
+          "C:\Program Files\Git\bin\bash.exe" --version
           echo ENV_CHECK=PASS
 
       - name: Repository Check
-        if: ${{ inputs.mode == 'REPO_CHECK' || inputs.mode == 'ALL_BASIC' }}
+        if: ${{ inputs.mode == 'REPO_CHECK' || inputs.mode == 'FULL_CHECK' }}
         shell: cmd
         run: |
-          echo ==============================
+          echo ======================================
           echo SHORTAUTOPRO REPOSITORY CHECK
-          echo ==============================
+          echo ======================================
           git status --short
           git log -1 --oneline
           git rev-parse --short HEAD
           echo REPO_CHECK=PASS
 
-      - name: Python Syntax Audit
-        if: ${{ inputs.mode == 'PYTHON_COMPILE' || inputs.mode == 'ALL_BASIC' }}
+      - name: Project Inventory
+        if: ${{ inputs.mode == 'PROJECT_INVENTORY' || inputs.mode == 'FULL_CHECK' }}
         shell: cmd
         run: |
-          echo ==============================
-          echo SHORTAUTOPRO PYTHON AUDIT
-          echo ==============================
+          echo ======================================
+          echo SHORTAUTOPRO PROJECT INVENTORY
+          echo ======================================
+          echo --- ROOT ---
+          dir /b
+          echo --- PYTHON ---
+          dir /s /b *.py
+          echo --- SHELL ---
+          dir /s /b *.sh
+          echo --- DEPENDENCIES ---
+          dir /s /b requirements*.txt 2^>nul
+          dir /s /b pyproject.toml 2^>nul
+          dir /s /b setup.py 2^>nul
+          echo --- LIKELY TESTS AND ENTRYPOINTS ---
+          dir /s /b *test*.py 2^>nul
+          dir /s /b *health* 2^>nul
+          dir /s /b *audit* 2^>nul
+          dir /s /b *diagnostico* 2^>nul
+          dir /s /b *preflight* 2^>nul
+          echo PROJECT_INVENTORY=PASS
+
+      - name: Python Syntax Audit
+        if: ${{ inputs.mode == 'PYTHON_COMPILE' || inputs.mode == 'FULL_CHECK' }}
+        shell: cmd
+        run: |
+          echo ======================================
+          echo SHORTAUTOPRO PYTHON SYNTAX AUDIT
+          echo ======================================
           python -m compileall -q .
           if errorlevel 1 exit /b 1
           echo PYTHON_COMPILE=PASS
+
+      - name: Bash Syntax Audit
+        if: ${{ inputs.mode == 'BASH_SYNTAX' || inputs.mode == 'FULL_CHECK' }}
+        shell: cmd
+        run: |
+          echo ======================================
+          echo SHORTAUTOPRO BASH SYNTAX AUDIT
+          echo ======================================
+          if not exist "C:\Program Files\Git\bin\bash.exe" exit /b 1
+          "C:\Program Files\Git\bin\bash.exe" -lc "find . -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n"
+          if errorlevel 1 exit /b 1
+          echo BASH_SYNTAX=PASS
+
+      - name: ShortAutoPro Health Check
+        if: ${{ inputs.mode == 'HEALTH_CHECK' || inputs.mode == 'FULL_CHECK' }}
+        shell: cmd
+        run: |
+          echo ======================================
+          echo SHORTAUTOPRO HEALTH CHECK
+          echo ======================================
+          if not exist "C:\Program Files\Git\bin\bash.exe" exit /b 1
+          "C:\Program Files\Git\bin\bash.exe" -lc "export HOME=\"$(cd .. && pwd)\"; bash ./health_check.sh"
+          if errorlevel 1 exit /b 1
+          echo HEALTH_CHECK=PASS
+
+      - name: Final Summary
+        if: ${{ always() }}
+        shell: cmd
+        run: |
+          echo ======================================
+          echo SHORTAUTOPRO REMOTE CONTROL FINISHED
+          echo MODE=${{ inputs.mode }}
+          echo ======================================
