@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import json
+import math
 import os
 import re
 import tempfile
@@ -117,7 +118,16 @@ def parse_publish_text(text: str):
     if match:
         description = match.group(1).strip()
 
-    hashtags = re.findall(r"#[A-Za-zÀ-ÿ0-9_]+", text)
+    hashtag_block = ""
+    match = re.search(
+        r"HASHTAGS:\s*(.*?)(?=\n\s*(?:COMENT[ÁA]RIO\s+FIXADO|CR[ÉE]DITOS\s+DE\s+M[ÍI]DIA):|\Z)",
+        text,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+    if match:
+        hashtag_block = match.group(1)
+
+    hashtags = re.findall(r"#[A-Za-zÀ-ÿ0-9_]+", hashtag_block)
     unique = []
     seen = set()
     for tag in hashtags:
@@ -173,20 +183,32 @@ def audit(publish_text, publish_json, script, source, topic):
 
     json_title = str(publish_json.get("chosen_title", "") or "").strip()
     json_desc = str(publish_json.get("description", "") or "").strip()
-    json_tags = publish_json.get("hashtags", [])
+    json_tags = publish_json.get("hashtags")
 
-    if json_title and title and json_title != title:
+    if not json_title:
+        critical.append("publish_json_title_missing")
+    elif title and json_title != title:
         critical.append("publish_txt_json_title_mismatch")
-    if json_desc and desc and json_desc != desc:
+
+    if not json_desc:
+        critical.append("publish_json_description_missing")
+    elif desc and json_desc != desc:
         critical.append("publish_txt_json_description_mismatch")
-    if isinstance(json_tags, list) and hashtags:
+
+    if not isinstance(json_tags, list):
+        critical.append("publish_json_hashtags_invalid")
+    elif hashtags:
         normalized_json_tags = [str(x).strip().casefold() for x in json_tags]
         normalized_txt_tags = [x.casefold() for x in hashtags]
         if normalized_json_tags != normalized_txt_tags:
             critical.append("publish_txt_json_hashtags_mismatch")
 
     score_raw = publish_json.get("publish_score")
-    if isinstance(score_raw, bool) or not isinstance(score_raw, (int, float)):
+    if (
+        isinstance(score_raw, bool)
+        or not isinstance(score_raw, (int, float))
+        or not math.isfinite(float(score_raw))
+    ):
         critical.append("publish_score_invalid")
     elif float(score_raw) < 60:
         critical.append(f"publish_score_low={float(score_raw):.1f}")
@@ -267,7 +289,7 @@ def main() -> int:
     )
     report = {
         "short_id": SHORT_ID,
-        "version": "5.3.1",
+        "version": "5.3.2",
         "topic": topic,
         **result,
     }
@@ -280,7 +302,7 @@ def main() -> int:
 
     print()
     print("================================")
-    print("PUBLISH INTEGRITY GATE 5.3.1")
+    print("PUBLISH INTEGRITY GATE 5.3.2")
     print("================================")
     print()
     print(f"Título: {result['title'] or 'AUSENTE'}")
