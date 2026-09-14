@@ -85,9 +85,26 @@ def tokens(text):
 
 
 def numeric_tokens(text):
-    """Extract standalone and alphanumeric numeric identity consistently."""
+    """Extract numeric identity and safe decade shorthand consistently.
+
+    A source token such as ``1960`` or ``1960s`` also authorizes the common
+    Portuguese shorthand ``anos 60``.  We only derive two-digit aliases from
+    exact decade anchors (years ending in zero), never from arbitrary years
+    such as 1968, so the integrity gate still blocks unsupported numbers.
+    """
     expanded = expandir_texto(text)
-    return set(re.findall(r"\b\d+(?:[.,]\d+)?\b", expanded))
+    numbers = set(re.findall(r"\b\d+(?:[.,]\d+)?\b", expanded))
+
+    for token in list(numbers):
+        if not re.fullmatch(r"\d{4}", token):
+            continue
+        year = int(token)
+        if 1900 <= year <= 2090 and year % 10 == 0:
+            suffix = year % 100
+            if suffix:
+                numbers.add(str(suffix))
+
+    return numbers
 
 
 def overlap(base, target):
@@ -289,7 +306,7 @@ def main() -> int:
     )
     report = {
         "short_id": SHORT_ID,
-        "version": "5.3.2",
+        "version": "5.3.3",
         "topic": topic,
         **result,
     }
@@ -302,7 +319,7 @@ def main() -> int:
 
     print()
     print("================================")
-    print("PUBLISH INTEGRITY GATE 5.3.2")
+    print("PUBLISH INTEGRITY GATE 5.3.3")
     print("================================")
     print()
     print(f"Título: {result['title'] or 'AUSENTE'}")
