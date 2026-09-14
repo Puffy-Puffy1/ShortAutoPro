@@ -162,5 +162,12 @@ roteiros/visual_risk_*.json
 # Proveniência capturada durante execuções reais; não faz parte do código-fonte.
 manifests/source_provenance_live/
 
+# =========================
+# ESTADO LOCAL DE PRODUÇÃO
+# =========================
+# O histórico muda durante a geração e deve permanecer local no Termux.
+historico_assuntos.json
+historico_assuntos.json.lock
+
 # resultados locais de auditoria
 score_candidate_binding_audit.json
