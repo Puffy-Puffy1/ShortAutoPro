@@ -31,8 +31,18 @@ class TopicMemoryTests(unittest.TestCase):
         self.assertLess(score, 0.72)
 
     def test_empty_values_are_safe(self):
-        self.assertEqual(topic_memory.normalizar(None), "none")
+        self.assertEqual(topic_memory.normalizar(None), "")
         self.assertEqual(topic_memory.similaridade("", "qualquer coisa"), 0.0)
+
+    def test_missing_history_topics_are_ignored(self):
+        result = topic_memory.encontrar_duplicata(
+            "None",
+            [{"topic": None}, None, {"topic": ""}],
+        )
+        self.assertEqual(
+            result,
+            {"duplicate": False, "topic": None, "similarity": 0.0},
+        )
 
 
 class SourceIdentityTests(unittest.TestCase):
