@@ -7,7 +7,7 @@ BRANCH="${SAP_BRIDGE_BRANCH:-termux-stable}"
 BRIDGE="$PROJECT_DIR/automation/termux_bridge.sh"
 STATE_DIR="${SAP_BRIDGE_STATE_DIR:-$HOME/.shortautopro_bridge}"
 CRON_TAG="# SHORTAUTOPRO_TERMUX_BRIDGE"
-CRON_LINE="*/15 * * * * $BRIDGE $CRON_TAG"
+CRON_LINE="*/15 * * * * bash \"$BRIDGE\" $CRON_TAG"
 
 say() {
     printf '%s\n' "$*"
@@ -47,7 +47,6 @@ else
 fi
 
 [ -f "$BRIDGE" ] || fail "bridge nao encontrado: $BRIDGE"
-chmod +x "$BRIDGE"
 
 mkdir -p "$STATE_DIR"
 
@@ -69,7 +68,7 @@ if ! pgrep -x crond >/dev/null 2>&1; then
 fi
 
 say "[5/6] Executando sincronizacao inicial"
-"$BRIDGE" || {
+bash "$BRIDGE" || {
     say "Falha no bridge. Ultimas linhas do log:"
     tail -n 30 "$STATE_DIR/bridge.log" 2>/dev/null || true
     exit 1
