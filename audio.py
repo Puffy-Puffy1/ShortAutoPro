@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 
+import json
 import math
 import os
 import shutil
 import subprocess
-import sys
-from datetime import date
+import tempfile
+from datetime import date, datetime
+from pathlib import Path
 
 BASE = os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))
 SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat())
@@ -21,6 +23,23 @@ RAW = os.path.join(AUDIO_DIR, f".short_{SHORT_ID}.{PID}.raw")
 WAV = os.path.join(AUDIO_DIR, f".short_{SHORT_ID}.{PID}.wav")
 MP3_TMP = os.path.join(AUDIO_DIR, f".short_{SHORT_ID}.{PID}.mp3")
 TEMP_FILES = [RAW, WAV, MP3_TMP]
+REPORT = Path(BASE) / "reports" / "evolution" / f"audio_{SHORT_ID}.json"
+
+
+def bounded_env_float(name, default, low, high):
+    try:
+        value = float(os.getenv(name, str(default)))
+    except (TypeError, ValueError):
+        value = float(default)
+    if not math.isfinite(value):
+        value = float(default)
+    return max(float(low), min(float(high), value))
+
+
+# Voz falada para Shorts: forte o suficiente no celular, com pico seguro.
+TARGET_LUFS = bounded_env_float("SAP_AUDIO_TARGET_LUFS", -14.0, -24.0, -10.0)
+TRUE_PEAK_DB = bounded_env_float("SAP_AUDIO_TRUE_PEAK_DB", -1.5, -3.0, -0.5)
+LRA = bounded_env_float("SAP_AUDIO_LRA", 7.0, 1.0, 20.0)
 
 
 def cleanup():
@@ -58,6 +77,24 @@ def audio_duration(path):
     return value
 
 
+def atomic_json(path, payload):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle, ensure_ascii=False, indent=2)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp_name, path)
+    except Exception:
+        try:
+            os.unlink(temp_name)
+        except OSError:
+            pass
+        raise
+
+
 if not os.path.isfile(ROTEIRO):
     fail(f"roteiro não encontrado: {ROTEIRO}")
 
@@ -85,9 +122,11 @@ env["PIPER_VOICE_PATH"] = VOICE_DIR
 
 print()
 print("================================")
-print("GERANDO VOZ COM PIPER - 2.1")
+print("GERANDO VOZ COM PIPER - 3.0")
+print("PIPER + LOUDNESS MASTERING")
 print("================================")
 print(f"Modelo: {MODEL}")
+print(f"Master: {TARGET_LUFS:.1f} LUFS | TP {TRUE_PEAK_DB:.1f} dB | LRA {LRA:.1f}")
 print()
 
 try:
@@ -121,21 +160,26 @@ try:
         check=True,
         timeout=120,
     )
+
+    loudnorm = f"loudnorm=I={TARGET_LUFS:.1f}:TP={TRUE_PEAK_DB:.1f}:LRA={LRA:.1f}"
     subprocess.run(
         [
             "ffmpeg", "-y", "-loglevel", "error",
-            "-i", WAV, "-codec:a", "libmp3lame", "-b:a", "128k",
+            "-i", WAV,
+            "-af", loudnorm,
+            "-ar", "44100", "-ac", "1",
+            "-codec:a", "libmp3lame", "-b:a", "160k",
             MP3_TMP,
         ],
         check=True,
         timeout=120,
     )
 except subprocess.TimeoutExpired:
-    fail("conversão de áudio excedeu o tempo limite")
+    fail("conversão/masterização de áudio excedeu o tempo limite")
 except subprocess.CalledProcessError as exc:
-    fail(f"FFmpeg falhou convertendo áudio (código {exc.returncode})")
+    fail(f"FFmpeg falhou convertendo/masterizando áudio (código {exc.returncode})")
 except Exception as exc:
-    fail(f"falha convertendo áudio: {exc}")
+    fail(f"falha convertendo/masterizando áudio: {exc}")
 
 if not os.path.isfile(MP3_TMP) or os.path.getsize(MP3_TMP) <= 0:
     fail("MP3 temporário não foi criado")
@@ -149,8 +193,30 @@ except Exception as exc:
 finally:
     cleanup()
 
+report = {
+    "short_id": SHORT_ID,
+    "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+    "model": MODEL,
+    "duration_seconds": round(duration, 3),
+    "mastering": {
+        "filter": "loudnorm",
+        "target_lufs": TARGET_LUFS,
+        "true_peak_db": TRUE_PEAK_DB,
+        "lra": LRA,
+        "bitrate": "160k",
+        "sample_rate": 44100,
+        "channels": 1
+    },
+    "status": "PASS"
+}
+try:
+    atomic_json(REPORT, report)
+except Exception as exc:
+    print(f"AVISO: não foi possível gravar relatório de áudio: {exc}")
+
 print()
-print("ÁUDIO PIPER GERADO!")
+print("ÁUDIO PIPER GERADO E MASTERIZADO!")
 print(f"Duração: {duration:.2f}s")
+print(f"Loudness alvo: {TARGET_LUFS:.1f} LUFS")
 print(MP3)
 print()
