@@ -9,8 +9,11 @@ before common bookkeeping, producing ``Total: 0/12``.
 
 This launcher removes only those known stray statements in memory. It also
 ensures the legacy cleanup block removes stale WebP assets when an explicit
-SHORT_ID is reused for a debug/recovery run. Unknown partial layouts fail
-closed instead of being rewritten heuristically.
+SHORT_ID is reused for a debug/recovery run. It now also rejects critically
+small downloaded media at acquisition time, using the same floor enforced by
+the Media Master Gate, so the selector can fail over to another candidate
+before a bad scene is committed. Unknown partial layouts fail closed instead
+of being rewritten heuristically.
 """
 
 from __future__ import annotations
@@ -126,6 +129,36 @@ def harden_cleanup(source: str) -> tuple[str, bool]:
     return source[:start] + hardened_block + source[end:], True
 
 
+def harden_download_resolution(source: str) -> tuple[str, bool]:
+    """Reject media below the Media Master Gate critical resolution floor.
+
+    midia.py already probes every downloaded visual before committing it. The
+    old downloader accepted any positive dimensions, while the next pipeline
+    stage blocks anything below 320x180 total pixels. That mismatch allowed a
+    low-resolution Wikimedia asset to be committed and then fail minutes later.
+    This guarded in-memory rewrite aligns the acquisition floor with the gate,
+    allowing the existing candidate failover loop to try the next source.
+    """
+
+    marker = '''        if largura <= 0 or altura <= 0:\n            raise RuntimeError(\n                "dimensões inválidas"\n            )\n'''
+    if marker not in source:
+        raise RuntimeError(
+            "bloco de validação de resolução mudou; hardening de download não é seguro"
+        )
+
+    if "mídia abaixo do piso técnico" in source:
+        return source, False
+
+    replacement = marker + '''\n        if largura * altura < 320 * 180:\n            raise RuntimeError(\n                f"mídia abaixo do piso técnico: {largura}x{altura}"\n            )\n'''
+
+    if source.count(marker) != 1:
+        raise RuntimeError(
+            "foram encontrados múltiplos blocos de validação de resolução; abortando"
+        )
+
+    return source.replace(marker, replacement, 1), True
+
+
 def run() -> None:
     base = Path(os.path.expanduser("~/ShortAutoPro"))
     target = base / "midia.py"
@@ -137,6 +170,7 @@ def run() -> None:
         source = target.read_text(encoding="utf-8")
         fixed, counters = fix_source(source)
         fixed, cleanup_applied = harden_cleanup(fixed)
+        fixed, resolution_applied = harden_download_resolution(fixed)
         code = compile(fixed, str(target), "exec")
     except Exception as exc:
         raise SystemExit(f"ERRO MIDIA CONTROL FLOW GUARD: {exc}") from exc
@@ -150,6 +184,10 @@ def run() -> None:
     print(
         "MIDIA_WEBP_CLEANUP="
         + ("APPLIED" if cleanup_applied else "NOT_NEEDED")
+    )
+    print(
+        "MIDIA_MIN_RESOLUTION_GUARD="
+        + ("APPLIED" if resolution_applied else "ALREADY_PRESENT")
     )
 
     namespace = {
