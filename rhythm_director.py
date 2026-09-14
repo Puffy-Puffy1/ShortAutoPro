@@ -108,7 +108,7 @@ def build_rhythm(motion_scenes, map_scenes):
         else:
             start = max(1.0, min(start, 1.045))
             amplitude = finite_float(
-                new.get("editorial_amplitude", 0.05),
+                new.get("editorial_amplitude", 0.04),
                 f"editorial_amplitude cena {index}",
             )
             end = max(start, min(start + amplitude, 1.105))
@@ -132,7 +132,7 @@ def audit_result(result):
     for item in result:
         if item.get("media_type") == "photo":
             photo_profiles.append(item.get("rhythm_profile"))
-        if item.get("editorial_policy") != "humanized_v1":
+        if item.get("editorial_policy") != "humanized_v2":
             problems.append(f"editorial_policy_missing_scene_{item.get('scene')}")
 
     for index in range(2, len(result)):
@@ -164,19 +164,19 @@ def main():
 
         original_motion = dict(motion)
         updated_motion = dict(motion)
-        updated_motion["version"] = "5.0"
+        updated_motion["version"] = "5.1"
         updated_motion["rhythm_director"] = {
             "applied": True,
-            "policy": "humanized_v1",
+            "policy": "humanized_v2",
             "problems": [],
         }
         updated_motion["scenes"] = result
 
         rhythm_payload = {
             "short_id": SHORT_ID,
-            "version": "5.0",
+            "version": "5.1",
             "expected_scenes": EXPECTED_SCENES,
-            "policy": "humanized_v1",
+            "policy": "humanized_v2",
             "problems": [],
             "scenes": result,
         }
@@ -190,14 +190,14 @@ def main():
 
     print()
     print("================================")
-    print("MONTAGE RHYTHM DIRECTOR 5.0")
+    print("MONTAGE RHYTHM DIRECTOR 5.1")
     print("================================")
     print()
     for scene in result:
         print(f"{scene['scene']:02d}. energy={scene['energy']} {scene['rhythm_profile']:<20} {scene['media_type']}")
         print(f"    motion={scene['motion_profile']} | zoom={scene['zoom_start']:.3f}->{scene['zoom_end']:.3f} | pan={scene['pan']}")
     print()
-    print("EDITORIAL POLICY: humanized_v1")
+    print("EDITORIAL POLICY: humanized_v2")
     print("RHYTHM QUALITY: PASS")
     print(f"Plano:\n{OUTPUT}")
     print()
