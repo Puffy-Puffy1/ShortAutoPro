@@ -9,7 +9,7 @@ from datetime import date
 
 from subtitle_alignment import align_word_timings
 
-BASE = os.path.expanduser("~/ShortAutoPro")
+BASE = os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))
 SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat())
 ROTEIRO = os.path.join(BASE, "roteiros", f"short_{SHORT_ID}.txt")
 AUDIO = os.path.join(BASE, "audios", f"short_{SHORT_ID}.mp3")
