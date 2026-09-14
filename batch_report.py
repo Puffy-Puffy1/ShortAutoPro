@@ -1,468 +1,176 @@
 #!/usr/bin/env python3
 
+import glob
+import json
+import math
 import os
 import sys
-import json
-import glob
-import math
 from datetime import datetime
 
 BASE = os.path.expanduser("~/ShortAutoPro")
-
-MANIFEST_DIR = os.path.join(
-    BASE,
-    "manifests"
-)
-
-REPORT_DIR = os.path.join(
-    BASE,
-    "reports"
-)
-
-os.makedirs(
-    REPORT_DIR,
-    exist_ok=True
-)
+MANIFEST_DIR = os.path.join(BASE, "manifests")
+REPORT_DIR = os.path.join(BASE, "reports")
+os.makedirs(REPORT_DIR, exist_ok=True)
 
 try:
-    QTD = int(
-        sys.argv[1]
-        if len(sys.argv) > 1
-        else os.getenv("SHORT_LOTE", "3")
-    )
+    QTD = int(sys.argv[1] if len(sys.argv) > 1 else os.getenv("SHORT_LOTE", "3"))
 except ValueError:
     QTD = 3
+QTD = max(1, min(QTD, 10))
 
-QTD = max(
-    1,
-    min(QTD, 10)
-)
-
-
-def dict_seguro(valor):
-    return valor if isinstance(valor, dict) else {}
+try:
+    QTD_CENAS = int(os.getenv("SHORT_QTD_CENAS", "12"))
+except ValueError:
+    QTD_CENAS = 12
+QTD_CENAS = max(6, min(QTD_CENAS, 20))
 
 
-def numero_seguro(valor):
-    if not isinstance(valor, (int, float)):
+def dict_seguro(value):
+    return value if isinstance(value, dict) else {}
+
+
+def numero_seguro(value):
+    if not isinstance(value, (int, float)):
         return None
-
-    valor = float(valor)
-
-    if not math.isfinite(valor):
-        return None
-
-    return valor
+    value = float(value)
+    return value if math.isfinite(value) else None
 
 
-# =========================================
-# LER MANIFESTS
-# =========================================
-
-# final_quality.py também grava JSON em manifests/, com sufixo
-# _quality.json. Esses arquivos não são manifests de produção e
-# não podem entrar no cálculo do lote.
-todos_arquivos = glob.glob(
-    os.path.join(
-        MANIFEST_DIR,
-        "*.json"
-    )
-)
-
-arquivos = [
-    path
-    for path in todos_arquivos
-    if not os.path.basename(path).endswith(
-        "_quality.json"
-    )
-]
-
-arquivos = sorted(
-    arquivos,
-    key=os.path.getmtime,
-    reverse=True
-)[:QTD]
-
-
-if not arquivos:
-
-    sys.exit(
-        "ERRO: nenhum manifest encontrado."
-    )
-
-
-producoes = []
-
-
-for arquivo in reversed(arquivos):
-
+def atomic_write(path, text):
+    tmp = f"{path}.{os.getpid()}.tmp"
     try:
-
-        with open(
-            arquivo,
-            "r",
-            encoding="utf-8"
-        ) as f:
-
-            dados = json.load(f)
-
-    except Exception:
-        continue
-
-    if not isinstance(
-        dados,
-        dict
-    ):
-        continue
-
-    publish = dict_seguro(
-        dados.get(
-            "publish",
-            {}
-        )
-    )
-
-    video = dict_seguro(
-        dados.get(
-            "video",
-            {}
-        )
-    )
-
-    quality = dict_seguro(
-        dados.get(
-            "quality",
-            {}
-        )
-    )
-
-    duracao = numero_seguro(
-        video.get(
-            "duration_seconds"
-        )
-    )
-
-    producoes.append(
-        {
-            "short_id": str(
-                dados.get(
-                    "short_id",
-                    ""
-                )
-            ),
-
-            "status": str(
-                dados.get(
-                    "status",
-                    ""
-                )
-            ),
-
-            "topic": str(
-                dados.get(
-                    "topic",
-                    ""
-                )
-            ),
-
-            "hook": str(
-                dados.get(
-                    "hook",
-                    ""
-                )
-            ),
-
-            "title": str(
-                publish.get(
-                    "chosen_title",
-                    ""
-                )
-            ),
-
-            "duration": duracao,
-
-            "video": str(
-                video.get(
-                    "path",
-                    ""
-                )
-            ),
-
-            "resolution_ok": bool(
-                quality.get(
-                    "resolution_ok",
-                    False
-                )
-            ),
-
-            "fps_ok": bool(
-                quality.get(
-                    "fps_ok",
-                    False
-                )
-            ),
-
-            "audio_ok": bool(
-                quality.get(
-                    "audio_exists",
-                    False
-                )
-            ),
-
-            "scenes": quality.get(
-                "physical_scene_count",
-                0
-            )
-        }
-    )
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.write(text)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+    finally:
+        if os.path.exists(tmp):
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
 
 
-if not producoes:
-
-    sys.exit(
-        "ERRO: nenhum manifest válido."
-    )
-
-
-# =========================================
-# RESUMO
-# =========================================
-
-total = len(
-    producoes
-)
-
-passes = sum(
-    1
-    for p in producoes
-    if p["status"] == "QUALITY_PASS"
-)
-
-falhas = (
-    total
-    - passes
-)
-
-
-duracoes = [
-    p["duration"]
-    for p in producoes
-    if isinstance(
-        p["duration"],
-        (int, float)
-    )
+all_files = glob.glob(os.path.join(MANIFEST_DIR, "*.json"))
+files = [
+    path for path in all_files
+    if not os.path.basename(path).endswith("_quality.json")
 ]
+files = sorted(files, key=os.path.getmtime, reverse=True)[:QTD]
 
+if not files:
+    sys.exit("ERRO: nenhum manifest de produção encontrado.")
 
-duracao_media = (
-    sum(duracoes)
-    / len(duracoes)
-    if duracoes
-    else 0
-)
+productions = []
+invalid = []
 
+for path in reversed(files):
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception as exc:
+        invalid.append(f"{os.path.basename(path)}: {exc}")
+        continue
 
-timestamp = datetime.now().strftime(
-    "%Y-%m-%d_%H%M%S"
-)
+    if not isinstance(data, dict) or not str(data.get("short_id", "")).strip():
+        invalid.append(f"{os.path.basename(path)}: estrutura inválida")
+        continue
 
-JSON_PATH = os.path.join(
-    REPORT_DIR,
-    f"batch_report_{timestamp}.json"
-)
+    publish = dict_seguro(data.get("publish"))
+    video = dict_seguro(data.get("video"))
+    quality = dict_seguro(data.get("quality"))
+    duration = numero_seguro(video.get("duration_seconds"))
 
-TXT_PATH = os.path.join(
-    REPORT_DIR,
-    f"batch_report_{timestamp}.txt"
-)
+    productions.append({
+        "short_id": str(data.get("short_id", "")),
+        "status": str(data.get("status", "")),
+        "topic": str(data.get("topic", "")),
+        "hook": str(data.get("hook", "")),
+        "title": str(publish.get("chosen_title", "")),
+        "duration": duration,
+        "video": str(video.get("path", "")),
+        "resolution_ok": bool(quality.get("resolution_ok", False)),
+        "fps_ok": bool(quality.get("fps_ok", False)),
+        "audio_ok": bool(quality.get("audio_exists", False)),
+        "scenes": int(quality.get("physical_scene_count", 0) or 0),
+        "expected_scenes": int(quality.get("expected_scene_count", QTD_CENAS) or QTD_CENAS),
+    })
 
+if not productions:
+    sys.exit("ERRO: nenhum dos manifests selecionados é válido.")
 
-relatorio = {
+passes = sum(1 for p in productions if p["status"] == "QUALITY_PASS")
+failures = len(productions) - passes + len(invalid)
+durations = [p["duration"] for p in productions if p["duration"] is not None]
+average_duration = sum(durations) / len(durations) if durations else 0.0
+
+timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+json_path = os.path.join(REPORT_DIR, f"batch_report_{timestamp}.json")
+txt_path = os.path.join(REPORT_DIR, f"batch_report_{timestamp}.txt")
+
+report = {
     "created_at": datetime.now().isoformat(),
-    "total": total,
+    "requested": QTD,
+    "selected_manifest_files": len(files),
+    "valid_productions": len(productions),
+    "invalid_manifests": invalid,
     "quality_pass": passes,
-    "failures": falhas,
-    "average_duration": round(
-        duracao_media,
-        2
-    ),
-    "productions": producoes
+    "failures": failures,
+    "average_duration": round(average_duration, 2),
+    "productions": productions,
 }
 
+atomic_write(json_path, json.dumps(report, ensure_ascii=False, indent=2))
 
-with open(
-    JSON_PATH,
-    "w",
-    encoding="utf-8"
-) as f:
+lines = [
+    "SHORTAUTO PRO - BATCH REPORT",
+    "=" * 32,
+    "",
+    f"Manifests selecionados: {len(files)}",
+    f"Produções válidas: {len(productions)}",
+    f"Quality Pass: {passes}",
+    f"Falhas/incompletos/inválidos: {failures}",
+    f"Duração média: {average_duration:.2f}s",
+    "",
+]
 
-    json.dump(
-        relatorio,
-        f,
-        ensure_ascii=False,
-        indent=2
-    )
+for number, p in enumerate(productions, start=1):
+    lines.extend([
+        f"{number}. {p['topic'] or '?'}",
+        f"   ID: {p['short_id']}",
+        f"   Status: {p['status'] or '?'}",
+        f"   Título: {p['title'] or '?'}",
+        f"   Duração: {p['duration']:.2f}s" if p["duration"] is not None else "   Duração: ?",
+        f"   Cenas: {p['scenes']}/{p['expected_scenes']}",
+        f"   Vídeo: {p['video'] or '?'}",
+        "",
+    ])
 
+if invalid:
+    lines.append("MANIFESTS INVÁLIDOS:")
+    lines.extend(f"- {item}" for item in invalid)
+    lines.append("")
 
-# =========================================
-# TXT
-# =========================================
-
-linhas = []
-
-linhas.append(
-    "SHORTAUTO PRO - BATCH REPORT"
-)
-
-linhas.append(
-    "=" * 32
-)
-
-linhas.append("")
-
-linhas.append(
-    f"Produções analisadas: {total}"
-)
-
-linhas.append(
-    f"Quality Pass: {passes}"
-)
-
-linhas.append(
-    f"Falhas/incompletos: {falhas}"
-)
-
-linhas.append(
-    f"Duração média: {duracao_media:.2f}s"
-)
-
-linhas.append("")
-
-
-for numero, p in enumerate(
-    producoes,
-    start=1
-):
-
-    linhas.append(
-        f"{numero}. {p['topic']}"
-    )
-
-    linhas.append(
-        f"   ID: {p['short_id']}"
-    )
-
-    linhas.append(
-        f"   Status: {p['status']}"
-    )
-
-    linhas.append(
-        f"   Título: {p['title']}"
-    )
-
-    if isinstance(
-        p["duration"],
-        (int, float)
-    ):
-
-        linhas.append(
-            f"   Duração: {p['duration']:.2f}s"
-        )
-
-    else:
-
-        linhas.append(
-            "   Duração: ?"
-        )
-
-    linhas.append(
-        f"   Cenas: {p['scenes']}/12"
-    )
-
-    linhas.append(
-        f"   Vídeo: {p['video']}"
-    )
-
-    linhas.append("")
-
-
-with open(
-    TXT_PATH,
-    "w",
-    encoding="utf-8"
-) as f:
-
-    f.write(
-        "\n".join(linhas)
-    )
-
-
-# =========================================
-# TERMINAL
-# =========================================
+atomic_write(txt_path, "\n".join(lines))
 
 print()
 print("================================")
-print("BATCH REPORT - STABLE 2.2.1")
+print("BATCH REPORT - STABLE 2.3")
 print("================================")
+print(f"Produções válidas: {len(productions)}")
+print(f"Quality Pass: {passes}")
+print(f"Falhas/incompletos/inválidos: {failures}")
+print(f"Duração média: {average_duration:.2f}s")
+print(f"TXT: {txt_path}")
+print(f"JSON: {json_path}")
 print()
 
-print(
-    f"Produções: {total}"
-)
+# O relatório continua sendo gerado, mas retorna falha se os manifests
+# selecionados contiverem corrupção estrutural. Assim automações detectam o problema.
+if invalid:
+    print("BATCH REPORT: WARNING/BLOCK")
+    raise SystemExit(1)
 
-print(
-    f"Quality Pass: {passes}"
-)
-
-print(
-    f"Falhas: {falhas}"
-)
-
-print(
-    f"Duração média: {duracao_media:.2f}s"
-)
-
-print()
-
-
-for numero, p in enumerate(
-    producoes,
-    start=1
-):
-
-    print(
-        f"{numero}. {p['topic']}"
-    )
-
-    print(
-        f"   {p['status']} | "
-        f"{p['scenes']}/12 cenas"
-    )
-
-    if p["title"]:
-
-        print(
-            f"   {p['title']}"
-        )
-
-    print()
-
-
-print(
-    f"TXT:\n{TXT_PATH}"
-)
-
-print()
-
-print(
-    f"JSON:\n{JSON_PATH}"
-)
-
-print()
-
-print(
-    "BATCH REPORT: OK"
-)
-
+print("BATCH REPORT: OK")
 print()
