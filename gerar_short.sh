@@ -91,7 +91,7 @@ exec > >(tee -a "$LOG") 2>&1
 
 echo
 echo "======================================"
-echo " SHORTAUTO PRO - STABLE 1.8"
+echo " SHORTAUTO PRO - STABLE 1.9"
 echo "======================================"
 echo
 echo "ID: $SHORT_ID"
@@ -122,7 +122,7 @@ rodar_python() {
     ARQUIVO="$2"
 
     echo
-echo "--------------------------------------"
+    echo "--------------------------------------"
     echo "$TITULO"
     echo "--------------------------------------"
     echo
@@ -155,7 +155,7 @@ rodar_shell() {
     shift 2
 
     echo
-echo "--------------------------------------"
+    echo "--------------------------------------"
     echo "$TITULO"
     echo "--------------------------------------"
     echo
@@ -215,8 +215,8 @@ rodar_python "9/12 - MONTANDO CENAS SEMÂNTICAS" "video.py"
 # =====================================================
 # RENDER FINAL — APENAS PIPELINE V6
 # =====================================================
-# Não cai silenciosamente para uma implementação antiga. Se V6 falhar,
-# a produção falha fechada para que o erro real seja corrigido.
+# v6_runtime supervisiona timeout, remove saída velha e valida a saída do
+# renderer real. Não existe fallback silencioso para pipeline legado.
 
 echo
 echo "--------------------------------------"
@@ -224,12 +224,12 @@ echo "10/12 - RENDER FINAL V6"
 echo "--------------------------------------"
 echo
 
-if [ ! -f "$BASE/v6.py" ]; then
-    echo "ERRO: v6.py não encontrado."
+if [ ! -f "$BASE/v6_runtime.py" ]; then
+    echo "ERRO: v6_runtime.py não encontrado."
     exit 1
 fi
 
-if python "$BASE/v6.py"; then
+if python "$BASE/v6_runtime.py"; then
     FINAL="$BASE/videos/short_v6_${SHORT_ID}.mp4"
     VERSAO="V6 PRINCIPAL"
 else
