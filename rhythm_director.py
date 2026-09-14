@@ -106,12 +106,12 @@ def build_rhythm(motion_scenes, map_scenes):
             new["zoom_end"] = 1.0
             new["pan"] = "none"
         else:
-            start = max(1.0, min(start, 1.035))
+            start = max(1.0, min(start, 1.025))
             amplitude = finite_float(
-                new.get("editorial_amplitude", 0.03),
+                new.get("editorial_amplitude", 0.018),
                 f"editorial_amplitude cena {index}",
             )
-            end = max(start, min(start + amplitude, 1.085))
+            end = max(start, min(start + amplitude, 1.065))
             new["zoom_start"] = round(start, 4)
             new["zoom_end"] = round(end, 4)
 
@@ -129,18 +129,25 @@ def audit_result(result):
         problems.append("scene_numbering_invalid")
 
     photo_profiles = []
+    centered_human = 0
+    human_count = 0
     for item in result:
         if item.get("media_type") == "photo":
             photo_profiles.append(item.get("rhythm_profile"))
-        if item.get("editorial_policy") != "humanized_v3":
+        if item.get("editorial_policy") != "humanized_v4":
             problems.append(f"editorial_policy_missing_scene_{item.get('scene')}")
         if item.get("media_type") == "photo":
             try:
                 amplitude = float(item.get("zoom_end", 1.0)) - float(item.get("zoom_start", 1.0))
             except (TypeError, ValueError):
                 amplitude = 999.0
-            if amplitude > 0.0501:
+            if amplitude > 0.0401:
                 problems.append(f"zoom_amplitude_excess_scene_{item.get('scene')}")
+        mode = str(item.get("visual_mode", "")).strip().lower()
+        if mode in {"human_context", "portrait", "person", "people"}:
+            human_count += 1
+            if item.get("pan") == "center":
+                centered_human += 1
 
     for index in range(2, len(result)):
         pans = [result[index-2].get("pan"), result[index-1].get("pan"), result[index].get("pan")]
@@ -149,6 +156,8 @@ def audit_result(result):
 
     if len(photo_profiles) >= 4 and len(set(photo_profiles)) < 2:
         problems.append("editorial_profile_variety_low")
+    if human_count and centered_human != human_count:
+        problems.append("human_subject_pan_not_centered")
     return problems
 
 
@@ -171,19 +180,19 @@ def main():
 
         original_motion = dict(motion)
         updated_motion = dict(motion)
-        updated_motion["version"] = "5.2"
+        updated_motion["version"] = "5.3"
         updated_motion["rhythm_director"] = {
             "applied": True,
-            "policy": "humanized_v3",
+            "policy": "humanized_v4",
             "problems": [],
         }
         updated_motion["scenes"] = result
 
         rhythm_payload = {
             "short_id": SHORT_ID,
-            "version": "5.2",
+            "version": "5.3",
             "expected_scenes": EXPECTED_SCENES,
-            "policy": "humanized_v3",
+            "policy": "humanized_v4",
             "problems": [],
             "scenes": result,
         }
@@ -197,14 +206,14 @@ def main():
 
     print()
     print("================================")
-    print("MONTAGE RHYTHM DIRECTOR 5.2")
+    print("MONTAGE RHYTHM DIRECTOR 5.3")
     print("================================")
     print()
     for scene in result:
         print(f"{scene['scene']:02d}. energy={scene['energy']} {scene['rhythm_profile']:<20} {scene['media_type']}")
         print(f"    motion={scene['motion_profile']} | zoom={scene['zoom_start']:.3f}->{scene['zoom_end']:.3f} | pan={scene['pan']}")
     print()
-    print("EDITORIAL POLICY: humanized_v3")
+    print("EDITORIAL POLICY: humanized_v4")
     print("RHYTHM QUALITY: PASS")
     print(f"Plano:\n{OUTPUT}")
     print()
