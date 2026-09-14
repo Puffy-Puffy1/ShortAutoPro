@@ -85,7 +85,7 @@ class LongformRuntimeTests(unittest.TestCase):
         }])
         self.assertIn("Autor", text)
         self.assertIn("CC BY-SA 4.0", text)
-        self.assertIn("Wikimedia", text.splitlines()[0])
+        self.assertIn("commons.wikimedia.org", text.lower())
 
 
 class ResumeBoundaryTests(unittest.TestCase):
