@@ -44,6 +44,13 @@ class TopicMemoryTests(unittest.TestCase):
             {"duplicate": False, "topic": None, "similarity": 0.0},
         )
 
+    def test_absent_history_is_safe(self):
+        result = topic_memory.encontrar_duplicata("Caso novo", None)
+        self.assertEqual(
+            result,
+            {"duplicate": False, "topic": None, "similarity": 0.0},
+        )
+
 
 class SourceIdentityTests(unittest.TestCase):
     def test_alias_boundary_does_not_match_mh3700(self):
