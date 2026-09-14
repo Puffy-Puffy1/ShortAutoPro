@@ -1,6 +1,6 @@
 import unittest
 
-from midia_runtime import EXPECTED_BROKEN_COUNTS, fix_source
+from midia_runtime import EXPECTED_BROKEN_COUNTS, fix_source, harden_cleanup
 
 
 BROKEN = '''for scene in scenes:
@@ -48,6 +48,22 @@ BROKEN = '''for scene in scenes:
         total += 1
 '''
 
+CLEANUP = '''# LIMPAR MÍDIA ANTIGA
+for nome in os.listdir(SAIDA_DIR):
+    if nome.lower().endswith(
+        (
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".mp4"
+        )
+    ):
+        os.remove(nome)
+
+# TEXTO
+print("next")
+'''
+
 
 class MediaRuntimeFixTests(unittest.TestCase):
     def test_known_seven_premature_breaks_are_removed(self):
@@ -55,7 +71,6 @@ class MediaRuntimeFixTests(unittest.TestCase):
         self.assertEqual(counters, EXPECTED_BROKEN_COUNTS)
         self.assertIn("destino = destino_teste", fixed)
         self.assertIn("total += 1", fixed)
-        # The legitimate inner-loop breaks stay in place.
         self.assertGreaterEqual(fixed.count("break"), 3)
         self.assertNotIn("        _vse42_cleanup_scene_sibling(destino)\n        break", fixed)
 
@@ -75,6 +90,23 @@ class MediaRuntimeFixTests(unittest.TestCase):
 '''
         with self.assertRaises(RuntimeError):
             fix_source(partial)
+
+    def test_cleanup_adds_webp_exactly_once(self):
+        fixed, applied = harden_cleanup(CLEANUP)
+        self.assertTrue(applied)
+        self.assertEqual(fixed.count('".webp"'), 1)
+
+        fixed_again, applied_again = harden_cleanup(fixed)
+        self.assertFalse(applied_again)
+        self.assertEqual(fixed_again, fixed)
+
+    def test_unknown_cleanup_layout_fails_closed(self):
+        source = '''# LIMPAR MÍDIA ANTIGA
+extensions = [".jpg", ".mp4"]
+# TEXTO
+'''
+        with self.assertRaises(RuntimeError):
+            harden_cleanup(source)
 
 
 if __name__ == "__main__":
