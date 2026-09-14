@@ -102,6 +102,32 @@ class MotionRhythmHardeningTests(unittest.TestCase):
             (self.base / "roteiros" / "motion_plan_pre_rhythm_case.json").is_file()
         )
 
+    def test_rhythm_accepts_human_context_video_without_artificial_pan(self):
+        payload = scene_map()
+        payload["scenes"][0]["visual_mode"] = "human_context"
+        write_json(self.base / "roteiros" / "scene_map_case.json", payload)
+        media = self.base / "imagens" / "short_case"
+        (media / "scene_01.mp4").write_bytes(b"x")
+        for i in range(2, 7):
+            (media / f"scene_{i:02d}.jpg").write_bytes(b"x")
+
+        motion = self.run_script(MOTION)
+        self.assertEqual(motion.returncode, 0, motion.stdout + motion.stderr)
+
+        rhythm = self.run_script(RHYTHM)
+        self.assertEqual(rhythm.returncode, 0, rhythm.stdout + rhythm.stderr)
+        rhythm_payload = json.loads(
+            (self.base / "roteiros" / "rhythm_plan_case.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        first = rhythm_payload["scenes"][0]
+        self.assertEqual(first["media_type"], "video")
+        self.assertEqual(first["visual_mode"], "human_context")
+        self.assertEqual(first["pan"], "none")
+        self.assertEqual(first["zoom_start"], 1.0)
+        self.assertEqual(first["zoom_end"], 1.0)
+
     def test_motion_rejects_missing_media(self):
         self.prepare_valid_input()
         (self.base / "imagens" / "short_case" / "scene_04.jpg").unlink()
