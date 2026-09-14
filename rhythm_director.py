@@ -3,6 +3,8 @@ import json, math, os, tempfile
 from datetime import date
 from pathlib import Path
 
+from visual_editorial_policy import apply_editorial_policy
+
 
 def _scene_count():
     try:
@@ -19,9 +21,6 @@ MOTION_PLAN = BASE / "roteiros" / f"motion_plan_{SHORT_ID}.json"
 SCENE_MAP = BASE / "roteiros" / f"scene_map_{SHORT_ID}.json"
 OUTPUT = BASE / "roteiros" / f"rhythm_plan_{SHORT_ID}.json"
 BACKUP = BASE / "roteiros" / f"motion_plan_pre_rhythm_{SHORT_ID}.json"
-
-CALMOS = {"document", "evidence", "map_context"}
-DINAMICOS = {"location", "environment", "transport", "architecture"}
 
 
 def load_json(path):
@@ -82,99 +81,42 @@ def finite_float(value, label):
     return result
 
 
-def energia_base(numero, total):
-    if numero == 1:
-        return 5
-    proporcao = numero / max(total, 1)
-    if proporcao <= 0.25:
-        return 2
-    if proporcao <= 0.50:
-        return 3
-    if proporcao <= 0.75:
-        return 4
-    if numero == total:
-        return 2
-    return 3
-
-
-def ajustar_zoom(scene, energia):
-    numero = scene.get("scene", "?")
-    inicio = finite_float(scene.get("zoom_start", 1.0), f"zoom_start cena {numero}")
-    fim_original = finite_float(scene.get("zoom_end", 1.06), f"zoom_end cena {numero}")
-    modo = str(scene.get("visual_mode", "")).strip().lower()
-    media = str(scene.get("media_type", "")).strip().lower()
-
-    if media == "video":
-        return 1.0, 1.0
-    if media != "photo":
-        raise ValueError(f"media_type inválido na cena {numero}: {media!r}")
-
-    if modo in CALMOS:
-        amplitude = {1: 0.015, 2: 0.025, 3: 0.035, 4: 0.045, 5: 0.055}.get(energia, 0.035)
-    elif modo in DINAMICOS:
-        amplitude = {1: 0.025, 2: 0.040, 3: 0.055, 4: 0.070, 5: 0.090}.get(energia, 0.055)
-    else:
-        amplitude = {1: 0.020, 2: 0.035, 3: 0.050, 4: 0.065, 5: 0.080}.get(energia, 0.050)
-
-    inicio = max(1.0, min(inicio, 1.05))
-    _ = fim_original
-    fim = max(inicio, min(inicio + amplitude, 1.11))
-    return inicio, fim
-
-
-def build_rhythm(motion_scenes):
+def build_rhythm(motion_scenes, map_scenes):
     total = len(motion_scenes)
     result = []
-    previous_profile = None
     previous_pan = None
 
-    for index, scene in enumerate(motion_scenes, start=1):
-        new = dict(scene)
-        mode = str(new.get("visual_mode", "")).strip().lower()
-        media = str(new.get("media_type", "")).strip().lower()
-        profile = str(new.get("motion_profile", "")).strip()
-        pan = str(new.get("pan", "center")).strip().lower()
+    for index, (motion_scene, map_scene) in enumerate(zip(motion_scenes, map_scenes), start=1):
+        new = dict(motion_scene)
+        for key in ("visual_mode", "shot_type", "narrative_role", "segment"):
+            if key in map_scene:
+                new[key] = map_scene[key]
 
-        if not profile:
-            raise ValueError(f"motion_profile ausente na cena {index}")
+        media = str(new.get("media_type", "")).strip().lower()
         if media not in {"photo", "video"}:
             raise ValueError(f"media_type inválido na cena {index}: {media!r}")
-        if pan not in {"none", "center", "left", "right"}:
-            raise ValueError(f"pan inválido na cena {index}: {pan!r}")
 
-        energy = energia_base(index, total)
-        if index == 1:
-            energy = 5
-        if mode in CALMOS:
-            energy = min(energy, 3)
-        visual_energy = 0 if media == "video" else energy
+        start = finite_float(new.get("zoom_start", 1.0), f"zoom_start cena {index}")
+        finite_float(new.get("zoom_end", 1.06), f"zoom_end cena {index}")
 
-        if media == "photo" and pan in {"left", "right"} and pan == previous_pan:
-            pan = "right" if pan == "left" else "left"
+        new = apply_editorial_policy(new, index, total, previous_pan)
 
-        if media == "photo" and profile == previous_profile and mode not in CALMOS and pan == "center":
-            pan = "left" if index % 2 == 0 else "right"
-
-        zoom_start, zoom_end = ajustar_zoom(new, energy)
-        new["energy"] = energy
-        new["visual_energy"] = visual_energy
-        new["zoom_start"] = round(zoom_start, 4)
-        new["zoom_end"] = round(zoom_end, 4)
-        new["pan"] = pan
-
-        if media == "photo":
-            new["rhythm_profile"] = (
-                "hook" if index == 1 else
-                "calm_documentary" if mode in CALMOS else
-                "dynamic" if energy >= 4 else
-                "balanced"
-            )
+        if media == "video":
+            new["zoom_start"] = 1.0
+            new["zoom_end"] = 1.0
+            new["pan"] = "none"
         else:
-            new["rhythm_profile"] = "native_video"
+            start = max(1.0, min(start, 1.045))
+            amplitude = finite_float(
+                new.get("editorial_amplitude", 0.05),
+                f"editorial_amplitude cena {index}",
+            )
+            end = max(start, min(start + amplitude, 1.105))
+            new["zoom_start"] = round(start, 4)
+            new["zoom_end"] = round(end, 4)
 
         result.append(new)
-        previous_profile = profile
-        previous_pan = pan
+        previous_pan = new.get("pan")
 
     return result
 
@@ -186,10 +128,20 @@ def audit_result(result):
     if [item.get("scene") for item in result] != list(range(1, EXPECTED_SCENES + 1)):
         problems.append("scene_numbering_invalid")
 
+    photo_profiles = []
+    for item in result:
+        if item.get("media_type") == "photo":
+            photo_profiles.append(item.get("rhythm_profile"))
+        if item.get("editorial_policy") != "humanized_v1":
+            problems.append(f"editorial_policy_missing_scene_{item.get('scene')}")
+
     for index in range(2, len(result)):
         pans = [result[index-2].get("pan"), result[index-1].get("pan"), result[index].get("pan")]
         if pans[0] == pans[1] == pans[2] and pans[0] in {"left", "right"}:
             problems.append(f"pan_triplo_cena_{index + 1}")
+
+    if len(photo_profiles) >= 4 and len(set(photo_profiles)) < 2:
+        problems.append("editorial_profile_variety_low")
     return problems
 
 
@@ -205,21 +157,26 @@ def main():
         if [int(x["scene"]) for x in motion_scenes] != [int(x["scene"]) for x in map_scenes]:
             raise ValueError("motion_plan e scene_map divergem na numeração")
 
-        result = build_rhythm(motion_scenes)
+        result = build_rhythm(motion_scenes, map_scenes)
         problems = audit_result(result)
         if problems:
             raise ValueError("; ".join(problems))
 
         original_motion = dict(motion)
         updated_motion = dict(motion)
-        updated_motion["version"] = "4.4"
-        updated_motion["rhythm_director"] = {"applied": True, "problems": []}
+        updated_motion["version"] = "5.0"
+        updated_motion["rhythm_director"] = {
+            "applied": True,
+            "policy": "humanized_v1",
+            "problems": [],
+        }
         updated_motion["scenes"] = result
 
         rhythm_payload = {
             "short_id": SHORT_ID,
-            "version": "4.4",
+            "version": "5.0",
             "expected_scenes": EXPECTED_SCENES,
+            "policy": "humanized_v1",
             "problems": [],
             "scenes": result,
         }
@@ -233,13 +190,14 @@ def main():
 
     print()
     print("================================")
-    print("MONTAGE RHYTHM DIRECTOR 4.4")
+    print("MONTAGE RHYTHM DIRECTOR 5.0")
     print("================================")
     print()
     for scene in result:
-        print(f"{scene['scene']:02d}. energy={scene['energy']} {scene['rhythm_profile']:<18} {scene['media_type']}")
+        print(f"{scene['scene']:02d}. energy={scene['energy']} {scene['rhythm_profile']:<20} {scene['media_type']}")
         print(f"    motion={scene['motion_profile']} | zoom={scene['zoom_start']:.3f}->{scene['zoom_end']:.3f} | pan={scene['pan']}")
     print()
+    print("EDITORIAL POLICY: humanized_v1")
     print("RHYTHM QUALITY: PASS")
     print(f"Plano:\n{OUTPUT}")
     print()
