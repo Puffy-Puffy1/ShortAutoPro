@@ -3,7 +3,7 @@
 set -u
 set -o pipefail
 
-BASE="$HOME/ShortAutoPro"
+BASE="${SHORTAUTOPRO_BASE:-$HOME/ShortAutoPro}"
 COOLDOWN="${SHORT_BATCH_COOLDOWN:-20}"
 
 if ! [[ "$COOLDOWN" =~ ^[0-9]+$ ]]; then COOLDOWN=20; fi
