@@ -1,0 +1,88 @@
+{
+  "default": {
+    "language": "pt-BR",
+    "scene_count": 12,
+    "target_duration_seconds": 55,
+    "voice": "pt_BR-faber-medium",
+    "captions": {
+      "max_words_per_event": 7,
+      "max_lines": 2,
+      "safe_bottom_ratio": 0.16,
+      "highlight_keywords": true
+    },
+    "audio": {
+      "target_lufs": -14,
+      "true_peak_db": -1.5,
+      "music_ducking_db": -12,
+      "punctuation_pauses": true
+    },
+    "visual": {
+      "minimum_score": 78,
+      "max_adjacent_similarity": 0.55,
+      "prefer_motion": true,
+      "retry_weak_scenes": true
+    }
+  },
+  "true_crime": {
+    "language": "pt-BR",
+    "target_duration_seconds": 58,
+    "captions": {
+      "max_words_per_event": 6,
+      "highlight_keywords": true
+    },
+    "visual": {
+      "minimum_score": 82,
+      "prefer_motion": true,
+      "retry_weak_scenes": true
+    },
+    "narrative": {
+      "tone": "documentary_suspense",
+      "hook_style": "high_curiosity",
+      "cta_style": "subtle"
+    }
+  },
+  "cinepulsar": {
+    "language": "pt-BR",
+    "target_duration_seconds": 55,
+    "captions": {
+      "max_words_per_event": 6,
+      "highlight_keywords": true
+    },
+    "narrative": {
+      "tone": "cinematic_entertainment",
+      "hook_style": "fast",
+      "cta_style": "engagement"
+    }
+  },
+  "psicotoon": {
+    "language": "pt-BR",
+    "target_duration_seconds": 50,
+    "captions": {
+      "max_words_per_event": 5,
+      "highlight_keywords": true
+    },
+    "visual": {
+      "minimum_score": 80,
+      "prefer_motion": false,
+      "retry_weak_scenes": true
+    },
+    "narrative": {
+      "tone": "retro_ps1_ps2",
+      "hook_style": "nostalgia",
+      "cta_style": "community"
+    }
+  },
+  "english": {
+    "language": "en-US",
+    "target_duration_seconds": 55,
+    "captions": {
+      "max_words_per_event": 6,
+      "highlight_keywords": true
+    },
+    "narrative": {
+      "tone": "international_short_form",
+      "hook_style": "fast",
+      "cta_style": "engagement"
+    }
+  }
+}
