@@ -7,7 +7,7 @@ BASE="$HOME/ShortAutoPro"
 
 echo
 echo "======================================"
-echo " SHORTAUTO PRO - HEALTH CHECK 2.4"
+echo " SHORTAUTO PRO - HEALTH CHECK 2.5"
 echo "======================================"
 echo
 
@@ -32,7 +32,7 @@ ARQUIVOS=(
     semantic_integrity_gate.py wikimedia_source.py wikimedia_query_bridge.py source_router.py evidence_guard.py
     midia.py midia_runtime.py visual_pipeline_bridge_v42.py visual_selection_engine_v4.py visual_intelligence_6.py
     vi6_8_runtime_policy.py vi6_9_runtime_policy.py media_master_gate.py motion_director.py rhythm_director.py
-    production_supervisor.py editorial_gate.py audio.py legenda_dinamica.py subtitle_alignment.py video.py v6.py quality_check.py
+    production_supervisor.py editorial_gate.py audio.py legenda_dinamica.py subtitle_alignment.py video.py v6.py v6_runtime.py quality_check.py
     publish_pack.py source_ledger.py publish_integrity_gate.py production_manifest.py final_quality.py register_topic.py
     limpar_storage.sh batch_report.py batch_queue.sh batch_recovery.sh control_center.sh
     preflight_check.sh diagnostico.sh release_check.sh
@@ -78,8 +78,7 @@ else
     ERROS=$((ERROS + 1))
 fi
 
-# Catch nested local dependencies used by the active media selector. This is
-# import-only and does not execute midia.py or perform network/media work.
+# Catch local runtime dependencies without starting production work.
 if (
     cd "$BASE" &&
     python - <<'PY' >/dev/null 2>&1
@@ -87,17 +86,19 @@ import importlib
 
 for name in (
     "midia_runtime",
-    "visual_pipeline_bridge_v42",
-    "visual_intelligence_6",
-    "vi6_8_runtime_policy",
-    "vi6_9_runtime_policy",
+    "subtitle_alignment",
+    "topic_memory",
+    "topic_reserve",
+    "source_identity",
+    "wiki_client",
+    "v6_runtime",
 ):
     importlib.import_module(name)
 PY
 ); then
-    echo "OK  imports runtime Smart Media Selector"
+    echo "OK  imports runtime críticos"
 else
-    echo "ERRO  imports runtime Smart Media Selector"
+    echo "ERRO  imports runtime críticos"
     ERROS=$((ERROS + 1))
 fi
 
