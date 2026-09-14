@@ -4,7 +4,6 @@ import json
 import math
 import os
 import re
-import sys
 import tempfile
 from datetime import date
 from pathlib import Path
@@ -14,7 +13,7 @@ SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat()).strip()
 
 try:
     QTD_CENAS = int(os.getenv("SHORT_QTD_CENAS", "12"))
-except ValueError:
+except (TypeError, ValueError):
     QTD_CENAS = 12
 QTD_CENAS = max(6, min(QTD_CENAS, 20))
 
@@ -23,6 +22,28 @@ PUBLISH = BASE / "roteiros" / f"publish_{SHORT_ID}.json"
 ROTEIRO = BASE / "roteiros" / f"short_{SHORT_ID}.txt"
 HOOK = BASE / "roteiros" / f"hook_{SHORT_ID}.txt"
 SAIDA = BASE / "manifests" / f"{SHORT_ID}_quality.json"
+
+MANIFEST_REQUIRED_FLAGS = (
+    "video_exists",
+    "scene_map_numbering_ok",
+    "media_numbering_ok",
+    "resolution_ok",
+    "fps_ok",
+    "video_codec_ok",
+    "audio_exists",
+    "audio_codec_ok",
+    "duration_ok",
+    "topic_exists",
+    "hook_exists",
+    "script_exists",
+    "source_exists",
+    "publish_exists",
+    "publish_title_exists",
+    "publish_description_exists",
+    "publish_hashtags_ok",
+    "publish_integrity_pass",
+    "source_ledger_exists",
+)
 
 
 def ler_json(path: Path):
@@ -129,19 +150,17 @@ def avaliar(manifest, publish, roteiro, hook):
     video = dict_seguro(manifest.get("video", {}))
     scenes = dict_seguro(manifest.get("scenes", {}))
 
+    for flag in MANIFEST_REQUIRED_FLAGS:
+        if not quality.get(flag):
+            critical.append(f"manifest_quality_failed={flag}")
+
     visual_score = 0.0
     if quality.get("resolution_ok"):
         visual_score += 7
-    else:
-        critical.append("resolution_not_verified")
     if quality.get("fps_ok"):
         visual_score += 5
-    else:
-        critical.append("fps_not_verified")
     if quality.get("audio_exists"):
         visual_score += 5
-    else:
-        critical.append("audio_not_verified")
 
     scene_count = scenes.get("count", 0)
     physical_count = scenes.get("physical_count", 0)
@@ -220,7 +239,7 @@ def main():
 
     print()
     print("================================")
-    print("FINAL QUALITY SCORE - 2.5.0")
+    print("FINAL QUALITY SCORE - 2.5.1")
     print("================================")
     print()
     print(f"Roteiro: {resultado['components']['script']:.1f}/25")
