@@ -169,5 +169,13 @@ manifests/source_provenance_live/
 historico_assuntos.json
 historico_assuntos.json.lock
 
+# Artefatos de execução datados. Mantemos os arquivos antigos já versionados,
+# mas novas produções ficam locais e não poluem o status do Git.
+credits/attribution_20*.txt
+credits/ledger_20*.json
+credits/short_20*.txt
+manifests/20*.json
+roteiros/supervisor_20*.json
+
 # resultados locais de auditoria
 score_candidate_binding_audit.json
