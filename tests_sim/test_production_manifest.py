@@ -41,6 +41,8 @@ class ProductionManifestTests(unittest.TestCase):
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
             self.assertEqual(manifest["status"], "INCOMPLETE")
             self.assertFalse(manifest["quality"]["video_exists"])
+            self.assertFalse(manifest["quality"]["video_codec_ok"])
+            self.assertFalse(manifest["quality"]["audio_codec_ok"])
 
     def test_complete_synthetic_v6_contract_can_pass_without_real_render(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -127,6 +129,8 @@ class ProductionManifestTests(unittest.TestCase):
             payload = json.loads(result.stdout.strip())
             self.assertTrue(payload["ok"], payload["quality"])
             self.assertEqual(payload["status"], "QUALITY_PASS")
+            self.assertTrue(payload["quality"]["video_codec_ok"])
+            self.assertTrue(payload["quality"]["audio_codec_ok"])
 
     def test_overlong_duration_blocks_manifest(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -146,6 +150,41 @@ class ProductionManifestTests(unittest.TestCase):
             )
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertIn("False False", result.stdout)
+
+    def test_wrong_codecs_block_manifest(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            probe = {
+                "streams": [
+                    {
+                        "codec_type": "video",
+                        "codec_name": "vp9",
+                        "width": 1080,
+                        "height": 1920,
+                        "avg_frame_rate": "30/1",
+                    },
+                    {"codec_type": "audio", "codec_name": "opus"},
+                ],
+                "format": {"duration": "45"},
+            }
+            code = (
+                "import json, production_manifest as p; "
+                f"m, ok = p.build_manifest({probe!r}); "
+                "print(json.dumps({'ok': ok, 'video': m['quality']['video_codec_ok'], 'audio': m['quality']['audio_codec_ok']}))"
+            )
+            result = subprocess.run(
+                [sys.executable, "-c", code],
+                cwd=str(REPO),
+                env=self.base_env(base),
+                capture_output=True,
+                text=True,
+                timeout=20,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            payload = json.loads(result.stdout.strip())
+            self.assertFalse(payload["ok"])
+            self.assertFalse(payload["video"])
+            self.assertFalse(payload["audio"])
 
 
 if __name__ == "__main__":
