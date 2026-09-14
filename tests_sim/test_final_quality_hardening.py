@@ -16,17 +16,25 @@ class FinalQualityHardeningTests(unittest.TestCase):
             base = Path(tmp)
             roteiros = base / "roteiros"
             roteiros.mkdir(parents=True)
-            (roteiros / "short_case.txt").write_text(" ".join(["palavra"] * 110), encoding="utf-8")
-            (roteiros / "hook_case.txt").write_text("Este mistério nunca deixou de gerar perguntas", encoding="utf-8")
-            (roteiros / "publish_case.json").write_text('{"publish_score": 90}', encoding="utf-8")
+            (roteiros / "short_case.txt").write_text(
+                " ".join(["palavra"] * 110), encoding="utf-8"
+            )
+            (roteiros / "hook_case.txt").write_text(
+                "Este mistério nunca deixou de gerar perguntas", encoding="utf-8"
+            )
+            (roteiros / "publish_case.json").write_text(
+                '{"publish_score": 90}', encoding="utf-8"
+            )
 
             env = os.environ.copy()
-            env.update({
-                "SHORTAUTOPRO_BASE": str(base),
-                "SHORT_ID": "case",
-                "SHORT_QTD_CENAS": "6",
-                "PYTHONIOENCODING": "utf-8",
-            })
+            env.update(
+                {
+                    "SHORTAUTOPRO_BASE": str(base),
+                    "SHORT_ID": "case",
+                    "SHORT_QTD_CENAS": "6",
+                    "PYTHONIOENCODING": "utf-8",
+                }
+            )
             result = subprocess.run(
                 [sys.executable, str(SCRIPT)],
                 cwd=str(REPO),
