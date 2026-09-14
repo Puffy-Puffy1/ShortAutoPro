@@ -1,6 +1,7 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
 set -u
+set -o pipefail
 
 BASE="$HOME/ShortAutoPro"
 ERROS=0
@@ -12,7 +13,7 @@ erro() { echo "ERRO   $1"; ERROS=$((ERROS + 1)); }
 
 echo
 echo "======================================"
-echo " SHORTAUTO PRO - PREFLIGHT CHECK 2.2"
+echo " SHORTAUTO PRO - PREFLIGHT CHECK 2.3"
 echo "======================================"
 echo
 
@@ -37,6 +38,9 @@ for cmd in python ffmpeg ffprobe piper bash; do
     fi
 done
 
+# Somente componentes usados pelo pipeline principal são obrigatórios.
+# v5.py pode permanecer no repositório por histórico, mas não é fallback
+# de produção e portanto não bloqueia o preflight.
 ARQUIVOS=(
     gerar_short.sh
     topic_engine.py topic_memory.py topic_reserve.py topic_index.py wiki_client.py source_identity.py
@@ -45,7 +49,7 @@ ARQUIVOS=(
     visual_risk_guard.py editorial_continuity.py scene_lossless_repair.py post_script_truth_lock.py
     semantic_integrity_gate.py wikimedia_source.py wikimedia_query_bridge.py source_router.py evidence_guard.py
     midia.py media_master_gate.py motion_director.py rhythm_director.py production_supervisor.py editorial_gate.py
-    audio.py legenda_dinamica.py video.py v6.py v5.py quality_check.py publish_pack.py source_ledger.py
+    audio.py legenda_dinamica.py video.py v6.py quality_check.py publish_pack.py source_ledger.py
     publish_integrity_gate.py production_manifest.py final_quality.py register_topic.py
     health_check.sh limpar_storage.sh batch_queue.sh batch_recovery.sh control_center.sh
 )
@@ -90,10 +94,12 @@ if [ -f "$BASE/historico_assuntos.json" ]; then
 import json
 import os
 from pathlib import Path
+
 p = Path(os.environ["BASE_CHECK"]) / "historico_assuntos.json"
 with p.open(encoding="utf-8") as f:
     d = json.load(f)
 assert isinstance(d, list)
+assert all(isinstance(item, dict) for item in d)
 PY
     then
         ok "historico_assuntos.json"
@@ -104,7 +110,10 @@ else
     aviso "histórico ainda não existe"
 fi
 
-SHELL_FILES=(gerar_short.sh health_check.sh limpar_storage.sh batch_queue.sh batch_recovery.sh control_center.sh preflight_check.sh diagnostico.sh release_check.sh)
+SHELL_FILES=(
+    gerar_short.sh health_check.sh limpar_storage.sh batch_queue.sh batch_recovery.sh
+    control_center.sh preflight_check.sh diagnostico.sh release_check.sh
+)
 for arq in "${SHELL_FILES[@]}"; do
     if [ -f "$BASE/$arq" ]; then
         if bash -n "$BASE/$arq" >/dev/null 2>&1; then ok "sintaxe $arq"; else erro "erro de sintaxe em $arq"; fi
@@ -118,7 +127,7 @@ PY_FILES=(
     visual_risk_guard.py editorial_continuity.py scene_lossless_repair.py post_script_truth_lock.py
     semantic_integrity_gate.py wikimedia_source.py wikimedia_query_bridge.py source_router.py evidence_guard.py
     midia.py media_master_gate.py motion_director.py rhythm_director.py production_supervisor.py editorial_gate.py
-    audio.py legenda_dinamica.py video.py v6.py v5.py quality_check.py publish_pack.py source_ledger.py
+    audio.py legenda_dinamica.py video.py v6.py quality_check.py publish_pack.py source_ledger.py
     publish_integrity_gate.py production_manifest.py final_quality.py register_topic.py
 )
 
@@ -132,7 +141,6 @@ echo
 echo "======================================"
 echo " PREFLIGHT RESULTADO"
 echo "======================================"
-echo
 echo "Erros: $ERROS"
 echo "Avisos: $AVISOS"
 echo
