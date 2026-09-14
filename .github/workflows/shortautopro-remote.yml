@@ -37,6 +37,9 @@ jobs:
   remote-control:
     runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 15
+    env:
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: "utf-8"
 
     steps:
       - name: Checkout ShortAutoPro
@@ -106,6 +109,8 @@ jobs:
           echo ======================================
           echo SHORTAUTOPRO SIMULATED REGRESSION TESTS
           echo ======================================
+          python -m pip install --disable-pip-version-check --quiet requests
+          if errorlevel 1 exit /b 1
           python -m unittest discover -s tests_sim -p "test_*.py" -v
           if errorlevel 1 exit /b 1
           echo SIM_TESTS=PASS
