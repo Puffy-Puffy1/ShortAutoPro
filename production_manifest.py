@@ -195,6 +195,8 @@ def build_manifest(probe_data=None):
 
     info = probe_data if isinstance(probe_data, dict) else ffprobe(VIDEO)
     duration, width, height, fps, video_codec, audio_codec = inspect_video(info)
+    video_codec_normalized = video_codec.strip().lower()
+    audio_codec_normalized = audio_codec.strip().lower()
 
     media_files = media_inventory(MEDIA_DIR)
     media_numbers = []
@@ -234,7 +236,9 @@ def build_manifest(probe_data=None):
         "media_numbering_ok": media_numbering_ok,
         "resolution_ok": width == 1080 and height == 1920,
         "fps_ok": 29.0 <= fps <= 31.0,
+        "video_codec_ok": video_codec_normalized == "h264",
         "audio_exists": bool(audio_codec),
+        "audio_codec_ok": audio_codec_normalized == "aac",
         "duration_ok": 15.0 <= duration <= 180.0,
         "topic_exists": bool(topic),
         "hook_exists": bool(hook),
@@ -304,7 +308,7 @@ def main() -> int:
 
     print()
     print("================================")
-    print("PRODUCTION MANIFEST - 2.1")
+    print("PRODUCTION MANIFEST - 2.2")
     print("================================")
     print(f"ID: {SHORT_ID}")
     print(f"Status: {manifest['status']}")
@@ -313,7 +317,8 @@ def main() -> int:
     video = manifest["video"]
     print(
         f"Vídeo: {video['width']}x{video['height']} "
-        f"{video['fps']:.2f}fps {video['duration_seconds']:.2f}s"
+        f"{video['fps']:.2f}fps {video['duration_seconds']:.2f}s "
+        f"{video['video_codec'] or '?'}+{video['audio_codec'] or '?'}"
     )
     print(f"Manifest: {SAIDA}")
     print()
