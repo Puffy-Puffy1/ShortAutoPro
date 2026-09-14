@@ -5,8 +5,9 @@ import re
 from datetime import date
 
 
-BASE = os.path.expanduser(
-    "~/ShortAutoPro"
+BASE = os.getenv(
+    "SHORTAUTOPRO_BASE",
+    os.path.expanduser("~/ShortAutoPro")
 )
 
 SHORT_ID = os.getenv(
