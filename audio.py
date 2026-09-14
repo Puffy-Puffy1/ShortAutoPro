@@ -7,7 +7,7 @@ import subprocess
 import sys
 from datetime import date
 
-BASE = os.path.expanduser("~/ShortAutoPro")
+BASE = os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))
 SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat())
 ROTEIRO = os.path.join(BASE, "roteiros", f"short_{SHORT_ID}.txt")
 AUDIO_DIR = os.path.join(BASE, "audios")
