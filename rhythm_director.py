@@ -129,14 +129,15 @@ def audit_result(result):
         problems.append("scene_numbering_invalid")
 
     photo_profiles = []
-    centered_human = 0
-    human_count = 0
+    centered_human_photos = 0
+    human_photo_count = 0
     for item in result:
-        if item.get("media_type") == "photo":
+        media = str(item.get("media_type", "")).strip().lower()
+        if media == "photo":
             photo_profiles.append(item.get("rhythm_profile"))
         if item.get("editorial_policy") != "humanized_v4":
             problems.append(f"editorial_policy_missing_scene_{item.get('scene')}")
-        if item.get("media_type") == "photo":
+        if media == "photo":
             try:
                 amplitude = float(item.get("zoom_end", 1.0)) - float(item.get("zoom_start", 1.0))
             except (TypeError, ValueError):
@@ -144,10 +145,10 @@ def audit_result(result):
             if amplitude > 0.0401:
                 problems.append(f"zoom_amplitude_excess_scene_{item.get('scene')}")
         mode = str(item.get("visual_mode", "")).strip().lower()
-        if mode in {"human_context", "portrait", "person", "people"}:
-            human_count += 1
+        if media == "photo" and mode in {"human_context", "portrait", "person", "people"}:
+            human_photo_count += 1
             if item.get("pan") == "center":
-                centered_human += 1
+                centered_human_photos += 1
 
     for index in range(2, len(result)):
         pans = [result[index-2].get("pan"), result[index-1].get("pan"), result[index].get("pan")]
@@ -156,7 +157,7 @@ def audit_result(result):
 
     if len(photo_profiles) >= 4 and len(set(photo_profiles)) < 2:
         problems.append("editorial_profile_variety_low")
-    if human_count and centered_human != human_count:
+    if human_photo_count and centered_human_photos != human_photo_count:
         problems.append("human_subject_pan_not_centered")
     return problems
 
