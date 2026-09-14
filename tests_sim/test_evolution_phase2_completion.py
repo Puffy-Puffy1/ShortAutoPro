@@ -110,6 +110,9 @@ class ResumeBoundaryTests(unittest.TestCase):
         supervisor = self.base / "roteiros" / f"supervisor_{self.sid}.json"
         supervisor.write_text(json.dumps({"status": "PASS"}), encoding="utf-8")
 
+        media_quality = self.base / "roteiros" / f"media_quality_{self.sid}.json"
+        media_quality.write_text(json.dumps({"status": "PASS", "critical": []}), encoding="utf-8")
+
         state = self.base / ".sap_state" / f"{self.sid}.json"
         state.parent.mkdir(parents=True)
         state.write_text(json.dumps({
@@ -149,6 +152,14 @@ class ResumeBoundaryTests(unittest.TestCase):
 
     def test_resume_falls_back_to_full_when_supervisor_proof_missing(self):
         (self.base / "roteiros" / f"supervisor_{self.sid}.json").unlink()
+        self.assertEqual(rsr.boundary(self.sid), "full")
+
+    def test_resume_falls_back_to_full_when_media_gate_blocked(self):
+        quality = self.base / "roteiros" / f"media_quality_{self.sid}.json"
+        quality.write_text(json.dumps({
+            "status": "BLOCK",
+            "critical": ["very_low_resolution:scene_09.jpg"],
+        }), encoding="utf-8")
         self.assertEqual(rsr.boundary(self.sid), "full")
 
     def test_render_boundary_can_skip_to_final_gates(self):
