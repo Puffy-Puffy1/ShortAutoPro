@@ -1,6 +1,6 @@
 import unittest
 
-from publish_pack import normalize_hashtag, validate_payload
+from publish_pack import normalize_hashtag, parse_json_response, validate_payload
 
 
 class PublishPackTests(unittest.TestCase):
@@ -66,6 +66,18 @@ class PublishPackTests(unittest.TestCase):
     def test_hashtag_normalizer_rejects_punctuation(self):
         self.assertEqual(normalize_hashtag(" #MH370 "), "#MH370")
         self.assertEqual(normalize_hashtag("#foo/bar"), "")
+
+    def test_json_parser_accepts_fenced_object(self):
+        raw = '```json\n{"titles": ["a", "b", "c"]}\n```'
+        self.assertEqual(parse_json_response(raw)["titles"], ["a", "b", "c"])
+
+    def test_json_parser_extracts_object_from_harmless_prose(self):
+        raw = 'Aqui está o JSON:\n{"titles": ["a", "b", "c"]}\nFim.'
+        self.assertEqual(parse_json_response(raw)["titles"], ["a", "b", "c"])
+
+    def test_json_parser_rejects_truncated_json(self):
+        with self.assertRaises(ValueError):
+            parse_json_response('{"titles": ["a", "b"')
 
 
 if __name__ == "__main__":
