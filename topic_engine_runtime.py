@@ -110,17 +110,20 @@ def verify_exact(topic: str) -> dict:
                 continue
             identity = validar_identidade(topic, title, text)
             score = float(identity.get("score", 0.0) or 0.0)
+            candidate = {
+                "topic": topic,
+                "wiki_title": title,
+                "wiki_chars": len(text),
+                "identity_score": round(score, 4),
+                "identity_reason": identity.get("reason", ""),
+                "valid": bool(identity.get("valid")),
+            }
             if best is None or score > best["identity_score"]:
-                best = {
-                    "topic": topic,
-                    "wiki_title": title,
-                    "wiki_chars": len(text),
-                    "identity_score": round(score, 4),
-                    "identity_reason": identity.get("reason", ""),
-                    "valid": bool(identity.get("valid")),
-                }
-            if identity.get("valid"):
-                return best
+                best = candidate
+            # A validade factual tem prioridade sobre um score alto de um
+            # candidato que o identity gate marcou como inválido.
+            if candidate["valid"]:
+                return candidate
     return best or {
         "topic": topic,
         "wiki_title": "",
