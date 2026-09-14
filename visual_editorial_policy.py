@@ -3,19 +3,20 @@
 
 Termux-safe rules for a less template-like documentary edit:
 - narrative-role-aware visual energy;
-- calmer evidence, maps, documents and human portraits;
-- restrained hook/reveal emphasis;
+- portrait, evidence, map and document shots remain deliberately calm;
+- restrained hook/reveal emphasis instead of exaggerated Ken Burns motion;
 - non-mechanical directional grammar with deliberate breathing beats;
-- smaller, more editorial zoom amplitudes;
-- deliberate ending hold.
+- smaller shot-aware zoom amplitudes;
+- stable ending hold.
 """
 
 from __future__ import annotations
 
-CALM_MODES = {"document", "evidence", "map_context"}
+CALM_MODES = {"document", "evidence", "map_context", "archive", "archival"}
 DETAIL_SHOTS = {"detail", "close", "closeup", "close_up", "macro"}
 WIDE_SHOTS = {"wide", "wide_shot", "establishing", "long", "long_shot", "aerial", "landscape"}
-HUMAN_MODES = {"human_context", "portrait", "person"}
+HUMAN_MODES = {"human_context", "portrait", "person", "people"}
+OBJECT_MODES = {"object", "architecture", "transport"}
 CALM_ROLES = {
     "context",
     "background",
@@ -49,14 +50,14 @@ def editorial_energy(
     shot = _norm(shot_type)
     role = _norm(narrative_role)
 
-    # A professional hook should feel intentional, not like a template punch.
+    # Hooks should feel intentional rather than mechanically aggressive.
     if scene_number == 1:
-        return 4
+        return 3 if mode in CALM_MODES | HUMAN_MODES else 4
     if scene_number == total:
-        return 2
+        return 1 if role in CENTER_ROLES or mode in CALM_MODES else 2
 
     progress = scene_number / max(total, 1)
-    energy = 2 if progress <= 0.25 else 3 if progress <= 0.55 else 4 if progress <= 0.78 else 3
+    energy = 2 if progress <= 0.25 else 3 if progress <= 0.58 else 4 if progress <= 0.78 else 3
 
     if role in HIGH_ROLES:
         energy = max(energy, 4)
@@ -64,18 +65,20 @@ def editorial_energy(
         energy = min(energy, 3)
 
     if mode in CALM_MODES:
-        energy = min(energy, 2 if shot in DETAIL_SHOTS else 3)
+        energy = min(energy, 2)
     elif mode in HUMAN_MODES:
+        energy = min(energy, 2 if shot in DETAIL_SHOTS else 3)
+    elif mode in OBJECT_MODES and shot in DETAIL_SHOTS:
         energy = min(energy, 3)
 
-    if shot in DETAIL_SHOTS and mode not in CALM_MODES:
+    if shot in DETAIL_SHOTS and mode not in CALM_MODES | HUMAN_MODES:
         energy = min(energy + 1, 4)
     elif shot in WIDE_SHOTS:
         energy = max(2, energy - 1)
 
-    # Two subtle breathing beats in a 10-14 scene short keep the arc from feeling
-    # mechanically energetic all the way through. They never suppress a reveal.
-    if total >= 10 and scene_number in {4, max(5, total - 3)} and role not in HIGH_ROLES:
+    # Breathing beats keep the edit from feeling like a repeating template.
+    breathing = {4, max(5, total - 3)}
+    if total >= 10 and scene_number in breathing and role not in HIGH_ROLES:
         energy = min(energy, 2)
 
     return max(1, min(4, energy))
@@ -96,6 +99,8 @@ def editorial_pan(
     pan = _norm(current_pan)
     prev = _norm(previous_pan)
 
+    # Faces, documents and evidence read more professionally when the frame is
+    # stable. Let the small zoom do the work instead of sliding the subject.
     if (
         mode in CALM_MODES
         or mode in HUMAN_MODES
@@ -105,9 +110,9 @@ def editorial_pan(
     ):
         return "center"
 
-    # Deliberate centered holds make the edit breathe and break predictable
-    # left/right alternation. Avoid forcing them on wide establishing shots.
-    if (scene_number % 3 == 0 or scene_number in {4, max(5, total - 3)}) and shot not in WIDE_SHOTS:
+    # Deliberate centered holds break robotic left/right alternation.
+    breathing = {3, 4, max(5, total - 3)}
+    if scene_number in breathing and shot not in WIDE_SHOTS and role not in HIGH_ROLES:
         return "center"
 
     if shot in WIDE_SHOTS:
@@ -126,20 +131,24 @@ def zoom_amplitude(energy, visual_mode, shot_type, narrative_role=""):
     mode = _norm(visual_mode)
     shot = _norm(shot_type)
     role = _norm(narrative_role)
+    energy = int(energy)
 
-    # Humanized v3 intentionally stays below the previous 7% ceiling. Small
-    # movements read more like editorial reframing and less like Ken Burns.
+    # Humanized v4 intentionally caps movement below 4%. The previous policy
+    # could still look like a preset on medium shots. These values create a
+    # restrained editorial reframe while keeping enough motion for Shorts.
     if mode in CALM_MODES or role in CENTER_ROLES:
-        table = {1: 0.008, 2: 0.014, 3: 0.021, 4: 0.029}
+        table = {1: 0.004, 2: 0.008, 3: 0.014, 4: 0.020}
     elif mode in HUMAN_MODES:
-        table = {1: 0.008, 2: 0.014, 3: 0.022, 4: 0.031}
+        table = {1: 0.004, 2: 0.009, 3: 0.016, 4: 0.022}
     elif shot in DETAIL_SHOTS:
-        table = {1: 0.010, 2: 0.017, 3: 0.026, 4: 0.036}
+        table = {1: 0.006, 2: 0.011, 3: 0.019, 4: 0.027}
     elif shot in WIDE_SHOTS:
-        table = {1: 0.011, 2: 0.019, 3: 0.029, 4: 0.041}
+        table = {1: 0.008, 2: 0.014, 3: 0.023, 4: 0.034}
+    elif mode in OBJECT_MODES:
+        table = {1: 0.006, 2: 0.012, 3: 0.020, 4: 0.029}
     else:
-        table = {1: 0.012, 2: 0.021, 3: 0.033, 4: 0.048}
-    return table.get(int(energy), 0.03)
+        table = {1: 0.007, 2: 0.013, 3: 0.022, 4: 0.036}
+    return table.get(energy, 0.018)
 
 
 def rhythm_label(
@@ -166,7 +175,7 @@ def rhythm_label(
     if mode in CALM_MODES or role in CENTER_ROLES:
         return "documentary_hold"
     if mode in HUMAN_MODES:
-        return "human_hold"
+        return "portrait_hold"
     if shot in DETAIL_SHOTS:
         return "detail_emphasis"
     if int(energy) >= 4:
@@ -206,7 +215,7 @@ def apply_editorial_policy(scene, scene_number, total, previous_pan=None):
         energy,
         role,
     )
-    new["editorial_policy"] = "humanized_v3"
+    new["editorial_policy"] = "humanized_v4"
     new["editorial_amplitude"] = (
         0.0 if media == "video" else zoom_amplitude(energy, mode, shot, role)
     )
