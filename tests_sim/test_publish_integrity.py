@@ -1,7 +1,7 @@
 import math
 import unittest
 
-from publish_integrity_gate import audit
+from publish_integrity_gate import audit, numeric_tokens
 
 
 PUBLISH_TEXT = """TÍTULO:
@@ -83,6 +83,18 @@ class PublishIntegrityTests(unittest.TestCase):
         result = audit(text, payload, SCRIPT, SOURCE, TOPIC)
         self.assertEqual(result["status"], "BLOCK")
         self.assertIn("unsupported_numbers=371", result["critical"])
+
+    def test_exact_decade_anchor_authorizes_common_shorthand(self):
+        tokens = numeric_tokens("O caso começou na década de 1960 e continuou até 1974.")
+        self.assertIn("1960", tokens)
+        self.assertIn("60", tokens)
+        self.assertIn("1974", tokens)
+
+    def test_arbitrary_year_does_not_authorize_decade_shorthand(self):
+        tokens = numeric_tokens("O caso começou em 1968.")
+        self.assertIn("1968", tokens)
+        self.assertNotIn("68", tokens)
+        self.assertNotIn("60", tokens)
 
 
 if __name__ == "__main__":
