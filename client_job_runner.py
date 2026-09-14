@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Execute ShortAutoPro client jobs safely and resumably.
 
-Jobs are created by shortautopro_evolution.py client-job and live under the
-ignored runtime directory reports/evolution/client_jobs. This runner never
-needs GitHub credentials; it only orchestrates the local production script.
+Jobs are created by client_job_create.py and live under the ignored runtime
+reports/evolution/client_jobs directory. English production is intentionally
+blocked until its dedicated future phase.
 """
 
 from __future__ import annotations
@@ -76,6 +76,9 @@ def validate_job(job: dict[str, Any]) -> None:
         raise SystemExit("ERRO: quantity inválida.")
     if not 1 <= qty <= 100:
         raise SystemExit("ERRO: quantity precisa estar entre 1 e 100.")
+    language = str(job.get("language", "pt-BR")).strip() or "pt-BR"
+    if not language.lower().startswith("pt"):
+        raise SystemExit("ERRO: jobs em inglês estão desabilitados nesta fase; use PT-BR.")
     if not PROFILE_RUN.is_file():
         raise SystemExit(f"ERRO: profile_run.sh não encontrado: {PROFILE_RUN}")
 
@@ -114,7 +117,7 @@ def run_job(path: Path, job: dict[str, Any], execute: bool) -> int:
     job_id = sanitize_id(str(job["job_id"]))
     profile = str(job.get("profile", "default")).strip() or "default"
     topic = str(job.get("topic", "")).strip()
-    language = str(job.get("language", "pt-BR")).strip() or "pt-BR"
+    language = "pt-BR"
     topic_mode = str(job.get("topic_mode", "theme")).strip().lower()
     if topic_mode not in {"theme", "exact"}:
         raise SystemExit("ERRO: topic_mode precisa ser theme ou exact.")
