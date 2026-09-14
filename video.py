@@ -40,6 +40,18 @@ VIDEO_EXTS = {".mp4", ".mov", ".webm", ".mkv"}
 MEDIA_EXTS = IMAGE_EXTS | VIDEO_EXTS
 
 
+def bounded_timeout(name, default, low, high):
+    try:
+        value = int(os.getenv(name, str(default)))
+    except (TypeError, ValueError):
+        value = default
+    return max(low, min(value, high))
+
+
+SCENE_RENDER_TIMEOUT = bounded_timeout("SHORT_SCENE_RENDER_TIMEOUT", 240, 60, 900)
+ASSEMBLY_TIMEOUT = bounded_timeout("SHORT_ASSEMBLY_TIMEOUT", 600, 120, 1800)
+
+
 def fail(msg):
     raise SystemExit(f"ERRO: {msg}")
 
@@ -183,7 +195,6 @@ def normalize_durations(values, total, minimum=0.65):
     if total <= 0:
         fail("duração total inválida")
 
-    # Se o áudio for curto demais para o piso, distribui uniformemente.
     if total < minimum * n:
         return [total / n] * n
 
@@ -196,7 +207,6 @@ def normalize_durations(values, total, minimum=0.65):
     remaining = set(range(n))
     raw = values[:]
 
-    # Water-filling: fixa itens abaixo do piso e redistribui o restante.
     while remaining:
         raw_sum = sum(raw[i] for i in remaining)
         if raw_sum <= 0:
@@ -220,7 +230,6 @@ def normalize_durations(values, total, minimum=0.65):
             remaining_total -= minimum
             remaining.remove(i)
 
-    # Corrige apenas arredondamento acumulado.
     diff = total - sum(result)
     if result:
         result[-1] += diff
@@ -305,7 +314,6 @@ def motion_for_scene(motion, number):
 
 
 def execute_scene_command(command, scene_number):
-    # Mantém as pontes VI6/VI7 existentes, sem torná-las obrigatórias.
     try:
         from vi6_47_renderer_switch import adapt_scene_command
         command = adapt_scene_command(
@@ -338,6 +346,12 @@ def execute_scene_command(command, scene_number):
             check=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
+            timeout=SCENE_RENDER_TIMEOUT,
+        )
+    except subprocess.TimeoutExpired:
+        fail(
+            f"FFmpeg excedeu {SCENE_RENDER_TIMEOUT}s renderizando cena "
+            f"{scene_number:02d}"
         )
     except subprocess.CalledProcessError as exc:
         fail(f"FFmpeg falhou renderizando cena {scene_number:02d} (código {exc.returncode})")
@@ -348,6 +362,12 @@ def render_scene(path, number, logical_duration, motion_cfg):
     render_duration = logical_duration + TRANSICAO
     frames = max(1, round(render_duration * FPS))
     output = os.path.join(TEMP, f"v64_cena_{number:02d}.mp4")
+
+    try:
+        if os.path.exists(output):
+            os.remove(output)
+    except OSError as exc:
+        fail(f"não foi possível limpar render antigo da cena {number:02d}: {exc}")
 
     if ext in IMAGE_EXTS:
         start = motion_cfg["zoom_start"]
@@ -401,6 +421,12 @@ def assemble_crossfade(scene_files, durations, total):
     if len(scene_files) != QTD_CENAS:
         fail("quantidade de cenas renderizadas diferente do esperado")
 
+    try:
+        if os.path.exists(VIDEO_SEM_AUDIO):
+            os.remove(VIDEO_SEM_AUDIO)
+    except OSError as exc:
+        fail(f"não foi possível limpar montagem antiga: {exc}")
+
     if len(scene_files) == 1:
         command = [
             "ffmpeg", "-y", "-i", scene_files[0], "-t", f"{total:.6f}",
@@ -434,7 +460,9 @@ def assemble_crossfade(scene_files, durations, total):
         ])
 
     try:
-        subprocess.run(command, check=True)
+        subprocess.run(command, check=True, timeout=ASSEMBLY_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        fail(f"FFmpeg excedeu {ASSEMBLY_TIMEOUT}s montando crossfade")
     except subprocess.CalledProcessError as exc:
         fail(f"FFmpeg falhou ao montar crossfade (código {exc.returncode})")
 
