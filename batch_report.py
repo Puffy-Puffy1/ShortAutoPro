@@ -34,10 +34,20 @@ def dict_seguro(value):
 
 
 def numero_seguro(value):
-    if not isinstance(value, (int, float)):
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
     value = float(value)
     return value if math.isfinite(value) else None
+
+
+def inteiro_seguro(value, default=0, minimum=0, maximum=1000):
+    if isinstance(value, bool):
+        return default
+    try:
+        number = int(value)
+    except (TypeError, ValueError, OverflowError):
+        return default
+    return max(minimum, min(number, maximum))
 
 
 def atomic_write(path, text):
@@ -86,6 +96,19 @@ for path in reversed(files):
     quality = dict_seguro(data.get("quality"))
     duration = numero_seguro(video.get("duration_seconds"))
 
+    expected_scenes = inteiro_seguro(
+        quality.get("expected_scene_count", QTD_CENAS),
+        default=QTD_CENAS,
+        minimum=1,
+        maximum=100,
+    )
+    scenes = inteiro_seguro(
+        quality.get("physical_scene_count", 0),
+        default=0,
+        minimum=0,
+        maximum=100,
+    )
+
     productions.append({
         "short_id": str(data.get("short_id", "")),
         "status": str(data.get("status", "")),
@@ -97,8 +120,8 @@ for path in reversed(files):
         "resolution_ok": bool(quality.get("resolution_ok", False)),
         "fps_ok": bool(quality.get("fps_ok", False)),
         "audio_ok": bool(quality.get("audio_exists", False)),
-        "scenes": int(quality.get("physical_scene_count", 0) or 0),
-        "expected_scenes": int(quality.get("expected_scene_count", QTD_CENAS) or QTD_CENAS),
+        "scenes": scenes,
+        "expected_scenes": expected_scenes,
     })
 
 if not productions:
@@ -160,7 +183,7 @@ atomic_write(txt_path, "\n".join(lines))
 
 print()
 print("================================")
-print("BATCH REPORT - STABLE 2.3")
+print("BATCH REPORT - STABLE 2.4")
 print("================================")
 print(f"Produções válidas: {len(productions)}")
 print(f"Quality Pass: {passes}")
