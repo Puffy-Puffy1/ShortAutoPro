@@ -23,7 +23,9 @@ salvar_estado() {
     local falhas="$5"
     local status="$6"
 
-    BATCH_ID_PY="$batch_id" TOTAL_PY="$total" ATUAL_PY="$atual" SUCESSOS_PY="$sucessos" FALHAS_PY="$falhas" STATUS_PY="$status" STATE_FILE_PY="$STATE_FILE" python - <<'PY'
+    BATCH_ID_PY="$batch_id" TOTAL_PY="$total" ATUAL_PY="$atual" \
+    SUCESSOS_PY="$sucessos" FALHAS_PY="$falhas" STATUS_PY="$status" \
+    STATE_FILE_PY="$STATE_FILE" python - <<'PY'
 import json
 import os
 from datetime import datetime
@@ -61,12 +63,15 @@ ler_campo() {
 import json
 import os
 from pathlib import Path
+
 p = Path(os.environ["STATE_FILE_PY"])
 if not p.exists():
     print("")
 else:
     try:
         data = json.loads(p.read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            raise ValueError("estado não é objeto")
         print(data.get(os.environ["CAMPO_PY"], ""))
     except Exception:
         print("")
@@ -122,8 +127,12 @@ if [ "$MODO" = "--resume" ]; then
     fi
 
     if [ "$STATUS" = "completed" ]; then
-        echo "Este lote já foi concluído."
-        if [ "$SUCESSOS" -gt 0 ]; then exit 0; fi
+        echo "Este lote já foi concluído com sucesso."
+        exit 0
+    fi
+
+    if [ "$STATUS" = "completed_with_errors" ]; then
+        echo "Este lote foi concluído, mas possui falhas registradas."
         exit 1
     fi
 
@@ -133,12 +142,14 @@ if [ "$MODO" = "--resume" ]; then
     fi
 
     INICIO=$((ATUAL + 1))
+    if [ "$INICIO" -gt "$TOTAL" ]; then
+        echo "ERRO: lote sem item pendente, mas status não está concluído."
+        exit 1
+    fi
+
     echo
-echo "Retomando lote:"
-    echo "$BATCH_ID"
-    echo
-echo "Próximo Short:"
-    echo "$INICIO/$TOTAL"
+echo "Retomando lote: $BATCH_ID"
+    echo "Próximo Short: $INICIO/$TOTAL"
     echo
 else
     TOTAL="${1:-${SHORT_LOTE:-3}}"
@@ -150,7 +161,7 @@ else
     if [ "$TOTAL" -lt 1 ]; then TOTAL=1; fi
     if [ "$TOTAL" -gt 10 ]; then TOTAL=10; fi
 
-    BATCH_ID="$(date +%F_%H%M%S)"
+    BATCH_ID="$(date +%F_%H%M%S)_$$"
     INICIO=1
     SUCESSOS=0
     FALHAS=0
@@ -172,17 +183,14 @@ exec > >(tee -a "$LOG") 2>&1
 
 echo
 echo "======================================"
-echo " SHORTAUTO PRO - BATCH RECOVERY 2.0"
+echo " SHORTAUTO PRO - BATCH RECOVERY 2.1"
 echo "======================================"
-echo
 echo "Lote: $BATCH_ID"
 echo "Total: $TOTAL"
 echo "Início em: $INICIO"
 echo "Sucessos anteriores: $SUCESSOS"
 echo "Falhas anteriores: $FALHAS"
 echo
-
-ULTIMO_MINUTO=""
 
 for ((i=INICIO; i<=TOTAL; i++)); do
     echo
@@ -191,15 +199,13 @@ echo "######################################"
     echo "######################################"
     echo
 
-    if [ -n "$ULTIMO_MINUTO" ]; then
-        while [ "$(date +%Y%m%d%H%M)" = "$ULTIMO_MINUTO" ]; do sleep 1; done
-    fi
+    SHORT_ID="${BATCH_ID}_$(printf '%02d' "$i")"
+    export SHORT_ID
 
-    unset SHORT_ID
-    ULTIMO_MINUTO="$(date +%Y%m%d%H%M)"
-
+    # current só avança depois que a tentativa termina. Se o processo for
+    # interrompido durante gerar_short.sh, o mesmo item será refeito no resume.
     salvar_estado "$BATCH_ID" "$TOTAL" "$((i - 1))" "$SUCESSOS" "$FALHAS" "running"
-    INICIO_SHORT=$(date +%s)
+    INICIO_SHORT="$(date +%s)"
 
     if "$BASE/gerar_short.sh"; then
         SUCESSOS=$((SUCESSOS + 1))
@@ -210,41 +216,47 @@ echo "######################################"
         STATUS_SHORT="ERRO $CODIGO"
     fi
 
-    FIM_SHORT=$(date +%s)
-    TEMPO=$((FIM_SHORT - INICIO_SHORT))
+    FIM_SHORT="$(date +%s)"
+    TEMPO="$((FIM_SHORT - INICIO_SHORT))"
     salvar_estado "$BATCH_ID" "$TOTAL" "$i" "$SUCESSOS" "$FALHAS" "running"
 
     echo
 echo "SHORT $i: $STATUS_SHORT"
+    echo "ID: $SHORT_ID"
     echo "Tempo: ${TEMPO}s"
     echo "Sucessos: $SUCESSOS"
     echo "Falhas: $FALHAS"
 
+    unset SHORT_ID
+
     if [ "$i" -lt "$TOTAL" ]; then
         echo
 echo "Cooldown das APIs: ${COOLDOWN}s..."
-        echo
         sleep "$COOLDOWN"
     fi
 done
 
-salvar_estado "$BATCH_ID" "$TOTAL" "$TOTAL" "$SUCESSOS" "$FALHAS" "completed"
+if [ "$FALHAS" -eq 0 ] && [ "$SUCESSOS" -eq "$TOTAL" ]; then
+    STATUS_FINAL="completed"
+else
+    STATUS_FINAL="completed_with_errors"
+fi
+
+salvar_estado "$BATCH_ID" "$TOTAL" "$TOTAL" "$SUCESSOS" "$FALHAS" "$STATUS_FINAL"
 
 echo
 echo "======================================"
 echo " LOTE FINALIZADO"
 echo "======================================"
-echo
 echo "Total: $TOTAL"
 echo "Sucessos: $SUCESSOS"
 echo "Falhas: $FALHAS"
-echo
-echo "Estado:"
-echo "$STATE_FILE"
-echo
-echo "Log:"
-echo "$LOG"
+echo "Status: $STATUS_FINAL"
+echo "Estado: $STATE_FILE"
+echo "Log: $LOG"
 echo
 
-if [ "$SUCESSOS" -gt 0 ]; then exit 0; fi
+if [ "$STATUS_FINAL" = "completed" ]; then
+    exit 0
+fi
 exit 1
