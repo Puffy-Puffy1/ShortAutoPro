@@ -35,10 +35,12 @@ class EvolutionRuntimeIntegrationTests(unittest.TestCase):
 
     def test_profiles_have_expected_free_presets(self):
         profiles = json.loads((ROOT / "config" / "channel_profiles.json").read_text(encoding="utf-8"))
-        for name in ("default", "true_crime", "cinepulsar", "psicotoon", "english"):
+        for name in ("default", "true_crime", "cinepulsar", "psicotoon"):
             self.assertIn(name, profiles)
+        self.assertNotIn("english", profiles)
         self.assertEqual(profiles["default"]["scene_count"], 12)
         self.assertTrue(profiles["default"]["visual"]["retry_weak_scenes"])
+        self.assertTrue(all(str(data.get("language", "pt-BR")).lower().startswith("pt") for data in profiles.values()))
 
 
 if __name__ == "__main__":
