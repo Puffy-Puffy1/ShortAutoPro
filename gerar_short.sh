@@ -90,7 +90,7 @@ exec > >(tee -a "$LOG") 2>&1
 
 echo
 echo "======================================"
-echo " SHORTAUTO PRO - STABLE 2.2 + EVOLUTION"
+echo " SHORTAUTO PRO - STABLE 2.3 + EVOLUTION"
 echo "======================================"
 echo
 echo "ID: $SHORT_ID"
@@ -226,7 +226,7 @@ rodar_shell "HEALTH CHECK" "health_check.sh"
 # PIPELINE PRINCIPAL
 # =====================================================
 
-rodar_python "1/12 - TOPIC ENGINE" "topic_engine.py"
+rodar_python "1/12 - TOPIC ENGINE" "topic_engine_runtime.py"
 rodar_python "2/12 - ROTEIRO + PESQUISA FACTUAL" "roteiro.py"
 rodar_python "3/12 - CONFIRMANDO ASSUNTO USADO" "used_topic.py"
 rodar_python "4/12 - HOOK ENGINE" "hook_runtime.py"
@@ -274,7 +274,7 @@ fi
 evolution_checkpoint "v6_runtime.py" "start" "RENDER FINAL V6"
 if python "$BASE/v6_runtime.py"; then
     FINAL="$BASE/videos/short_v6_${SHORT_ID}.mp4"
-    VERSAO="V6 PRINCIPAL + EVOLUTION 1.0"
+    VERSAO="V6 PRINCIPAL + EVOLUTION 1.1"
     evolution_checkpoint "v6_runtime.py" "pass" "RENDER FINAL V6"
 else
     CODIGO=$?
