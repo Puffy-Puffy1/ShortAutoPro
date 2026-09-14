@@ -34,6 +34,8 @@ ALIASES = {
 
 
 def sem_acento(texto):
+    if texto is None:
+        return ""
     texto = unicodedata.normalize("NFKD", str(texto))
     return "".join(c for c in texto if not unicodedata.combining(c))
 
