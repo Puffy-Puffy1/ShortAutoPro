@@ -31,11 +31,15 @@ class TermuxBridgeDeployTests(unittest.TestCase):
 
     def test_installer_uses_tagged_15_minute_schedule(self):
         self.assertIn('CRON_TAG="# SHORTAUTOPRO_TERMUX_BRIDGE"', self.installer)
-        self.assertIn('CRON_LINE="*/15 * * * * $BRIDGE $CRON_TAG"', self.installer)
+        self.assertIn('CRON_LINE="*/15 * * * * bash \\"$BRIDGE\\" $CRON_TAG"', self.installer)
 
     def test_installer_refuses_dirty_tracked_worktree(self):
         self.assertIn("ha alteracoes locais rastreadas", self.installer)
         self.assertIn("git diff --cached --quiet", self.installer)
+
+    def test_installer_does_not_change_tracked_bridge_file_mode(self):
+        self.assertNotIn('chmod +x "$BRIDGE"', self.installer)
+        self.assertIn('bash "$BRIDGE" || {', self.installer)
 
 
 if __name__ == "__main__":
