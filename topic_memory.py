@@ -94,6 +94,13 @@ def encontrar_duplicata(assunto, historico, limite=0.72):
     melhor = None
     melhor_score = 0.0
 
+    if not historico:
+        return {
+            "duplicate": False,
+            "topic": None,
+            "similarity": 0.0,
+        }
+
     for item in historico:
         if isinstance(item, dict):
             raw = item.get("topic")
