@@ -5,8 +5,8 @@ Termux-safe rules for a less template-like documentary edit:
 - narrative-role-aware visual energy;
 - calmer evidence, maps, documents and human portraits;
 - restrained hook/reveal emphasis;
-- non-mechanical directional grammar;
-- gentler zoom amplitudes;
+- non-mechanical directional grammar with deliberate breathing beats;
+- smaller, more editorial zoom amplitudes;
 - deliberate ending hold.
 """
 
@@ -27,6 +27,7 @@ CALM_ROLES = {
     "payoff",
 }
 HIGH_ROLES = {"hook", "cold_open", "escalation", "reveal", "turn", "turning_point", "climax"}
+CENTER_ROLES = {"evidence", "reflection", "conclusion", "payoff", "aftermath"}
 
 
 def _norm(value):
@@ -48,8 +49,9 @@ def editorial_energy(
     shot = _norm(shot_type)
     role = _norm(narrative_role)
 
+    # A professional hook should feel intentional, not like a template punch.
     if scene_number == 1:
-        return 5
+        return 4
     if scene_number == total:
         return 2
 
@@ -71,7 +73,12 @@ def editorial_energy(
     elif shot in WIDE_SHOTS:
         energy = max(2, energy - 1)
 
-    return max(1, min(5, energy))
+    # Two subtle breathing beats in a 10-14 scene short keep the arc from feeling
+    # mechanically energetic all the way through. They never suppress a reveal.
+    if total >= 10 and scene_number in {4, max(5, total - 3)} and role not in HIGH_ROLES:
+        energy = min(energy, 2)
+
+    return max(1, min(4, energy))
 
 
 def editorial_pan(
@@ -93,13 +100,14 @@ def editorial_pan(
         mode in CALM_MODES
         or mode in HUMAN_MODES
         or shot in DETAIL_SHOTS
-        or role in {"evidence", "reflection", "conclusion", "payoff"}
+        or role in CENTER_ROLES
         or scene_number == total
     ):
         return "center"
 
-    # Avoid robotic left/right ping-pong: every third photo gets a centered hold.
-    if scene_number % 3 == 0 and shot not in WIDE_SHOTS:
+    # Deliberate centered holds make the edit breathe and break predictable
+    # left/right alternation. Avoid forcing them on wide establishing shots.
+    if (scene_number % 3 == 0 or scene_number in {4, max(5, total - 3)}) and shot not in WIDE_SHOTS:
         return "center"
 
     if shot in WIDE_SHOTS:
@@ -119,17 +127,19 @@ def zoom_amplitude(energy, visual_mode, shot_type, narrative_role=""):
     shot = _norm(shot_type)
     role = _norm(narrative_role)
 
-    if mode in CALM_MODES or role in {"evidence", "reflection", "conclusion", "payoff"}:
-        table = {1: 0.010, 2: 0.018, 3: 0.027, 4: 0.036, 5: 0.044}
+    # Humanized v3 intentionally stays below the previous 7% ceiling. Small
+    # movements read more like editorial reframing and less like Ken Burns.
+    if mode in CALM_MODES or role in CENTER_ROLES:
+        table = {1: 0.008, 2: 0.014, 3: 0.021, 4: 0.029}
     elif mode in HUMAN_MODES:
-        table = {1: 0.010, 2: 0.018, 3: 0.028, 4: 0.038, 5: 0.048}
+        table = {1: 0.008, 2: 0.014, 3: 0.022, 4: 0.031}
     elif shot in DETAIL_SHOTS:
-        table = {1: 0.014, 2: 0.022, 3: 0.032, 4: 0.043, 5: 0.054}
+        table = {1: 0.010, 2: 0.017, 3: 0.026, 4: 0.036}
     elif shot in WIDE_SHOTS:
-        table = {1: 0.014, 2: 0.024, 3: 0.034, 4: 0.046, 5: 0.060}
+        table = {1: 0.011, 2: 0.019, 3: 0.029, 4: 0.041}
     else:
-        table = {1: 0.016, 2: 0.027, 3: 0.040, 4: 0.054, 5: 0.070}
-    return table.get(int(energy), 0.04)
+        table = {1: 0.012, 2: 0.021, 3: 0.033, 4: 0.048}
+    return table.get(int(energy), 0.03)
 
 
 def rhythm_label(
@@ -153,7 +163,7 @@ def rhythm_label(
         return "closing_hold"
     if role in {"reveal", "turn", "turning_point", "climax"}:
         return "reveal_emphasis"
-    if mode in CALM_MODES or role in {"evidence", "reflection", "payoff"}:
+    if mode in CALM_MODES or role in CENTER_ROLES:
         return "documentary_hold"
     if mode in HUMAN_MODES:
         return "human_hold"
@@ -161,6 +171,8 @@ def rhythm_label(
         return "detail_emphasis"
     if int(energy) >= 4:
         return "editorial_dynamic"
+    if int(energy) <= 2:
+        return "editorial_breath"
     return "editorial_balanced"
 
 
@@ -194,7 +206,7 @@ def apply_editorial_policy(scene, scene_number, total, previous_pan=None):
         energy,
         role,
     )
-    new["editorial_policy"] = "humanized_v2"
+    new["editorial_policy"] = "humanized_v3"
     new["editorial_amplitude"] = (
         0.0 if media == "video" else zoom_amplitude(energy, mode, shot, role)
     )
