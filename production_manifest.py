@@ -1,258 +1,334 @@
 #!/usr/bin/env python3
 
-import glob
 import json
+import math
 import os
 import re
 import subprocess
-import sys
+import tempfile
 from datetime import date, datetime
+from pathlib import Path
 
-BASE = os.path.expanduser("~/ShortAutoPro")
-SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat())
+
+BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro")))
+SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat()).strip()
 
 try:
     QTD_CENAS = int(os.getenv("SHORT_QTD_CENAS", "12"))
-except ValueError:
+except (TypeError, ValueError):
     QTD_CENAS = 12
 QTD_CENAS = max(6, min(QTD_CENAS, 20))
 
-R = os.path.join(BASE, "roteiros")
-MANIFEST_DIR = os.path.join(BASE, "manifests")
-os.makedirs(MANIFEST_DIR, exist_ok=True)
-SAIDA = os.path.join(MANIFEST_DIR, f"{SHORT_ID}.json")
+R = BASE / "roteiros"
+MANIFEST_DIR = BASE / "manifests"
+SAIDA = MANIFEST_DIR / f"{SHORT_ID}.json"
 
-TOPIC = os.path.join(R, f"used_topic_{SHORT_ID}.txt")
-TOPIC_FALLBACK = os.path.join(R, f"topic_{SHORT_ID}.txt")
-HOOK = os.path.join(R, f"hook_{SHORT_ID}.txt")
-ROTEIRO = os.path.join(R, f"short_{SHORT_ID}.txt")
-FONTE = os.path.join(R, f"fonte_{SHORT_ID}.txt")
-SCENE_MAP = os.path.join(R, f"scene_map_{SHORT_ID}.json")
-PUBLISH = os.path.join(R, f"publish_{SHORT_ID}.json")
-PUBLISH_INTEGRITY = os.path.join(R, f"publish_integrity_{SHORT_ID}.json")
-LEDGER = os.path.join(BASE, "credits", f"ledger_{SHORT_ID}.json")
-VIDEO = os.path.join(BASE, "videos", f"short_v6_{SHORT_ID}.mp4")
-LOG = os.path.join(BASE, "logs", "producao", f"short_{SHORT_ID}.log")
+TOPIC = R / f"used_topic_{SHORT_ID}.txt"
+TOPIC_FALLBACK = R / f"topic_{SHORT_ID}.txt"
+HOOK = R / f"hook_{SHORT_ID}.txt"
+ROTEIRO = R / f"short_{SHORT_ID}.txt"
+FONTE = R / f"fonte_{SHORT_ID}.txt"
+SCENE_MAP = R / f"scene_map_{SHORT_ID}.json"
+PUBLISH = R / f"publish_{SHORT_ID}.json"
+PUBLISH_INTEGRITY = R / f"publish_integrity_{SHORT_ID}.json"
+LEDGER = BASE / "credits" / f"ledger_{SHORT_ID}.json"
+VIDEO = BASE / "videos" / f"short_v6_{SHORT_ID}.mp4"
+LOG = BASE / "logs" / "producao" / f"short_{SHORT_ID}.log"
+MEDIA_DIR = BASE / "imagens" / f"short_{SHORT_ID}"
+MEDIA_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".mp4"}
 
 
-def ler_txt(path):
+def read_text(path: Path) -> str:
     try:
-        with open(path, "r", encoding="utf-8") as f:
-            return f.read().strip()
+        return path.read_text(encoding="utf-8").strip()
     except Exception:
         return ""
 
 
-def ler_json(path):
+def read_json(path: Path):
     try:
-        with open(path, "r", encoding="utf-8") as f:
-            dados = json.load(f)
-        return dados if isinstance(dados, dict) else {}
+        data = json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return {}
+    return data if isinstance(data, dict) else {}
 
 
-def atomic_json(path, data):
-    tmp = f"{path}.{os.getpid()}.tmp"
+def atomic_json(path: Path, payload: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temp_name = tempfile.mkstemp(
+        prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent)
+    )
     try:
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp, path)
-    finally:
-        if os.path.exists(tmp):
-            try:
-                os.remove(tmp)
-            except OSError:
-                pass
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle, ensure_ascii=False, indent=2)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp_name, path)
+    except Exception:
+        try:
+            os.unlink(temp_name)
+        except OSError:
+            pass
+        raise
 
 
-def ffprobe(path):
-    if not os.path.isfile(path):
+def safe_int(value) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError, OverflowError):
+        return 0
+
+
+def safe_float(value) -> float:
+    try:
+        result = float(value or 0)
+    except (TypeError, ValueError, OverflowError):
+        return 0.0
+    return result if math.isfinite(result) else 0.0
+
+
+def parse_fps(value) -> float:
+    raw = str(value or "0/1")
+    try:
+        if "/" in raw:
+            num, den = raw.split("/", 1)
+            den_f = float(den)
+            result = float(num) / den_f if den_f else 0.0
+        else:
+            result = float(raw)
+    except (TypeError, ValueError, ZeroDivisionError):
+        return 0.0
+    return result if math.isfinite(result) else 0.0
+
+
+def ffprobe(path: Path):
+    if not path.is_file():
         return {}
     try:
-        saida = subprocess.check_output(
+        result = subprocess.run(
             [
                 "ffprobe", "-v", "error", "-show_streams", "-show_format",
-                "-of", "json", path,
+                "-of", "json", str(path),
             ],
+            capture_output=True,
             text=True,
-            stderr=subprocess.DEVNULL,
-            timeout=60,
+            check=True,
+            timeout=45,
         )
-        dados = json.loads(saida)
-        return dados if isinstance(dados, dict) else {}
+        data = json.loads(result.stdout)
     except Exception:
         return {}
+    return data if isinstance(data, dict) else {}
 
 
-def contar_palavras(texto):
-    return len(re.findall(r"\b[\wÀ-ÿ'-]+\b", str(texto), flags=re.UNICODE))
+def count_words(text: str) -> int:
+    return len(re.findall(r"\b[\wÀ-ÿ'-]+\b", str(text), flags=re.UNICODE))
 
 
-assunto = ler_txt(TOPIC) or ler_txt(TOPIC_FALLBACK)
-hook = ler_txt(HOOK)
-roteiro = ler_txt(ROTEIRO)
-fonte = ler_txt(FONTE)
-publish = ler_json(PUBLISH)
-publish_integrity = ler_json(PUBLISH_INTEGRITY)
-ledger = ler_json(LEDGER)
-scene_map = ler_json(SCENE_MAP)
-
-scenes = scene_map.get("scenes", [])
-if not isinstance(scenes, list):
-    scenes = []
-scenes = [x for x in scenes if isinstance(x, dict)]
-
-video_info = ffprobe(VIDEO)
-formato = video_info.get("format", {})
-streams = video_info.get("streams", [])
-if not isinstance(formato, dict):
-    formato = {}
-if not isinstance(streams, list):
-    streams = []
-
-try:
-    duracao = float(formato.get("duration", 0) or 0)
-except (TypeError, ValueError):
-    duracao = 0.0
-
-width = 0
-height = 0
-fps = 0.0
-codec_video = ""
-codec_audio = ""
-
-for stream in streams:
-    if not isinstance(stream, dict):
-        continue
-    tipo = stream.get("codec_type")
-    if tipo == "video" and not codec_video:
-        codec_video = str(stream.get("codec_name", ""))
-        width = int(stream.get("width", 0) or 0)
-        height = int(stream.get("height", 0) or 0)
-        fps_raw = str(stream.get("avg_frame_rate", "0/1"))
+def scene_numbers(scenes):
+    if not isinstance(scenes, list):
+        return []
+    numbers = []
+    for item in scenes:
+        if not isinstance(item, dict):
+            return []
         try:
-            num, den = fps_raw.split("/", 1)
-            den_float = float(den)
-            fps = float(num) / den_float if den_float else 0.0
-        except (TypeError, ValueError, ZeroDivisionError):
-            fps = 0.0
-    elif tipo == "audio" and not codec_audio:
-        codec_audio = str(stream.get("codec_name", ""))
+            numbers.append(int(item.get("scene")))
+        except (TypeError, ValueError, OverflowError):
+            return []
+    return numbers
 
-MEDIA_DIR = os.path.join(BASE, "imagens", f"short_{SHORT_ID}")
-permitidas = {".jpg", ".jpeg", ".png", ".webp", ".mp4"}
-cenas_fisicas = []
-if os.path.isdir(MEDIA_DIR):
-    cenas_fisicas = sorted(
-        x
-        for x in glob.glob(os.path.join(MEDIA_DIR, "scene_*"))
-        if os.path.splitext(x)[1].lower() in permitidas
+
+def media_inventory(media_dir: Path):
+    if not media_dir.is_dir():
+        return []
+    return sorted(
+        item for item in media_dir.glob("scene_*")
+        if item.is_file() and item.suffix.lower() in MEDIA_EXTENSIONS
     )
 
-# Garante exatamente uma mídia por número de cena.
-numeros = []
-for path in cenas_fisicas:
-    m = re.match(r"^scene_(\d+)", os.path.basename(path), flags=re.IGNORECASE)
-    if m:
-        numeros.append(int(m.group(1)))
-esperados = set(range(1, QTD_CENAS + 1))
-media_numbering_ok = (
-    len(numeros) == QTD_CENAS
-    and set(numeros) == esperados
-    and len(set(numeros)) == len(numeros)
-)
 
-hashtags = publish.get("hashtags", [])
-if not isinstance(hashtags, list):
-    hashtags = []
+def inspect_video(info):
+    fmt = info.get("format", {}) if isinstance(info, dict) else {}
+    streams = info.get("streams", []) if isinstance(info, dict) else []
+    if not isinstance(fmt, dict):
+        fmt = {}
+    if not isinstance(streams, list):
+        streams = []
 
-quality = {
-    "video_exists": os.path.isfile(VIDEO) and os.path.getsize(VIDEO) > 0,
-    "v6_only": True,
-    "expected_scene_count": QTD_CENAS,
-    "scene_map_count": len(scenes),
-    "physical_scene_count": len(cenas_fisicas),
-    "media_numbering_ok": media_numbering_ok,
-    "resolution_ok": width == 1080 and height == 1920,
-    "fps_ok": 29.0 <= fps <= 31.0,
-    "audio_exists": bool(codec_audio),
-    "duration_ok": duracao >= 15.0,
-    "topic_exists": bool(assunto),
-    "script_exists": bool(roteiro) and 105 <= contar_palavras(roteiro) <= 125,
-    "source_exists": bool(fonte),
-    "publish_exists": bool(publish),
-    "publish_title_exists": bool(str(publish.get("chosen_title", "")).strip()),
-    "publish_description_exists": bool(str(publish.get("description", "")).strip()),
-    "publish_hashtags_ok": len(hashtags) == 5,
-    "publish_integrity_pass": publish_integrity.get("status") == "PASS",
-    "source_ledger_exists": bool(ledger) and ledger.get("short_id") == SHORT_ID,
-}
+    duration = safe_float(fmt.get("duration"))
+    width = height = 0
+    fps = 0.0
+    video_codec = ""
+    audio_codec = ""
 
-quality_pass = all(quality.values())
+    for stream in streams:
+        if not isinstance(stream, dict):
+            continue
+        kind = stream.get("codec_type")
+        if kind == "video" and not video_codec:
+            video_codec = str(stream.get("codec_name", "") or "")
+            width = safe_int(stream.get("width"))
+            height = safe_int(stream.get("height"))
+            fps = parse_fps(stream.get("avg_frame_rate"))
+        elif kind == "audio" and not audio_codec:
+            audio_codec = str(stream.get("codec_name", "") or "")
 
-manifest = {
-    "short_id": SHORT_ID,
-    "created_at": datetime.now().isoformat(),
-    "status": "QUALITY_PASS" if quality_pass else "INCOMPLETE",
-    "topic": assunto,
-    "hook": hook,
-    "script": {"path": ROTEIRO, "text": roteiro},
-    "source": {"path": FONTE},
-    "publish": {
-        "path": PUBLISH,
-        "chosen_title": publish.get("chosen_title", ""),
-        "titles": publish.get("titles", []),
-        "description": publish.get("description", ""),
-        "hashtags": hashtags,
-        "pinned_comment": publish.get("pinned_comment", ""),
-        "integrity_report": PUBLISH_INTEGRITY,
-    },
-    "source_ledger": LEDGER,
-    "scenes": {
-        "map_path": SCENE_MAP,
-        "expected_count": QTD_CENAS,
-        "count": len(scenes),
-        "physical_count": len(cenas_fisicas),
-        "items": scenes,
-    },
-    "video": {
-        "path": VIDEO,
-        "version": "V6",
-        "duration_seconds": duracao,
-        "width": width,
-        "height": height,
-        "fps": fps,
-        "video_codec": codec_video,
-        "audio_codec": codec_audio,
-    },
-    "quality": quality,
-    "log": LOG,
-}
+    return duration, width, height, fps, video_codec, audio_codec
 
-atomic_json(SAIDA, manifest)
 
-print()
-print("================================")
-print("PRODUCTION MANIFEST - 2.0")
-print("================================")
-print(f"ID: {SHORT_ID}")
-print(f"Status: {manifest['status']}")
-print(f"Assunto: {assunto or 'AUSENTE'}")
-print(f"Cenas: {len(cenas_fisicas)}/{QTD_CENAS}")
-if os.path.isfile(VIDEO):
-    print(f"Vídeo: {width}x{height} {fps:.2f}fps {duracao:.2f}s")
-print(f"Manifest: {SAIDA}")
-print()
+def build_manifest(probe_data=None):
+    topic = read_text(TOPIC) or read_text(TOPIC_FALLBACK)
+    hook = read_text(HOOK)
+    script = read_text(ROTEIRO)
+    source = read_text(FONTE)
+    publish = read_json(PUBLISH)
+    publish_integrity = read_json(PUBLISH_INTEGRITY)
+    ledger = read_json(LEDGER)
+    scene_map = read_json(SCENE_MAP)
 
-if not quality_pass:
-    print("PRODUCTION MANIFEST: INCOMPLETE")
-    for chave, ok in quality.items():
-        if not ok:
-            print(f"ERRO: {chave}")
-    raise SystemExit(1)
+    scenes = scene_map.get("scenes", []) if isinstance(scene_map, dict) else []
+    if not isinstance(scenes, list):
+        scenes = []
+    expected_numbers = list(range(1, QTD_CENAS + 1))
+    map_numbers = scene_numbers(scenes)
 
-print("PRODUCTION MANIFEST: OK")
-print()
+    info = probe_data if isinstance(probe_data, dict) else ffprobe(VIDEO)
+    duration, width, height, fps, video_codec, audio_codec = inspect_video(info)
+
+    media_files = media_inventory(MEDIA_DIR)
+    media_numbers = []
+    media_names_ok = True
+    for path in media_files:
+        match = re.fullmatch(r"scene_(\d+)", path.stem, flags=re.IGNORECASE)
+        if not match:
+            media_names_ok = False
+            continue
+        media_numbers.append(int(match.group(1)))
+
+    media_numbering_ok = (
+        media_names_ok
+        and len(media_numbers) == QTD_CENAS
+        and sorted(media_numbers) == expected_numbers
+        and len(set(media_numbers)) == len(media_numbers)
+    )
+    scene_map_numbering_ok = map_numbers == expected_numbers
+
+    hashtags = publish.get("hashtags", []) if isinstance(publish, dict) else []
+    if not isinstance(hashtags, list):
+        hashtags = []
+
+    video_exists = False
+    try:
+        video_exists = VIDEO.is_file() and VIDEO.stat().st_size > 500_000
+    except OSError:
+        video_exists = False
+
+    quality = {
+        "video_exists": video_exists,
+        "v6_only": True,
+        "expected_scene_count": QTD_CENAS,
+        "scene_map_count": len(scenes),
+        "scene_map_numbering_ok": scene_map_numbering_ok,
+        "physical_scene_count": len(media_files),
+        "media_numbering_ok": media_numbering_ok,
+        "resolution_ok": width == 1080 and height == 1920,
+        "fps_ok": 29.0 <= fps <= 31.0,
+        "audio_exists": bool(audio_codec),
+        "duration_ok": 15.0 <= duration <= 180.0,
+        "topic_exists": bool(topic),
+        "hook_exists": bool(hook),
+        "script_exists": bool(script) and 105 <= count_words(script) <= 125,
+        "source_exists": bool(source),
+        "publish_exists": bool(publish),
+        "publish_title_exists": bool(str(publish.get("chosen_title", "") or "").strip()),
+        "publish_description_exists": bool(str(publish.get("description", "") or "").strip()),
+        "publish_hashtags_ok": len(hashtags) == 5,
+        "publish_integrity_pass": publish_integrity.get("status") == "PASS",
+        "source_ledger_exists": bool(ledger) and ledger.get("short_id") == SHORT_ID,
+    }
+
+    quality_pass = all(quality.values())
+    manifest = {
+        "short_id": SHORT_ID,
+        "created_at": datetime.now().isoformat(),
+        "status": "QUALITY_PASS" if quality_pass else "INCOMPLETE",
+        "topic": topic,
+        "hook": hook,
+        "script": {"path": str(ROTEIRO), "text": script},
+        "source": {"path": str(FONTE)},
+        "publish": {
+            "path": str(PUBLISH),
+            "chosen_title": publish.get("chosen_title", ""),
+            "titles": publish.get("titles", []),
+            "description": publish.get("description", ""),
+            "hashtags": hashtags,
+            "pinned_comment": publish.get("pinned_comment", ""),
+            "integrity_report": str(PUBLISH_INTEGRITY),
+        },
+        "source_ledger": str(LEDGER),
+        "scenes": {
+            "map_path": str(SCENE_MAP),
+            "expected_count": QTD_CENAS,
+            "count": len(scenes),
+            "physical_count": len(media_files),
+            "items": scenes,
+        },
+        "video": {
+            "path": str(VIDEO),
+            "version": "V6",
+            "duration_seconds": duration,
+            "width": width,
+            "height": height,
+            "fps": fps,
+            "video_codec": video_codec,
+            "audio_codec": audio_codec,
+        },
+        "quality": quality,
+        "log": str(LOG),
+    }
+    return manifest, quality_pass
+
+
+def main() -> int:
+    if not SHORT_ID:
+        print("ERRO: SHORT_ID vazio")
+        return 1
+
+    manifest, quality_pass = build_manifest()
+    try:
+        atomic_json(SAIDA, manifest)
+    except Exception as exc:
+        print(f"ERRO: falha gravando manifest: {exc}")
+        return 1
+
+    print()
+    print("================================")
+    print("PRODUCTION MANIFEST - 2.1")
+    print("================================")
+    print(f"ID: {SHORT_ID}")
+    print(f"Status: {manifest['status']}")
+    print(f"Assunto: {manifest['topic'] or 'AUSENTE'}")
+    print(f"Cenas: {manifest['scenes']['physical_count']}/{QTD_CENAS}")
+    video = manifest["video"]
+    print(
+        f"Vídeo: {video['width']}x{video['height']} "
+        f"{video['fps']:.2f}fps {video['duration_seconds']:.2f}s"
+    )
+    print(f"Manifest: {SAIDA}")
+    print()
+
+    if not quality_pass:
+        print("PRODUCTION MANIFEST: INCOMPLETE")
+        for key, ok in manifest["quality"].items():
+            if not ok:
+                print(f"ERRO: {key}")
+        return 1
+
+    print("PRODUCTION MANIFEST: OK")
+    print()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
