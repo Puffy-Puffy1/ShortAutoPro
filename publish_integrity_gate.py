@@ -83,6 +83,12 @@ def tokens(text):
     return out
 
 
+def numeric_tokens(text):
+    """Extract standalone and alphanumeric numeric identity consistently."""
+    expanded = expandir_texto(text)
+    return set(re.findall(r"\b\d+(?:[.,]\d+)?\b", expanded))
+
+
 def overlap(base, target):
     return 0.0 if not base else len(base & target) / len(base)
 
@@ -185,11 +191,9 @@ def audit(publish_text, publish_json, script, source, topic):
     elif float(score_raw) < 60:
         critical.append(f"publish_score_low={float(score_raw):.1f}")
 
-    base_numbers = set(
-        re.findall(r"\b\d+(?:[.,]\d+)?\b", script + "\n" + source + "\n" + topic)
-    )
-    publish_number_text = title + "\n" + desc + "\n" + expandir_texto(" ".join(hashtags))
-    publish_numbers = set(re.findall(r"\b\d+(?:[.,]\d+)?\b", publish_number_text))
+    base_numbers = numeric_tokens(script + "\n" + source + "\n" + topic)
+    publish_number_text = title + "\n" + desc + "\n" + " ".join(hashtags)
+    publish_numbers = numeric_tokens(publish_number_text)
     new_numbers = publish_numbers - base_numbers
     if new_numbers:
         critical.append("unsupported_numbers=" + ",".join(sorted(new_numbers)))
@@ -263,7 +267,7 @@ def main() -> int:
     )
     report = {
         "short_id": SHORT_ID,
-        "version": "5.3",
+        "version": "5.3.1",
         "topic": topic,
         **result,
     }
@@ -276,7 +280,7 @@ def main() -> int:
 
     print()
     print("================================")
-    print("PUBLISH INTEGRITY GATE 5.3")
+    print("PUBLISH INTEGRITY GATE 5.3.1")
     print("================================")
     print()
     print(f"Título: {result['title'] or 'AUSENTE'}")
