@@ -4,6 +4,7 @@ from datetime import date
 from pathlib import Path
 
 from visual_editorial_policy import apply_editorial_policy
+from visual_shot_policy import resolve_shot_type
 
 
 def _scene_count():
@@ -85,12 +86,21 @@ def build_rhythm(motion_scenes, map_scenes):
     total = len(motion_scenes)
     result = []
     previous_pan = None
+    previous_shot = None
 
     for index, (motion_scene, map_scene) in enumerate(zip(motion_scenes, map_scenes), start=1):
         new = dict(motion_scene)
-        for key in ("visual_mode", "shot_type", "narrative_role", "segment"):
+        for key in ("visual_mode", "narrative_role", "segment"):
             if key in map_scene:
                 new[key] = map_scene[key]
+
+        new["shot_type"] = resolve_shot_type(
+            map_scene.get("shot_type"),
+            motion_scene.get("shot_type"),
+            index,
+            new.get("visual_mode", "environment"),
+            previous_shot,
+        )
 
         media = str(new.get("media_type", "")).strip().lower()
         if media not in {"photo", "video"}:
@@ -117,6 +127,7 @@ def build_rhythm(motion_scenes, map_scenes):
 
         result.append(new)
         previous_pan = new.get("pan")
+        previous_shot = new.get("shot_type")
 
     return result
 
@@ -131,12 +142,15 @@ def audit_result(result):
     photo_profiles = []
     centered_human_photos = 0
     human_photo_count = 0
+    canonical_shots = {"wide", "medium", "closeup", "detail", "portrait", "overhead"}
     for item in result:
         media = str(item.get("media_type", "")).strip().lower()
         if media == "photo":
             photo_profiles.append(item.get("rhythm_profile"))
         if item.get("editorial_policy") != "humanized_v4":
             problems.append(f"editorial_policy_missing_scene_{item.get('scene')}")
+        if item.get("shot_type") not in canonical_shots:
+            problems.append(f"shot_type_invalid_scene_{item.get('scene')}")
         if media == "photo":
             try:
                 amplitude = float(item.get("zoom_end", 1.0)) - float(item.get("zoom_start", 1.0))
@@ -181,19 +195,19 @@ def main():
 
         original_motion = dict(motion)
         updated_motion = dict(motion)
-        updated_motion["version"] = "5.3"
+        updated_motion["version"] = "5.4"
         updated_motion["rhythm_director"] = {
             "applied": True,
-            "policy": "humanized_v4",
+            "policy": "humanized_v4_shot_grammar",
             "problems": [],
         }
         updated_motion["scenes"] = result
 
         rhythm_payload = {
             "short_id": SHORT_ID,
-            "version": "5.3",
+            "version": "5.4",
             "expected_scenes": EXPECTED_SCENES,
-            "policy": "humanized_v4",
+            "policy": "humanized_v4_shot_grammar",
             "problems": [],
             "scenes": result,
         }
@@ -207,14 +221,14 @@ def main():
 
     print()
     print("================================")
-    print("MONTAGE RHYTHM DIRECTOR 5.3")
+    print("MONTAGE RHYTHM DIRECTOR 5.4")
     print("================================")
     print()
     for scene in result:
         print(f"{scene['scene']:02d}. energy={scene['energy']} {scene['rhythm_profile']:<20} {scene['media_type']}")
-        print(f"    motion={scene['motion_profile']} | zoom={scene['zoom_start']:.3f}->{scene['zoom_end']:.3f} | pan={scene['pan']}")
+        print(f"    shot={scene['shot_type']} | motion={scene['motion_profile']} | zoom={scene['zoom_start']:.3f}->{scene['zoom_end']:.3f} | pan={scene['pan']}")
     print()
-    print("EDITORIAL POLICY: humanized_v4")
+    print("EDITORIAL POLICY: humanized_v4_shot_grammar")
     print("RHYTHM QUALITY: PASS")
     print(f"Plano:\n{OUTPUT}")
     print()
