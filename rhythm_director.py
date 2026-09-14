@@ -106,12 +106,12 @@ def build_rhythm(motion_scenes, map_scenes):
             new["zoom_end"] = 1.0
             new["pan"] = "none"
         else:
-            start = max(1.0, min(start, 1.045))
+            start = max(1.0, min(start, 1.035))
             amplitude = finite_float(
-                new.get("editorial_amplitude", 0.04),
+                new.get("editorial_amplitude", 0.03),
                 f"editorial_amplitude cena {index}",
             )
-            end = max(start, min(start + amplitude, 1.105))
+            end = max(start, min(start + amplitude, 1.085))
             new["zoom_start"] = round(start, 4)
             new["zoom_end"] = round(end, 4)
 
@@ -132,8 +132,15 @@ def audit_result(result):
     for item in result:
         if item.get("media_type") == "photo":
             photo_profiles.append(item.get("rhythm_profile"))
-        if item.get("editorial_policy") != "humanized_v2":
+        if item.get("editorial_policy") != "humanized_v3":
             problems.append(f"editorial_policy_missing_scene_{item.get('scene')}")
+        if item.get("media_type") == "photo":
+            try:
+                amplitude = float(item.get("zoom_end", 1.0)) - float(item.get("zoom_start", 1.0))
+            except (TypeError, ValueError):
+                amplitude = 999.0
+            if amplitude > 0.0501:
+                problems.append(f"zoom_amplitude_excess_scene_{item.get('scene')}")
 
     for index in range(2, len(result)):
         pans = [result[index-2].get("pan"), result[index-1].get("pan"), result[index].get("pan")]
@@ -164,19 +171,19 @@ def main():
 
         original_motion = dict(motion)
         updated_motion = dict(motion)
-        updated_motion["version"] = "5.1"
+        updated_motion["version"] = "5.2"
         updated_motion["rhythm_director"] = {
             "applied": True,
-            "policy": "humanized_v2",
+            "policy": "humanized_v3",
             "problems": [],
         }
         updated_motion["scenes"] = result
 
         rhythm_payload = {
             "short_id": SHORT_ID,
-            "version": "5.1",
+            "version": "5.2",
             "expected_scenes": EXPECTED_SCENES,
-            "policy": "humanized_v2",
+            "policy": "humanized_v3",
             "problems": [],
             "scenes": result,
         }
@@ -190,14 +197,14 @@ def main():
 
     print()
     print("================================")
-    print("MONTAGE RHYTHM DIRECTOR 5.1")
+    print("MONTAGE RHYTHM DIRECTOR 5.2")
     print("================================")
     print()
     for scene in result:
         print(f"{scene['scene']:02d}. energy={scene['energy']} {scene['rhythm_profile']:<20} {scene['media_type']}")
         print(f"    motion={scene['motion_profile']} | zoom={scene['zoom_start']:.3f}->{scene['zoom_end']:.3f} | pan={scene['pan']}")
     print()
-    print("EDITORIAL POLICY: humanized_v2")
+    print("EDITORIAL POLICY: humanized_v3")
     print("RHYTHM QUALITY: PASS")
     print(f"Plano:\n{OUTPUT}")
     print()
