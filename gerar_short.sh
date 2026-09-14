@@ -16,25 +16,82 @@ export SAP_VSE42=0
 export SAP_VSE4_RUNTIME=0
 export SAP_SCENE_COMMIT_LOCK=0
 
-
 set -e
 set -o pipefail
 
 BASE="$HOME/ShortAutoPro"
 
-ID="$(date +%F_%H%M)"
+# =====================================================
+# EXECUTION LOCK
+# =====================================================
+# Cron, lote e execução manual não podem produzir o mesmo Short
+# ao mesmo tempo. flock é preferido; mkdir é fallback atômico.
+
+LOCK_ROOT="$BASE/.locks"
+mkdir -p "$LOCK_ROOT"
+LOCK_FILE="$LOCK_ROOT/gerar_short.lock"
+LOCK_DIR="$LOCK_ROOT/gerar_short.lockdir"
+LOCK_FALLBACK=0
+
+liberar_lock_fallback() {
+    if [ "$LOCK_FALLBACK" -eq 1 ]; then
+        rm -f "$LOCK_DIR/pid" 2>/dev/null || true
+        rmdir "$LOCK_DIR" 2>/dev/null || true
+    fi
+}
+
+if command -v flock >/dev/null 2>&1; then
+    exec 9>"$LOCK_FILE"
+    if ! flock -n 9; then
+        echo "ERRO: já existe uma geração do ShortAutoPro em andamento."
+        exit 75
+    fi
+else
+    if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+        PID_ANTIGO=""
+        if [ -f "$LOCK_DIR/pid" ]; then
+            PID_ANTIGO="$(cat "$LOCK_DIR/pid" 2>/dev/null || true)"
+        fi
+
+        if [ -n "$PID_ANTIGO" ] && kill -0 "$PID_ANTIGO" 2>/dev/null; then
+            echo "ERRO: já existe uma geração do ShortAutoPro em andamento."
+            exit 75
+        fi
+
+        rm -rf "$LOCK_DIR" 2>/dev/null || true
+        if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+            echo "ERRO: não foi possível adquirir trava de produção."
+            exit 75
+        fi
+    fi
+
+    printf '%s\n' "$$" > "$LOCK_DIR/pid"
+    LOCK_FALLBACK=1
+    trap liberar_lock_fallback EXIT INT TERM
+fi
+
+# =====================================================
+# ID ÚNICO
+# =====================================================
+# Mantém SHORT_ID fornecido explicitamente para reprodução/debug.
+# Em produção normal usa segundos + PID, eliminando colisões de lote.
+
+if [ -n "${SHORT_ID:-}" ]; then
+    ID="$SHORT_ID"
+else
+    ID="$(date +%F_%H%M%S)_$$"
+fi
+
 export SHORT_ID="$ID"
 
 LOG_DIR="$BASE/logs/producao"
 mkdir -p "$LOG_DIR"
-
 LOG="$LOG_DIR/short_${SHORT_ID}.log"
-
 exec > >(tee -a "$LOG") 2>&1
 
 echo
 echo "======================================"
-echo " SHORTAUTO PRO - STABLE 1.7"
+echo " SHORTAUTO PRO - STABLE 1.8"
 echo "======================================"
 echo
 echo "ID: $SHORT_ID"
@@ -44,593 +101,164 @@ echo
 
 cd "$BASE"
 
-# ======================================
+# =====================================================
 # CONFIG
-# ======================================
+# =====================================================
 
 if [ -f "$BASE/config.sh" ]; then
+    # shellcheck disable=SC1091
     source "$BASE/config.sh"
 else
     echo "ERRO: config.sh não encontrado."
     exit 1
 fi
 
-# ======================================
-# HEALTH CHECK
-# ======================================
+# =====================================================
+# HELPERS
+# =====================================================
 
-echo
-echo "--------------------------------------"
-echo "HEALTH CHECK"
-echo "--------------------------------------"
-echo
-
-if [ -x "$BASE/health_check.sh" ]; then
-
-    if "$BASE/health_check.sh"; then
-        echo
-        echo "Health Check: OK"
-    else
-        echo
-        echo "ERRO: Health Check falhou."
-        exit 1
-    fi
-
-else
-
-    echo "ERRO: health_check.sh não encontrado."
-    exit 1
-
-fi
-
-# ======================================
-# FUNÇÃO DAS ETAPAS
-# ======================================
-
-rodar() {
-
+rodar_python() {
     TITULO="$1"
     ARQUIVO="$2"
 
     echo
-    echo "--------------------------------------"
+echo "--------------------------------------"
     echo "$TITULO"
     echo "--------------------------------------"
     echo
 
-    INICIO_ETAPA=$(date +%s)
+    if [ ! -f "$BASE/$ARQUIVO" ]; then
+        echo "ERRO: arquivo obrigatório não encontrado: $ARQUIVO"
+        exit 1
+    fi
+
+    INICIO_ETAPA="$(date +%s)"
 
     if python "$BASE/$ARQUIVO"; then
-
-        FIM_ETAPA=$(date +%s)
-        TEMPO=$((FIM_ETAPA - INICIO_ETAPA))
-
+        FIM_ETAPA="$(date +%s)"
+        TEMPO="$((FIM_ETAPA - INICIO_ETAPA))"
         echo
         echo "ETAPA OK: ${TEMPO}s"
-
     else
-
         CODIGO=$?
-
         echo
-        echo "ERRO NA ETAPA:"
-        echo "$TITULO"
-        echo
-        echo "Arquivo:"
-        echo "$ARQUIVO"
-        echo
+        echo "ERRO NA ETAPA: $TITULO"
+        echo "Arquivo: $ARQUIVO"
         echo "Código: $CODIGO"
-
         exit "$CODIGO"
-
     fi
 }
 
-# ======================================
-# PIPELINE STABLE 1.4
-# ======================================
+rodar_shell() {
+    TITULO="$1"
+    ARQUIVO="$2"
+    shift 2
 
-rodar \
-"1/12 - TOPIC ENGINE" \
-"topic_engine.py"
+    echo
+echo "--------------------------------------"
+    echo "$TITULO"
+    echo "--------------------------------------"
+    echo
 
-rodar \
-"2/12 - ROTEIRO + PESQUISA FACTUAL" \
-"roteiro.py"
+    if [ ! -f "$BASE/$ARQUIVO" ]; then
+        echo "ERRO: arquivo obrigatório não encontrado: $ARQUIVO"
+        exit 1
+    fi
 
-rodar \
-"3/12 - CONFIRMANDO ASSUNTO USADO" \
-"used_topic.py"
+    if bash "$BASE/$ARQUIVO" "$@"; then
+        echo
+        echo "$TITULO: OK"
+    else
+        CODIGO=$?
+        echo
+        echo "ERRO: $TITULO falhou. Código: $CODIGO"
+        exit "$CODIGO"
+    fi
+}
 
-rodar \
-"4/12 - HOOK ENGINE" \
-"hook_engine.py"
+# =====================================================
+# PREFLIGHT + HEALTH
+# =====================================================
 
-rodar \
-"4B/12 - NARRATIVE DIRECTOR 3.2" \
-"narrative_director.py"
+rodar_shell "PREFLIGHT CHECK" "preflight_check.sh"
+rodar_shell "HEALTH CHECK" "health_check.sh"
 
-rodar \
-"4C/12 - COLD OPEN DIRECTOR 3.3" \
-"cold_open_director.py"
+# =====================================================
+# PIPELINE PRINCIPAL
+# =====================================================
 
-rodar \
-"5/12 - SCENE DIRECTOR + RELEVÂNCIA" \
-"scene_director.py"
+rodar_python "1/12 - TOPIC ENGINE" "topic_engine.py"
+rodar_python "2/12 - ROTEIRO + PESQUISA FACTUAL" "roteiro.py"
+rodar_python "3/12 - CONFIRMANDO ASSUNTO USADO" "used_topic.py"
+rodar_python "4/12 - HOOK ENGINE" "hook_engine.py"
+rodar_python "4B/12 - NARRATIVE DIRECTOR 3.2" "narrative_director.py"
+rodar_python "4C/12 - COLD OPEN DIRECTOR 3.3" "cold_open_director.py"
+rodar_python "5/12 - SCENE DIRECTOR + RELEVÂNCIA" "scene_director.py"
+rodar_python "5A0/12 - SCENE TRUTH REFINER" "scene_truth_refiner_6_7.py"
+rodar_python "5A/12 - DOCUMENTARY DIRECTOR" "documentary_director.py"
+rodar_python "5B/12 - VISUAL DIRECTOR" "visual_director.py"
+rodar_python "5C/12 - FACTUAL VISUAL RISK GUARD" "visual_risk_guard.py"
+rodar_python "5D/12 - EDITORIAL CONTINUITY GUARD" "editorial_continuity.py"
+rodar_python "5D1/12 - LOSSLESS SCENE COVERAGE REPAIR" "scene_lossless_repair.py"
+rodar_python "5D2/12 - POST-SCRIPT TRUTH LOCK" "post_script_truth_lock.py"
+rodar_python "5E/12 - SEMANTIC INTEGRITY GATE" "semantic_integrity_gate.py"
+rodar_python "6/12 - SMART MEDIA SELECTOR" "midia.py"
+rodar_python "6A/12 - MEDIA MASTER GATE" "media_master_gate.py"
+rodar_python "6B/12 - CINEMATIC MOTION DIRECTOR" "motion_director.py"
+rodar_python "6C/12 - MONTAGE RHYTHM DIRECTOR" "rhythm_director.py"
+rodar_python "6D/12 - PRODUCTION SUPERVISOR" "production_supervisor.py"
+rodar_python "6E/12 - FINAL EDITORIAL GATE" "editorial_gate.py"
+rodar_python "7/12 - GERANDO VOZ PIPER" "audio.py"
+rodar_python "8/12 - WHISPER + LEGENDA DINÂMICA" "legenda_dinamica.py"
+rodar_python "9/12 - MONTANDO CENAS SEMÂNTICAS" "video.py"
 
-rodar \
-"5A0/12 - SCENE TRUTH REFINER 6.7" \
-"scene_truth_refiner_6_7.py"
-
-rodar \
-"5A/12 - DOCUMENTARY DIRECTOR 3.1" \
-"documentary_director.py"
-
-rodar \
-"5B/12 - VISUAL DIRECTOR PASS 3.0" \
-"visual_director.py"
-
-rodar \
-"5C/12 - FACTUAL VISUAL RISK GUARD" \
-"visual_risk_guard.py"
-
-rodar \
-"5D/12 - EDITORIAL CONTINUITY GUARD 4.4" \
-"editorial_continuity.py"
-
-
-rodar \
-"5D1/12 - LOSSLESS SCENE COVERAGE REPAIR 6.2" \
-"scene_lossless_repair.py"
+# =====================================================
+# RENDER FINAL — APENAS PIPELINE V6
+# =====================================================
+# Não cai silenciosamente para uma implementação antiga. Se V6 falhar,
+# a produção falha fechada para que o erro real seja corrigido.
 
 echo
 echo "--------------------------------------"
-echo "5D2/12 - POST-SCRIPT TRUTH LOCK 6.2"
+echo "10/12 - RENDER FINAL V6"
 echo "--------------------------------------"
 echo
 
-python "$BASE/post_script_truth_lock.py"
-
-CODIGO=$?
-
-if [ "$CODIGO" -ne 0 ]; then
-
-    echo
-    echo "======================================"
-    echo " POST-SCRIPT TRUTH LOCK: BLOCK"
-    echo "======================================"
-    echo
-    echo "Topic/fonte/roteiro/cenas não passaram"
-    echo "pela validação de identidade."
-    echo "Nenhuma mídia será produzida."
-    echo "Código: $CODIGO"
-
-    exit "$CODIGO"
+if [ ! -f "$BASE/v6.py" ]; then
+    echo "ERRO: v6.py não encontrado."
+    exit 1
 fi
-
-echo
-echo "POST-SCRIPT TRUTH LOCK: OK"
-echo
-
-rodar \
-"5E/12 - SEMANTIC INTEGRITY GATE 5.1" \
-"semantic_integrity_gate.py"
-
-rodar \
-"6/12 - SMART MEDIA SELECTOR" \
-"midia.py"
-
-
-rodar \
-"6A/12 - MEDIA MASTER GATE 5.1" \
-"media_master_gate.py"
-
-rodar \
-"6B/12 - CINEMATIC MOTION DIRECTOR 3.8" \
-"motion_director.py"
-
-rodar \
-"6C/12 - MONTAGE RHYTHM DIRECTOR 4.3" \
-"rhythm_director.py"
-
-rodar \
-"6D/12 - PRODUCTION SUPERVISOR 5.0" \
-"production_supervisor.py"
-
-rodar \
-"6E/12 - FINAL EDITORIAL GATE 5.0" \
-"editorial_gate.py"
-
-rodar \
-"7/12 - GERANDO VOZ PIPER" \
-"audio.py"
-
-rodar \
-"8/12 - WHISPER + LEGENDA DINÂMICA" \
-"legenda_dinamica.py"
-
-rodar \
-"9/12 - MONTANDO CENAS SEMÂNTICAS" \
-"video.py"
-
-# ======================================
-# 9/9 - RENDER FINAL
-# ======================================
-
-echo
-echo "--------------------------------------"
-echo "10/12 - RENDER FINAL"
-echo "--------------------------------------"
-echo
-
-VERSAO=""
-FINAL=""
 
 if python "$BASE/v6.py"; then
-
     FINAL="$BASE/videos/short_v6_${SHORT_ID}.mp4"
-    VERSAO="V6 STABLE 1.4"
-
+    VERSAO="V6 PRINCIPAL"
 else
-
-    echo
-    echo "AVISO: render V6 falhou."
-    echo "Tentando V5 como fallback..."
-    echo
-
-    if [ ! -f "$BASE/v5.py" ]; then
-        echo "ERRO: v5.py não encontrado."
-        exit 1
-    fi
-
-    if python "$BASE/v5.py"; then
-
-        FINAL="$BASE/videos/short_v5_${SHORT_ID}.mp4"
-        VERSAO="V5 FALLBACK"
-
-    else
-
-        echo
-        echo "ERRO: V6 e V5 falharam."
-        exit 1
-
-    fi
-
-fi
-
-# ======================================
-# VERIFICAR ARQUIVO FINAL
-# ======================================
-
-if [ ! -f "$FINAL" ]; then
-
-    echo
-    echo "ERRO: vídeo final não encontrado."
-    echo "$FINAL"
-
-    exit 1
-
-fi
-
-# ======================================
-# QUALITY GATE
-# ======================================
-
-echo
-echo "--------------------------------------"
-echo "QUALITY GATE"
-echo "--------------------------------------"
-echo
-
-if [ ! -f "$BASE/quality_check.py" ]; then
-    echo "ERRO: quality_check.py não encontrado."
-    exit 1
-fi
-
-if python "$BASE/quality_check.py"; then
-
-    echo
-    echo "Quality Gate: PASS"
-
-else
-
     CODIGO=$?
-
-    echo
-    echo "======================================"
-    echo " QUALITY GATE: FAIL"
-    echo "======================================"
-    echo
-    echo "O vídeo não será copiado para Downloads."
-    echo "O assunto também NÃO será registrado no histórico."
-    echo
-    echo "Código: $CODIGO"
-
+    echo "ERRO: render V6 falhou. Nenhum pipeline legado será usado como fallback."
     exit "$CODIGO"
-
 fi
 
-# ======================================
-# 11A/12 - PUBLISH PACK
-# ======================================
-
-echo
-echo "--------------------------------------"
-echo "11A/12 - PUBLISH PACK"
-echo "--------------------------------------"
-echo
-
-if [ ! -f "$BASE/publish_pack.py" ]; then
-    echo "ERRO: publish_pack.py não encontrado."
+if [ ! -s "$FINAL" ]; then
+    echo "ERRO: vídeo final não encontrado ou vazio: $FINAL"
     exit 1
 fi
 
-if python "$BASE/publish_pack.py"; then
-
-    echo
-    echo "Publish Pack: OK"
-
-else
-
-    CODIGO=$?
-
-    echo
-    echo "======================================"
-    echo " PUBLISH PACK: FAIL"
-    echo "======================================"
-    echo
-    echo "Metadados de publicação não foram validados."
-    echo "O assunto NÃO será registrado."
-    echo "Código: $CODIGO"
-
-    exit "$CODIGO"
-
-fi
-
-
-# ======================================
-# 11B/12 - SOURCE LEDGER
-# ======================================
-
-echo
-echo "--------------------------------------"
-echo "11B/12 - SOURCE & ATTRIBUTION LEDGER"
-echo "--------------------------------------"
-echo
-
-if [ ! -f "$BASE/source_ledger.py" ]; then
-    echo "ERRO: source_ledger.py não encontrado."
-    exit 1
-fi
-
-if python "$BASE/source_ledger.py"; then
-
-    echo
-    echo "Source Ledger: OK"
-
-else
-
-    CODIGO=$?
-
-    echo
-    echo "======================================"
-    echo " SOURCE LEDGER: FAIL"
-    echo "======================================"
-    echo
-    echo "A rastreabilidade/atribuição da mídia falhou."
-    echo "O assunto NÃO será registrado."
-    echo "Código: $CODIGO"
-
-    exit "$CODIGO"
-
-fi
-
-
-# ======================================
-# 11C/12 - PUBLISH INTEGRITY
-# ======================================
-
-echo
-echo "--------------------------------------"
-echo "11C/12 - PUBLISH INTEGRITY GATE 5.1"
-echo "--------------------------------------"
-echo
-
-if [ ! -f "$BASE/publish_integrity_gate.py" ]; then
-    echo "ERRO: publish_integrity_gate.py não encontrado."
-    exit 1
-fi
-
-if python "$BASE/publish_integrity_gate.py"; then
-
-    echo
-    echo "Publish Integrity: PASS"
-
-else
-
-    CODIGO=$?
-
-    echo
-    echo "======================================"
-    echo " PUBLISH INTEGRITY: BLOCK"
-    echo "======================================"
-    echo
-    echo "Título/descrição não passaram pela validação."
-    echo "O assunto NÃO será registrado."
-    echo "Código: $CODIGO"
-
-    exit "$CODIGO"
-
-fi
-
-
-# ======================================
-# 12A/12 - PRODUCTION MANIFEST
-# ======================================
-
-echo
-echo "--------------------------------------"
-echo "12A/12 - PRODUCTION MANIFEST"
-echo "--------------------------------------"
-echo
-
-if [ ! -f "$BASE/production_manifest.py" ]; then
-    echo "ERRO: production_manifest.py não encontrado."
-    exit 1
-fi
-
-if python "$BASE/production_manifest.py"; then
-
-    echo
-    echo "Production Manifest: OK"
-
-else
-
-    CODIGO=$?
-
-    echo
-    echo "======================================"
-    echo " PRODUCTION MANIFEST: FAIL"
-    echo "======================================"
-    echo
-    echo "O pacote da produção ficou incompleto."
-    echo "O assunto NÃO será registrado."
-    echo "Código: $CODIGO"
-
-    exit "$CODIGO"
-
-fi
-
-
-# ======================================
-# 12B/12 - FINAL QUALITY
-# ======================================
-
-echo
-echo "--------------------------------------"
-echo "12B/12 - FINAL QUALITY GATE"
-echo "--------------------------------------"
-echo
-
-if [ ! -f "$BASE/final_quality.py" ]; then
-    echo "ERRO: final_quality.py não encontrado."
-    exit 1
-fi
-
-if python "$BASE/final_quality.py"; then
-
-    echo
-    echo "Final Quality: PASS"
-
-else
-
-    CODIGO=$?
-
-    echo
-    echo "======================================"
-    echo " FINAL QUALITY: BLOCK"
-    echo "======================================"
-    echo
-    echo "A produção não recebeu aprovação final."
-    echo "O assunto NÃO será registrado."
-    echo "Código: $CODIGO"
-
-    exit "$CODIGO"
-
-fi
-
-
-# ======================================
-# REGISTRAR ASSUNTO
-# SOMENTE APÓS TODOS OS GATES
-# ======================================
-
-echo
-echo "--------------------------------------"
-echo "REGISTRANDO ASSUNTO"
-echo "--------------------------------------"
-echo
-
-if [ ! -f "$BASE/register_topic.py" ]; then
-
-    echo "ERRO: register_topic.py não encontrado."
-    echo "O histórico não será atualizado."
-    exit 1
-
-fi
-
-
-if python "$BASE/register_topic.py"; then
-
-    echo
-    echo "Registro de assunto: OK"
-
-else
-
-    CODIGO=$?
-
-    echo
-    echo "======================================"
-    echo " REGISTRO DE ASSUNTO: FAIL"
-    echo "======================================"
-    echo
-    echo "O vídeo permanece preservado,"
-    echo "mas a produção não será marcada"
-    echo "como totalmente finalizada."
-    echo "Código: $CODIGO"
-
-    exit "$CODIGO"
-
-fi
-
-
-# ======================================
-# INFORMAÇÕES DO VÍDEO
-# ======================================
-
-DURACAO="$(
-    ffprobe \
-    -v error \
-    -show_entries format=duration \
-    -of default=noprint_wrappers=1:nokey=1 \
-    "$FINAL" 2>/dev/null || true
-)"
-
-WIDTH="$(
-    ffprobe \
-    -v error \
-    -select_streams v:0 \
-    -show_entries stream=width \
-    -of default=noprint_wrappers=1:nokey=1 \
-    "$FINAL" 2>/dev/null || true
-)"
-
-HEIGHT="$(
-    ffprobe \
-    -v error \
-    -select_streams v:0 \
-    -show_entries stream=height \
-    -of default=noprint_wrappers=1:nokey=1 \
-    "$FINAL" 2>/dev/null || true
-)"
-
-FPS="$(
-    ffprobe \
-    -v error \
-    -select_streams v:0 \
-    -show_entries stream=avg_frame_rate \
-    -of default=noprint_wrappers=1:nokey=1 \
-    "$FINAL" 2>/dev/null || true
-)"
-
-TAMANHO="$(
-    du -h "$FINAL" 2>/dev/null \
-    | cut -f1
-)"
-
-# ======================================
+# =====================================================
+# GATES FINAIS
+# =====================================================
+
+rodar_python "10B/12 - QUALITY GATE" "quality_check.py"
+rodar_python "11A/12 - PUBLISH PACK" "publish_pack.py"
+rodar_python "11B/12 - SOURCE & ATTRIBUTION LEDGER" "source_ledger.py"
+rodar_python "11C/12 - PUBLISH INTEGRITY GATE" "publish_integrity_gate.py"
+rodar_python "12A/12 - PRODUCTION MANIFEST" "production_manifest.py"
+rodar_python "12B/12 - FINAL QUALITY GATE" "final_quality.py"
+
+# =====================================================
 # COPIAR PARA DOWNLOADS
-# ======================================
+# =====================================================
+# A cópia é conveniência. Falha de armazenamento compartilhado não invalida
+# um vídeo que já passou pelos gates e permanece preservado em $FINAL.
 
 echo
 echo "--------------------------------------"
@@ -639,34 +267,38 @@ echo "--------------------------------------"
 echo
 
 DOWNLOADS="$HOME/storage/shared/Download"
+DESTINO="$FINAL"
 
 if [ -d "$DOWNLOADS" ]; then
-
-    DESTINO="$DOWNLOADS/ShortAutoPro_${SHORT_ID}.mp4"
-
-    cp "$FINAL" "$DESTINO"
-
-    if [ ! -f "$DESTINO" ]; then
-        echo "ERRO: falha ao copiar para Downloads."
-        exit 1
+    CANDIDATO="$DOWNLOADS/ShortAutoPro_${SHORT_ID}.mp4"
+    if cp "$FINAL" "$CANDIDATO" && [ -s "$CANDIDATO" ]; then
+        DESTINO="$CANDIDATO"
+        echo "Cópia concluída: $DESTINO"
+    else
+        echo "AVISO: falha ao copiar para Downloads."
+        echo "Vídeo preservado em: $FINAL"
     fi
-
-    echo "Cópia concluída."
-    echo "$DESTINO"
-
 else
-
-    DESTINO="$FINAL"
-
     echo "AVISO: Downloads não encontrada."
-    echo "Vídeo mantido em:"
-    echo "$FINAL"
-
+    echo "Vídeo preservado em: $FINAL"
 fi
 
-# ======================================
-# ARQUIVOS DA PRODUÇÃO
-# ======================================
+# =====================================================
+# REGISTRAR ASSUNTO
+# =====================================================
+# Só ocorre depois de todos os gates e após a tentativa de entrega.
+
+rodar_python "REGISTRANDO ASSUNTO" "register_topic.py"
+
+# =====================================================
+# INFORMAÇÕES DO VÍDEO
+# =====================================================
+
+DURACAO="$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$FINAL" 2>/dev/null || true)"
+WIDTH="$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of default=noprint_wrappers=1:nokey=1 "$FINAL" 2>/dev/null || true)"
+HEIGHT="$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of default=noprint_wrappers=1:nokey=1 "$FINAL" 2>/dev/null || true)"
+FPS_FINAL="$(ffprobe -v error -select_streams v:0 -show_entries stream=avg_frame_rate -of default=noprint_wrappers=1:nokey=1 "$FINAL" 2>/dev/null || true)"
+TAMANHO="$(du -h "$FINAL" 2>/dev/null | cut -f1 || true)"
 
 USED_TOPIC="$BASE/roteiros/used_topic_${SHORT_ID}.txt"
 TOPIC="$BASE/roteiros/topic_${SHORT_ID}.txt"
@@ -676,117 +308,72 @@ FONTE="$BASE/roteiros/fonte_${SHORT_ID}.txt"
 MAPA="$BASE/roteiros/scene_map_${SHORT_ID}.json"
 KEYWORDS="$BASE/roteiros/keywords_${SHORT_ID}.txt"
 
-# ======================================
+# =====================================================
 # RESUMO
-# ======================================
+# =====================================================
 
 echo
 echo "======================================"
 echo " SHORT PRO PRONTO!"
 echo "======================================"
-echo
 echo "ID: $SHORT_ID"
 echo "VERSÃO: $VERSAO"
 echo "QUALITY: PASS"
 echo "DURAÇÃO: ${DURACAO:-?}s"
 echo "RESOLUÇÃO: ${WIDTH:-?}x${HEIGHT:-?}"
-echo "FPS: ${FPS:-?}"
+echo "FPS: ${FPS_FINAL:-?}"
 echo "TAMANHO: ${TAMANHO:-?}"
 echo
 
 echo "ASSUNTO:"
-
 if [ -f "$USED_TOPIC" ]; then
-
     cat "$USED_TOPIC"
-
 elif [ -f "$TOPIC" ]; then
-
     cat "$TOPIC"
-
 else
-
     echo "desconhecido"
-
 fi
 
 echo
-
 if [ -f "$HOOK" ]; then
-    echo
     echo "HOOK:"
     cat "$HOOK"
     echo
 fi
 
-echo
-echo "VÍDEO:"
-echo "$DESTINO"
-echo
-echo "ROTEIRO:"
-echo "$ROTEIRO"
-echo
-echo "BUSCAS VISUAIS:"
-echo "$KEYWORDS"
-echo
-echo "FONTE FACTUAL:"
-echo "$FONTE"
-echo
-echo "MAPA SEMÂNTICO:"
-echo "$MAPA"
-echo
-echo "LOG:"
-echo "$LOG"
+echo "VÍDEO: $DESTINO"
+echo "ROTEIRO: $ROTEIRO"
+echo "BUSCAS VISUAIS: $KEYWORDS"
+echo "FONTE FACTUAL: $FONTE"
+echo "MAPA SEMÂNTICO: $MAPA"
+echo "LOG: $LOG"
 echo
 
-# ======================================
+# =====================================================
 # STORAGE GUARD
-# ======================================
+# =====================================================
 
-echo
-echo "--------------------------------------"
-echo "STORAGE GUARD"
-echo "--------------------------------------"
-echo
-
-if [ -x "$BASE/limpar_storage.sh" ]; then
-
-    if "$BASE/limpar_storage.sh" --execute; then
-        echo
+if [ -f "$BASE/limpar_storage.sh" ]; then
+    echo "--------------------------------------"
+    echo "STORAGE GUARD"
+    echo "--------------------------------------"
+    if bash "$BASE/limpar_storage.sh" --execute; then
         echo "Storage Guard: OK"
     else
-        echo
         echo "AVISO: Storage Guard apresentou erro."
     fi
-
-else
-
-    echo "AVISO: limpar_storage.sh não encontrado."
-
 fi
-
-# ======================================
-# ARMAZENAMENTO
-# ======================================
 
 echo
 echo "--------------------------------------"
 echo "ARMAZENAMENTO"
 echo "--------------------------------------"
-echo
-
-df -h "$HOME" | tail -1
-
-# ======================================
-# FINAL
-# ======================================
+df -h "$HOME" | tail -1 || true
 
 echo
 echo "======================================"
 echo " PRODUÇÃO FINALIZADA"
 echo "======================================"
-echo
 echo "ID: $SHORT_ID"
 echo "STATUS: QUALITY PASS"
 echo "FIM: $(date)"
-echo
