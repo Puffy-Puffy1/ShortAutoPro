@@ -156,5 +156,41 @@ class RegisterTopicTests(unittest.TestCase):
             self.assertEqual(len(data), 1)
 
 
+class UsedTopicTests(unittest.TestCase):
+    def test_used_topic_accepts_case_insensitive_header_and_normalizes_spaces(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            roteiros = home / "ShortAutoPro" / "roteiros"
+            roteiros.mkdir(parents=True)
+            (roteiros / "fonte_gate_test.txt").write_text(
+                "  assunto :   Caso   Dyatlov Pass   \nFONTE: Wikipedia — Dyatlov Pass incident\n",
+                encoding="utf-8",
+            )
+
+            proc = run_script("used_topic.py", home)
+            output = proc.stdout + proc.stderr
+            self.assertEqual(proc.returncode, 0, output)
+            self.assertEqual(
+                (roteiros / "used_topic_gate_test.txt").read_text(encoding="utf-8"),
+                "Caso Dyatlov Pass",
+            )
+
+    def test_invalid_source_does_not_overwrite_existing_used_topic(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            roteiros = home / "ShortAutoPro" / "roteiros"
+            roteiros.mkdir(parents=True)
+            target = roteiros / "used_topic_gate_test.txt"
+            target.write_text("Tema preservado", encoding="utf-8")
+            (roteiros / "fonte_gate_test.txt").write_text(
+                "FONTE: Wikipedia — artigo sem assunto\n",
+                encoding="utf-8",
+            )
+
+            proc = run_script("used_topic.py", home)
+            self.assertNotEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+            self.assertEqual(target.read_text(encoding="utf-8"), "Tema preservado")
+
+
 if __name__ == "__main__":
     unittest.main()
