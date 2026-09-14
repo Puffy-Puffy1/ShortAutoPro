@@ -7,7 +7,7 @@ BASE="$HOME/ShortAutoPro"
 
 echo
 echo "======================================"
-echo " SHORTAUTO PRO - HEALTH CHECK 2.3"
+echo " SHORTAUTO PRO - HEALTH CHECK 2.4"
 echo "======================================"
 echo
 
@@ -30,8 +30,9 @@ ARQUIVOS=(
     scene_director.py scene_truth_refiner_6_7.py documentary_director.py visual_director.py
     visual_risk_guard.py editorial_continuity.py scene_lossless_repair.py post_script_truth_lock.py
     semantic_integrity_gate.py wikimedia_source.py wikimedia_query_bridge.py source_router.py evidence_guard.py
-    midia.py media_master_gate.py motion_director.py rhythm_director.py production_supervisor.py editorial_gate.py
-    audio.py legenda_dinamica.py subtitle_alignment.py video.py v6.py quality_check.py
+    midia.py midia_runtime.py visual_pipeline_bridge_v42.py visual_selection_engine_v4.py visual_intelligence_6.py
+    vi6_8_runtime_policy.py vi6_9_runtime_policy.py media_master_gate.py motion_director.py rhythm_director.py
+    production_supervisor.py editorial_gate.py audio.py legenda_dinamica.py subtitle_alignment.py video.py v6.py quality_check.py
     publish_pack.py source_ledger.py publish_integrity_gate.py production_manifest.py final_quality.py register_topic.py
     limpar_storage.sh batch_report.py batch_queue.sh batch_recovery.sh control_center.sh
     preflight_check.sh diagnostico.sh release_check.sh
@@ -74,6 +75,29 @@ if [ -f "$WHISPER_MODEL" ]; then
     echo "OK  Whisper model"
 else
     echo "ERRO  Whisper model ausente: $WHISPER_MODEL"
+    ERROS=$((ERROS + 1))
+fi
+
+# Catch nested local dependencies used by the active media selector. This is
+# import-only and does not execute midia.py or perform network/media work.
+if (
+    cd "$BASE" &&
+    python - <<'PY' >/dev/null 2>&1
+import importlib
+
+for name in (
+    "midia_runtime",
+    "visual_pipeline_bridge_v42",
+    "visual_intelligence_6",
+    "vi6_8_runtime_policy",
+    "vi6_9_runtime_policy",
+):
+    importlib.import_module(name)
+PY
+); then
+    echo "OK  imports runtime Smart Media Selector"
+else
+    echo "ERRO  imports runtime Smart Media Selector"
     ERROS=$((ERROS + 1))
 fi
 
