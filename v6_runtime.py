@@ -67,13 +67,20 @@ def validate_probe(data):
         except (TypeError, ValueError, OverflowError):
             width = height = 0
         fps = parse_fps(video.get("avg_frame_rate"))
+        codec = str(video.get("codec_name", "") or "").strip().lower()
         if (width, height) != (1080, 1920):
             errors.append(f"resolution_invalid={width}x{height}")
         if not 29.0 <= fps <= 31.0:
             errors.append(f"fps_invalid={fps:.3f}")
+        if codec != "h264":
+            errors.append(f"video_codec_invalid={codec or 'missing'}")
 
     if audio is None:
         errors.append("audio_stream_missing")
+    else:
+        codec = str(audio.get("codec_name", "") or "").strip().lower()
+        if codec != "aac":
+            errors.append(f"audio_codec_invalid={codec or 'missing'}")
 
     duration = safe_float(fmt.get("duration"))
     if not 15.0 <= duration <= 180.0:
