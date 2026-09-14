@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 
-"""Fail-closed runtime guard for the current media selector control-flow bug.
+"""Fail-closed runtime guard for the current media selector control-flow bugs.
 
-The production selector is intentionally kept in ``midia.py``. A previous
-refactor left a small set of stray ``break`` statements in its top-level
-per-scene loop. The first media file could be downloaded successfully and
-then the loop stopped before common bookkeeping, producing ``Total: 0/12``.
+The production selector remains in ``midia.py``. A previous refactor left a
+small set of stray ``break`` statements in its top-level per-scene loop. The
+first media file could be downloaded successfully and then the loop stopped
+before common bookkeeping, producing ``Total: 0/12``.
 
-This launcher removes only those known stray statements in memory, validates
-the transformed source, and executes it. It does not rewrite ``midia.py`` on
-disk. When the source is later repaired directly, the launcher detects that
-no hotfix is needed and executes the original source unchanged.
+This launcher removes only those known stray statements in memory. It also
+ensures the legacy cleanup block removes stale WebP assets when an explicit
+SHORT_ID is reused for a debug/recovery run. Unknown partial layouts fail
+closed instead of being rewritten heuristically.
 """
 
 from __future__ import annotations
@@ -45,12 +45,7 @@ def _previous_nonblank(lines: list[str], index: int) -> str:
 
 
 def fix_source(source: str) -> tuple[str, dict[str, int]]:
-    """Remove only the seven known premature breaks from ``midia.py``.
-
-    Returns ``(source_fixed, counters)``. A completely fixed source is
-    accepted unchanged. A partially matching/unknown source fails closed so
-    that a future refactor cannot be silently modified in the wrong place.
-    """
+    """Remove only the seven known premature breaks from ``midia.py``."""
 
     lines = source.splitlines(keepends=True)
     counters = {key: 0 for key in EXPECTED_BROKEN_COUNTS}
@@ -64,35 +59,27 @@ def fix_source(source: str) -> tuple[str, dict[str, int]]:
         nxt = _next_nonblank(lines, index)
         prev = _previous_nonblank(lines, index)
 
-        # Success path: this break made destino/bookkeeping unreachable.
         if indent == 16 and nxt == "destino = destino_teste":
             counters["before_destino"] += 1
             remove_indexes.add(index)
             continue
 
-        # Same success path: keep the final inner-loop break, but allow the
-        # VSE42 success-commit block immediately below this older stray break.
         if indent == 16 and nxt == "# SHORTAUTOPRO VSE42 SUCCESS COMMIT":
             counters["before_success_commit"] += 1
             remove_indexes.add(index)
             continue
 
-        # These breaks are already outside candidate/retry loops and terminate
-        # the outer per-scene loop before the common counters/bookkeeping.
         if indent == 8 and prev == "_vse42_cleanup_scene_sibling(destino)":
             counters["outer_cleanup"] += 1
             remove_indexes.add(index)
             continue
 
-        # Local fallback has no inner loop here. Both the nested and outer
-        # break target the scene loop, so neither may run before bookkeeping.
         if indent in {8, 12} and prev == "_vse42_commit_safe(escolhido)":
             counters["local_commit"] += 1
             remove_indexes.add(index)
             continue
 
     if not remove_indexes:
-        # Directly repaired source: launcher becomes a transparent pass-through.
         return source, counters
 
     if counters != EXPECTED_BROKEN_COUNTS:
@@ -111,6 +98,34 @@ def fix_source(source: str) -> tuple[str, dict[str, int]]:
     return fixed, counters
 
 
+def harden_cleanup(source: str) -> tuple[str, bool]:
+    """Add WebP to the known legacy media cleanup block, if still needed."""
+
+    start_marker = "# LIMPAR MÍDIA ANTIGA"
+    end_marker = "# TEXTO"
+    start = source.find(start_marker)
+    if start < 0:
+        return source, False
+    end = source.find(end_marker, start)
+    if end < 0:
+        raise RuntimeError("bloco de limpeza de midia sem marcador final")
+
+    block = source[start:end]
+    if '".webp"' in block:
+        return source, False
+
+    old = '            ".png",\n            ".mp4"'
+    new = '            ".png",\n            ".webp",\n            ".mp4"'
+    count = block.count(old)
+    if count != 1:
+        raise RuntimeError(
+            "bloco de limpeza de midia mudou e a inclusao de WebP nao e segura"
+        )
+
+    hardened_block = block.replace(old, new, 1)
+    return source[:start] + hardened_block + source[end:], True
+
+
 def run() -> None:
     base = Path(os.path.expanduser("~/ShortAutoPro"))
     target = base / "midia.py"
@@ -121,6 +136,7 @@ def run() -> None:
     try:
         source = target.read_text(encoding="utf-8")
         fixed, counters = fix_source(source)
+        fixed, cleanup_applied = harden_cleanup(fixed)
         code = compile(fixed, str(target), "exec")
     except Exception as exc:
         raise SystemExit(f"ERRO MIDIA CONTROL FLOW GUARD: {exc}") from exc
@@ -130,6 +146,11 @@ def run() -> None:
         print(f"MIDIA_CONTROL_FLOW_FIX=APPLIED removed_breaks={applied}")
     else:
         print("MIDIA_CONTROL_FLOW_FIX=NOT_NEEDED")
+
+    print(
+        "MIDIA_WEBP_CLEANUP="
+        + ("APPLIED" if cleanup_applied else "NOT_NEEDED")
+    )
 
     namespace = {
         "__name__": "__main__",
