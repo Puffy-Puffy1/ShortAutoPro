@@ -22,12 +22,32 @@ MEDIA_EXTENSIONS = {".mp4", ".jpg", ".jpeg", ".png", ".webp"}
 
 PERFIS = {
     "still": {"zoom_start": 1.00, "zoom_end": 1.015, "pan": "none", "intensity": 1},
+    "detail_hold": {"zoom_start": 1.00, "zoom_end": 1.025, "pan": "center", "intensity": 1},
+    "portrait_push": {"zoom_start": 1.00, "zoom_end": 1.035, "pan": "center", "intensity": 2},
     "document_push": {"zoom_start": 1.00, "zoom_end": 1.045, "pan": "center", "intensity": 2},
+    "wide_drift_left": {"zoom_start": 1.015, "zoom_end": 1.045, "pan": "left", "intensity": 2},
+    "wide_drift_right": {"zoom_start": 1.015, "zoom_end": 1.045, "pan": "right", "intensity": 2},
     "slow_push": {"zoom_start": 1.00, "zoom_end": 1.065, "pan": "center", "intensity": 3},
     "slow_pan_left": {"zoom_start": 1.03, "zoom_end": 1.07, "pan": "left", "intensity": 3},
     "slow_pan_right": {"zoom_start": 1.03, "zoom_end": 1.07, "pan": "right", "intensity": 3},
     "hook_push": {"zoom_start": 1.00, "zoom_end": 1.095, "pan": "center", "intensity": 4},
 }
+
+CANONICAL_SHOTS = {"wide", "medium", "closeup", "detail", "portrait", "overhead"}
+SHOT_ALIASES = {
+    "wide_shot": "wide", "establishing": "wide", "establishing_shot": "wide",
+    "long": "wide", "long_shot": "wide", "aerial": "wide", "drone": "wide",
+    "landscape": "wide", "medium_shot": "medium", "close": "closeup",
+    "close_up": "closeup", "macro": "detail", "document": "detail",
+    "evidence": "detail", "face": "portrait", "top_down": "overhead",
+}
+
+
+def normalize_shot(value):
+    key = str(value or "").strip().lower().replace("-", "_").replace(" ", "_")
+    if key in CANONICAL_SHOTS:
+        return key
+    return SHOT_ALIASES.get(key, "medium")
 
 
 def load_json(path):
@@ -104,19 +124,44 @@ def media_type(path):
     raise ValueError(f"extensão de mídia não suportada: {ext}")
 
 
-def choose_profile(number, visual_mode, kind):
+def choose_profile(number, visual_mode, shot_type, kind):
+    """Choose restrained documentary motion that respects the intended framing."""
     if kind == "video":
         return "native_video", {"zoom_start": 1.0, "zoom_end": 1.0, "pan": "none", "intensity": 0}
-    if number == 1:
-        return "hook_push", PERFIS["hook_push"]
-    if visual_mode in {"document", "evidence", "map_context"}:
+
+    mode = str(visual_mode or "").strip().lower()
+    shot = normalize_shot(shot_type)
+
+    # Evidence, maps and documents should feel inspected, not theatrically animated.
+    if mode in {"document", "evidence", "map_context", "archive", "archival"}:
+        if shot in {"detail", "overhead", "closeup"}:
+            return "detail_hold", PERFIS["detail_hold"]
         return "document_push", PERFIS["document_push"]
-    if visual_mode in {"location", "environment"}:
+
+    # Faces are where automated Ken Burns movement is most noticeable. Keep it subtle.
+    if shot == "portrait" or mode == "human_context":
+        return "portrait_push", PERFIS["portrait_push"]
+
+    # Detail shots need enough stillness for the viewer to inspect the object/evidence.
+    if shot in {"detail", "overhead"}:
+        return "detail_hold", PERFIS["detail_hold"]
+
+    # Establishing frames benefit from a restrained lateral drift instead of a generic zoom.
+    if shot == "wide":
+        if number % 2 == 0:
+            return "wide_drift_left", PERFIS["wide_drift_left"]
+        return "wide_drift_right", PERFIS["wide_drift_right"]
+
+    # Close-ups may carry the strongest hook push, but only at the opening beat.
+    if number == 1 and shot == "closeup":
+        return "hook_push", PERFIS["hook_push"]
+
+    if mode in {"location", "environment"}:
         return ("slow_pan_left", PERFIS["slow_pan_left"]) if number % 2 == 0 else ("slow_pan_right", PERFIS["slow_pan_right"])
-    if visual_mode in {"architecture", "transport", "object"}:
+    if mode in {"architecture", "transport", "object"}:
         return "slow_push", PERFIS["slow_push"]
-    if visual_mode == "human_context":
-        return "still", PERFIS["still"]
+    if number == 1:
+        return "slow_push", PERFIS["slow_push"]
     return "slow_push", PERFIS["slow_push"]
 
 
@@ -125,10 +170,10 @@ def build_plan(scenes, media_dir):
     for scene in scenes:
         number = int(scene["scene"])
         visual_mode = str(scene.get("visual_mode", "environment")).strip().lower()
-        shot_type = str(scene.get("shot_type", "medium")).strip().lower()
+        shot_type = normalize_shot(scene.get("shot_type", "medium"))
         media = locate_media(media_dir, number)
         kind = media_type(media)
-        profile_name, profile = choose_profile(number, visual_mode, kind)
+        profile_name, profile = choose_profile(number, visual_mode, shot_type, kind)
         plan.append({
             "scene": number,
             "visual_mode": visual_mode,
@@ -143,11 +188,15 @@ def build_plan(scenes, media_dir):
         })
     for index in range(2, len(plan)):
         current = plan[index]["motion_profile"]
-        if current == plan[index-1]["motion_profile"] == plan[index-2]["motion_profile"] and current not in {"native_video", "document_push"}:
-            if current == "slow_pan_left":
-                plan[index]["motion_profile"], plan[index]["pan"] = "slow_pan_right", "right"
-            elif current == "slow_pan_right":
-                plan[index]["motion_profile"], plan[index]["pan"] = "slow_pan_left", "left"
+        if current == plan[index-1]["motion_profile"] == plan[index-2]["motion_profile"] and current not in {"native_video", "document_push", "detail_hold", "portrait_push"}:
+            if current in {"slow_pan_left", "wide_drift_left"}:
+                replacement = "slow_pan_right" if current == "slow_pan_left" else "wide_drift_right"
+                plan[index]["motion_profile"] = replacement
+                plan[index]["pan"] = "right"
+            elif current in {"slow_pan_right", "wide_drift_right"}:
+                replacement = "slow_pan_left" if current == "slow_pan_right" else "wide_drift_left"
+                plan[index]["motion_profile"] = replacement
+                plan[index]["pan"] = "left"
     return plan
 
 
@@ -179,7 +228,7 @@ def main():
         if problems:
             raise ValueError("; ".join(problems))
         result = {
-            "short_id": SHORT_ID, "version": "3.9",
+            "short_id": SHORT_ID, "version": "4.0",
             "expected_scenes": EXPECTED_SCENES,
             "scene_count": len(plan), "problems": [], "scenes": plan,
         }
@@ -189,11 +238,11 @@ def main():
         return 1
     print()
     print("================================")
-    print("CINEMATIC MOTION DIRECTOR 3.9")
+    print("CINEMATIC MOTION DIRECTOR 4.0")
     print("================================")
     print()
     for item in plan:
-        print(f"{item['scene']:02d}. {item['visual_mode']:<16} {item['media_type']:<7} -> {item['motion_profile']}")
+        print(f"{item['scene']:02d}. {item['visual_mode']:<16} {item['shot_type']:<9} {item['media_type']:<7} -> {item['motion_profile']}")
         print(f"    zoom {item['zoom_start']:.3f} -> {item['zoom_end']:.3f} | pan={item['pan']} | intensity={item['intensity']}")
     print()
     print(f"Cenas: {len(plan)}/{EXPECTED_SCENES}")
