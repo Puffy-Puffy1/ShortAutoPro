@@ -89,6 +89,11 @@ class SourceIdentityTests(unittest.TestCase):
         self.assertFalse(result["valid"])
         self.assertEqual(result["reason"], "empty_identity")
 
+    def test_missing_identity_is_rejected_as_empty(self):
+        result = source_identity.validar_identidade(None, "Mary Celeste")
+        self.assertFalse(result["valid"])
+        self.assertEqual(result["reason"], "empty_identity")
+
 
 if __name__ == "__main__":
     unittest.main()
