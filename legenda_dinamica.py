@@ -3,6 +3,7 @@
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 from datetime import date
@@ -26,6 +27,8 @@ WAV = os.path.join(TEMP, "whisper_dinamico.wav")
 JSON_BASE = os.path.join(TEMP, "whisper_timing")
 JSON_PATH = JSON_BASE + ".json"
 ASS_FINAL = os.path.join(VIDEO_DIR, f"short_{SHORT_ID}.ass")
+# Espelho local para auditoria Evolution. O renderer continua usando ASS_FINAL.
+ASS_AUDIT = os.path.join(TEMP, f"short_{SHORT_ID}.ass")
 
 os.makedirs(TEMP, exist_ok=True)
 os.makedirs(VIDEO_DIR, exist_ok=True)
@@ -138,8 +141,8 @@ if not palavras_originais:
 
 print()
 print("================================")
-print("LEGENDA DINÂMICA V4")
-print("ALINHAMENTO + ESTILO DOCUMENTAL")
+print("LEGENDA DINÂMICA V4.1")
+print("ALINHAMENTO + ESTILO DOCUMENTAL + AUDIT")
 print("================================")
 print(f"Palavras no roteiro: {len(palavras_originais)}")
 print()
@@ -247,6 +250,9 @@ try:
         f.flush()
         os.fsync(f.fileno())
     os.replace(tmp_ass, ASS_FINAL)
+    # O espelho torna a legenda mensurável pela camada Evolution sem mudar
+    # o caminho consumido pelo renderer existente.
+    shutil.copyfile(ASS_FINAL, ASS_AUDIT)
 except Exception as exc:
     fail(f"não foi possível gravar legenda ASS: {exc}")
 finally:
@@ -264,7 +270,7 @@ finally:
 print("4/4 Finalizando...")
 print()
 print("================================")
-print("LEGENDA DINÂMICA V4 CRIADA!")
+print("LEGENDA DINÂMICA V4.1 CRIADA!")
 print("================================")
 print(f"Palavras do roteiro: {len(palavras_originais)}")
 print(f"Grupos editoriais: {len(grupos)}")
@@ -272,4 +278,5 @@ print(f"Eventos gerados: {len(eventos)}")
 print(f"Alinhamento: {metodo} ({similarity:.3f})")
 print("Estilo: humanized_documentary_v1")
 print(f"Arquivo: {ASS_FINAL}")
+print(f"Audit mirror: {ASS_AUDIT}")
 print()
