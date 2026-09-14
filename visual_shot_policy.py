@@ -83,8 +83,6 @@ def fallback_shot(scene_number, visual_mode="", previous_shot=""):
     else:
         preferred = "medium" if scene_number % 2 else "closeup"
 
-    # Avoid a mechanical run of identical framing when a neutral alternative
-    # is available. Human portraits are intentionally kept stable.
     if preferred == previous and preferred != "portrait":
         if preferred == "wide":
             return "medium"
@@ -93,12 +91,39 @@ def fallback_shot(scene_number, visual_mode="", previous_shot=""):
     return preferred
 
 
+def rebalance_repeated_shot(shot, scene_number, visual_mode="", previous_shot=""):
+    """Reduce mechanical consecutive framing while preserving documentary intent."""
+    current = normalize_shot_type(shot)
+    previous = normalize_shot_type(previous_shot)
+    mode = _norm(visual_mode)
+    if not current or current != previous:
+        return current
+
+    # Portraits and evidence/details often need visual continuity more than
+    # artificial variety, so do not force a framing change there.
+    if current == "portrait" or mode in HUMAN_MODES:
+        return current
+    if mode in CALM_MODES and current in {"detail", "overhead"}:
+        return current
+
+    if current == "wide":
+        return "medium"
+    if current == "medium":
+        return "wide" if mode in ENVIRONMENT_MODES else "closeup"
+    if current == "closeup":
+        return "medium"
+    if current == "detail":
+        return "medium"
+    if current == "overhead":
+        return "detail"
+    return current
+
+
 def resolve_shot_type(candidate, original, scene_number, visual_mode="", previous_shot=""):
-    """Resolve Gemini framing, then original framing, then deterministic fallback."""
+    """Resolve framing and gently de-template consecutive neutral shots."""
     shot = normalize_shot_type(candidate)
-    if shot:
-        return shot
-    shot = normalize_shot_type(original)
-    if shot:
-        return shot
-    return fallback_shot(scene_number, visual_mode, previous_shot)
+    if not shot:
+        shot = normalize_shot_type(original)
+    if not shot:
+        shot = fallback_shot(scene_number, visual_mode, previous_shot)
+    return rebalance_repeated_shot(shot, scene_number, visual_mode, previous_shot)
