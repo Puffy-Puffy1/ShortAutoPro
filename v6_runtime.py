@@ -159,6 +159,7 @@ def run_renderer(timeout):
     process = subprocess.Popen(
         [sys.executable, str(TARGET)],
         cwd=str(BASE),
+        stdin=subprocess.DEVNULL,
         start_new_session=(os.name != "nt"),
     )
     try:
