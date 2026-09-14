@@ -154,10 +154,36 @@ def score_titulo(titulo, assunto, hook, roteiro):
 
 
 def clean_json_block(raw: str) -> str:
-    text = str(raw or "").strip()
+    text = str(raw or "").strip().lstrip("\ufeff")
     text = re.sub(r"^\s*```(?:json)?\s*", "", text, flags=re.IGNORECASE)
     text = re.sub(r"\s*```\s*$", "", text)
     return text.strip()
+
+
+def parse_json_response(raw: str) -> dict:
+    """Parse Gemini output, tolerating harmless prose/fences around one JSON object."""
+    text = clean_json_block(raw)
+    if not text:
+        raise ValueError("resposta vazia")
+
+    try:
+        data = json.loads(text)
+        if isinstance(data, dict):
+            return data
+        raise ValueError("JSON raiz não é objeto")
+    except json.JSONDecodeError:
+        pass
+
+    decoder = json.JSONDecoder()
+    for match in re.finditer(r"\{", text):
+        try:
+            data, _ = decoder.raw_decode(text[match.start():])
+        except json.JSONDecodeError:
+            continue
+        if isinstance(data, dict):
+            return data
+
+    raise ValueError("JSON inválido no Publish Pack")
 
 
 def normalize_hashtag(value: str) -> str:
@@ -287,7 +313,7 @@ def chamar_gemini(prompt: str, api_key: str) -> str:
 
     wait = 4
     for attempt in range(1, 4):
-        print(f"Publish Pack tentativa {attempt}/3...")
+        print(f"Publish Pack API tentativa {attempt}/3...")
         try:
             response = requests.post(
                 url,
@@ -307,11 +333,19 @@ def chamar_gemini(prompt: str, api_key: str) -> str:
                 data = response.json()
                 text = data["candidates"][0]["content"]["parts"][0]["text"]
             except Exception as exc:
-                raise RuntimeError("Resposta Gemini inválida.") from exc
+                if attempt == 3:
+                    raise RuntimeError("Resposta Gemini inválida.") from exc
+                time.sleep(wait)
+                wait = min(wait * 2, 16)
+                continue
             text = str(text or "").strip()
-            if not text:
+            if text:
+                return text
+            if attempt == 3:
                 raise RuntimeError("Resposta Gemini vazia.")
-            return text
+            time.sleep(wait)
+            wait = min(wait * 2, 16)
+            continue
 
         if response.status_code in {429, 500, 502, 503, 504} and attempt < 3:
             time.sleep(wait)
@@ -381,6 +415,25 @@ RESPONDA SOMENTE EM JSON VÁLIDO:
 """.strip()
 
 
+def generate_valid_pack(prompt, api_key, assunto, hook, roteiro, attempts=3):
+    """Retry whole generations when Gemini returns malformed or policy-invalid metadata."""
+    last_error = None
+    for attempt in range(1, attempts + 1):
+        print(f"Publish Pack conteúdo tentativa {attempt}/{attempts}...")
+        raw = chamar_gemini(prompt, api_key)
+        try:
+            data = parse_json_response(raw)
+            return validate_payload(data, assunto, hook, roteiro)
+        except Exception as exc:
+            last_error = exc
+            if attempt < attempts:
+                print(f"AVISO Publish Pack: resposta rejeitada ({exc}); tentando novamente.")
+                time.sleep(min(2 * attempt, 5))
+                continue
+            raise ValueError(f"Publish Pack inválido após {attempts} tentativas: {exc}") from exc
+    raise ValueError(f"Publish Pack inválido: {last_error}")
+
+
 def render_text(pack: dict) -> str:
     return (
         "TÍTULO:\n"
@@ -419,24 +472,20 @@ def main() -> int:
 
         print()
         print("================================")
-        print("PUBLISH QUALITY GUARD - 2.4.0")
+        print("PUBLISH QUALITY GUARD - 2.4.1")
         print("================================")
         print()
         print(f"ID: {SHORT_ID}")
         print(f"Assunto: {assunto}")
         print()
 
-        raw = chamar_gemini(
+        pack = generate_valid_pack(
             build_prompt(assunto, hook, roteiro, fonte),
             api_key,
+            assunto,
+            hook,
+            roteiro,
         )
-        clean = clean_json_block(raw)
-        try:
-            data = json.loads(clean)
-        except Exception as exc:
-            raise ValueError("JSON inválido no Publish Pack") from exc
-
-        pack = validate_payload(data, assunto, hook, roteiro)
         output = {
             "short_id": SHORT_ID,
             "topic": assunto,
