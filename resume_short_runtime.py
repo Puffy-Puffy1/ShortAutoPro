@@ -53,10 +53,28 @@ def expected_scenes() -> int:
 
 
 def media_ok(sid: str) -> bool:
+    """Only certify the media boundary after Media Master Gate PASS.
+
+    Counting files alone is not sufficient: a previous real run had 12/12
+    assets but one Wikimedia image was below the critical resolution floor.
+    Requiring the gate report prevents safe-resume from skipping acquisition
+    after a technically invalid media set.
+    """
+    report = read_json(BASE / "roteiros" / f"media_quality_{sid}.json")
+    if str(report.get("status", "")).upper() != "PASS":
+        return False
+    if report.get("critical"):
+        return False
+
     folder = BASE / "imagens" / f"short_{sid}"
     if not folder.is_dir():
         return False
-    valid = [p for p in folder.iterdir() if p.is_file() and p.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp", ".mp4"} and p.stat().st_size > 1000]
+    valid = [
+        p for p in folder.iterdir()
+        if p.is_file()
+        and p.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp", ".mp4"}
+        and p.stat().st_size > 1000
+    ]
     return len(valid) >= expected_scenes()
 
 
