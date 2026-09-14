@@ -179,3 +179,11 @@ roteiros/supervisor_20*.json
 
 # resultados locais de auditoria
 score_candidate_binding_audit.json
+
+# =========================
+# EVOLUTION CORE - ESTADO/RUNTIME LOCAL
+# =========================
+.sap_state/
+metrics/
+reports/evolution/
+manifests/*_evolution.json

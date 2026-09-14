@@ -22,7 +22,7 @@ cabecalho() {
     echo -e "${BOLD}${CYAN}"
     echo "======================================"
     echo "      SHORTAUTO PRO - CONTROL CENTER"
-    echo "               STABLE 2.1"
+    echo "               STABLE 2.2"
     echo "======================================"
     echo -e "${RESET}"
 }
@@ -48,7 +48,7 @@ ultimo_video() {
     fi
 
     echo
-echo "Último vídeo:"
+    echo "Último vídeo:"
     echo "$video"
     echo
     ffprobe -v error \
@@ -94,7 +94,7 @@ PY
 ver_manifests() {
     mkdir -p "$BASE/manifests"
     mapfile -t arquivos < <(
-        find "$BASE/manifests" -maxdepth 1 -type f -name '*.json' ! -name '*_quality.json' -print0 2>/dev/null \
+        find "$BASE/manifests" -maxdepth 1 -type f -name '*.json' ! -name '*_quality.json' ! -name '*_evolution.json' -print0 2>/dev/null \
             | xargs -0 -r ls -1t 2>/dev/null | head -10
     )
 
@@ -104,7 +104,7 @@ ver_manifests() {
     fi
 
     echo
-echo "ÚLTIMAS PRODUÇÕES"
+    echo "ÚLTIMAS PRODUÇÕES"
     echo "================="
     echo
 
@@ -131,7 +131,7 @@ PY
 
 gerar_um() {
     echo
-echo "Iniciando 1 Short..."
+    echo "Iniciando 1 Short..."
     echo
     unset SHORT_ID
     rodar_shell "gerar_short.sh"
@@ -146,7 +146,7 @@ gerar_lote() {
         return 1
     fi
     echo
-echo "Iniciando lote de $qtd Shorts..."
+    echo "Iniciando lote de $qtd Shorts..."
     echo
     rodar_shell "batch_recovery.sh" "$qtd"
 }
@@ -164,7 +164,7 @@ retomar_lote() {
 
 storage_guard() {
     echo
-echo "Primeiro será executada uma simulação."
+    echo "Primeiro será executada uma simulação."
     echo
     rodar_shell "limpar_storage.sh" || return 1
     echo
@@ -185,7 +185,7 @@ mostrar_publish() {
         return 0
     fi
     echo
-echo "ÚLTIMO PUBLISH PACK"
+    echo "ÚLTIMO PUBLISH PACK"
     echo "==================="
     echo
     cat "$pack"
@@ -193,16 +193,16 @@ echo "ÚLTIMO PUBLISH PACK"
 
 status_sistema() {
     echo
-echo "ARMAZENAMENTO:"
+    echo "ARMAZENAMENTO:"
     df -h "$HOME" | tail -1 || true
     echo
-echo "SHORTAUTO PRO:"
+    echo "SHORTAUTO PRO:"
     du -sh "$BASE" 2>/dev/null || true
     echo
-echo "VÍDEOS V6:"
+    echo "VÍDEOS V6:"
     find "$BASE/videos" -maxdepth 1 -type f -name 'short_v6_*.mp4' 2>/dev/null | wc -l
     echo
-echo "ASSUNTOS NO HISTÓRICO:"
+    echo "ASSUNTOS NO HISTÓRICO:"
     BASE_CC="$BASE" python - <<'PY'
 import json
 import os
@@ -256,6 +256,9 @@ while true; do
     echo "18) Ver status do Git"
     echo "19) Ver últimos commits"
     echo "20) Status da sincronização"
+    echo
+    echo "──────── Evolution ───────────"
+    echo "21) Abrir Evolution Center"
     echo "0) Sair"
     echo
 
@@ -340,10 +343,10 @@ while true; do
             BRANCH="$(git branch --show-current 2>/dev/null || true)"
             echo "Branch: ${BRANCH:-desconhecida}"
             echo
-echo "Commit local:"
+            echo "Commit local:"
             git --no-pager log -1 --oneline 2>/dev/null || true
             echo
-echo "Consultando GitHub..."
+            echo "Consultando GitHub..."
             if git fetch origin; then
                 REMOTE_REF="origin/${BRANCH:-main}"
                 if git rev-parse --verify "$REMOTE_REF" >/dev/null 2>&1; then
@@ -368,10 +371,11 @@ echo "Consultando GitHub..."
                 echo "Não foi possível consultar o GitHub."
             fi
             echo
-echo "Arquivos locais:"
+            echo "Arquivos locais:"
             git status --short 2>/dev/null || true
             pausa
             ;;
+        21) cabecalho; rodar_shell "evolution_center.sh" || true ;;
         0) clear 2>/dev/null || true; echo "ShortAutoPro encerrado."; exit 0 ;;
         *) echo; echo "Opção inválida."; sleep 1 ;;
     esac

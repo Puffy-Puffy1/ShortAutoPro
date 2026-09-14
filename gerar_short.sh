@@ -20,6 +20,7 @@ set -e
 set -o pipefail
 
 BASE="$HOME/ShortAutoPro"
+EVOLUTION="$BASE/shortautopro_evolution.py"
 
 # =====================================================
 # EXECUTION LOCK
@@ -73,8 +74,6 @@ fi
 # =====================================================
 # ID ÚNICO
 # =====================================================
-# Mantém SHORT_ID fornecido explicitamente para reprodução/debug.
-# Em produção normal usa segundos + PID, eliminando colisões de lote.
 
 if [ -n "${SHORT_ID:-}" ]; then
     ID="$SHORT_ID"
@@ -91,7 +90,7 @@ exec > >(tee -a "$LOG") 2>&1
 
 echo
 echo "======================================"
-echo " SHORTAUTO PRO - STABLE 2.0"
+echo " SHORTAUTO PRO - STABLE 2.2 + EVOLUTION"
 echo "======================================"
 echo
 echo "ID: $SHORT_ID"
@@ -114,44 +113,39 @@ else
 fi
 
 # =====================================================
+# EVOLUTION TELEMETRY
+# =====================================================
+# Falhas nesta camada nunca escondem uma falha real do pipeline. A camada
+# registra checkpoint/tempo/qualidade, mas o pipeline principal segue sendo
+# autoridade para produção.
+
+evolution_checkpoint() {
+    local stage="$1"
+    local status="$2"
+    local title="${3:-}"
+    if [ -f "$EVOLUTION" ]; then
+        python "$EVOLUTION" checkpoint --stage "$stage" --status "$status" --title "$title" >/dev/null 2>&1 \
+            || echo "AVISO: checkpoint Evolution falhou: $stage/$status"
+    fi
+}
+
+evolution_finish() {
+    local status="${1:-SUCCESS}"
+    if [ -f "$EVOLUTION" ]; then
+        python "$EVOLUTION" finish --status "$status" >/dev/null 2>&1 \
+            || echo "AVISO: fechamento Evolution falhou."
+    fi
+}
+
+evolution_checkpoint "pipeline" "start" "ShortAutoPro production"
+
+# =====================================================
 # HELPERS
 # =====================================================
 
 rodar_python() {
-    TITULO="$1"
-    ARQUIVO="$2"
-
-    echo
-    echo "--------------------------------------"
-    echo "$TITULO"
-    echo "--------------------------------------"
-    echo
-
-    if [ ! -f "$BASE/$ARQUIVO" ]; then
-        echo "ERRO: arquivo obrigatório não encontrado: $ARQUIVO"
-        exit 1
-    fi
-
-    INICIO_ETAPA="$(date +%s)"
-
-    if python "$BASE/$ARQUIVO"; then
-        FIM_ETAPA="$(date +%s)"
-        TEMPO="$((FIM_ETAPA - INICIO_ETAPA))"
-        echo
-        echo "ETAPA OK: ${TEMPO}s"
-    else
-        CODIGO=$?
-        echo
-        echo "ERRO NA ETAPA: $TITULO"
-        echo "Arquivo: $ARQUIVO"
-        echo "Código: $CODIGO"
-        exit "$CODIGO"
-    fi
-}
-
-rodar_shell() {
-    TITULO="$1"
-    ARQUIVO="$2"
+    local TITULO="$1"
+    local ARQUIVO="$2"
     shift 2
 
     echo
@@ -162,16 +156,61 @@ rodar_shell() {
 
     if [ ! -f "$BASE/$ARQUIVO" ]; then
         echo "ERRO: arquivo obrigatório não encontrado: $ARQUIVO"
+        evolution_checkpoint "$ARQUIVO" "fail" "$TITULO"
         exit 1
     fi
 
+    local INICIO_ETAPA
+    INICIO_ETAPA="$(date +%s)"
+    evolution_checkpoint "$ARQUIVO" "start" "$TITULO"
+
+    if python "$BASE/$ARQUIVO" "$@"; then
+        local FIM_ETAPA TEMPO
+        FIM_ETAPA="$(date +%s)"
+        TEMPO="$((FIM_ETAPA - INICIO_ETAPA))"
+        evolution_checkpoint "$ARQUIVO" "pass" "$TITULO"
+        echo
+        echo "ETAPA OK: ${TEMPO}s"
+    else
+        local CODIGO=$?
+        evolution_checkpoint "$ARQUIVO" "fail" "$TITULO"
+        echo
+        echo "ERRO NA ETAPA: $TITULO"
+        echo "Arquivo: $ARQUIVO"
+        echo "Código: $CODIGO"
+        evolution_finish "FAILED"
+        exit "$CODIGO"
+    fi
+}
+
+rodar_shell() {
+    local TITULO="$1"
+    local ARQUIVO="$2"
+    shift 2
+
+    echo
+    echo "--------------------------------------"
+    echo "$TITULO"
+    echo "--------------------------------------"
+    echo
+
+    if [ ! -f "$BASE/$ARQUIVO" ]; then
+        echo "ERRO: arquivo obrigatório não encontrado: $ARQUIVO"
+        evolution_checkpoint "$ARQUIVO" "fail" "$TITULO"
+        exit 1
+    fi
+
+    evolution_checkpoint "$ARQUIVO" "start" "$TITULO"
     if bash "$BASE/$ARQUIVO" "$@"; then
+        evolution_checkpoint "$ARQUIVO" "pass" "$TITULO"
         echo
         echo "$TITULO: OK"
     else
-        CODIGO=$?
+        local CODIGO=$?
+        evolution_checkpoint "$ARQUIVO" "fail" "$TITULO"
         echo
         echo "ERRO: $TITULO falhou. Código: $CODIGO"
+        evolution_finish "FAILED"
         exit "$CODIGO"
     fi
 }
@@ -208,16 +247,16 @@ rodar_python "6A/12 - MEDIA MASTER GATE" "media_master_gate.py"
 rodar_python "6B/12 - CINEMATIC MOTION DIRECTOR" "motion_director.py"
 rodar_python "6C/12 - MONTAGE RHYTHM DIRECTOR" "rhythm_director.py"
 rodar_python "6D/12 - PRODUCTION SUPERVISOR" "production_supervisor.py"
+rodar_python "6D1/12 - EVOLUTION VISUAL AUDIT" "shortautopro_evolution.py" visual-audit
 rodar_python "6E/12 - FINAL EDITORIAL GATE" "editorial_gate.py"
 rodar_python "7/12 - GERANDO VOZ PIPER" "audio.py"
 rodar_python "8/12 - WHISPER + LEGENDA DINÂMICA" "legenda_dinamica.py"
+rodar_python "8B/12 - EVOLUTION CAPTION AUDIT" "shortautopro_evolution.py" caption-audit
 rodar_python "9/12 - MONTANDO CENAS SEMÂNTICAS" "video.py"
 
 # =====================================================
 # RENDER FINAL — APENAS PIPELINE V6
 # =====================================================
-# v6_runtime supervisiona timeout, remove saída velha e valida a saída do
-# renderer real. Não existe fallback silencioso para pipeline legado.
 
 echo
 echo "--------------------------------------"
@@ -227,27 +266,39 @@ echo
 
 if [ ! -f "$BASE/v6_runtime.py" ]; then
     echo "ERRO: v6_runtime.py não encontrado."
+    evolution_checkpoint "v6_runtime.py" "fail" "RENDER FINAL V6"
+    evolution_finish "FAILED"
     exit 1
 fi
 
+evolution_checkpoint "v6_runtime.py" "start" "RENDER FINAL V6"
 if python "$BASE/v6_runtime.py"; then
     FINAL="$BASE/videos/short_v6_${SHORT_ID}.mp4"
-    VERSAO="V6 PRINCIPAL"
+    VERSAO="V6 PRINCIPAL + EVOLUTION 1.0"
+    evolution_checkpoint "v6_runtime.py" "pass" "RENDER FINAL V6"
 else
     CODIGO=$?
+    evolution_checkpoint "v6_runtime.py" "fail" "RENDER FINAL V6"
+    evolution_finish "FAILED"
     echo "ERRO: render V6 falhou. Nenhum pipeline legado será usado como fallback."
     exit "$CODIGO"
 fi
 
 if [ ! -s "$FINAL" ]; then
+    evolution_checkpoint "final_video" "fail" "FINAL VIDEO EXISTS"
+    evolution_finish "FAILED"
     echo "ERRO: vídeo final não encontrado ou vazio: $FINAL"
     exit 1
 fi
+
+evolution_checkpoint "final_video" "start" "FINAL VIDEO EXISTS"
+evolution_checkpoint "final_video" "pass" "FINAL VIDEO EXISTS"
 
 # =====================================================
 # GATES FINAIS
 # =====================================================
 
+rodar_python "10A/12 - EVOLUTION E2E VIDEO CHECK" "shortautopro_evolution.py" e2e
 rodar_python "10B/12 - QUALITY GATE" "quality_check.py"
 rodar_python "11A/12 - PUBLISH PACK" "publish_pack.py"
 rodar_python "11B/12 - SOURCE & ATTRIBUTION LEDGER" "source_ledger.py"
@@ -255,11 +306,18 @@ rodar_python "11C/12 - PUBLISH INTEGRITY GATE" "publish_integrity_gate.py"
 rodar_python "12A/12 - PRODUCTION MANIFEST" "production_manifest.py"
 rodar_python "12B/12 - FINAL QUALITY GATE" "final_quality.py"
 
+# O novo score central começa em modo de observação por segurança. Para tornar
+# o limite >= SAP_EVOLUTION_MIN_SCORE bloqueante depois da calibração real:
+# export SAP_EVOLUTION_ENFORCE=1
+if [ "${SAP_EVOLUTION_ENFORCE:-0}" = "1" ]; then
+    rodar_python "12C/12 - EVOLUTION QUALITY SCORE (ENFORCED)" "shortautopro_evolution.py" quality-score --enforce
+else
+    rodar_python "12C/12 - EVOLUTION QUALITY SCORE" "shortautopro_evolution.py" quality-score
+fi
+
 # =====================================================
 # COPIAR PARA DOWNLOADS
 # =====================================================
-# A cópia é conveniência. Falha de armazenamento compartilhado não invalida
-# um vídeo que já passou pelos gates e permanece preservado em $FINAL.
 
 echo
 echo "--------------------------------------"
@@ -287,7 +345,6 @@ fi
 # =====================================================
 # REGISTRAR ASSUNTO
 # =====================================================
-# Só ocorre depois de todos os gates e após a tentativa de entrega.
 
 rodar_python "REGISTRANDO ASSUNTO" "register_topic.py"
 
@@ -308,6 +365,7 @@ HOOK="$BASE/roteiros/hook_${SHORT_ID}.txt"
 FONTE="$BASE/roteiros/fonte_${SHORT_ID}.txt"
 MAPA="$BASE/roteiros/scene_map_${SHORT_ID}.json"
 KEYWORDS="$BASE/roteiros/keywords_${SHORT_ID}.txt"
+EVOLUTION_REPORT="$BASE/manifests/${SHORT_ID}_evolution.json"
 
 # =====================================================
 # RESUMO
@@ -347,6 +405,7 @@ echo "ROTEIRO: $ROTEIRO"
 echo "BUSCAS VISUAIS: $KEYWORDS"
 echo "FONTE FACTUAL: $FONTE"
 echo "MAPA SEMÂNTICO: $MAPA"
+echo "EVOLUTION REPORT: $EVOLUTION_REPORT"
 echo "LOG: $LOG"
 echo
 
@@ -364,6 +423,9 @@ if [ -f "$BASE/limpar_storage.sh" ]; then
         echo "AVISO: Storage Guard apresentou erro."
     fi
 fi
+
+evolution_checkpoint "pipeline" "pass" "ShortAutoPro production"
+evolution_finish "SUCCESS"
 
 echo
 echo "--------------------------------------"
