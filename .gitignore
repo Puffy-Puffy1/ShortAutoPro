@@ -34,6 +34,7 @@ cache/
 *.tmp
 *.bak
 *.swp
+.locks/
 
 # =========================
 # MÍDIA GERADA
@@ -62,6 +63,7 @@ media/
 assets/cache/
 frames/
 thumbnails/
+imagens/short_*/
 
 # =========================
 # MODELOS PESADOS
@@ -91,6 +93,9 @@ roteiros/rhythm_plan_*.json
 roteiros/scene_lossless_*.json
 roteiros/scene_map_*.json
 roteiros/scene_map_pre_*.json
+roteiros/hook_*.json
+roteiros/hook_*.txt
+roteiros/visual_intelligence_6_*.json
 
 # testes/resultados gerados
 roteiros/*teste*.txt
@@ -153,6 +158,9 @@ roteiros/topic_verified_*.json
 roteiros/used_topic_*.txt
 roteiros/visual_director_*.json
 roteiros/visual_risk_*.json
+
+# Proveniência capturada durante execuções reais; não faz parte do código-fonte.
+manifests/source_provenance_live/
 
 # resultados locais de auditoria
 score_candidate_binding_audit.json
