@@ -13,7 +13,7 @@ erro() { echo "ERRO   $1"; ERROS=$((ERROS + 1)); }
 
 echo
 echo "======================================"
-echo " SHORTAUTO PRO - PREFLIGHT CHECK 2.6"
+echo " SHORTAUTO PRO - PREFLIGHT CHECK 2.7"
 echo "======================================"
 echo
 
@@ -39,9 +39,9 @@ for cmd in python ffmpeg ffprobe piper bash; do
 done
 
 ARQUIVOS=(
-    gerar_short.sh
+    gerar_short.sh finalize_short.sh
     topic_engine.py topic_memory.py topic_reserve.py topic_index.py wiki_client.py source_identity.py
-    roteiro.py used_topic.py hook_engine.py narrative_director.py cold_open_director.py
+    roteiro.py used_topic.py hook_engine.py hook_runtime.py narrative_director.py cold_open_director.py
     scene_director.py scene_truth_refiner_6_7.py documentary_director.py visual_director.py
     visual_risk_guard.py editorial_continuity.py scene_lossless_repair.py post_script_truth_lock.py
     semantic_integrity_gate.py wikimedia_source.py wikimedia_query_bridge.py source_router.py evidence_guard.py
@@ -114,7 +114,7 @@ else
 fi
 
 SHELL_FILES=(
-    gerar_short.sh health_check.sh limpar_storage.sh batch_queue.sh batch_recovery.sh
+    gerar_short.sh finalize_short.sh health_check.sh limpar_storage.sh batch_queue.sh batch_recovery.sh
     control_center.sh preflight_check.sh diagnostico.sh release_check.sh
 )
 for arq in "${SHELL_FILES[@]}"; do
@@ -125,7 +125,7 @@ done
 
 PY_FILES=(
     topic_engine.py topic_memory.py topic_reserve.py topic_index.py wiki_client.py source_identity.py
-    roteiro.py used_topic.py hook_engine.py narrative_director.py cold_open_director.py
+    roteiro.py used_topic.py hook_engine.py hook_runtime.py narrative_director.py cold_open_director.py
     scene_director.py scene_truth_refiner_6_7.py documentary_director.py visual_director.py
     visual_risk_guard.py editorial_continuity.py scene_lossless_repair.py post_script_truth_lock.py
     semantic_integrity_gate.py wikimedia_source.py wikimedia_query_bridge.py source_router.py evidence_guard.py
@@ -142,14 +142,14 @@ for arq in "${PY_FILES[@]}"; do
     fi
 done
 
-# midia.py has several hard runtime imports that py_compile cannot verify.
-# This remains import-only: no production render/download is started here.
+# Import-only checks for active runtime supervisors and selector dependencies.
 if (
     cd "$BASE" &&
     python - <<'PY' >/dev/null 2>&1
 import importlib
 
 for name in (
+    "hook_runtime",
     "midia_runtime",
     "visual_pipeline_bridge_v42",
     "visual_intelligence_6",
