@@ -11,7 +11,7 @@ try:
 except ImportError:
     fcntl = None
 
-BASE = os.path.expanduser("~/ShortAutoPro")
+BASE = os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))
 SHORT_ID = os.getenv("SHORT_ID", "").strip()
 
 if not SHORT_ID:
