@@ -5,6 +5,7 @@
 import json
 import math
 import os
+import signal
 import subprocess
 import sys
 from datetime import date
@@ -122,6 +123,54 @@ def render_timeout():
     return max(120, min(value, 1800))
 
 
+def terminate_renderer(process):
+    """Stop renderer and its FFmpeg descendants on Termux/POSIX."""
+    if process.poll() is not None:
+        return
+
+    try:
+        if os.name != "nt":
+            os.killpg(process.pid, signal.SIGTERM)
+        else:
+            process.terminate()
+        process.wait(timeout=5)
+        return
+    except Exception:
+        pass
+
+    try:
+        if os.name != "nt":
+            os.killpg(process.pid, signal.SIGKILL)
+        else:
+            process.kill()
+    except Exception:
+        try:
+            process.kill()
+        except Exception:
+            pass
+
+    try:
+        process.wait(timeout=5)
+    except Exception:
+        pass
+
+
+def run_renderer(timeout):
+    process = subprocess.Popen(
+        [sys.executable, str(TARGET)],
+        cwd=str(BASE),
+        start_new_session=(os.name != "nt"),
+    )
+    try:
+        return process.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        terminate_renderer(process)
+        raise
+    except Exception:
+        terminate_renderer(process)
+        raise
+
+
 def main():
     if not SHORT_ID:
         print("ERRO V6 RUNTIME: SHORT_ID vazio")
@@ -135,11 +184,7 @@ def main():
     print(f"V6_RUNTIME_SUPERVISOR=ACTIVE timeout={timeout}s")
 
     try:
-        result = subprocess.run(
-            [sys.executable, str(TARGET)],
-            cwd=str(BASE),
-            timeout=timeout,
-        )
+        returncode = run_renderer(timeout)
     except subprocess.TimeoutExpired:
         remove_output()
         print(f"ERRO V6 RUNTIME: render excedeu {timeout}s")
@@ -149,10 +194,10 @@ def main():
         print(f"ERRO V6 RUNTIME: falha iniciando renderer: {exc}")
         return 1
 
-    if result.returncode != 0:
+    if returncode != 0:
         remove_output()
-        print(f"ERRO V6 RUNTIME: renderer retornou código {result.returncode}")
-        return result.returncode or 1
+        print(f"ERRO V6 RUNTIME: renderer retornou código {returncode}")
+        return returncode or 1
 
     try:
         if not OUTPUT.is_file() or OUTPUT.stat().st_size < 500_000:
