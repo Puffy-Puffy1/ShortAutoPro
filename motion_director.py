@@ -1,608 +1,209 @@
 #!/usr/bin/env python3
-
-import os
-import json
+import json, os, math, tempfile
 from datetime import date
+from pathlib import Path
 
 
-# =====================================================
-# SHORTAUTO PRO
-# CINEMATIC MOTION DIRECTOR 3.8
-# =====================================================
-
-BASE = os.path.expanduser(
-    "~/ShortAutoPro"
-)
-
-SHORT_ID = os.getenv(
-    "SHORT_ID",
-    date.today().isoformat()
-)
-
-SCENE_MAP = os.path.join(
-    BASE,
-    "roteiros",
-    f"scene_map_{SHORT_ID}.json"
-)
-
-MEDIA_DIR = os.path.join(
-    BASE,
-    "imagens",
-    f"short_{SHORT_ID}"
-)
-
-OUTPUT = os.path.join(
-    BASE,
-    "roteiros",
-    f"motion_plan_{SHORT_ID}.json"
-)
+def _scene_count():
+    try:
+        value = int(os.getenv("SHORT_QTD_CENAS", "12"))
+    except (TypeError, ValueError):
+        value = 12
+    return max(6, min(20, value))
 
 
-# =====================================================
-# CARREGAR MAPA
-# =====================================================
-
-if not os.path.exists(
-    SCENE_MAP
-):
-
-    raise SystemExit(
-        f"ERRO: scene_map ausente:\n"
-        f"{SCENE_MAP}"
-    )
-
-
-try:
-
-    with open(
-        SCENE_MAP,
-        "r",
-        encoding="utf-8"
-    ) as f:
-
-        mapa = json.load(f)
-
-except Exception as e:
-
-    raise SystemExit(
-        f"ERRO lendo scene_map: {e}"
-    )
-
-
-cenas = mapa.get(
-    "scenes",
-    []
-)
-
-
-if not isinstance(
-    cenas,
-    list
-) or not cenas:
-
-    raise SystemExit(
-        "ERRO: scene_map sem cenas."
-    )
-
-
-# =====================================================
-# LOCALIZAR MÍDIA
-# =====================================================
-
-def localizar_midia(
-    numero
-):
-
-    prefixo = (
-        f"scene_{numero:02d}"
-    )
-
-
-    if not os.path.isdir(
-        MEDIA_DIR
-    ):
-
-        return None
-
-
-    for nome in os.listdir(
-        MEDIA_DIR
-    ):
-
-        if nome.startswith(
-            prefixo
-        ):
-
-            return os.path.join(
-                MEDIA_DIR,
-                nome
-            )
-
-
-    return None
-
-
-def tipo_midia(
-    path
-):
-
-    if not path:
-
-        return "unknown"
-
-
-    ext = os.path.splitext(
-        path
-    )[1].lower()
-
-
-    if ext == ".mp4":
-        return "video"
-
-
-    if ext in {
-        ".jpg",
-        ".jpeg",
-        ".png",
-        ".webp"
-    }:
-
-        return "photo"
-
-
-    return "unknown"
-
-
-# =====================================================
-# PERFIS
-# =====================================================
+EXPECTED_SCENES = _scene_count()
+BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro")))
+SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat()).strip()
+SCENE_MAP = BASE / "roteiros" / f"scene_map_{SHORT_ID}.json"
+MEDIA_DIR = BASE / "imagens" / f"short_{SHORT_ID}"
+OUTPUT = BASE / "roteiros" / f"motion_plan_{SHORT_ID}.json"
+MEDIA_EXTENSIONS = {".mp4", ".jpg", ".jpeg", ".png", ".webp"}
 
 PERFIS = {
-
-    "still":
-        {
-            "zoom_start": 1.00,
-            "zoom_end": 1.015,
-            "pan": "none",
-            "intensity": 1
-        },
-
-    "document_push":
-        {
-            "zoom_start": 1.00,
-            "zoom_end": 1.045,
-            "pan": "center",
-            "intensity": 2
-        },
-
-    "slow_push":
-        {
-            "zoom_start": 1.00,
-            "zoom_end": 1.065,
-            "pan": "center",
-            "intensity": 3
-        },
-
-    "slow_pan_left":
-        {
-            "zoom_start": 1.03,
-            "zoom_end": 1.07,
-            "pan": "left",
-            "intensity": 3
-        },
-
-    "slow_pan_right":
-        {
-            "zoom_start": 1.03,
-            "zoom_end": 1.07,
-            "pan": "right",
-            "intensity": 3
-        },
-
-    "hook_push":
-        {
-            "zoom_start": 1.00,
-            "zoom_end": 1.095,
-            "pan": "center",
-            "intensity": 4
-        },
-
-    "environment_drift":
-        {
-            "zoom_start": 1.02,
-            "zoom_end": 1.08,
-            "pan": "right",
-            "intensity": 3
-        }
+    "still": {"zoom_start": 1.00, "zoom_end": 1.015, "pan": "none", "intensity": 1},
+    "document_push": {"zoom_start": 1.00, "zoom_end": 1.045, "pan": "center", "intensity": 2},
+    "slow_push": {"zoom_start": 1.00, "zoom_end": 1.065, "pan": "center", "intensity": 3},
+    "slow_pan_left": {"zoom_start": 1.03, "zoom_end": 1.07, "pan": "left", "intensity": 3},
+    "slow_pan_right": {"zoom_start": 1.03, "zoom_end": 1.07, "pan": "right", "intensity": 3},
+    "hook_push": {"zoom_start": 1.00, "zoom_end": 1.095, "pan": "center", "intensity": 4},
 }
 
 
-# =====================================================
-# ESCOLHER PERFIL
-# =====================================================
-
-def escolher_perfil(
-    numero,
-    visual_mode,
-    media_type
-):
-
-    # Vídeos já possuem movimento próprio.
-    if media_type == "video":
-
-        return (
-            "native_video",
-            {
-                "zoom_start": 1.00,
-                "zoom_end": 1.00,
-                "pan": "none",
-                "intensity": 0
-            }
-        )
-
-
-    # Primeira cena ganha mais energia.
-    if numero == 1:
-
-        return (
-            "hook_push",
-            PERFIS[
-                "hook_push"
-            ]
-        )
-
-
-    if visual_mode in {
-        "document",
-        "evidence",
-        "map_context"
-    }:
-
-        return (
-            "document_push",
-            PERFIS[
-                "document_push"
-            ]
-        )
-
-
-    if visual_mode in {
-        "location",
-        "environment"
-    }:
-
-        # Alternância simples de direção
-        # para não parecer repetitivo.
-        if numero % 2 == 0:
-
-            return (
-                "slow_pan_left",
-                PERFIS[
-                    "slow_pan_left"
-                ]
-            )
-
-        return (
-            "slow_pan_right",
-            PERFIS[
-                "slow_pan_right"
-            ]
-        )
-
-
-    if visual_mode in {
-        "architecture",
-        "transport",
-        "object"
-    }:
-
-        return (
-            "slow_push",
-            PERFIS[
-                "slow_push"
-            ]
-        )
-
-
-    if visual_mode == "human_context":
-
-        return (
-            "still",
-            PERFIS[
-                "still"
-            ]
-        )
-
-
-    return (
-        "slow_push",
-        PERFIS[
-            "slow_push"
-        ]
-    )
-
-
-# =====================================================
-# GERAR PLANO
-# =====================================================
-
-plano = []
-
-
-for cena in cenas:
-
+def load_json(path):
+    if not path.is_file():
+        raise ValueError(f"arquivo ausente: {path}")
     try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        raise ValueError(f"JSON inválido em {path.name}: {exc}") from exc
+    if not isinstance(data, dict):
+        raise ValueError(f"{path.name} deve conter objeto JSON")
+    return data
 
-        numero = int(
-            cena.get(
-                "scene",
-                0
-            )
-        )
 
+def atomic_json(path, payload):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle, ensure_ascii=False, indent=2)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp_name, path)
     except Exception:
-
-        continue
-
-
-    visual_mode = str(
-        cena.get(
-            "visual_mode",
-            "environment"
-        )
-    ).strip().lower()
+        try:
+            os.unlink(temp_name)
+        except OSError:
+            pass
+        raise
 
 
-    shot_type = str(
-        cena.get(
-            "shot_type",
-            "medium"
-        )
-    ).strip().lower()
+def validate_scenes(raw_scenes):
+    if not isinstance(raw_scenes, list):
+        raise ValueError("scene_map.scenes deve ser lista")
+    if len(raw_scenes) != EXPECTED_SCENES:
+        raise ValueError(f"scene_map deve ter {EXPECTED_SCENES} cenas; recebeu {len(raw_scenes)}")
+    scenes, numbers = [], []
+    for index, scene in enumerate(raw_scenes, start=1):
+        if not isinstance(scene, dict):
+            raise ValueError(f"cena {index} não é objeto JSON")
+        try:
+            number = int(scene.get("scene"))
+        except (TypeError, ValueError):
+            raise ValueError(f"cena {index} possui número inválido")
+        numbers.append(number)
+        scenes.append(scene)
+    expected = list(range(1, EXPECTED_SCENES + 1))
+    if numbers != expected:
+        raise ValueError(f"numeração de cenas inválida: esperado {expected}, recebido {numbers}")
+    return scenes
 
 
-    arquivo = localizar_midia(
-        numero
+def locate_media(media_dir, number):
+    if not media_dir.is_dir():
+        raise ValueError(f"diretório de mídia ausente: {media_dir}")
+    prefix = f"scene_{number:02d}"
+    matches = sorted(
+        p for p in media_dir.iterdir()
+        if p.is_file() and p.stem == prefix and p.suffix.lower() in MEDIA_EXTENSIONS
     )
-
-    media_type = tipo_midia(
-        arquivo
-    )
-
-
-    perfil_nome, perfil = (
-        escolher_perfil(
-            numero,
-            visual_mode,
-            media_type
-        )
-    )
+    if not matches:
+        raise ValueError(f"mídia ausente para cena {number:02d}")
+    if len(matches) > 1:
+        raise ValueError(f"mídia ambígua para cena {number:02d}: " + ", ".join(p.name for p in matches))
+    return matches[0]
 
 
-    item = {
-        "scene":
-            numero,
-
-        "visual_mode":
-            visual_mode,
-
-        "shot_type":
-            shot_type,
-
-        "media_type":
-            media_type,
-
-        "media":
-            arquivo,
-
-        "motion_profile":
-            perfil_nome,
-
-        "zoom_start":
-            perfil[
-                "zoom_start"
-            ],
-
-        "zoom_end":
-            perfil[
-                "zoom_end"
-            ],
-
-        "pan":
-            perfil[
-                "pan"
-            ],
-
-        "intensity":
-            perfil[
-                "intensity"
-            ]
-    }
+def media_type(path):
+    ext = path.suffix.lower()
+    if ext == ".mp4":
+        return "video"
+    if ext in {".jpg", ".jpeg", ".png", ".webp"}:
+        return "photo"
+    raise ValueError(f"extensão de mídia não suportada: {ext}")
 
 
-    plano.append(
-        item
-    )
+def choose_profile(number, visual_mode, kind):
+    if kind == "video":
+        return "native_video", {"zoom_start": 1.0, "zoom_end": 1.0, "pan": "none", "intensity": 0}
+    if number == 1:
+        return "hook_push", PERFIS["hook_push"]
+    if visual_mode in {"document", "evidence", "map_context"}:
+        return "document_push", PERFIS["document_push"]
+    if visual_mode in {"location", "environment"}:
+        return ("slow_pan_left", PERFIS["slow_pan_left"]) if number % 2 == 0 else ("slow_pan_right", PERFIS["slow_pan_right"])
+    if visual_mode in {"architecture", "transport", "object"}:
+        return "slow_push", PERFIS["slow_push"]
+    if visual_mode == "human_context":
+        return "still", PERFIS["still"]
+    return "slow_push", PERFIS["slow_push"]
 
 
-# =====================================================
-# QUALITY CHECK DO PLANO
-# =====================================================
+def build_plan(scenes, media_dir):
+    plan = []
+    for scene in scenes:
+        number = int(scene["scene"])
+        visual_mode = str(scene.get("visual_mode", "environment")).strip().lower()
+        shot_type = str(scene.get("shot_type", "medium")).strip().lower()
+        media = locate_media(media_dir, number)
+        kind = media_type(media)
+        profile_name, profile = choose_profile(number, visual_mode, kind)
+        plan.append({
+            "scene": number,
+            "visual_mode": visual_mode,
+            "shot_type": shot_type,
+            "media_type": kind,
+            "media": str(media),
+            "motion_profile": profile_name,
+            "zoom_start": profile["zoom_start"],
+            "zoom_end": profile["zoom_end"],
+            "pan": profile["pan"],
+            "intensity": profile["intensity"],
+        })
+    for index in range(2, len(plan)):
+        current = plan[index]["motion_profile"]
+        if current == plan[index-1]["motion_profile"] == plan[index-2]["motion_profile"] and current not in {"native_video", "document_push"}:
+            if current == "slow_pan_left":
+                plan[index]["motion_profile"], plan[index]["pan"] = "slow_pan_right", "right"
+            elif current == "slow_pan_right":
+                plan[index]["motion_profile"], plan[index]["pan"] = "slow_pan_left", "left"
+    return plan
 
-problemas = []
+
+def audit_plan(plan):
+    problems = []
+    if len(plan) != EXPECTED_SCENES:
+        problems.append(f"scene_count_mismatch:{len(plan)}/{EXPECTED_SCENES}")
+    if [item.get("scene") for item in plan] != list(range(1, EXPECTED_SCENES + 1)):
+        problems.append("scene_numbering_invalid")
+    for item in plan:
+        media = item.get("media")
+        if not isinstance(media, str) or not Path(media).is_file():
+            problems.append(f"missing_media_scene_{item.get('scene')}")
+        for key in ("zoom_start", "zoom_end"):
+            value = item.get(key)
+            if not isinstance(value, (int, float)) or not math.isfinite(float(value)):
+                problems.append(f"invalid_{key}_scene_{item.get('scene')}")
+    return problems
 
 
-if len(
-    plano
-) != len(
-    cenas
-):
-
-    problemas.append(
-        "scene_count_mismatch"
-    )
-
-
-# Evitar 3 movimentos iguais seguidos.
-for i in range(
-    2,
-    len(plano)
-):
-
-    if (
-        plano[i][
-            "motion_profile"
-        ]
-        ==
-        plano[i - 1][
-            "motion_profile"
-        ]
-        ==
-        plano[i - 2][
-            "motion_profile"
-        ]
-        and plano[i][
-            "motion_profile"
-        ]
-        not in {
-            "native_video",
-            "document_push"
+def main():
+    try:
+        if not SHORT_ID:
+            raise ValueError("SHORT_ID vazio")
+        scene_map = load_json(SCENE_MAP)
+        scenes = validate_scenes(scene_map.get("scenes"))
+        plan = build_plan(scenes, MEDIA_DIR)
+        problems = audit_plan(plan)
+        if problems:
+            raise ValueError("; ".join(problems))
+        result = {
+            "short_id": SHORT_ID, "version": "3.9",
+            "expected_scenes": EXPECTED_SCENES,
+            "scene_count": len(plan), "problems": [], "scenes": plan,
         }
-    ):
-
-        # Troca apenas a direção visual
-        # quando isso for seguro.
-        if plano[i][
-            "motion_profile"
-        ] == "slow_pan_left":
-
-            plano[i][
-                "motion_profile"
-            ] = "slow_pan_right"
-
-            plano[i][
-                "pan"
-            ] = "right"
-
-
-        elif plano[i][
-            "motion_profile"
-        ] == "slow_pan_right":
-
-            plano[i][
-                "motion_profile"
-            ] = "slow_pan_left"
-
-            plano[i][
-                "pan"
-            ] = "left"
+        atomic_json(OUTPUT, result)
+    except Exception as exc:
+        print(f"ERRO MOTION DIRECTOR: {exc}")
+        return 1
+    print()
+    print("================================")
+    print("CINEMATIC MOTION DIRECTOR 3.9")
+    print("================================")
+    print()
+    for item in plan:
+        print(f"{item['scene']:02d}. {item['visual_mode']:<16} {item['media_type']:<7} -> {item['motion_profile']}")
+        print(f"    zoom {item['zoom_start']:.3f} -> {item['zoom_end']:.3f} | pan={item['pan']} | intensity={item['intensity']}")
+    print()
+    print(f"Cenas: {len(plan)}/{EXPECTED_SCENES}")
+    print("MOTION PLAN: PASS")
+    print(f"Plano:\n{OUTPUT}")
+    print()
+    print("CINEMATIC MOTION DIRECTOR: OK")
+    print()
+    return 0
 
 
-# =====================================================
-# SALVAR
-# =====================================================
-
-resultado = {
-    "short_id":
-        SHORT_ID,
-
-    "version":
-        "3.8",
-
-    "scene_count":
-        len(
-            plano
-        ),
-
-    "problems":
-        problemas,
-
-    "scenes":
-        plano
-}
-
-
-with open(
-    OUTPUT,
-    "w",
-    encoding="utf-8"
-) as f:
-
-    json.dump(
-        resultado,
-        f,
-        ensure_ascii=False,
-        indent=2
-    )
-
-
-# =====================================================
-# TERMINAL
-# =====================================================
-
-print()
-print("================================")
-print("CINEMATIC MOTION DIRECTOR 3.8")
-print("================================")
-print()
-
-
-for item in plano:
-
-    print(
-        f"{item['scene']:02d}. "
-        f"{item['visual_mode']:<16} "
-        f"{item['media_type']:<7} "
-        f"-> {item['motion_profile']}"
-    )
-
-    print(
-        f"    zoom "
-        f"{item['zoom_start']:.3f}"
-        f" -> "
-        f"{item['zoom_end']:.3f}"
-        f" | pan={item['pan']} "
-        f"| intensity={item['intensity']}"
-    )
-
-
-print()
-
-print(
-    f"Cenas: "
-    f"{len(plano)}/{len(cenas)}"
-)
-
-
-if problemas:
-
-    print(
-        "MOTION PLAN: WARNING"
-    )
-
-    for problema in problemas:
-
-        print(
-            f"  - {problema}"
-        )
-
-else:
-
-    print(
-        "MOTION PLAN: PASS"
-    )
-
-
-print()
-
-print(
-    f"Plano:\n{OUTPUT}"
-)
-
-print()
-
-print(
-    "CINEMATIC MOTION DIRECTOR: OK"
-)
-
-print()
+if __name__ == "__main__":
+    raise SystemExit(main())
