@@ -65,12 +65,29 @@ class CheckpointTests(EvolutionSandbox):
 class VisualAuditTests(EvolutionSandbox):
     def test_strong_twelve_scene_project_scores_high(self):
         sid = "demo"
+        # Use cenas semanticamente distintas de verdade. O fixture anterior
+        # repetia "unique subject city" em todas as queries e corretamente
+        # acionava o guard de repetição (Jaccard >= 0.55).
+        queries = [
+            "steam locomotive station",
+            "mountain rescue helicopter",
+            "courtroom evidence document",
+            "coastal lighthouse storm",
+            "factory assembly workers",
+            "historic atlas border",
+            "hospital corridor doctor",
+            "airport runway aircraft",
+            "museum artifact display",
+            "newspaper archive headline",
+            "forest search volunteers",
+            "memorial candles crowd",
+        ]
         scenes = []
-        for index in range(1, 13):
+        for index, query in enumerate(queries, start=1):
             scenes.append({
                 "scene": index,
-                "query": f"unique subject {index} city {index}",
-                "must_have": [f"subject {index}"],
+                "query": query,
+                "must_have": [query.split()[0]],
                 "visual_mode": ["archive", "map", "document", "location"][index % 4],
             })
         self.write_json(f"roteiros/scene_map_{sid}.json", {"scenes": scenes})
@@ -82,6 +99,7 @@ class VisualAuditTests(EvolutionSandbox):
         result = evo.visual_audit(sid)
         self.assertGreaterEqual(result["score"], 90)
         self.assertEqual(result["status"], "PASS")
+        self.assertEqual(result["details"]["repeated_adjacent_queries"], 0)
         self.assertEqual(result["details"]["physical_media_count"], 12)
 
     def test_repetition_lowers_diversity(self):
