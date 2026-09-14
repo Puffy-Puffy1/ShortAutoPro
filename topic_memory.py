@@ -14,6 +14,8 @@ STOPWORDS = {
 
 
 def remover_acentos(texto):
+    if texto is None:
+        return ""
     texto = unicodedata.normalize("NFKD", str(texto))
     return "".join(c for c in texto if not unicodedata.combining(c))
 
@@ -94,9 +96,14 @@ def encontrar_duplicata(assunto, historico, limite=0.72):
 
     for item in historico:
         if isinstance(item, dict):
-            existente = str(item.get("topic", ""))
+            raw = item.get("topic")
+            if raw is None:
+                continue
+            existente = str(raw).strip()
         else:
-            existente = str(item)
+            if item is None:
+                continue
+            existente = str(item).strip()
         if not existente:
             continue
         score = similaridade(assunto, existente)
