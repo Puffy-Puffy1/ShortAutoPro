@@ -4,7 +4,7 @@ from visual_editorial_policy import apply_editorial_policy, editorial_energy
 
 
 class VisualEditorialPolicyTests(unittest.TestCase):
-    def test_hook_is_strong_but_bounded(self):
+    def test_hook_is_strong_but_restrained(self):
         scene = {
             "visual_mode": "environment",
             "shot_type": "medium",
@@ -13,10 +13,10 @@ class VisualEditorialPolicyTests(unittest.TestCase):
             "narrative_role": "hook",
         }
         out = apply_editorial_policy(scene, 1, 12)
-        self.assertEqual(out["energy"], 5)
+        self.assertEqual(out["energy"], 4)
         self.assertEqual(out["rhythm_profile"], "hook_editorial")
-        self.assertEqual(out["editorial_policy"], "humanized_v2")
-        self.assertLessEqual(out["editorial_amplitude"], 0.070)
+        self.assertEqual(out["editorial_policy"], "humanized_v3")
+        self.assertLessEqual(out["editorial_amplitude"], 0.048)
 
     def test_document_detail_is_calm_and_centered(self):
         scene = {
@@ -30,7 +30,7 @@ class VisualEditorialPolicyTests(unittest.TestCase):
         self.assertEqual(out["pan"], "center")
         self.assertEqual(out["rhythm_profile"], "documentary_hold")
         self.assertLessEqual(out["energy"], 3)
-        self.assertLessEqual(out["editorial_amplitude"], 0.027)
+        self.assertLessEqual(out["editorial_amplitude"], 0.021)
 
     def test_every_third_regular_photo_gets_center_hold(self):
         scene = {
@@ -41,6 +41,19 @@ class VisualEditorialPolicyTests(unittest.TestCase):
         }
         out = apply_editorial_policy(scene, 3, 12, previous_pan="left")
         self.assertEqual(out["pan"], "center")
+
+    def test_breath_scene_is_centered_and_low_energy(self):
+        scene = {
+            "visual_mode": "environment",
+            "shot_type": "medium",
+            "media_type": "photo",
+            "pan": "right",
+            "narrative_role": "context",
+        }
+        out = apply_editorial_policy(scene, 4, 12, previous_pan="left")
+        self.assertEqual(out["pan"], "center")
+        self.assertLessEqual(out["energy"], 2)
+        self.assertEqual(out["rhythm_profile"], "editorial_breath")
 
     def test_direction_changes_when_previous_pan_matches(self):
         scene = {
@@ -63,7 +76,7 @@ class VisualEditorialPolicyTests(unittest.TestCase):
         out = apply_editorial_policy(scene, 8, 12)
         self.assertGreaterEqual(out["energy"], 4)
         self.assertEqual(out["rhythm_profile"], "reveal_emphasis")
-        self.assertLessEqual(out["editorial_amplitude"], 0.070)
+        self.assertLessEqual(out["editorial_amplitude"], 0.048)
 
     def test_human_context_is_stable_and_centered(self):
         scene = {
@@ -76,6 +89,7 @@ class VisualEditorialPolicyTests(unittest.TestCase):
         self.assertEqual(out["pan"], "center")
         self.assertEqual(out["rhythm_profile"], "human_hold")
         self.assertLessEqual(out["energy"], 3)
+        self.assertLessEqual(out["editorial_amplitude"], 0.022)
 
     def test_final_scene_uses_closing_hold(self):
         scene = {
@@ -108,8 +122,9 @@ class VisualEditorialPolicyTests(unittest.TestCase):
             for i in range(1, 13)
         ]
         self.assertGreaterEqual(len(set(values)), 3)
-        self.assertEqual(values[0], 5)
+        self.assertEqual(values[0], 4)
         self.assertEqual(values[-1], 2)
+        self.assertLessEqual(max(values), 4)
 
     def test_narrative_role_changes_energy(self):
         calm = editorial_energy(8, 12, "environment", "medium", "photo", "reflection")
