@@ -70,8 +70,8 @@ class RenderSimulationTests(unittest.TestCase):
             )
 
             ass = videos / f"short_{short_id}.ass"
-            ass.write_text(
-                """[Script Info]\n"
+            ass_text = (
+                "[Script Info]\n"
                 "ScriptType: v4.00+\n"
                 "PlayResX: 1080\n"
                 "PlayResY: 1920\n\n"
@@ -80,9 +80,9 @@ class RenderSimulationTests(unittest.TestCase):
                 "Style: Dynamic,Arial,64,&H00FFFFFF,&H0000FFFF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,3,1,2,80,80,220,1\n\n"
                 "[Events]\n"
                 "Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text\n"
-                "Dialogue: 0,0:00:00.00,0:00:05.80,Dynamic,,0,0,0,,Teste de render\n""",
-                encoding="utf-8",
+                "Dialogue: 0,0:00:00.00,0:00:05.80,Dynamic,,0,0,0,,Teste de render\n"
             )
+            ass.write_text(ass_text, encoding="utf-8")
 
             env = os.environ.copy()
             env.update(
