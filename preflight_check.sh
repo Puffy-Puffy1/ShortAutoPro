@@ -13,7 +13,7 @@ erro() { echo "ERRO   $1"; ERROS=$((ERROS + 1)); }
 
 echo
 echo "======================================"
-echo " SHORTAUTO PRO - PREFLIGHT CHECK 2.4"
+echo " SHORTAUTO PRO - PREFLIGHT CHECK 2.5"
 echo "======================================"
 echo
 
@@ -45,10 +45,11 @@ ARQUIVOS=(
     scene_director.py scene_truth_refiner_6_7.py documentary_director.py visual_director.py
     visual_risk_guard.py editorial_continuity.py scene_lossless_repair.py post_script_truth_lock.py
     semantic_integrity_gate.py wikimedia_source.py wikimedia_query_bridge.py source_router.py evidence_guard.py
-    midia.py media_master_gate.py motion_director.py rhythm_director.py production_supervisor.py editorial_gate.py
-    audio.py legenda_dinamica.py subtitle_alignment.py video.py v6.py quality_check.py publish_pack.py source_ledger.py
-    publish_integrity_gate.py production_manifest.py final_quality.py register_topic.py
-    health_check.sh limpar_storage.sh batch_queue.sh batch_recovery.sh control_center.sh
+    midia.py midia_runtime.py visual_pipeline_bridge_v42.py visual_selection_engine_v4.py visual_intelligence_6.py
+    vi6_8_runtime_policy.py vi6_9_runtime_policy.py media_master_gate.py motion_director.py rhythm_director.py
+    production_supervisor.py editorial_gate.py audio.py legenda_dinamica.py subtitle_alignment.py video.py v6.py
+    quality_check.py publish_pack.py source_ledger.py publish_integrity_gate.py production_manifest.py final_quality.py
+    register_topic.py health_check.sh limpar_storage.sh batch_queue.sh batch_recovery.sh control_center.sh
 )
 
 for arq in "${ARQUIVOS[@]}"; do
@@ -128,9 +129,11 @@ PY_FILES=(
     scene_director.py scene_truth_refiner_6_7.py documentary_director.py visual_director.py
     visual_risk_guard.py editorial_continuity.py scene_lossless_repair.py post_script_truth_lock.py
     semantic_integrity_gate.py wikimedia_source.py wikimedia_query_bridge.py source_router.py evidence_guard.py
-    midia.py media_master_gate.py motion_director.py rhythm_director.py production_supervisor.py editorial_gate.py
-    audio.py legenda_dinamica.py subtitle_alignment.py video.py v6.py quality_check.py publish_pack.py source_ledger.py
-    publish_integrity_gate.py production_manifest.py final_quality.py register_topic.py
+    midia.py midia_runtime.py visual_pipeline_bridge_v42.py visual_selection_engine_v4.py visual_intelligence_6.py
+    vi6_8_runtime_policy.py vi6_9_runtime_policy.py media_master_gate.py motion_director.py rhythm_director.py
+    production_supervisor.py editorial_gate.py audio.py legenda_dinamica.py subtitle_alignment.py video.py v6.py
+    quality_check.py publish_pack.py source_ledger.py publish_integrity_gate.py production_manifest.py final_quality.py
+    register_topic.py
 )
 
 for arq in "${PY_FILES[@]}"; do
@@ -138,6 +141,28 @@ for arq in "${PY_FILES[@]}"; do
         if python -m py_compile "$BASE/$arq" >/dev/null 2>&1; then ok "Python $arq"; else erro "erro Python em $arq"; fi
     fi
 done
+
+# midia.py has several hard runtime imports that py_compile cannot verify.
+# Import the safe dependency layer without executing midia.py/network downloads.
+if (
+    cd "$BASE" &&
+    python - <<'PY' >/dev/null 2>&1
+import importlib
+
+for name in (
+    "midia_runtime",
+    "visual_pipeline_bridge_v42",
+    "visual_intelligence_6",
+    "vi6_8_runtime_policy",
+    "vi6_9_runtime_policy",
+):
+    importlib.import_module(name)
+PY
+); then
+    ok "imports runtime do Smart Media Selector"
+else
+    erro "dependência/import runtime do Smart Media Selector quebrada"
+fi
 
 echo
 echo "======================================"
