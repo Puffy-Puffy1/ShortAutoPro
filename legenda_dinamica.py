@@ -8,6 +8,7 @@ import sys
 from datetime import date
 
 from subtitle_alignment import align_word_timings
+from subtitle_style_policy import group_timed_words, highlight_text, style_header, validate_grouping
 
 BASE = os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))
 SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat())
@@ -137,8 +138,8 @@ if not palavras_originais:
 
 print()
 print("================================")
-print("LEGENDA DINÂMICA V3")
-print("ALINHAMENTO POR CONTEÚDO + WHISPER")
+print("LEGENDA DINÂMICA V4")
+print("ALINHAMENTO + ESTILO DOCUMENTAL")
 print("================================")
 print(f"Palavras no roteiro: {len(palavras_originais)}")
 print()
@@ -208,27 +209,13 @@ print(f"Palavras detectadas pelo Whisper: {len(palavras_whisper)}")
 print(f"Método: {metodo}")
 print(f"Similaridade textual: {similarity:.3f}")
 
-PALAVRAS_POR_GRUPO = 3
-grupos = [
-    palavras_timed[i:i + PALAVRAS_POR_GRUPO]
-    for i in range(0, len(palavras_timed), PALAVRAS_POR_GRUPO)
-]
+grupos = group_timed_words(palavras_timed)
+if not grupos or not validate_grouping(grupos, len(palavras_timed)):
+    fail("agrupamento editorial de legenda inválido")
 
-cabecalho = """[Script Info]
-ScriptType: v4.00+
-PlayResX: 1080
-PlayResY: 1920
-ScaledBorderAndShadow: yes
+cabecalho = style_header(os.getenv("SHORT_SUBTITLE_FONT", "DejaVu Sans"))
 
-[V4+ Styles]
-Format: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding
-Style: Dynamic,DejaVu Sans,72,&H00FFFFFF,&H0000FFFF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,5,1,2,90,90,250,1
-
-[Events]
-Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text
-"""
-
-print("3/4 Criando destaque dinâmico...")
+print("3/4 Criando destaque documental...")
 eventos = []
 for grupo in grupos:
     for indice, palavra in enumerate(grupo):
@@ -239,17 +226,7 @@ for grupo in grupos:
             fim = palavra["end"]
         fim = max(fim, inicio + 40)
 
-        partes = []
-        for j, outra in enumerate(grupo):
-            texto = clean_ass_text(outra["text"])
-            if j == indice:
-                partes.append(
-                    r"{\c&H00FFFF&\b1}" + texto + r"{\c&HFFFFFF&\b1}"
-                )
-            else:
-                partes.append(texto)
-
-        frase = " ".join(partes)
+        frase = highlight_text(grupo, indice, clean_ass_text)
         eventos.append(
             "Dialogue: 0,"
             + ass_time(inicio)
@@ -287,10 +264,12 @@ finally:
 print("4/4 Finalizando...")
 print()
 print("================================")
-print("LEGENDA DINÂMICA V3 CRIADA!")
+print("LEGENDA DINÂMICA V4 CRIADA!")
 print("================================")
 print(f"Palavras do roteiro: {len(palavras_originais)}")
+print(f"Grupos editoriais: {len(grupos)}")
 print(f"Eventos gerados: {len(eventos)}")
 print(f"Alinhamento: {metodo} ({similarity:.3f})")
+print("Estilo: humanized_documentary_v1")
 print(f"Arquivo: {ASS_FINAL}")
 print()
