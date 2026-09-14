@@ -7,7 +7,11 @@ import os
 import sys
 from datetime import datetime
 
-BASE = os.path.expanduser("~/ShortAutoPro")
+BASE = os.path.abspath(
+    os.path.expanduser(
+        os.getenv("SHORTAUTOPRO_BASE", "~/ShortAutoPro")
+    )
+)
 MANIFEST_DIR = os.path.join(BASE, "manifests")
 REPORT_DIR = os.path.join(BASE, "reports")
 os.makedirs(REPORT_DIR, exist_ok=True)
