@@ -44,6 +44,9 @@ def main() -> int:
         parser.error("--quantity precisa estar entre 1 e 100")
     if not args.client.strip() or not args.topic.strip():
         parser.error("client/topic não podem estar vazios")
+    language = args.language.strip() or "pt-BR"
+    if not language.lower().startswith("pt"):
+        parser.error("apenas PT-BR está habilitado; perfil/produção em inglês foi adiado")
 
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     client_slug = re.sub(r"[^A-Za-z0-9_-]+", "_", args.client.strip()).strip("_")[:24] or "client"
@@ -55,7 +58,7 @@ def main() -> int:
         "topic": args.topic.strip(),
         "topic_mode": args.topic_mode,
         "quantity": args.quantity,
-        "language": args.language.strip() or "pt-BR",
+        "language": "pt-BR",
         "profile": args.profile.strip() or "default",
         "deliverables": ["video", "title", "description", "hashtags", "credits", "quality_report"],
         "status": "QUEUED",
