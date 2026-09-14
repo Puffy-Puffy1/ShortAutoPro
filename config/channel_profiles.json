@@ -71,18 +71,5 @@
       "hook_style": "nostalgia",
       "cta_style": "community"
     }
-  },
-  "english": {
-    "language": "en-US",
-    "target_duration_seconds": 55,
-    "captions": {
-      "max_words_per_event": 6,
-      "highlight_keywords": true
-    },
-    "narrative": {
-      "tone": "international_short_form",
-      "hook_style": "fast",
-      "cta_style": "engagement"
-    }
   }
 }
