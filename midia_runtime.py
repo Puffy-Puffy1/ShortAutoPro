@@ -2,14 +2,14 @@
 
 """Fail-closed runtime guard for the current media selector control-flow bug.
 
-The production selector is intentionally kept in ``midia.py``.  A previous
+The production selector is intentionally kept in ``midia.py``. A previous
 refactor left a small set of stray ``break`` statements in its top-level
-per-scene loop.  The first media file could be downloaded successfully and
+per-scene loop. The first media file could be downloaded successfully and
 then the loop stopped before common bookkeeping, producing ``Total: 0/12``.
 
 This launcher removes only those known stray statements in memory, validates
-the transformed source, and executes it.  It does not rewrite ``midia.py`` on
-disk.  When the source is later repaired directly, the launcher detects that
+the transformed source, and executes it. It does not rewrite ``midia.py`` on
+disk. When the source is later repaired directly, the launcher detects that
 no hotfix is needed and executes the original source unchanged.
 """
 
@@ -23,8 +23,8 @@ from pathlib import Path
 EXPECTED_BROKEN_COUNTS = {
     "before_destino": 1,
     "before_success_commit": 1,
-    "outer_cleanup": 4,
-    "local_commit": 1,
+    "outer_cleanup": 3,
+    "local_commit": 2,
 }
 
 
@@ -47,8 +47,8 @@ def _previous_nonblank(lines: list[str], index: int) -> str:
 def fix_source(source: str) -> tuple[str, dict[str, int]]:
     """Remove only the seven known premature breaks from ``midia.py``.
 
-    Returns ``(source_fixed, counters)``.  A completely fixed source is
-    accepted unchanged.  A partially matching/unknown source fails closed so
+    Returns ``(source_fixed, counters)``. A completely fixed source is
+    accepted unchanged. A partially matching/unknown source fails closed so
     that a future refactor cannot be silently modified in the wrong place.
     """
 
@@ -77,16 +77,16 @@ def fix_source(source: str) -> tuple[str, dict[str, int]]:
             remove_indexes.add(index)
             continue
 
-        # These breaks are already outside the candidate/retry loops and were
-        # terminating the outer per-scene loop before common bookkeeping.
+        # These breaks are already outside candidate/retry loops and terminate
+        # the outer per-scene loop before the common counters/bookkeeping.
         if indent == 8 and prev == "_vse42_cleanup_scene_sibling(destino)":
             counters["outer_cleanup"] += 1
             remove_indexes.add(index)
             continue
 
-        # Local fallback has no inner loop at this point; this break also
-        # targets the outer scene loop and must not run before bookkeeping.
-        if indent == 12 and prev == "_vse42_commit_safe(escolhido)":
+        # Local fallback has no inner loop here. Both the nested and outer
+        # break target the scene loop, so neither may run before bookkeeping.
+        if indent in {8, 12} and prev == "_vse42_commit_safe(escolhido)":
             counters["local_commit"] += 1
             remove_indexes.add(index)
             continue
