@@ -13,7 +13,7 @@ erro() { echo "ERRO   $1"; ERROS=$((ERROS + 1)); }
 
 echo
 echo "======================================"
-echo " SHORTAUTO PRO - PREFLIGHT CHECK 2.3"
+echo " SHORTAUTO PRO - PREFLIGHT CHECK 2.4"
 echo "======================================"
 echo
 
@@ -38,9 +38,6 @@ for cmd in python ffmpeg ffprobe piper bash; do
     fi
 done
 
-# Somente componentes usados pelo pipeline principal são obrigatórios.
-# v5.py pode permanecer no repositório por histórico, mas não é fallback
-# de produção e portanto não bloqueia o preflight.
 ARQUIVOS=(
     gerar_short.sh
     topic_engine.py topic_memory.py topic_reserve.py topic_index.py wiki_client.py source_identity.py
@@ -49,7 +46,7 @@ ARQUIVOS=(
     visual_risk_guard.py editorial_continuity.py scene_lossless_repair.py post_script_truth_lock.py
     semantic_integrity_gate.py wikimedia_source.py wikimedia_query_bridge.py source_router.py evidence_guard.py
     midia.py media_master_gate.py motion_director.py rhythm_director.py production_supervisor.py editorial_gate.py
-    audio.py legenda_dinamica.py video.py v6.py quality_check.py publish_pack.py source_ledger.py
+    audio.py legenda_dinamica.py subtitle_alignment.py video.py v6.py quality_check.py publish_pack.py source_ledger.py
     publish_integrity_gate.py production_manifest.py final_quality.py register_topic.py
     health_check.sh limpar_storage.sh batch_queue.sh batch_recovery.sh control_center.sh
 )
@@ -74,6 +71,11 @@ if [ -d "$VOICE_DIR" ] && find "$VOICE_DIR" -maxdepth 1 -type f -name 'pt_BR-fab
 else
     erro "voz Piper pt_BR-faber-medium ausente"
 fi
+
+WHISPER_CLI="${WHISPER_CLI:-$HOME/whisper.cpp/build/bin/whisper-cli}"
+WHISPER_MODEL="${WHISPER_MODEL:-$HOME/whisper.cpp/models/ggml-base.bin}"
+if [ -x "$WHISPER_CLI" ]; then ok "Whisper CLI"; else erro "Whisper CLI ausente: $WHISPER_CLI"; fi
+if [ -f "$WHISPER_MODEL" ]; then ok "Whisper model"; else erro "Whisper model ausente: $WHISPER_MODEL"; fi
 
 LIVRE_KB="$(df -Pk "$HOME" 2>/dev/null | awk 'NR==2 {print $4}')"
 if [[ "${LIVRE_KB:-}" =~ ^[0-9]+$ ]]; then
@@ -127,7 +129,7 @@ PY_FILES=(
     visual_risk_guard.py editorial_continuity.py scene_lossless_repair.py post_script_truth_lock.py
     semantic_integrity_gate.py wikimedia_source.py wikimedia_query_bridge.py source_router.py evidence_guard.py
     midia.py media_master_gate.py motion_director.py rhythm_director.py production_supervisor.py editorial_gate.py
-    audio.py legenda_dinamica.py video.py v6.py quality_check.py publish_pack.py source_ledger.py
+    audio.py legenda_dinamica.py subtitle_alignment.py video.py v6.py quality_check.py publish_pack.py source_ledger.py
     publish_integrity_gate.py production_manifest.py final_quality.py register_topic.py
 )
 
