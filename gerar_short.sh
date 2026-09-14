@@ -91,7 +91,7 @@ exec > >(tee -a "$LOG") 2>&1
 
 echo
 echo "======================================"
-echo " SHORTAUTO PRO - STABLE 1.9"
+echo " SHORTAUTO PRO - STABLE 2.0"
 echo "======================================"
 echo
 echo "ID: $SHORT_ID"
@@ -190,7 +190,7 @@ rodar_shell "HEALTH CHECK" "health_check.sh"
 rodar_python "1/12 - TOPIC ENGINE" "topic_engine.py"
 rodar_python "2/12 - ROTEIRO + PESQUISA FACTUAL" "roteiro.py"
 rodar_python "3/12 - CONFIRMANDO ASSUNTO USADO" "used_topic.py"
-rodar_python "4/12 - HOOK ENGINE" "hook_engine.py"
+rodar_python "4/12 - HOOK ENGINE" "hook_runtime.py"
 rodar_python "4B/12 - NARRATIVE DIRECTOR 3.2" "narrative_director.py"
 rodar_python "4C/12 - COLD OPEN DIRECTOR 3.3" "cold_open_director.py"
 rodar_python "5/12 - SCENE DIRECTOR + RELEVÂNCIA" "scene_director.py"
