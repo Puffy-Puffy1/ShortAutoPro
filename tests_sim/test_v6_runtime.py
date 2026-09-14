@@ -1,8 +1,9 @@
 import os
+import subprocess
 import unittest
 from unittest import mock
 
-from v6_runtime import render_timeout, validate_probe
+from v6_runtime import render_timeout, run_renderer, validate_probe
 
 
 GOOD_PROBE = {
@@ -50,6 +51,13 @@ class V6RuntimeTests(unittest.TestCase):
             self.assertEqual(render_timeout(), 120)
         with mock.patch.dict(os.environ, {"SHORT_RENDER_TIMEOUT": "99999"}, clear=False):
             self.assertEqual(render_timeout(), 1800)
+
+    @mock.patch("v6_runtime.subprocess.Popen")
+    def test_renderer_stdin_is_detached(self, popen):
+        process = popen.return_value
+        process.wait.return_value = 0
+        self.assertEqual(run_renderer(120), 0)
+        self.assertEqual(popen.call_args.kwargs["stdin"], subprocess.DEVNULL)
 
 
 if __name__ == "__main__":
