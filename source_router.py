@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 
 import re
+import unicodedata
 
 # =====================================================
 # SHORTAUTO PRO
-# EVIDENCE PRIORITY ROUTER 3.6
+# EVIDENCE PRIORITY ROUTER 3.7
 # =====================================================
 
 DOCUMENTARY_FIRST = {
@@ -27,11 +28,18 @@ STOCK_FIRST = {
 }
 
 
+def _normalize(texto):
+    texto = unicodedata.normalize("NFKD", str(texto or ""))
+    return "".join(
+        c for c in texto if not unicodedata.combining(c)
+    ).lower()
+
+
 def _tokens(texto):
     return set(
         re.findall(
             r"[a-z0-9]+",
-            str(texto or "").lower()
+            _normalize(texto)
         )
     )
 
@@ -46,7 +54,7 @@ def escolher_rota(
     ).strip().lower()
 
     must_have = [
-        str(x).lower()
+        str(x)
         for x in (
             must_have
             or []
@@ -84,6 +92,7 @@ def escolher_rota(
         }
 
     documental = {
+        # English
         "document",
         "report",
         "newspaper",
@@ -93,8 +102,27 @@ def escolher_rota(
         "hotel",
         "house",
         "airplane",
+        "plane",
         "ship",
-        "train"
+        "train",
+        "letter",
+        "record",
+        # Portuguese, normalized without accents
+        "documento",
+        "relatorio",
+        "jornal",
+        "arquivo",
+        "mapa",
+        "predio",
+        "edificio",
+        "hotel",
+        "casa",
+        "aviao",
+        "aeronave",
+        "navio",
+        "trem",
+        "carta",
+        "registro",
     }
 
     if any(
