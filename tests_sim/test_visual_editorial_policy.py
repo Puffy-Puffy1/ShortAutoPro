@@ -15,8 +15,9 @@ class VisualEditorialPolicyTests(unittest.TestCase):
         out = apply_editorial_policy(scene, 1, 12)
         self.assertEqual(out["energy"], 4)
         self.assertEqual(out["rhythm_profile"], "hook_editorial")
-        self.assertEqual(out["editorial_policy"], "humanized_v4")
-        self.assertLessEqual(out["editorial_amplitude"], 0.036)
+        self.assertEqual(out["editorial_policy"], "humanized_v5")
+        self.assertLessEqual(out["editorial_amplitude"], 0.026)
+        self.assertEqual(out["pan"], "center")
 
     def test_document_detail_is_calm_and_centered(self):
         scene = {
@@ -30,9 +31,9 @@ class VisualEditorialPolicyTests(unittest.TestCase):
         self.assertEqual(out["pan"], "center")
         self.assertEqual(out["rhythm_profile"], "documentary_hold")
         self.assertLessEqual(out["energy"], 2)
-        self.assertLessEqual(out["editorial_amplitude"], 0.008)
+        self.assertLessEqual(out["editorial_amplitude"], 0.006)
 
-    def test_every_third_regular_photo_gets_center_hold(self):
+    def test_regular_medium_photo_uses_stable_center_hold(self):
         scene = {
             "visual_mode": "environment",
             "shot_type": "medium",
@@ -55,10 +56,10 @@ class VisualEditorialPolicyTests(unittest.TestCase):
         self.assertLessEqual(out["energy"], 2)
         self.assertEqual(out["rhythm_profile"], "editorial_breath")
 
-    def test_direction_changes_when_previous_pan_matches(self):
+    def test_wide_direction_changes_when_previous_pan_matches(self):
         scene = {
             "visual_mode": "environment",
-            "shot_type": "medium",
+            "shot_type": "wide",
             "media_type": "photo",
             "pan": "left",
         }
@@ -76,7 +77,8 @@ class VisualEditorialPolicyTests(unittest.TestCase):
         out = apply_editorial_policy(scene, 8, 12)
         self.assertGreaterEqual(out["energy"], 4)
         self.assertEqual(out["rhythm_profile"], "reveal_emphasis")
-        self.assertLessEqual(out["editorial_amplitude"], 0.036)
+        self.assertLessEqual(out["editorial_amplitude"], 0.026)
+        self.assertEqual(out["pan"], "center")
 
     def test_human_context_is_stable_and_centered(self):
         scene = {
@@ -89,7 +91,7 @@ class VisualEditorialPolicyTests(unittest.TestCase):
         self.assertEqual(out["pan"], "center")
         self.assertEqual(out["rhythm_profile"], "portrait_hold")
         self.assertLessEqual(out["energy"], 3)
-        self.assertLessEqual(out["editorial_amplitude"], 0.016)
+        self.assertLessEqual(out["editorial_amplitude"], 0.012)
 
     def test_final_scene_uses_quiet_closing_hold(self):
         scene = {
@@ -103,7 +105,7 @@ class VisualEditorialPolicyTests(unittest.TestCase):
         self.assertEqual(out["energy"], 1)
         self.assertEqual(out["pan"], "center")
         self.assertEqual(out["rhythm_profile"], "closing_hold")
-        self.assertLessEqual(out["editorial_amplitude"], 0.004)
+        self.assertLessEqual(out["editorial_amplitude"], 0.003)
 
     def test_native_video_is_not_artificially_animated(self):
         scene = {
@@ -137,7 +139,7 @@ class VisualEditorialPolicyTests(unittest.TestCase):
     def test_wide_shot_motion_stays_bounded(self):
         self.assertLessEqual(
             zoom_amplitude(4, "environment", "wide", "reveal"),
-            0.034,
+            0.027,
         )
 
 
