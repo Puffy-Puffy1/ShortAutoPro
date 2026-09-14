@@ -1,0 +1,54 @@
+name: Promote Termux Stable
+
+on:
+  workflow_run:
+    workflows: ["ShortAutoPro Remote Control"]
+    types: [completed]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: promote-termux-stable
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout exact tested commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+
+      - name: Verify tested commit
+        shell: bash
+        env:
+          TESTED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$TESTED_SHA"
+          echo "TESTED_SHA=$actual"
+
+      - name: Promote fast-forward only
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if git ls-remote --exit-code --heads origin termux-stable >/dev/null 2>&1; then
+            git fetch origin termux-stable:refs/remotes/origin/termux-stable
+            if ! git merge-base --is-ancestor origin/termux-stable HEAD; then
+              echo "PROMOTION_BLOCKED=termux_stable_diverged"
+              exit 1
+            fi
+          fi
+
+          git push origin HEAD:refs/heads/termux-stable
+          echo "TERMUX_STABLE_PROMOTION=PASS"

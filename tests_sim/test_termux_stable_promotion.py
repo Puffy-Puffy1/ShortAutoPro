@@ -1,0 +1,34 @@
+import unittest
+from pathlib import Path
+
+
+class TermuxStablePromotionTests(unittest.TestCase):
+    def setUp(self):
+        root = Path(__file__).resolve().parents[1]
+        self.workflow = (
+            root / ".github" / "workflows" / "promote-termux-stable.yml"
+        ).read_text(encoding="utf-8")
+
+    def test_promotion_waits_for_remote_control_success(self):
+        self.assertIn('workflows: ["ShortAutoPro Remote Control"]', self.workflow)
+        self.assertIn("types: [completed]", self.workflow)
+        self.assertIn("workflow_run.conclusion == 'success'", self.workflow)
+        self.assertIn("workflow_run.head_branch == 'main'", self.workflow)
+
+    def test_write_token_stays_off_self_hosted_runner(self):
+        self.assertIn("contents: write", self.workflow)
+        self.assertIn("runs-on: ubuntu-latest", self.workflow)
+        self.assertNotIn("runs-on: [self-hosted", self.workflow)
+
+    def test_exact_tested_sha_is_promoted(self):
+        self.assertIn("github.event.workflow_run.head_sha", self.workflow)
+        self.assertIn('test "$actual" = "$TESTED_SHA"', self.workflow)
+
+    def test_promotion_is_fast_forward_only(self):
+        self.assertIn("git merge-base --is-ancestor origin/termux-stable HEAD", self.workflow)
+        self.assertIn("PROMOTION_BLOCKED=termux_stable_diverged", self.workflow)
+        self.assertNotIn("--force", self.workflow)
+
+
+if __name__ == "__main__":
+    unittest.main()
