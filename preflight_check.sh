@@ -13,7 +13,7 @@ erro() { echo "ERRO   $1"; ERROS=$((ERROS + 1)); }
 
 echo
 echo "======================================"
-echo " SHORTAUTO PRO - PREFLIGHT CHECK 2.7"
+echo " SHORTAUTO PRO - PREFLIGHT CHECK 2.8"
 echo "======================================"
 echo
 
@@ -43,11 +43,12 @@ ARQUIVOS=(
     topic_engine.py topic_memory.py topic_reserve.py topic_index.py wiki_client.py source_identity.py
     roteiro.py used_topic.py hook_engine.py hook_runtime.py narrative_director.py cold_open_director.py
     scene_director.py scene_truth_refiner_6_7.py documentary_director.py visual_director.py
+    visual_shot_bridge.py visual_shot_policy.py visual_editorial_policy.py
     visual_risk_guard.py editorial_continuity.py scene_lossless_repair.py post_script_truth_lock.py
     semantic_integrity_gate.py wikimedia_source.py wikimedia_query_bridge.py source_router.py evidence_guard.py
     midia.py midia_runtime.py visual_pipeline_bridge_v42.py visual_selection_engine_v4.py visual_intelligence_6.py
     vi6_8_runtime_policy.py vi6_9_runtime_policy.py media_master_gate.py motion_director.py rhythm_director.py
-    production_supervisor.py editorial_gate.py audio.py legenda_dinamica.py subtitle_alignment.py video.py v6.py v6_runtime.py
+    production_supervisor.py editorial_gate.py audio.py legenda_dinamica.py subtitle_alignment.py subtitle_style_policy.py video.py v6.py v6_runtime.py
     quality_check.py publish_pack.py source_ledger.py publish_integrity_gate.py production_manifest.py final_quality.py
     register_topic.py health_check.sh limpar_storage.sh batch_queue.sh batch_recovery.sh control_center.sh
 )
@@ -127,11 +128,12 @@ PY_FILES=(
     topic_engine.py topic_memory.py topic_reserve.py topic_index.py wiki_client.py source_identity.py
     roteiro.py used_topic.py hook_engine.py hook_runtime.py narrative_director.py cold_open_director.py
     scene_director.py scene_truth_refiner_6_7.py documentary_director.py visual_director.py
+    visual_shot_bridge.py visual_shot_policy.py visual_editorial_policy.py
     visual_risk_guard.py editorial_continuity.py scene_lossless_repair.py post_script_truth_lock.py
     semantic_integrity_gate.py wikimedia_source.py wikimedia_query_bridge.py source_router.py evidence_guard.py
     midia.py midia_runtime.py visual_pipeline_bridge_v42.py visual_selection_engine_v4.py visual_intelligence_6.py
     vi6_8_runtime_policy.py vi6_9_runtime_policy.py media_master_gate.py motion_director.py rhythm_director.py
-    production_supervisor.py editorial_gate.py audio.py legenda_dinamica.py subtitle_alignment.py video.py v6.py v6_runtime.py
+    production_supervisor.py editorial_gate.py audio.py legenda_dinamica.py subtitle_alignment.py subtitle_style_policy.py video.py v6.py v6_runtime.py
     quality_check.py publish_pack.py source_ledger.py publish_integrity_gate.py production_manifest.py final_quality.py
     register_topic.py
 )
@@ -142,7 +144,7 @@ for arq in "${PY_FILES[@]}"; do
     fi
 done
 
-# Import-only checks for active runtime supervisors and selector dependencies.
+# Import-only checks for active runtime supervisors and visual/subtitle dependencies.
 if (
     cd "$BASE" &&
     python - <<'PY' >/dev/null 2>&1
@@ -151,6 +153,11 @@ import importlib
 for name in (
     "hook_runtime",
     "midia_runtime",
+    "subtitle_alignment",
+    "subtitle_style_policy",
+    "visual_shot_policy",
+    "visual_editorial_policy",
+    "visual_shot_bridge",
     "visual_pipeline_bridge_v42",
     "visual_intelligence_6",
     "vi6_8_runtime_policy",
