@@ -1,7 +1,10 @@
 import unittest
+from pathlib import Path
 
 from midia_runtime import EXPECTED_BROKEN_COUNTS, fix_source, harden_cleanup
 
+
+ROOT = Path(__file__).resolve().parents[1]
 
 BROKEN = '''for scene in scenes:
     if chosen:
@@ -107,6 +110,15 @@ extensions = [".jpg", ".mp4"]
 '''
         with self.assertRaises(RuntimeError):
             harden_cleanup(source)
+
+    def test_current_midia_source_is_safely_patchable_and_compiles(self):
+        source = (ROOT / "midia.py").read_text(encoding="utf-8")
+        fixed, counters = fix_source(source)
+        self.assertIn(sum(counters.values()), {0, 7})
+        if sum(counters.values()):
+            self.assertEqual(counters, EXPECTED_BROKEN_COUNTS)
+        fixed, _ = harden_cleanup(fixed)
+        compile(fixed, "midia.py", "exec")
 
 
 if __name__ == "__main__":
