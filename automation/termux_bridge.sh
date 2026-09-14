@@ -1,10 +1,10 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
 # ShortAutoPro Termux Bridge
-# Pull-based bridge: GitHub main -> Termux automatically.
+# Pull-based bridge: GitHub termux-stable -> Termux automatically.
 # Safety rules:
 #   - never overwrites tracked local changes
-#   - only accepts fast-forward updates from origin/main
+#   - only accepts fast-forward updates from origin/termux-stable
 #   - validates tracked Python and shell files after update
 #   - rolls back automatically if syntax validation fails
 
@@ -15,7 +15,7 @@ STATE_DIR="${SAP_BRIDGE_STATE_DIR:-$HOME/.shortautopro_bridge}"
 LOG_FILE="$STATE_DIR/bridge.log"
 LOCK_FILE="$STATE_DIR/bridge.lock"
 LAST_OK_FILE="$STATE_DIR/last_ok_commit"
-BRANCH="${SAP_BRIDGE_BRANCH:-main}"
+BRANCH="${SAP_BRIDGE_BRANCH:-termux-stable}"
 
 mkdir -p "$STATE_DIR"
 touch "$LOG_FILE"
