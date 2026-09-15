@@ -1,178 +1,53 @@
 #!/data/data/com.termux/files/usr/bin/bash
-
 set -u
 set -o pipefail
-
 BASE="${SHORTAUTOPRO_BASE:-$HOME/ShortAutoPro}"
 COOLDOWN="${SHORT_BATCH_COOLDOWN:-20}"
-
 if ! [[ "$COOLDOWN" =~ ^[0-9]+$ ]]; then COOLDOWN=20; fi
-COOLDOWN=$((COOLDOWN))
-if [ "$COOLDOWN" -lt 10 ]; then COOLDOWN=10; fi
-if [ "$COOLDOWN" -gt 120 ]; then COOLDOWN=120; fi
-
+COOLDOWN=$((COOLDOWN)); [ "$COOLDOWN" -lt 10 ] && COOLDOWN=10; [ "$COOLDOWN" -gt 120 ] && COOLDOWN=120
 QTD="${1:-${SHORT_LOTE:-3}}"
-if ! [[ "$QTD" =~ ^[0-9]+$ ]]; then
-    echo "ERRO: quantidade inválida."
-    echo "Exemplo: ~/ShortAutoPro/batch_queue.sh 3"
-    exit 1
-fi
-QTD=$((QTD))
-if [ "$QTD" -lt 1 ]; then QTD=1; fi
-if [ "$QTD" -gt 10 ]; then QTD=10; fi
-
-if [ -f "$BASE/config.sh" ]; then
-    # shellcheck disable=SC1091
-    source "$BASE/config.sh"
-else
-    echo "ERRO: config.sh não encontrado."
-    exit 1
-fi
-
-BATCH_ID="$(date +%F_%H%M%S)_$$"
-LOG_DIR="$BASE/logs/lotes"
-mkdir -p "$LOG_DIR"
-LOG="$LOG_DIR/lote_${BATCH_ID}.log"
-exec > >(tee -a "$LOG") 2>&1
-
-echo
-echo "======================================"
-echo " SHORTAUTO PRO - BATCH QUEUE 2.0"
-echo "======================================"
-echo
-echo "Lote: $BATCH_ID"
-echo "Quantidade: $QTD"
-echo "Início: $(date)"
-echo "Log: $LOG"
-echo
-
-SUCESSOS=0
-FALHAS=0
-declare -a IDS_OK=()
-declare -a IDS_ERRO=()
-
-manifest_id_valido() {
-    local arquivo="$1"
-    local esperado="$2"
-    [ -f "$arquivo" ] || return 1
-
-    python - "$arquivo" "$esperado" <<'PY'
-import json
-import sys
+if ! [[ "$QTD" =~ ^[0-9]+$ ]]; then echo "ERRO: quantidade inválida."; exit 1; fi
+QTD=$((QTD)); [ "$QTD" -lt 1 ] && QTD=1; [ "$QTD" -gt 10 ] && QTD=10
+[ -f "$BASE/config.sh" ] || { echo "ERRO: config.sh não encontrado."; exit 1; }
+# shellcheck disable=SC1091
+source "$BASE/config.sh"
+[ -f "$BASE/main.py" ] || { echo "ERRO: main.py não encontrado."; exit 1; }
+BATCH_ID="$(date +%F_%H%M%S)_$$"; LOG_DIR="$BASE/logs/lotes"; mkdir -p "$LOG_DIR"; LOG="$LOG_DIR/lote_${BATCH_ID}.log"; exec > >(tee -a "$LOG") 2>&1
+printf '\n======================================\n SHORTAUTO PRO - BATCH QUEUE 3.0\n======================================\nLote: %s\nQuantidade: %s\nInício: %s\nLog: %s\n\n' "$BATCH_ID" "$QTD" "$(date)" "$LOG"
+SUCESSOS=0; FALHAS=0; declare -a IDS_OK=(); declare -a IDS_ERRO=()
+release_valido() {
+ local run_id="$1"
+ BASE_PY="$BASE" RUN_ID_PY="$run_id" python - <<'PY'
+import json, os
 from pathlib import Path
-
-p = Path(sys.argv[1])
-esperado = sys.argv[2]
+base=Path(os.environ["BASE_PY"]); sid=os.environ["RUN_ID_PY"]
 try:
-    data = json.loads(p.read_text(encoding="utf-8"))
-except Exception:
-    raise SystemExit(1)
-
-if not isinstance(data, dict):
-    raise SystemExit(1)
-
-short_id = str(data.get("short_id", "")).strip()
-status = str(data.get("status", "")).strip()
-
-if short_id != esperado or status != "QUALITY_PASS":
-    raise SystemExit(1)
-
-print(short_id)
+ manifest=json.loads((base/"manifests"/f"{sid}.json").read_text(encoding="utf-8"))
+ quality=json.loads((base/"manifests"/f"{sid}_quality.json").read_text(encoding="utf-8"))
+ release=json.loads((base/"manifests"/f"{sid}_release.json").read_text(encoding="utf-8"))
+except Exception: raise SystemExit(1)
+if manifest.get("short_id")!=sid or str(manifest.get("status","")).upper()!="QUALITY_PASS": raise SystemExit(1)
+if quality.get("approved") is not True: raise SystemExit(1)
+if release.get("decision") not in {"PUBLISH","ACCEPTABLE"}: raise SystemExit(1)
+print(sid)
 PY
 }
-
 for ((i=1; i<=QTD; i++)); do
-    echo
-echo
-    echo "######################################"
-    echo " SHORT $i/$QTD"
-    echo "######################################"
-    echo
-
-    # O ID é definido pelo lote e preservado por gerar_short.sh.
-    # Assim não dependemos de relógio por minuto nem de descobrir o
-    # manifest "mais recente" entre arquivos de outras execuções.
-    SHORT_ID="${BATCH_ID}_$(printf '%02d' "$i")"
-    export SHORT_ID
-    MANIFEST_ESPERADO="$BASE/manifests/${SHORT_ID}.json"
-
-    INICIO="$(date +%s)"
-
-    if "$BASE/gerar_short.sh"; then
-        FIM="$(date +%s)"
-        TEMPO="$((FIM - INICIO))"
-        ID_OK="$(manifest_id_valido "$MANIFEST_ESPERADO" "$SHORT_ID" 2>/dev/null || true)"
-
-        if [ -z "$ID_OK" ]; then
-            FALHAS=$((FALHAS + 1))
-            IDS_ERRO+=("$SHORT_ID:manifest_invalido")
-            echo
-            echo "SHORT $i: FALHOU"
-            echo "Motivo: manifest esperado ausente, inválido ou sem QUALITY_PASS."
-            echo "Manifest: $MANIFEST_ESPERADO"
-            echo "Tempo: ${TEMPO}s"
-        else
-            SUCESSOS=$((SUCESSOS + 1))
-            IDS_OK+=("$ID_OK")
-            echo
-            echo "SHORT $i: OK"
-            echo "ID: $ID_OK"
-            echo "Tempo: ${TEMPO}s"
-        fi
-    else
-        CODIGO=$?
-        FIM="$(date +%s)"
-        TEMPO="$((FIM - INICIO))"
-        FALHAS=$((FALHAS + 1))
-        IDS_ERRO+=("$SHORT_ID:exit_$CODIGO")
-        echo
-        echo "SHORT $i: FALHOU"
-        echo "ID: $SHORT_ID"
-        echo "Código: $CODIGO"
-        echo "Tempo: ${TEMPO}s"
-        echo "O lote continuará para registrar todas as falhas."
-    fi
-
-    unset SHORT_ID
-
-    if [ "$i" -lt "$QTD" ]; then
-        echo
-        echo "Cooldown das APIs: ${COOLDOWN}s..."
-        sleep "$COOLDOWN"
-    fi
+ printf '\n######################################\n SHORT %s/%s\n######################################\n\n' "$i" "$QTD"
+ SHORT_ID="${BATCH_ID}_$(printf '%02d' "$i")"; export SHORT_ID; INICIO="$(date +%s)"
+ if python "$BASE/main.py" run; then
+  FIM="$(date +%s)"; TEMPO="$((FIM-INICIO))"; ID_OK="$(release_valido "$SHORT_ID" 2>/dev/null || true)"
+  if [ -n "$ID_OK" ]; then SUCESSOS=$((SUCESSOS+1)); IDS_OK+=("$ID_OK"); echo "SHORT $i: OK | ID=$ID_OK | ${TEMPO}s"
+  else FALHAS=$((FALHAS+1)); IDS_ERRO+=("$SHORT_ID:release_invalido"); echo "SHORT $i: FALHOU | Release Gate ausente/não aprovado | ${TEMPO}s"; fi
+ else
+  CODIGO=$?; FIM="$(date +%s)"; TEMPO="$((FIM-INICIO))"; FALHAS=$((FALHAS+1)); IDS_ERRO+=("$SHORT_ID:exit_$CODIGO"); echo "SHORT $i: FALHOU | ID=$SHORT_ID | código=$CODIGO | ${TEMPO}s"
+ fi
+ unset SHORT_ID
+ if [ "$i" -lt "$QTD" ]; then echo "Cooldown das APIs: ${COOLDOWN}s..."; sleep "$COOLDOWN"; fi
 done
-
-echo
-echo
-echo "======================================"
-echo " BATCH QUEUE FINALIZADA"
-echo "======================================"
-echo "Quantidade solicitada: $QTD"
-echo "Sucessos: $SUCESSOS"
-echo "Falhas: $FALHAS"
-echo
-
-if [ "${#IDS_OK[@]}" -gt 0 ]; then
-    echo "SHORTS CRIADOS:"
-    for ID in "${IDS_OK[@]}"; do echo "  OK  $ID"; done
-    echo
-fi
-
-if [ "${#IDS_ERRO[@]}" -gt 0 ]; then
-    echo "FALHAS:"
-    for ID in "${IDS_ERRO[@]}"; do echo "  ERRO  $ID"; done
-    echo
-fi
-
-echo "Log do lote:"
-echo "$LOG"
-echo "Fim: $(date)"
-echo "======================================"
-
-# Um lote parcial não é sucesso completo. Os Shorts produzidos continuam
-# preservados, mas o chamador recebe falha para não mascarar problemas.
-if [ "$FALHAS" -eq 0 ] && [ "$SUCESSOS" -eq "$QTD" ]; then
-    exit 0
-fi
-
+printf '\n======================================\n BATCH QUEUE FINALIZADA\n======================================\nQuantidade: %s\nSucessos: %s\nFalhas: %s\n' "$QTD" "$SUCESSOS" "$FALHAS"
+if [ "${#IDS_OK[@]}" -gt 0 ]; then echo "SHORTS CRIADOS:"; for ID in "${IDS_OK[@]}"; do echo "  OK $ID"; done; fi
+if [ "${#IDS_ERRO[@]}" -gt 0 ]; then echo "FALHAS:"; for ID in "${IDS_ERRO[@]}"; do echo "  ERRO $ID"; done; fi
+echo "Log: $LOG"; echo "Fim: $(date)"; echo "======================================"
+[ "$FALHAS" -eq 0 ] && [ "$SUCESSOS" -eq "$QTD" ] && exit 0
 exit 1
