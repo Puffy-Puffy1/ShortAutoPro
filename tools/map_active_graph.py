@@ -13,16 +13,14 @@ ROOT = Path(__file__).resolve().parents[1]
 ARCHIVE_PREFIX = "_arquivo_historico/"
 CODE_EXTS = {".py", ".sh"}
 
-# Operational entrypoints only. Tests and workflows are added separately below.
-# Documentation is intentionally NOT a seed: mentioning obsolete code in a doc
-# must never keep that code alive in the production graph.
+# Consolidation 3.0 operational entrypoints. main.py is the only Short
+# production root; profile/batch/control entrypoints delegate to it.
 DEFAULT_SEEDS = {
+    "main.py",
     "control_center.sh",
-    "gerar_short.sh",
     "profile_run.sh",
     "evolution_center.sh",
     "resume_short.sh",
-    "finalize_short.sh",
     "batch_queue.sh",
     "batch_recovery.sh",
     "health_check.sh",
@@ -42,11 +40,6 @@ MODULE_LITERAL_RE = re.compile(r"[\"']([A-Za-z_][A-Za-z0-9_.]*)[\"']")
 
 
 def tracked_rel_paths() -> list[str]:
-    """Return only paths owned by the current Git revision.
-
-    Local ignored runtime material (for example backups/, temp/ and generated
-    reports) must never influence the repository architecture audit.
-    """
     proc = subprocess.run(
         ["git", "-C", str(ROOT), "ls-files", "-z"],
         stdout=subprocess.PIPE,
@@ -68,9 +61,9 @@ def repo_files():
     for rel in tracked_rel_paths():
         if rel.startswith(ARCHIVE_PREFIX) or rel.startswith(".git/"):
             continue
-        p = ROOT / rel
-        if p.is_file():
-            out[rel] = p
+        path = ROOT / rel
+        if path.is_file():
+            out[rel] = path
     return out
 
 
@@ -79,41 +72,13 @@ def module_map(files):
     for rel in files:
         if not rel.endswith(".py"):
             continue
-        mod = rel[:-3].replace("/", ".")
-        if mod.endswith(".__init__"):
-            mod = mod[:-9]
-        mapping.setdefault(mod, rel)
+        module = rel[:-3].replace("/", ".")
+        if module.endswith(".__init__"):
+            module = module[:-9]
+        mapping.setdefault(module, rel)
         if "/" not in rel:
             mapping.setdefault(Path(rel).stem, rel)
     return mapping
-
-
-def refs_from_python(path: Path, files, modules):
-    refs = set()
-    text = path.read_text(encoding="utf-8", errors="ignore")
-    try:
-        tree = ast.parse(text)
-    except SyntaxError:
-        tree = None
-    if tree is not None:
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Import):
-                for alias in node.names:
-                    name = alias.name
-                    while name:
-                        if name in modules:
-                            refs.add(modules[name])
-                            break
-                        name = name.rpartition(".")[0]
-            elif isinstance(node, ast.ImportFrom):
-                name = node.module or ""
-                while name:
-                    if name in modules:
-                        refs.add(modules[name])
-                        break
-                    name = name.rpartition(".")[0]
-    refs |= refs_from_text(text, files, modules)
-    return refs
 
 
 def refs_from_text(text: str, files, modules):
@@ -129,9 +94,34 @@ def refs_from_text(text: str, files, modules):
         elif base in files:
             refs.add(base)
     for match in MODULE_LITERAL_RE.finditer(text):
-        mod = match.group(1)
-        if mod in modules:
-            refs.add(modules[mod])
+        module = match.group(1)
+        if module in modules:
+            refs.add(modules[module])
+    return refs
+
+
+def refs_from_python(path: Path, files, modules):
+    refs = set()
+    text = path.read_text(encoding="utf-8", errors="ignore")
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        tree = None
+    if tree is not None:
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                names = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                names = [node.module or ""]
+            else:
+                continue
+            for name in names:
+                while name:
+                    if name in modules:
+                        refs.add(modules[name])
+                        break
+                    name = name.rpartition(".")[0]
+    refs |= refs_from_text(text, files, modules)
     return refs
 
 
@@ -148,16 +138,16 @@ def build():
     seeds = set(DEFAULT_SEEDS)
     seeds |= {rel for rel in files if rel.startswith("tests_sim/") and rel.endswith(".py")}
     seeds |= {rel for rel in files if rel.startswith(".github/workflows/") and rel.endswith((".yml", ".yaml"))}
-    seeds = {s for s in seeds if s in files}
+    seeds = {seed for seed in seeds if seed in files}
 
-    q = deque(sorted(seeds))
+    queue = deque(sorted(seeds))
     reachable = set(seeds)
-    while q:
-        cur = q.popleft()
-        for nxt in graph.get(cur, ()):
+    while queue:
+        current = queue.popleft()
+        for nxt in graph.get(current, ()):
             if nxt not in reachable:
                 reachable.add(nxt)
-                q.append(nxt)
+                queue.append(nxt)
 
     code_files = sorted(rel for rel in files if Path(rel).suffix in CODE_EXTS)
     active_code = sorted(set(code_files) & reachable)
@@ -177,7 +167,7 @@ def main():
             "active_code": len(active),
             "inactive_code": len(inactive),
         },
-        "edges": {k: sorted(v) for k, v in graph.items() if v},
+        "edges": {key: sorted(value) for key, value in graph.items() if value},
     }
     if "--json" in sys.argv:
         print(json.dumps(payload, ensure_ascii=False, indent=2))
