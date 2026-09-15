@@ -34,7 +34,9 @@ def build(source: str) -> str:
     source = replace_once(
         source,
         'rodar_python "6C/12 - MONTAGE RHYTHM DIRECTOR" "rhythm_director.py"\n',
-        'rodar_python "6C/12 - MONTAGE RHYTHM DIRECTOR" "rhythm_director.py"\nrodar_python "6C1/12 - PROFESSIONAL EDIT DIRECTOR" "professional_edit_director.py"\n',
+        'rodar_python "6C/12 - MONTAGE RHYTHM DIRECTOR" "rhythm_director.py"\n'
+        'rodar_python "6C1/12 - PROFESSIONAL EDIT DIRECTOR" "professional_edit_director.py"\n'
+        'rodar_python "6C2/12 - PROFESSIONAL EDIT AUTO-REPAIR" "professional_edit_repair.py"\n',
         "professional_director",
     )
     source = replace_once(
@@ -72,9 +74,16 @@ def main() -> int:
         return 1
     try:
         patched = build(SOURCE.read_text(encoding="utf-8"))
-        compile_check = patched.count('professional_edit_director.py') == 1 and patched.count('video_professional.py') == 1
-        if not compile_check:
-            raise RuntimeError("patch profissional incompleto")
+        required = [
+            "professional_edit_director.py",
+            "professional_edit_repair.py",
+            "video_professional.py",
+            "v6_professional_runtime.py",
+            "professional_quality_gate.py",
+        ]
+        missing = [name for name in required if name not in patched]
+        if missing:
+            raise RuntimeError("patch profissional incompleto: " + ", ".join(missing))
     except Exception as exc:
         print(f"ERRO PROFESSIONAL PIPELINE: {exc}")
         return 1
