@@ -2,7 +2,6 @@ import unittest
 from pathlib import Path
 
 import professional_caption_director as pcd
-import professional_pipeline_runtime as ppr
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -73,15 +72,13 @@ class ProfessionalMediaFloorTests(unittest.TestCase):
 
 
 class ProfessionalPipelinePolishTests(unittest.TestCase):
-    def test_professional_runtime_inserts_caption_director(self):
-        source = (ROOT / "gerar_short.sh").read_text(encoding="utf-8")
-        patched = ppr.build(source)
-        self.assertIn("professional_caption_director.py", patched)
-        self.assertLess(
-            patched.index("professional_caption_director.py"),
-            patched.index("caption-audit"),
-        )
-        self.assertIn("SAP_PRO_MEDIA_MIN_PIXELS", patched)
+    def test_canonical_pipeline_places_caption_director_before_audit(self):
+        text = (ROOT / "gerar_short.sh").read_text(encoding="utf-8")
+        self.assertIn("professional_caption_director.py", text)
+        self.assertLess(text.index("professional_caption_director.py"), text.index("caption-audit"))
+        self.assertIn("SAP_PRO_MEDIA_MIN_PIXELS", text)
+        self.assertIn("professional_edit_director.py", text)
+        self.assertIn("professional_edit_repair.py", text)
 
     def test_professional_quality_scores_media_and_captions(self):
         text = (ROOT / "professional_quality_gate.py").read_text(encoding="utf-8")
@@ -90,9 +87,10 @@ class ProfessionalPipelinePolishTests(unittest.TestCase):
         self.assertIn("pro_caption_", text)
         self.assertIn("media_quality_", text)
 
-    def test_professional_resume_keeps_caption_director(self):
-        text = (ROOT / "resume_short_professional_runtime.py").read_text(encoding="utf-8")
+    def test_unified_resume_keeps_caption_director(self):
+        text = (ROOT / "resume_short_runtime.py").read_text(encoding="utf-8")
         self.assertIn("professional_caption_director.py", text)
+        self.assertIn("SAP_PRO_EDIT", text)
 
 
 if __name__ == "__main__":

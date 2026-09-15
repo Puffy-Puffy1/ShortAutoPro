@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import ast, json, re, sys
+
+import ast
+import json
+import re
+import sys
 from collections import deque
 from pathlib import Path
 
@@ -8,10 +12,12 @@ ROOT = Path(__file__).resolve().parents[1]
 ARCHIVE_PREFIX = "_arquivo_historico/"
 CODE_EXTS = {".py", ".sh"}
 
+# Operational entrypoints only. Tests and workflows are added separately below.
+# Documentation is intentionally NOT a seed: mentioning obsolete code in a doc
+# must never keep that code alive in the production graph.
 DEFAULT_SEEDS = {
     "control_center.sh",
     "gerar_short.sh",
-    "gerar_short_professional.sh",
     "profile_run.sh",
     "evolution_center.sh",
     "resume_short.sh",
@@ -27,7 +33,7 @@ DEFAULT_SEEDS = {
     "client_job_runner.py",
     "longform_runtime.py",
     "tools/map_active_graph.py",
-    "tools/apply_consolidation_1_0.py",
+    "tools/repo_audit.py",
 }
 
 FILE_REF_RE = re.compile(r"(?<![A-Za-z0-9_./-])([A-Za-z0-9_.-]+\.(?:py|sh))(?![A-Za-z0-9_.-])")
@@ -114,13 +120,12 @@ def build():
     for rel, path in files.items():
         if path.suffix == ".py":
             graph[rel] = refs_from_python(path, files, modules)
-        elif path.suffix in {".sh", ".yml", ".yaml", ".md"}:
+        elif path.suffix in {".sh", ".yml", ".yaml"}:
             graph[rel] = refs_from_text(path.read_text(encoding="utf-8", errors="ignore"), files, modules)
 
     seeds = set(DEFAULT_SEEDS)
     seeds |= {rel for rel in files if rel.startswith("tests_sim/") and rel.endswith(".py")}
     seeds |= {rel for rel in files if rel.startswith(".github/workflows/") and rel.endswith((".yml", ".yaml"))}
-    seeds |= {rel for rel in files if rel.startswith("docs/") and rel.endswith(".md")}
     seeds = {s for s in seeds if s in files}
 
     q = deque(sorted(seeds))
@@ -157,6 +162,8 @@ def main():
         print(f"SEEDS={len(seeds)} ACTIVE_CODE={len(active)} INACTIVE_CODE={len(inactive)}")
         for item in active:
             print("ACTIVE", item)
+        for item in inactive:
+            print("INACTIVE", item)
 
 
 if __name__ == "__main__":

@@ -2,6 +2,12 @@ name: ShortAutoPro Portable Validation
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - "**.py"
+      - "**.sh"
+      - ".github/workflows/**"
   push:
     branches: [main]
     paths:
@@ -83,25 +89,39 @@ jobs:
           find . -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
           echo "PORTABLE_BASH_SYNTAX=PASS"
 
-      - name: Professional Pipeline Contract
+      - name: Unified Professional Pipeline Contract
         shell: bash
         run: |
           set -euo pipefail
           test -f professional_edit_director.py
           test -f professional_edit_repair.py
+          test -f professional_caption_director.py
           test -f video_professional.py
           test -f v6_professional.py
-          test -f v6_professional_runtime.py
           test -f professional_quality_gate.py
-          test -f professional_pipeline_runtime.py
-          test -f gerar_short_professional.sh
           test -f gerar_short.sh
           test -f video.py
           test -f v6.py
-          grep -q 'SAP_PRO_EDIT="${SAP_PRO_EDIT:-1}"' profile_run.sh
+          test -f v6_runtime.py
+          test -f resume_short_runtime.py
+          test -f shortautopro_evolution_core.py
+          test ! -e professional_pipeline_runtime.py
+          test ! -e gerar_short_professional.sh
+          test ! -e v6_professional_runtime.py
+          test ! -e resume_short_professional_runtime.py
+          grep -q 'SAP_PRO_EDIT="${SAP_PRO_EDIT:-1}"' gerar_short.sh
+          grep -q 'professional_edit_director.py' gerar_short.sh
+          grep -q 'professional_caption_director.py' gerar_short.sh
           grep -q 'STANDARD_ROLLBACK' profile_run.sh
           grep -q 'SAP_PROFESSIONAL_ENFORCE", "0"' professional_quality_gate.py
-          echo "PROFESSIONAL_PIPELINE_CONTRACT=PASS"
+          echo "UNIFIED_PROFESSIONAL_PIPELINE_CONTRACT=PASS"
+
+      - name: Consolidation Repository Audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tools/repo_audit.py
+          echo "CONSOLIDATION_REPOSITORY_AUDIT=PASS"
 
       - name: FFmpeg Capabilities
         shell: bash

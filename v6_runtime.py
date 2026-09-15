@@ -1,6 +1,13 @@
 #!/usr/bin/env python3
 
-"""Supervise the real V6 renderer without changing its Termux render logic."""
+"""Supervise the canonical V6 renderer and validate its final contract.
+
+SAP_PRO_EDIT=1 selects the Professional renderer; SAP_PRO_EDIT=0 selects the
+standard rollback renderer. Validation and timeout/cleanup behavior stay in one
+runtime so both paths obey the same technical contract.
+"""
+
+from __future__ import annotations
 
 import json
 import math
@@ -11,11 +18,21 @@ import sys
 from datetime import date
 from pathlib import Path
 
-
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro")))
 SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat()).strip()
-TARGET = BASE / "v6.py"
 OUTPUT = BASE / "videos" / f"short_v6_{SHORT_ID}.mp4"
+
+
+def professional_enabled() -> bool:
+    return os.getenv("SAP_PRO_EDIT", "1").strip() == "1"
+
+
+def renderer_target() -> Path:
+    return BASE / ("v6_professional.py" if professional_enabled() else "v6.py")
+
+
+def renderer_mode() -> str:
+    return "PROFESSIONAL" if professional_enabled() else "STANDARD_ROLLBACK"
 
 
 def safe_float(value):
@@ -116,11 +133,15 @@ def remove_output():
 
 
 def render_timeout():
+    pro = professional_enabled()
+    default = "1200" if pro else "900"
+    maximum = 2400 if pro else 1800
+    minimum = 180 if pro else 120
     try:
-        value = int(os.getenv("SHORT_RENDER_TIMEOUT", "900"))
+        value = int(os.getenv("SHORT_RENDER_TIMEOUT", default))
     except (TypeError, ValueError):
-        value = 900
-    return max(120, min(value, 1800))
+        value = int(default)
+    return max(minimum, min(value, maximum))
 
 
 def terminate_renderer(process):
@@ -156,8 +177,9 @@ def terminate_renderer(process):
 
 
 def run_renderer(timeout):
+    target = renderer_target()
     process = subprocess.Popen(
-        [sys.executable, str(TARGET)],
+        [sys.executable, str(target)],
         cwd=str(BASE),
         stdin=subprocess.DEVNULL,
         start_new_session=(os.name != "nt"),
@@ -176,28 +198,30 @@ def main():
     if not SHORT_ID:
         print("ERRO V6 RUNTIME: SHORT_ID vazio")
         return 1
-    if not TARGET.is_file():
-        print(f"ERRO V6 RUNTIME: v6.py não encontrado: {TARGET}")
+    target = renderer_target()
+    mode = renderer_mode()
+    if not target.is_file():
+        print(f"ERRO V6 RUNTIME: renderer não encontrado: {target}")
         return 1
 
     remove_output()
     timeout = render_timeout()
-    print(f"V6_RUNTIME_SUPERVISOR=ACTIVE timeout={timeout}s")
+    print(f"V6_RUNTIME_SUPERVISOR=ACTIVE mode={mode} target={target.name} timeout={timeout}s")
 
     try:
         returncode = run_renderer(timeout)
     except subprocess.TimeoutExpired:
         remove_output()
-        print(f"ERRO V6 RUNTIME: render excedeu {timeout}s")
+        print(f"ERRO V6 RUNTIME: render {mode} excedeu {timeout}s")
         return 1
     except Exception as exc:
         remove_output()
-        print(f"ERRO V6 RUNTIME: falha iniciando renderer: {exc}")
+        print(f"ERRO V6 RUNTIME: falha iniciando renderer {mode}: {exc}")
         return 1
 
     if returncode != 0:
         remove_output()
-        print(f"ERRO V6 RUNTIME: renderer retornou código {returncode}")
+        print(f"ERRO V6 RUNTIME: renderer {mode} retornou código {returncode}")
         return returncode or 1
 
     try:
@@ -211,7 +235,7 @@ def main():
         print(f"ERRO V6 RUNTIME: saída final inválida: {exc}")
         return 1
 
-    print(f"V6_RUNTIME_SUPERVISOR=PASS output={OUTPUT}")
+    print(f"V6_RUNTIME_SUPERVISOR=PASS mode={mode} output={OUTPUT}")
     return 0
 
 

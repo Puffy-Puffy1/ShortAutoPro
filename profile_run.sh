@@ -5,8 +5,7 @@ set -o pipefail
 
 BASE="${SHORTAUTOPRO_BASE:-$HOME/ShortAutoPro}"
 PROFILE_RUNTIME="$BASE/profile_runtime.py"
-STANDARD_GENERATOR="$BASE/gerar_short.sh"
-PRO_GENERATOR="$BASE/gerar_short_professional.sh"
+GENERATOR="$BASE/gerar_short.sh"
 
 PROFILE="${1:-${SAP_CHANNEL_PROFILE:-default}}"
 
@@ -22,17 +21,16 @@ eval "$PROFILE_EXPORTS"
 export SAP_PRO_EDIT="${SAP_PRO_EDIT:-1}"
 export SAP_PROFESSIONAL_MIN_SCORE="${SAP_PROFESSIONAL_MIN_SCORE:-88}"
 export SAP_PROFESSIONAL_ENFORCE="${SAP_PROFESSIONAL_ENFORCE:-0}"
+export SAP_PRO_MEDIA_MIN_PIXELS="${SAP_PRO_MEDIA_MIN_PIXELS:-921600}"
 
 if [ "$SAP_PRO_EDIT" = "1" ]; then
-    GENERATOR="$PRO_GENERATOR"
     PIPELINE_LABEL="PROFESSIONAL"
 else
-    GENERATOR="$STANDARD_GENERATOR"
     PIPELINE_LABEL="STANDARD_ROLLBACK"
 fi
 
 if [ ! -f "$GENERATOR" ]; then
-    echo "ERRO: gerador não encontrado: $GENERATOR"
+    echo "ERRO: gerador canônico não encontrado: $GENERATOR"
     exit 1
 fi
 

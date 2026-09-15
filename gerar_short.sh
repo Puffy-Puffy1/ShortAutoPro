@@ -16,10 +16,22 @@ export SAP_VSE42=0
 export SAP_VSE4_RUNTIME=0
 export SAP_SCENE_COMMIT_LOCK=0
 
+# Pipeline único: Professional por padrão, rollback explícito por SAP_PRO_EDIT=0.
+export SAP_PRO_EDIT="${SAP_PRO_EDIT:-1}"
+export SAP_PROFESSIONAL_MIN_SCORE="${SAP_PROFESSIONAL_MIN_SCORE:-88}"
+export SAP_PROFESSIONAL_ENFORCE="${SAP_PROFESSIONAL_ENFORCE:-0}"
+export SAP_PRO_MEDIA_MIN_PIXELS="${SAP_PRO_MEDIA_MIN_PIXELS:-921600}"
+
+if [ "$SAP_PRO_EDIT" = "1" ]; then
+    PIPELINE_LABEL="PROFESSIONAL"
+else
+    PIPELINE_LABEL="STANDARD_ROLLBACK"
+fi
+
 set -e
 set -o pipefail
 
-BASE="$HOME/ShortAutoPro"
+BASE="${SHORTAUTOPRO_BASE:-$HOME/ShortAutoPro}"
 EVOLUTION="$BASE/shortautopro_evolution.py"
 
 # =====================================================
@@ -90,10 +102,11 @@ exec > >(tee -a "$LOG") 2>&1
 
 echo
 echo "======================================"
-echo " SHORTAUTO PRO - STABLE 2.3 + EVOLUTION"
+echo " SHORTAUTO PRO - UNIFIED V6 + EVOLUTION"
 echo "======================================"
 echo
 echo "ID: $SHORT_ID"
+echo "PIPELINE: $PIPELINE_LABEL"
 echo "INÍCIO: $(date)"
 echo "LOG: $LOG"
 echo
@@ -246,39 +259,62 @@ rodar_python "6/12 - SMART MEDIA SELECTOR" "midia.py"
 rodar_python "6A/12 - MEDIA MASTER GATE" "media_master_gate.py"
 rodar_python "6B/12 - CINEMATIC MOTION DIRECTOR" "motion_director.py"
 rodar_python "6C/12 - MONTAGE RHYTHM DIRECTOR" "rhythm_director.py"
+
+if [ "$SAP_PRO_EDIT" = "1" ]; then
+    rodar_python "6C1/12 - PROFESSIONAL EDIT DIRECTOR" "professional_edit_director.py"
+    rodar_python "6C2/12 - PROFESSIONAL EDIT AUTO-REPAIR" "professional_edit_repair.py"
+fi
+
 rodar_python "6D/12 - PRODUCTION SUPERVISOR" "production_supervisor.py"
 rodar_python "6D1/12 - EVOLUTION VISUAL AUDIT" "shortautopro_evolution.py" visual-audit
 rodar_python "6E/12 - FINAL EDITORIAL GATE" "editorial_gate.py"
 rodar_python "7/12 - GERANDO VOZ PIPER" "audio.py"
 rodar_python "8/12 - WHISPER + LEGENDA DINÂMICA" "legenda_dinamica.py"
+
+if [ "$SAP_PRO_EDIT" = "1" ]; then
+    rodar_python "8A/12 - PROFESSIONAL CAPTION DIRECTOR" "professional_caption_director.py"
+fi
+
 rodar_python "8B/12 - EVOLUTION CAPTION AUDIT" "shortautopro_evolution.py" caption-audit
-rodar_python "9/12 - MONTANDO CENAS SEMÂNTICAS" "video.py"
+
+if [ "$SAP_PRO_EDIT" = "1" ]; then
+    rodar_python "9/12 - PROFESSIONAL SCENE ASSEMBLER" "video_professional.py"
+else
+    rodar_python "9/12 - MONTANDO CENAS SEMÂNTICAS" "video.py"
+fi
 
 # =====================================================
-# RENDER FINAL — APENAS PIPELINE V6
+# RENDER FINAL — RUNTIME ÚNICO, IMPLEMENTAÇÃO POR MODO
 # =====================================================
+
+if [ "$SAP_PRO_EDIT" = "1" ]; then
+    RENDER_LABEL="10/12 - RENDER FINAL V6 PROFESSIONAL"
+    VERSAO="V6 PROFESSIONAL UNIFIED + EVOLUTION 1.2"
+else
+    RENDER_LABEL="10/12 - RENDER FINAL V6 STANDARD"
+    VERSAO="V6 STANDARD ROLLBACK + EVOLUTION 1.2"
+fi
 
 echo
 echo "--------------------------------------"
-echo "10/12 - RENDER FINAL V6"
+echo "$RENDER_LABEL"
 echo "--------------------------------------"
 echo
 
 if [ ! -f "$BASE/v6_runtime.py" ]; then
     echo "ERRO: v6_runtime.py não encontrado."
-    evolution_checkpoint "v6_runtime.py" "fail" "RENDER FINAL V6"
+    evolution_checkpoint "v6_runtime.py" "fail" "$RENDER_LABEL"
     evolution_finish "FAILED"
     exit 1
 fi
 
-evolution_checkpoint "v6_runtime.py" "start" "RENDER FINAL V6"
+evolution_checkpoint "v6_runtime.py" "start" "$RENDER_LABEL"
 if python "$BASE/v6_runtime.py"; then
     FINAL="$BASE/videos/short_v6_${SHORT_ID}.mp4"
-    VERSAO="V6 PRINCIPAL + EVOLUTION 1.1"
-    evolution_checkpoint "v6_runtime.py" "pass" "RENDER FINAL V6"
+    evolution_checkpoint "v6_runtime.py" "pass" "$RENDER_LABEL"
 else
     CODIGO=$?
-    evolution_checkpoint "v6_runtime.py" "fail" "RENDER FINAL V6"
+    evolution_checkpoint "v6_runtime.py" "fail" "$RENDER_LABEL"
     evolution_finish "FAILED"
     echo "ERRO: render V6 falhou. Nenhum pipeline legado será usado como fallback."
     exit "$CODIGO"
@@ -306,13 +342,15 @@ rodar_python "11C/12 - PUBLISH INTEGRITY GATE" "publish_integrity_gate.py"
 rodar_python "12A/12 - PRODUCTION MANIFEST" "production_manifest.py"
 rodar_python "12B/12 - FINAL QUALITY GATE" "final_quality.py"
 
-# O novo score central começa em modo de observação por segurança. Para tornar
-# o limite >= SAP_EVOLUTION_MIN_SCORE bloqueante depois da calibração real:
-# export SAP_EVOLUTION_ENFORCE=1
+# O score Evolution continua observacional por padrão até calibração suficiente.
 if [ "${SAP_EVOLUTION_ENFORCE:-0}" = "1" ]; then
     rodar_python "12C/12 - EVOLUTION QUALITY SCORE (ENFORCED)" "shortautopro_evolution.py" quality-score --enforce
 else
     rodar_python "12C/12 - EVOLUTION QUALITY SCORE" "shortautopro_evolution.py" quality-score
+fi
+
+if [ "$SAP_PRO_EDIT" = "1" ]; then
+    rodar_python "12D/12 - PROFESSIONAL QUALITY GATE" "professional_quality_gate.py"
 fi
 
 # =====================================================
@@ -366,6 +404,7 @@ FONTE="$BASE/roteiros/fonte_${SHORT_ID}.txt"
 MAPA="$BASE/roteiros/scene_map_${SHORT_ID}.json"
 KEYWORDS="$BASE/roteiros/keywords_${SHORT_ID}.txt"
 EVOLUTION_REPORT="$BASE/manifests/${SHORT_ID}_evolution.json"
+PROFESSIONAL_REPORT="$BASE/manifests/${SHORT_ID}_professional.json"
 
 # =====================================================
 # RESUMO
@@ -377,15 +416,18 @@ echo " SHORT PRO PRONTO!"
 echo "======================================"
 echo "ID: $SHORT_ID"
 echo "VERSÃO: $VERSAO"
+echo "PIPELINE: $PIPELINE_LABEL"
 QUALITY_REPORT="$BASE/manifests/${SHORT_ID}_quality.json"
-QUALITY_STATUS="$(python - "$QUALITY_REPORT" "$EVOLUTION_REPORT" "${SAP_EVOLUTION_ENFORCE:-0}" <<'PYQUALITY'
+QUALITY_STATUS="$(python - "$QUALITY_REPORT" "$EVOLUTION_REPORT" "$PROFESSIONAL_REPORT" "${SAP_EVOLUTION_ENFORCE:-0}" "${SAP_PRO_EDIT:-1}" <<'PYQUALITY'
 import json
 import sys
 from pathlib import Path
 
 quality_path = Path(sys.argv[1])
 evolution_path = Path(sys.argv[2])
-enforced = sys.argv[3] == "1"
+professional_path = Path(sys.argv[3])
+evolution_enforced = sys.argv[4] == "1"
+professional_mode = sys.argv[5] == "1"
 
 
 def load(path):
@@ -398,6 +440,7 @@ def load(path):
 
 quality = load(quality_path)
 evolution = load(evolution_path)
+professional = load(professional_path)
 
 if not quality.get("approved", False):
     print("BLOCK")
@@ -408,14 +451,19 @@ score = evolution.get("total_score")
 threshold = evolution.get("threshold")
 
 if status == "PASS":
-    if score is not None and threshold is not None:
-        print(f"PASS (EVOLUTION {score}/{threshold})")
-    else:
-        print("PASS")
-elif enforced:
-    print(f"BLOCK (EVOLUTION {status})")
+    base = f"PASS (EVOLUTION {score}/{threshold})" if score is not None and threshold is not None else "PASS"
+elif evolution_enforced:
+    base = f"BLOCK (EVOLUTION {status})"
 else:
-    print(f"REVIEW (EVOLUTION {status}, OBSERVATION)")
+    base = f"REVIEW (EVOLUTION {status}, OBSERVATION)"
+
+if professional_mode and professional:
+    pro_status = str(professional.get("status", "UNKNOWN") or "UNKNOWN").upper()
+    pro_score = professional.get("score")
+    pro_threshold = professional.get("threshold")
+    base += f" | PROFESSIONAL {pro_status} {pro_score}/{pro_threshold}"
+
+print(base)
 PYQUALITY
 )"
 echo "QUALITY: ${QUALITY_STATUS:-UNKNOWN}"
@@ -447,6 +495,9 @@ echo "BUSCAS VISUAIS: $KEYWORDS"
 echo "FONTE FACTUAL: $FONTE"
 echo "MAPA SEMÂNTICO: $MAPA"
 echo "EVOLUTION REPORT: $EVOLUTION_REPORT"
+if [ "$SAP_PRO_EDIT" = "1" ]; then
+    echo "PROFESSIONAL REPORT: $PROFESSIONAL_REPORT"
+fi
 echo "LOG: $LOG"
 echo
 
@@ -479,5 +530,5 @@ echo "======================================"
 echo " PRODUÇÃO FINALIZADA"
 echo "======================================"
 echo "ID: $SHORT_ID"
-echo "STATUS: QUALITY PASS"
+echo "STATUS: ${QUALITY_STATUS:-UNKNOWN}"
 echo "FIM: $(date)"

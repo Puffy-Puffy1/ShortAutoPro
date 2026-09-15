@@ -102,6 +102,7 @@ class ResumeBoundaryTests(unittest.TestCase):
         evo.STATE_DIR = self.base / ".sap_state"
         self.sid = "resume_test"
         os.environ["SHORT_QTD_CENAS"] = "12"
+        os.environ["SAP_PRO_EDIT"] = "1"
 
         scene_map = self.base / "roteiros" / f"scene_map_{self.sid}.json"
         scene_map.parent.mkdir(parents=True)
@@ -112,6 +113,15 @@ class ResumeBoundaryTests(unittest.TestCase):
 
         media_quality = self.base / "roteiros" / f"media_quality_{self.sid}.json"
         media_quality.write_text(json.dumps({"status": "PASS", "critical": []}), encoding="utf-8")
+
+        # A retomada parcial Professional só é segura quando o plano editorial
+        # profissional já foi materializado e cobre todas as cenas.
+        pro_plan = self.base / "roteiros" / f"pro_edit_plan_{self.sid}.json"
+        pro_plan.write_text(json.dumps({
+            "version": "PRO_EDIT_1_0",
+            "profile": "true_crime",
+            "scenes": [{"scene": i} for i in range(1, 13)],
+        }), encoding="utf-8")
 
         state = self.base / ".sap_state" / f"{self.sid}.json"
         state.parent.mkdir(parents=True)
@@ -130,6 +140,7 @@ class ResumeBoundaryTests(unittest.TestCase):
         evo.BASE = self.old["evo_base"]
         evo.STATE_DIR = self.old["evo_state"]
         os.environ.pop("SHORT_QTD_CENAS", None)
+        os.environ.pop("SAP_PRO_EDIT", None)
         self.temp.cleanup()
 
     def test_resume_advances_only_when_artifacts_exist(self):

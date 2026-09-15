@@ -134,6 +134,11 @@ temp/
 # versões antigas / backups locais
 backups/
 
+# Consolidação 2.0: arquivo histórico/migrações ficam apenas no histórico Git,
+# nunca novamente na árvore operacional do Termux.
+_arquivo_historico/
+*.pre_segment_fix
+
 # diagnósticos gerados
 diagnosticos/
 
