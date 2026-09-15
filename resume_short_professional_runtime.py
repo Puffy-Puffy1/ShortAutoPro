@@ -8,7 +8,6 @@ import json
 import os
 import subprocess
 import sys
-from pathlib import Path
 
 import resume_short_runtime as base
 import shortautopro_evolution as evo
@@ -69,6 +68,7 @@ def resume(sid: str) -> int:
         rank = order[point]
         if rank <= 1:
             base.run_python(sid, "PROFESSIONAL EDIT DIRECTOR", "professional_edit_director.py")
+            base.run_python(sid, "PROFESSIONAL EDIT AUTO-REPAIR", "professional_edit_repair.py")
             base.run_python(sid, "FINAL EDITORIAL GATE", "editorial_gate.py")
             base.run_python(sid, "GERANDO VOZ PIPER", "audio.py")
         if rank <= 2:
