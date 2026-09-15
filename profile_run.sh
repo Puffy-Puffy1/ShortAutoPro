@@ -16,7 +16,6 @@ PROFILE_EXPORTS="$(python "$PROFILE_RUNTIME" --profile "$PROFILE" --shell)" || e
 # Saída trusted/allow-listed do profile_runtime.
 eval "$PROFILE_EXPORTS"
 
-export SAP_PRO_EDIT="${SAP_PRO_EDIT:-1}"
 export SAP_PROFESSIONAL_MIN_SCORE="${SAP_PROFESSIONAL_MIN_SCORE:-88}"
 export SAP_PROFESSIONAL_ENFORCE="${SAP_PROFESSIONAL_ENFORCE:-0}"
 export SAP_PRO_MEDIA_MIN_PIXELS="${SAP_PRO_MEDIA_MIN_PIXELS:-921600}"
@@ -27,15 +26,12 @@ if [ ! -f "$MAIN" ]; then
     exit 1
 fi
 
-PIPELINE_LABEL="PROFESSIONAL"
-[ "$SAP_PRO_EDIT" = "1" ] || PIPELINE_LABEL="STANDARD_ROLLBACK"
-
 echo "========================================"
 echo " SHORTAUTOPRO - PROFILED RUN 3.0"
 echo "========================================"
 echo "Perfil: $SAP_CHANNEL_PROFILE"
 echo "Entrada: main.py"
-echo "Pipeline: $PIPELINE_LABEL"
+echo "Pipeline: PROFESSIONAL_CANONICAL"
 echo "Professional score alvo: $SAP_PROFESSIONAL_MIN_SCORE"
 echo "Release gate: $SAP_RELEASE_ENFORCE"
 echo "Cenas: $SHORT_QTD_CENAS"
