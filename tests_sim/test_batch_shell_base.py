@@ -11,7 +11,8 @@ class BatchShellBaseTests(unittest.TestCase):
         self.assertIn('BASE="${SHORTAUTOPRO_BASE:-$HOME/ShortAutoPro}"', text)
         self.assertIn('"$BASE/main.py"', text)
         self.assertIn('python "$BASE/main.py" run', text)
-        self.assertIn('"$BASE/manifests/${SHORT_ID}.json"', text)
+        self.assertIn('f"{sid}_release.json"', text)
+        self.assertIn('"PUBLISH","ACCEPTABLE"', text)
         self.assertNotIn("gerar_short.sh", text)
 
     def test_batch_recovery_respects_shortautopro_base(self):
@@ -21,6 +22,7 @@ class BatchShellBaseTests(unittest.TestCase):
         self.assertIn('"$BASE/main.py"', text)
         self.assertIn('python "$BASE/main.py" run', text)
         self.assertIn('python "$BASE/register_topic.py"', text)
+        self.assertIn('f"{sid}_release.json"', text)
         self.assertNotIn("gerar_short.sh", text)
 
 
