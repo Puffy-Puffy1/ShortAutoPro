@@ -44,15 +44,18 @@ REQUIRED = {
 REQUIRED_IGNORE_RULES = {
     "_arquivo_historico/",
     "*.pre_segment_fix",
+    "roteiros/pro_caption_*.json",
+    "roteiros/pro_edit_plan_*.json",
+    "roteiros/pro_edit_plan_pre_repair_*.json",
+    "roteiros/pro_edit_runtime_*.json",
+    "roteiros/supervisor_*.json",
+    "roteiros/visual_shot_bridge_*.json",
 }
 
 
 def rel_files() -> set[str]:
-    return {
-        path.relative_to(ROOT).as_posix()
-        for path in ROOT.rglob("*")
-        if path.is_file() and ".git" not in path.relative_to(ROOT).parts
-    }
+    """Return files owned by the Git revision, never ignored local runtime data."""
+    return set(map_active_graph.repo_files())
 
 
 def main() -> int:
@@ -63,7 +66,7 @@ def main() -> int:
         issues.append(f"obsolete_file:{path}")
     for path in sorted(files):
         if path.startswith("_arquivo_historico/"):
-            issues.append(f"historical_archive_in_worktree:{path}")
+            issues.append(f"historical_archive_tracked:{path}")
 
     for path in sorted(REQUIRED - files):
         issues.append(f"required_file_missing:{path}")
@@ -87,8 +90,9 @@ def main() -> int:
         if token not in canonical:
             issues.append(f"canonical_pipeline_missing:{token}")
 
+    ignore_lines = set(gitignore.splitlines())
     for rule in sorted(REQUIRED_IGNORE_RULES):
-        if rule not in gitignore.splitlines():
+        if rule not in ignore_lines:
             issues.append(f"gitignore_rule_missing:{rule}")
 
     if "STATUS: QUALITY PASS" in canonical:
@@ -104,6 +108,7 @@ def main() -> int:
 
     payload = {
         "version": "CONSOLIDATION_2_0_AUDIT",
+        "scope": "tracked_git_files",
         "status": "PASS" if not issues else "FAIL",
         "files": len(files),
         "active_code": len(active),

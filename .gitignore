@@ -98,6 +98,15 @@ roteiros/hook_*.json
 roteiros/hook_*.txt
 roteiros/visual_intelligence_6_*.json
 
+# Professional runtime / auditorias por Short.
+roteiros/pro_caption_*.json
+roteiros/pro_edit_plan_*.json
+roteiros/pro_edit_plan_pre_repair_*.json
+roteiros/pro_edit_runtime_*.json
+roteiros/supervisor_*.json
+!roteiros/supervisor_template.json
+roteiros/visual_shot_bridge_*.json
+
 # testes/resultados gerados
 roteiros/*teste*.txt
 roteiros/*teste*.json

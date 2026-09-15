@@ -4,6 +4,7 @@ from __future__ import annotations
 import ast
 import json
 import re
+import subprocess
 import sys
 from collections import deque
 from pathlib import Path
@@ -40,15 +41,36 @@ FILE_REF_RE = re.compile(r"(?<![A-Za-z0-9_./-])([A-Za-z0-9_.-]+\.(?:py|sh))(?![A
 MODULE_LITERAL_RE = re.compile(r"[\"']([A-Za-z_][A-Za-z0-9_.]*)[\"']")
 
 
+def tracked_rel_paths() -> list[str]:
+    """Return only paths owned by the current Git revision.
+
+    Local ignored runtime material (for example backups/, temp/ and generated
+    reports) must never influence the repository architecture audit.
+    """
+    proc = subprocess.run(
+        ["git", "-C", str(ROOT), "ls-files", "-z"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    if proc.returncode != 0:
+        detail = proc.stderr.decode("utf-8", errors="replace").strip()
+        raise RuntimeError(f"git ls-files failed: {detail or proc.returncode}")
+    return sorted(
+        path
+        for path in proc.stdout.decode("utf-8", errors="surrogateescape").split("\0")
+        if path
+    )
+
+
 def repo_files():
     out = {}
-    for p in ROOT.rglob("*"):
-        if not p.is_file():
-            continue
-        rel = p.relative_to(ROOT).as_posix()
+    for rel in tracked_rel_paths():
         if rel.startswith(ARCHIVE_PREFIX) or rel.startswith(".git/"):
             continue
-        out[rel] = p
+        p = ROOT / rel
+        if p.is_file():
+            out[rel] = p
     return out
 
 
@@ -146,6 +168,7 @@ def build():
 def main():
     _, graph, seeds, active, inactive = build()
     payload = {
+        "scope": "tracked_git_files",
         "seeds": sorted(seeds),
         "active_code": active,
         "inactive_code": inactive,
