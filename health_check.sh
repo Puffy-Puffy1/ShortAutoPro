@@ -31,7 +31,7 @@ ARQUIVOS=(
     visual_shot_bridge.py visual_shot_policy.py visual_editorial_policy.py
     visual_risk_guard.py editorial_continuity.py scene_lossless_repair.py post_script_truth_lock.py
     semantic_integrity_gate.py wikimedia_source.py wikimedia_query_bridge.py source_router.py evidence_guard.py
-    midia.py midia_runtime.py visual_pipeline_bridge_v42.py visual_selection_engine_v4.py visual_intelligence_6.py
+    midia.py visual_pipeline_bridge_v42.py visual_selection_engine_v4.py visual_intelligence_6.py
     vi6_8_runtime_policy.py vi6_9_runtime_policy.py media_master_gate.py motion_director.py rhythm_director.py
     production_supervisor.py editorial_gate.py audio.py legenda_dinamica.py subtitle_alignment.py subtitle_style_policy.py video.py v6.py v6_runtime.py quality_check.py
     publish_pack.py source_ledger.py publish_integrity_gate.py production_manifest.py final_quality.py register_topic.py
@@ -86,7 +86,6 @@ if (
 import importlib
 
 for name in (
-    "midia_runtime",
     "subtitle_alignment",
     "subtitle_style_policy",
     "visual_shot_policy",

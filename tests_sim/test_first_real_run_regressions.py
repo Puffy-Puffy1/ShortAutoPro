@@ -1,27 +1,24 @@
 import unittest
+from pathlib import Path
 
-import midia_runtime as mr
+ROOT = Path(__file__).resolve().parents[1]
+MIDIA = ROOT / "midia.py"
 
 
-class MediaRuntimeResolutionGuardTests(unittest.TestCase):
+class MediaResolutionGuardTests(unittest.TestCase):
     def test_guard_rejects_subcritical_download_before_commit(self):
-        source = '''\n        if largura <= 0 or altura <= 0:\n            raise RuntimeError(\n                "dimensões inválidas"\n            )\n\n        os.replace(\n            temporario,\n            destino\n        )\n'''
-        patched, applied = mr.harden_download_resolution(source)
-        self.assertTrue(applied)
-        self.assertIn("largura * altura < 320 * 180", patched)
-        self.assertIn("mídia abaixo do piso técnico", patched)
+        source = MIDIA.read_text(encoding="utf-8")
+        self.assertIn("largura * altura < 320 * 180", source)
+        self.assertIn("mídia abaixo do piso técnico", source)
+        guard = source.index("largura * altura < 320 * 180")
+        commit = source.index("os.replace(", guard)
+        self.assertLess(guard, commit)
 
-    def test_guard_is_idempotent(self):
-        source = '''\n        if largura <= 0 or altura <= 0:\n            raise RuntimeError(\n                "dimensões inválidas"\n            )\n'''
-        patched, applied = mr.harden_download_resolution(source)
-        self.assertTrue(applied)
-        patched_again, applied_again = mr.harden_download_resolution(patched)
-        self.assertFalse(applied_again)
-        self.assertEqual(patched_again, patched)
-
-    def test_guard_fails_closed_when_upstream_layout_changes(self):
-        with self.assertRaises(RuntimeError):
-            mr.harden_download_resolution("def baixar():\n    pass\n")
+    def test_runtime_rewrite_module_is_not_required(self):
+        self.assertFalse((ROOT / "midia_runtime.py").exists())
+        pipeline = (ROOT / "gerar_short.sh").read_text(encoding="utf-8")
+        self.assertIn('"6/12 - SMART MEDIA SELECTOR" "midia.py"', pipeline)
+        self.assertNotIn("midia_runtime.py", pipeline)
 
 
 if __name__ == "__main__":

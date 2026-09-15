@@ -242,7 +242,7 @@ rodar_python "5D/12 - EDITORIAL CONTINUITY GUARD" "editorial_continuity.py"
 rodar_python "5D1/12 - LOSSLESS SCENE COVERAGE REPAIR" "scene_lossless_repair.py"
 rodar_python "5D2/12 - POST-SCRIPT TRUTH LOCK" "post_script_truth_lock.py"
 rodar_python "5E/12 - SEMANTIC INTEGRITY GATE" "semantic_integrity_gate.py"
-rodar_python "6/12 - SMART MEDIA SELECTOR" "midia_runtime.py"
+rodar_python "6/12 - SMART MEDIA SELECTOR" "midia.py"
 rodar_python "6A/12 - MEDIA MASTER GATE" "media_master_gate.py"
 rodar_python "6B/12 - CINEMATIC MOTION DIRECTOR" "motion_director.py"
 rodar_python "6C/12 - MONTAGE RHYTHM DIRECTOR" "rhythm_director.py"
@@ -377,7 +377,48 @@ echo " SHORT PRO PRONTO!"
 echo "======================================"
 echo "ID: $SHORT_ID"
 echo "VERSÃO: $VERSAO"
-echo "QUALITY: PASS"
+QUALITY_REPORT="$BASE/manifests/${SHORT_ID}_quality.json"
+QUALITY_STATUS="$(python - "$QUALITY_REPORT" "$EVOLUTION_REPORT" "${SAP_EVOLUTION_ENFORCE:-0}" <<'PYQUALITY'
+import json
+import sys
+from pathlib import Path
+
+quality_path = Path(sys.argv[1])
+evolution_path = Path(sys.argv[2])
+enforced = sys.argv[3] == "1"
+
+
+def load(path):
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+quality = load(quality_path)
+evolution = load(evolution_path)
+
+if not quality.get("approved", False):
+    print("BLOCK")
+    raise SystemExit(0)
+
+status = str(evolution.get("status", "UNKNOWN") or "UNKNOWN").upper()
+score = evolution.get("total_score")
+threshold = evolution.get("threshold")
+
+if status == "PASS":
+    if score is not None and threshold is not None:
+        print(f"PASS (EVOLUTION {score}/{threshold})")
+    else:
+        print("PASS")
+elif enforced:
+    print(f"BLOCK (EVOLUTION {status})")
+else:
+    print(f"REVIEW (EVOLUTION {status}, OBSERVATION)")
+PYQUALITY
+)"
+echo "QUALITY: ${QUALITY_STATUS:-UNKNOWN}"
 echo "DURAÇÃO: ${DURACAO:-?}s"
 echo "RESOLUÇÃO: ${WIDTH:-?}x${HEIGHT:-?}"
 echo "FPS: ${FPS_FINAL:-?}"
