@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Resume ShortAutoPro from conservative, artifact-validated boundaries.
 
+One runtime serves both Professional Edit and the explicit standard rollback.
 The early narrative/media chain is intentionally NOT skipped unless the
-Production Supervisor boundary is already proven. From that point onward each
-resume boundary validates concrete artifacts before skipping work. When no safe
-boundary exists, the normal gerar_short.sh pipeline is executed from scratch.
+Production Supervisor boundary is proven. Professional partial resume also
+requires a valid professional edit plan before any stage can be skipped.
 """
 
 from __future__ import annotations
@@ -21,6 +21,10 @@ from typing import Any
 import shortautopro_evolution as evo
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
+
+
+def professional_enabled() -> bool:
+    return os.getenv("SAP_PRO_EDIT", "1").strip() == "1"
 
 
 def read_json(path: Path) -> dict[str, Any]:
@@ -53,13 +57,7 @@ def expected_scenes() -> int:
 
 
 def media_ok(sid: str) -> bool:
-    """Only certify the media boundary after Media Master Gate PASS.
-
-    Counting files alone is not sufficient: a previous real run had 12/12
-    assets but one Wikimedia image was below the critical resolution floor.
-    Requiring the gate report prevents safe-resume from skipping acquisition
-    after a technically invalid media set.
-    """
+    """Only certify the media boundary after Media Master Gate PASS."""
     report = read_json(BASE / "roteiros" / f"media_quality_{sid}.json")
     if str(report.get("status", "")).upper() != "PASS":
         return False
@@ -130,7 +128,17 @@ def final_ok(sid: str) -> bool:
     return render_ok(sid) and quality.get("approved") is True
 
 
-def boundary(sid: str) -> str:
+def pro_plan_ok(sid: str) -> bool:
+    data = read_json(BASE / "roteiros" / f"pro_edit_plan_{sid}.json")
+    scenes = data.get("scenes", []) if isinstance(data, dict) else []
+    return (
+        str(data.get("version", "")).startswith("PRO_EDIT_")
+        and isinstance(scenes, list)
+        and len(scenes) == expected_scenes()
+    )
+
+
+def base_boundary(sid: str) -> str:
     if final_ok(sid):
         return "complete"
     if render_ok(sid):
@@ -144,6 +152,13 @@ def boundary(sid: str) -> str:
     if supervisor_ok(sid) and media_ok(sid) and scene_count(sid) == expected_scenes():
         return "post_media"
     return "full"
+
+
+def boundary(sid: str) -> str:
+    point = base_boundary(sid)
+    if professional_enabled() and point not in {"complete", "full"} and not pro_plan_ok(sid):
+        return "full"
+    return point
 
 
 def checkpoint(stage: str, status: str, title: str, sid: str) -> None:
@@ -200,19 +215,24 @@ def full_rerun(sid: str) -> int:
     generator = BASE / "gerar_short.sh"
     if not generator.is_file():
         raise RuntimeError("gerar_short.sh ausente")
-    print("Nenhum checkpoint parcial é seguro. Reexecutando pipeline completo.")
+    mode = "profissional" if professional_enabled() else "standard rollback"
+    print(f"Nenhum checkpoint parcial é seguro. Reexecutando pipeline completo ({mode}).")
     env = os.environ.copy()
     env["SHORT_ID"] = sid
+    env["SAP_PRO_EDIT"] = "1" if professional_enabled() else "0"
     return subprocess.run(["bash", str(generator)], cwd=str(BASE), env=env).returncode
 
 
 def resume(sid: str) -> int:
     os.environ["SHORT_ID"] = sid
     point = boundary(sid)
+    pro = professional_enabled()
+    mode = "PROFESSIONAL" if pro else "STANDARD_ROLLBACK"
     print("========================================")
-    print(" SHORTAUTOPRO - SAFE RESUME")
+    print(" SHORTAUTOPRO - UNIFIED SAFE RESUME")
     print("========================================")
     print(f"ID: {sid}")
+    print(f"Mode: {mode}")
     print(f"Boundary: {point}")
     print()
 
@@ -227,13 +247,21 @@ def resume(sid: str) -> int:
         order = {"post_media": 1, "post_audio": 2, "post_captions": 3, "post_assembly": 4, "post_render": 5}
         rank = order[point]
         if rank <= 1:
+            if pro:
+                run_python(sid, "PROFESSIONAL EDIT DIRECTOR", "professional_edit_director.py")
+                run_python(sid, "PROFESSIONAL EDIT AUTO-REPAIR", "professional_edit_repair.py")
             run_python(sid, "FINAL EDITORIAL GATE", "editorial_gate.py")
             run_python(sid, "GERANDO VOZ PIPER", "audio.py")
         if rank <= 2:
             run_python(sid, "WHISPER + LEGENDA", "legenda_dinamica.py")
+            if pro:
+                run_python(sid, "PROFESSIONAL CAPTION DIRECTOR", "professional_caption_director.py")
             run_python(sid, "CAPTION AUDIT", "shortautopro_evolution.py", "caption-audit")
         if rank <= 3:
-            run_python(sid, "MONTANDO CENAS", "video.py")
+            if pro:
+                run_python(sid, "PROFESSIONAL SCENE ASSEMBLER", "video_professional.py")
+            else:
+                run_python(sid, "MONTANDO CENAS", "video.py")
         if rank <= 4:
             run_python(sid, "RENDER FINAL V6", "v6_runtime.py")
             if not render_ok(sid):
@@ -250,12 +278,15 @@ def resume(sid: str) -> int:
         if os.getenv("SAP_EVOLUTION_ENFORCE", "0") == "1":
             quality_args.append("--enforce")
         run_python(sid, "EVOLUTION QUALITY SCORE", "shortautopro_evolution.py", *quality_args)
+        if pro:
+            run_python(sid, "PROFESSIONAL QUALITY GATE", "professional_quality_gate.py")
         if not final_ok(sid):
             raise RuntimeError("retomada terminou sem Quality Gate aprovado")
         run_python(sid, "REGISTRANDO ASSUNTO", "register_topic.py")
         destination = copy_download(sid)
         evo.finish_production("SUCCESS", sid)
         print("\nRESUME_STATUS=PASS")
+        print(f"MODE={mode}")
         print(f"Vídeo: {destination}")
         return 0
     except Exception as exc:
@@ -282,7 +313,7 @@ def latest_incomplete() -> str | None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="ShortAutoPro safe resume runtime")
+    parser = argparse.ArgumentParser(description="ShortAutoPro unified safe resume runtime")
     parser.add_argument("--short-id", default=None)
     parser.add_argument("--status", action="store_true")
     args = parser.parse_args()
@@ -291,7 +322,15 @@ def main() -> int:
         print("Nenhuma produção encontrada para retomar.")
         return 0
     if args.status:
-        print(json.dumps({"short_id": sid, "boundary": boundary(sid), "plan": evo.resume_plan(sid)}, ensure_ascii=False, indent=2))
+        payload = {
+            "short_id": sid,
+            "mode": "PROFESSIONAL" if professional_enabled() else "STANDARD_ROLLBACK",
+            "boundary": boundary(sid),
+            "plan": evo.resume_plan(sid),
+        }
+        if professional_enabled():
+            payload["professional_plan"] = pro_plan_ok(sid)
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
         return 0
     return resume(sid)
 
