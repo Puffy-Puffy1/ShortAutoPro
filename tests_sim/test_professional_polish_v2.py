@@ -26,17 +26,9 @@ Dialogue: 0,0:00:00.80,0:00:01.60,Dynamic,,0,0,0,,O caso mudou completamente
 
     def test_transform_preserves_visible_words_and_caps_lines(self):
         source = self.sample_ass()
-        before = [
-            pcd.visible_text(line.split(",", 9)[9])
-            for line in source.splitlines()
-            if line.startswith("Dialogue:")
-        ]
+        before = [pcd.visible_text(line.split(",", 9)[9]) for line in source.splitlines() if line.startswith("Dialogue:")]
         transformed, report = pcd.transform(source, "true_crime")
-        after = [
-            pcd.visible_text(line.split(",", 9)[9])
-            for line in transformed.splitlines()
-            if line.startswith("Dialogue:")
-        ]
+        after = [pcd.visible_text(line.split(",", 9)[9]) for line in transformed.splitlines() if line.startswith("Dialogue:")]
         self.assertEqual(before, after)
         self.assertTrue(report["content_preserved"])
         self.assertLessEqual(report["max_lines"], 2)
@@ -73,12 +65,13 @@ class ProfessionalMediaFloorTests(unittest.TestCase):
 
 class ProfessionalPipelinePolishTests(unittest.TestCase):
     def test_canonical_pipeline_places_caption_director_before_audit(self):
-        text = (ROOT / "gerar_short.sh").read_text(encoding="utf-8")
+        text = (ROOT / "main.py").read_text(encoding="utf-8")
         self.assertIn("professional_caption_director.py", text)
-        self.assertLess(text.index("professional_caption_director.py"), text.index("caption-audit"))
+        self.assertLess(text.index("professional_caption_director.py"), text.index('"caption-audit"'))
         self.assertIn("SAP_PRO_MEDIA_MIN_PIXELS", text)
         self.assertIn("professional_edit_director.py", text)
         self.assertIn("professional_edit_repair.py", text)
+        self.assertNotIn("gerar_short.sh", text)
 
     def test_professional_quality_scores_media_and_captions(self):
         text = (ROOT / "professional_quality_gate.py").read_text(encoding="utf-8")
@@ -90,7 +83,9 @@ class ProfessionalPipelinePolishTests(unittest.TestCase):
     def test_unified_resume_keeps_caption_director(self):
         text = (ROOT / "resume_short_runtime.py").read_text(encoding="utf-8")
         self.assertIn("professional_caption_director.py", text)
-        self.assertIn("SAP_PRO_EDIT", text)
+        self.assertIn("PROFESSIONAL_CANONICAL", text)
+        self.assertIn("import main as canonical", text)
+        self.assertNotIn("SAP_PRO_EDIT", text)
 
 
 if __name__ == "__main__":
