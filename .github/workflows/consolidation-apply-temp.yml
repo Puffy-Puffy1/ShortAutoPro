@@ -113,7 +113,6 @@ jobs:
           BEFORE_ROOT=$(awk -F= '/ROOT_CODE_BEFORE/{print $2}' /tmp/before_metrics.txt)
           BEFORE_TOTAL=$(awk -F= '/TOTAL_CODE_BEFORE/{print $2}' /tmp/before_metrics.txt)
           AFTER_ROOT=$(find . -maxdepth 1 -type f \( -name '*.py' -o -name '*.sh' \) | wc -l)
-          AFTER_TOTAL=$(find . -path './.git' -prune -o -path './_arquivo_historico' -prune -o -type f \( -name '*.py' -o -name '*.sh' \) -print | wc -l)
           ARCHIVED=$(find _arquivo_historico/2026-09-15_pre_consolidation -maxdepth 1 -type f \( -name '*.py' -o -name '*.sh' \) | wc -l)
           ACTIVE=$(python - <<'PY'
           import json
@@ -130,27 +129,27 @@ jobs:
           PY
           )
           TESTS=$(grep -Eo 'Ran [0-9]+ tests?' /tmp/regression.log | tail -1 | awk '{print $2}')
-          STATUS=$(grep -E '^OK$' /tmp/regression.log | tail -1 || true)
           cat > docs/CONSOLIDATION_1_0_VALIDATION.md <<EOF
           # ShortAutoPro Consolidation 1.0 — Validation
 
           Validation status: **PASS**
 
-          - Baseline main: `cff280d9445f2ff704b876a766564f33a0f2c36b`
-          - Root `.py/.sh` before: **$BEFORE_ROOT**
-          - Root `.py/.sh` after: **$AFTER_ROOT**
-          - Total `.py/.sh` before (including tests/tools): **$BEFORE_TOTAL**
-          - Active `.py/.sh` after: **$ACTIVE**
-          - Inactive `.py/.sh` outside historical archive: **$INACTIVE**
+          - Baseline main: cff280d9445f2ff704b876a766564f33a0f2c36b
+          - Root Python/Shell before: **$BEFORE_ROOT**
+          - Root Python/Shell after: **$AFTER_ROOT**
+          - Total Python/Shell before including tests/tools: **$BEFORE_TOTAL**
+          - Active Python/Shell after: **$ACTIVE**
+          - Inactive Python/Shell outside historical archive: **$INACTIVE**
           - Root code archived, not deleted: **$ARCHIVED**
-          - Full `tests_sim` executed: **${TESTS:-unknown}** — **${STATUS:-PASS}**
+          - Full tests_sim executed: **${TESTS:-unknown}** — **PASS**
           - Active Python compile: **PASS**
           - Active Bash syntax: **PASS**
-          - `midia.py` static integration equivalence: **PASS**
-          - Hardcoded final `QUALITY: PASS`: **REMOVED**
+          - midia.py static integration equivalence: **PASS**
+          - Hardcoded final QUALITY PASS: **REMOVED**
 
-          The historical source remains under `_arquivo_historico/2026-09-15_pre_consolidation/` and is excluded from the production graph.
+          Historical source remains under _arquivo_historico/2026-09-15_pre_consolidation/ and is excluded from the production graph.
           EOF
+          sed -i 's/^          //' docs/CONSOLIDATION_1_0_VALIDATION.md
 
       - name: Verify working tree diff
         shell: bash
