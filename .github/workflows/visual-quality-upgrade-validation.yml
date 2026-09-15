@@ -1,0 +1,74 @@
+name: Visual Quality Upgrade Validation
+
+on:
+  push:
+    branches:
+      - chatgpt/visual-quality-upgrade-1-0-20260915
+
+permissions:
+  contents: read
+
+concurrency:
+  group: visual-quality-upgrade-validation
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: "utf-8"
+
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install runtime test dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ffmpeg
+          python -m pip install --disable-pip-version-check --quiet requests
+
+      - name: Python syntax audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m compileall -q .
+          echo "VISUAL_QUALITY_PYTHON_COMPILE=PASS"
+
+      - name: Targeted visual quality regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest tests_sim.test_visual_quality_policy_v1 -v
+          echo "VISUAL_QUALITY_TARGETED_TESTS=PASS"
+
+      - name: Full simulated regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s tests_sim -p "test_*.py" -v
+          echo "VISUAL_QUALITY_FULL_REGRESSION=PASS"
+
+      - name: Bash syntax audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d '' file; do
+            bash -n "$file"
+          done < <(find . -path './.git' -prune -o -path './_arquivo_historico' -prune -o -type f -name '*.sh' -print0)
+          echo "VISUAL_QUALITY_BASH_SYNTAX=PASS"
+
+      - name: Final summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "VISUAL_QUALITY_UPGRADE_VALIDATION=PASS"
