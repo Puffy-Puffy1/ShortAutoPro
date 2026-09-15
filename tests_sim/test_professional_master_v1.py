@@ -1,5 +1,4 @@
 import json
-import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -7,7 +6,6 @@ from unittest.mock import patch
 
 import professional_edit_director as ped
 import resume_short_runtime as rsr
-
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -80,70 +78,82 @@ class ProfessionalEditDirectorTests(unittest.TestCase):
         self.assertLess(plan["finish"]["saturation"], 1.0)
         self.assertAlmostEqual(plan["audio"]["target_lufs"], -14.0)
         self.assertLess(plan["scenes"][0]["transition_duration"], plan["scenes"][2]["transition_duration"])
-        self.assertLessEqual(max(x["zoom_end"] - x["zoom_start"] for x in plan["scenes"] if x["media_type"] == "photo"), 0.0281)
+        self.assertLessEqual(
+            max(x["zoom_end"] - x["zoom_start"] for x in plan["scenes"] if x["media_type"] == "photo"),
+            0.0281,
+        )
         self.assertGreaterEqual(len({x["pace_multiplier"] for x in plan["scenes"]}), 3)
 
 
-class UnifiedProfessionalPipelineTests(unittest.TestCase):
-    def test_canonical_pipeline_contains_both_modes_without_runtime_patching(self):
-        source = (ROOT / "gerar_short.sh").read_text(encoding="utf-8")
-        self.assertIn('SAP_PRO_EDIT="${SAP_PRO_EDIT:-1}"', source)
-        self.assertIn("professional_edit_director.py", source)
-        self.assertIn("professional_edit_repair.py", source)
-        self.assertIn("professional_caption_director.py", source)
-        self.assertIn("video_professional.py", source)
-        self.assertIn('"video.py"', source)
-        self.assertIn("professional_quality_gate.py", source)
-        self.assertIn("v6_runtime.py", source)
-        self.assertNotIn("professional_pipeline_runtime.py", source)
-        self.assertNotIn("v6_professional_runtime.py", source)
+class CanonicalProfessionalPipelineTests(unittest.TestCase):
+    def test_main_is_single_production_pipeline(self):
+        source = (ROOT / "main.py").read_text(encoding="utf-8")
+        self.assertIn("PROFESSIONAL_CANONICAL", source)
+        for required in (
+            "professional_edit_director.py",
+            "professional_edit_repair.py",
+            "multi_asset_director.py",
+            "retention_engine.py",
+            "sound_design_engine.py",
+            "speech_director.py",
+            "professional_caption_director.py",
+            "caption_layout_guard.py",
+            "video_professional.py",
+            "v6_professional.py",
+            "audio_finalizer.py",
+            "visual_qa.py",
+            "release_gate.py",
+        ):
+            self.assertIn(required, source)
+        self.assertNotIn("STANDARD_ROLLBACK", source)
+        self.assertNotIn("SAP_PRO_EDIT", source)
+        self.assertNotIn('"video.py"', source)
+        self.assertNotIn('"v6_runtime.py"', source)
 
-    def test_profile_run_uses_one_canonical_generator_with_explicit_rollback(self):
+    def test_profile_run_delegates_to_main_only(self):
         text = (ROOT / "profile_run.sh").read_text(encoding="utf-8")
-        self.assertIn('SAP_PRO_EDIT="${SAP_PRO_EDIT:-1}"', text)
-        self.assertIn('GENERATOR="$BASE/gerar_short.sh"', text)
-        self.assertIn("STANDARD_ROLLBACK", text)
-        self.assertNotIn("gerar_short_professional.sh", text)
+        self.assertIn('MAIN="$BASE/main.py"', text)
+        self.assertIn("PROFESSIONAL_CANONICAL", text)
+        self.assertNotIn("STANDARD_ROLLBACK", text)
+        self.assertNotIn("SAP_PRO_EDIT", text)
+        self.assertNotIn("gerar_short.sh", text)
 
-    def test_professional_renderer_uses_policy_loudness_not_legacy_minus16(self):
+    def test_professional_renderer_uses_policy_loudness(self):
         text = (ROOT / "v6_professional.py").read_text(encoding="utf-8")
         self.assertIn("target_lufs", text)
         self.assertIn("SAP_AUDIO_TARGET_LUFS", text)
         self.assertNotIn('"I=-16:', text)
-        self.assertIn("curated_sfx", text)
         self.assertIn("deterministic_pick", text)
 
-    def test_professional_scene_assembler_has_smoothstep_and_variable_transitions(self):
+    def test_professional_scene_assembler_has_multibeat_motion(self):
         text = (ROOT / "video_professional.py").read_text(encoding="utf-8")
         self.assertIn("pow(", text)
         self.assertIn("transition_duration", text)
-        self.assertIn("PRO_CAPTION_SEMANTIC", text)
+        self.assertIn("multi_asset", text)
         self.assertIn("pro_edit_runtime_", text)
 
-    def test_professional_quality_is_observational_by_default(self):
+    def test_professional_quality_is_observational_until_calibration(self):
         text = (ROOT / "professional_quality_gate.py").read_text(encoding="utf-8")
         self.assertIn('SAP_PROFESSIONAL_ENFORCE", "0"', text)
         self.assertIn("SAP_PROFESSIONAL_MIN_SCORE", text)
         self.assertIn("measure_loudness", text)
 
 
-class UnifiedResumeTests(unittest.TestCase):
-    def test_partial_professional_resume_without_plan_falls_back_full(self):
-        with patch.object(rsr, "base_boundary", return_value="post_audio"), patch.object(rsr, "pro_plan_ok", return_value=False), patch.dict(os.environ, {"SAP_PRO_EDIT": "1"}, clear=False):
+class CanonicalResumeTests(unittest.TestCase):
+    def test_old_partial_state_falls_back_to_full(self):
+        with patch.object(rsr, "final_ok", return_value=False), patch.object(rsr, "consolidation_plan_ok", return_value=False):
             self.assertEqual(rsr.boundary("x"), "full")
 
-    def test_standard_resume_does_not_require_professional_plan(self):
-        with patch.object(rsr, "base_boundary", return_value="post_audio"), patch.object(rsr, "pro_plan_ok", return_value=False), patch.dict(os.environ, {"SAP_PRO_EDIT": "0"}, clear=False):
-            self.assertEqual(rsr.boundary("x"), "post_audio")
-
-    def test_unified_resume_contains_professional_and_standard_routes(self):
+    def test_resume_contains_only_professional_render_route(self):
         text = (ROOT / "resume_short_runtime.py").read_text(encoding="utf-8")
         self.assertIn("video_professional.py", text)
-        self.assertIn('"video.py"', text)
-        self.assertIn("professional_quality_gate.py", text)
-        self.assertIn("v6_runtime.py", text)
-        self.assertNotIn("v6_professional_runtime.py", text)
-        self.assertNotIn("gerar_short_professional.sh", text)
+        self.assertIn("v6_professional.py", text)
+        self.assertIn("release_gate.py", text)
+        self.assertIn("PROFESSIONAL_CANONICAL", text)
+        self.assertNotIn("STANDARD_ROLLBACK", text)
+        self.assertNotIn("SAP_PRO_EDIT", text)
+        self.assertNotIn('"video.py"', text)
+        self.assertNotIn('"v6_runtime.py"', text)
 
 
 if __name__ == "__main__":
