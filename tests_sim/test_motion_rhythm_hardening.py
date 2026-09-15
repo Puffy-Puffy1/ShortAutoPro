@@ -6,7 +6,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from midia_runtime import EXPECTED_BROKEN_COUNTS, fix_source
 
 
 REPO = Path(__file__).resolve().parents[1]
@@ -162,12 +161,12 @@ class MotionRhythmHardeningTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("zoom_end", result.stdout)
 
-    def test_media_runtime_hotfix_matches_current_real_source(self):
+    def test_media_selector_is_native_and_compiles(self):
         source = MIDIA.read_text(encoding="utf-8")
-        fixed, counters = fix_source(source)
-        self.assertEqual(counters, EXPECTED_BROKEN_COUNTS)
-        self.assertEqual(sum(counters.values()), 7)
-        compile(fixed, str(MIDIA), "exec")
+        self.assertIn("largura * altura < 320 * 180", source)
+        self.assertIn("def _sap_professional_media_accept_v1", source)
+        self.assertNotIn("midia_runtime.py", (REPO / "gerar_short.sh").read_text(encoding="utf-8"))
+        compile(source, str(MIDIA), "exec")
 
 
 if __name__ == "__main__":

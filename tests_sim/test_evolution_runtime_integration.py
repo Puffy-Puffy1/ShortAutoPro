@@ -42,6 +42,13 @@ class EvolutionRuntimeIntegrationTests(unittest.TestCase):
         self.assertTrue(profiles["default"]["visual"]["retry_weak_scenes"])
         self.assertTrue(all(str(data.get("language", "pt-BR")).lower().startswith("pt") for data in profiles.values()))
 
+    def test_final_summary_uses_real_quality_reports(self):
+        text = (ROOT / "gerar_short.sh").read_text(encoding="utf-8")
+        self.assertIn("QUALITY_REPORT=", text)
+        self.assertIn("EVOLUTION_REPORT", text)
+        self.assertIn("REVIEW (EVOLUTION", text)
+        self.assertNotIn('echo "QUALITY: PASS"', text)
+
 
 if __name__ == "__main__":
     unittest.main()

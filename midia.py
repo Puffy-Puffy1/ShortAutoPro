@@ -513,6 +513,7 @@ for nome in os.listdir(
             ".jpg",
             ".jpeg",
             ".png",
+            ".webp",
             ".mp4"
         )
     ):
@@ -853,6 +854,11 @@ def baixar(
         if largura <= 0 or altura <= 0:
             raise RuntimeError(
                 "dimensões inválidas"
+            )
+
+        if largura * altura < 320 * 180:
+            raise RuntimeError(
+                f"mídia abaixo do piso técnico: {largura}x{altura}"
             )
 
         os.replace(
@@ -3371,6 +3377,79 @@ def fallback_degradado_ok_5_2(
     )
 
 
+
+def _sap_professional_media_accept_v1(candidato, destino):
+    if str(os.getenv("SAP_PRO_EDIT", "0")).strip() != "1":
+        return True
+
+    try:
+        floor = int(os.getenv("SAP_PRO_MEDIA_MIN_PIXELS", str(1280 * 720)))
+    except (TypeError, ValueError):
+        floor = 1280 * 720
+
+    floor = max(320 * 180, min(floor, 3840 * 2160))
+
+    try:
+        probe = subprocess.run(
+            [
+                "ffprobe", "-v", "error", "-select_streams", "v:0",
+                "-show_entries", "stream=width,height", "-of", "json", destino,
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=30,
+        )
+        if probe.returncode != 0:
+            raise RuntimeError("ffprobe_failed")
+        payload = json.loads(probe.stdout)
+        streams = payload.get("streams", [])
+        if not streams:
+            raise RuntimeError("visual_stream_missing")
+        width = int(streams[0].get("width", 0) or 0)
+        height = int(streams[0].get("height", 0) or 0)
+    except Exception as exc:
+        print(
+            "    PRO_MEDIA_FLOOR=REJECT probe="
+            + type(exc).__name__
+            + ":"
+            + str(exc)
+        )
+        try:
+            os.remove(destino)
+        except OSError:
+            pass
+        return False
+
+    pixels = width * height
+    if pixels >= floor:
+        print(
+            f"    PRO_MEDIA_FLOOR=PASS dimensions={width}x{height} "
+            f"pixels={pixels} floor={floor}"
+        )
+        return True
+
+    source_name = str(candidato.get("fonte", "")).strip().lower()
+    evidence_class = str(candidato.get("evidence_class", "")).strip().upper()
+    if source_name == "wikimedia" and evidence_class == "CASE_DIRECT":
+        print(
+            f"    PRO_MEDIA_FLOOR=EVIDENCE_EXCEPTION dimensions={width}x{height} "
+            f"pixels={pixels} floor={floor} class={evidence_class}"
+        )
+        candidato["_professional_resolution_exception"] = True
+        return True
+
+    print(
+        f"    PRO_MEDIA_FLOOR=REJECT dimensions={width}x{height} "
+        f"pixels={pixels} floor={floor} source={candidato.get('fonte', '?')} "
+        f"evidence={evidence_class or 'NONE'}"
+    )
+    try:
+        os.remove(destino)
+    except OSError:
+        pass
+    return False
+
 def baixar_candidato_5_2(
     candidato,
     numero,
@@ -3424,6 +3503,12 @@ def baixar_candidato_5_2(
         ),
         destino
     )
+
+    if ok:
+        ok = _sap_professional_media_accept_v1(
+            candidato,
+            destino
+        )
 
 
     print(
@@ -4603,7 +4688,6 @@ for numero, cena in enumerate(
                     print(f"VISUAL_UNIFIED_COMMIT=FAIL_OPEN {type(_sap_visual_commit_error).__name__}: {_sap_visual_commit_error}")
                 # Primeiro download válido vence.
                 # Impede foto -> vídeo ou vídeo -> foto depois do sucesso.
-                break
                 destino = destino_teste
 
                 marcar_usado(
@@ -4646,7 +4730,6 @@ for numero, cena in enumerate(
                 print(
                     "  VSE42_SCENE_COMMIT=FIRST_SUCCESS"
                 )
-                break
 
 
                 # SHORTAUTOPRO VSE42 SUCCESS COMMIT
@@ -4679,7 +4762,6 @@ for numero, cena in enumerate(
                 chave
             )
         _vse42_cleanup_scene_sibling(destino)
-        break
 
 
     # =================================
@@ -4875,7 +4957,6 @@ for numero, cena in enumerate(
                         candidato
                     )
         _vse42_cleanup_scene_sibling(destino)
-        break
 
 
     # =================================
@@ -5022,7 +5103,6 @@ for numero, cena in enumerate(
                 )
             )
         _vse42_cleanup_scene_sibling(destino)
-        break
 
 
     # =================================
@@ -5108,10 +5188,8 @@ for numero, cena in enumerate(
                 )
             _vse42_cleanup_scene_sibling(destino)
             _vse42_commit_safe(escolhido)
-            break
         _vse42_cleanup_scene_sibling(destino)
         _vse42_commit_safe(escolhido)
-        break
 
 
     if sucesso:

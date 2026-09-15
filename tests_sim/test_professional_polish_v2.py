@@ -1,7 +1,6 @@
 import unittest
 from pathlib import Path
 
-import midia_runtime as mr
 import professional_caption_director as pcd
 import professional_pipeline_runtime as ppr
 
@@ -55,35 +54,22 @@ Dialogue: 0,0:00:00.80,0:00:01.60,Dynamic,,0,0,0,,O caso mudou completamente
 
 
 class ProfessionalMediaFloorTests(unittest.TestCase):
-    def synthetic_selector(self):
-        return '''\ndef baixar_candidato_5_2(\n    candidato,\n    numero,\n    rotulo\n):\n    destino = "scene.jpg"\n    ok = baixar(\n        candidato.get(\n            "url",\n            ""\n        ),\n        destino\n    )\n    return ok, destino\n'''
-
-    def test_professional_floor_is_candidate_aware_and_failover_friendly(self):
-        patched, applied = mr.harden_professional_media_floor(self.synthetic_selector())
-        self.assertTrue(applied)
-        self.assertIn("SAP_PRO_MEDIA_MIN_PIXELS", patched)
-        self.assertIn("1280 * 720", patched)
-        self.assertIn('evidence_class == "CASE_DIRECT"', patched)
-        self.assertIn("PRO_MEDIA_FLOOR=REJECT", patched)
-        self.assertIn("os.remove(destino)", patched)
-        self.assertIn("ok = _sap_professional_media_accept_v1", patched)
-        compile(patched, "synthetic_midia.py", "exec")
-
-    def test_professional_floor_is_idempotent(self):
-        patched, applied = mr.harden_professional_media_floor(self.synthetic_selector())
-        self.assertTrue(applied)
-        same, applied_again = mr.harden_professional_media_floor(patched)
-        self.assertFalse(applied_again)
-        self.assertEqual(same, patched)
-
-    def test_current_selector_accepts_all_runtime_hardenings_and_compiles(self):
+    def test_professional_floor_is_integrated_in_selector(self):
         source = (ROOT / "midia.py").read_text(encoding="utf-8")
-        fixed, _ = mr.fix_source(source)
-        fixed, _ = mr.harden_cleanup(fixed)
-        fixed, _ = mr.harden_download_resolution(fixed)
-        fixed, _ = mr.harden_professional_media_floor(fixed)
-        self.assertIn("_sap_professional_media_accept_v1", fixed)
-        compile(fixed, "midia.py", "exec")
+        self.assertIn("def _sap_professional_media_accept_v1", source)
+        self.assertIn("SAP_PRO_MEDIA_MIN_PIXELS", source)
+        self.assertIn("1280 * 720", source)
+        self.assertIn('evidence_class == "CASE_DIRECT"', source)
+        self.assertIn("PRO_MEDIA_FLOOR=REJECT", source)
+        self.assertIn("os.remove(destino)", source)
+        self.assertIn("ok = _sap_professional_media_accept_v1", source)
+        compile(source, "midia.py", "exec")
+
+    def test_professional_floor_remains_failover_friendly(self):
+        source = (ROOT / "midia.py").read_text(encoding="utf-8")
+        helper = source[source.index("def _sap_professional_media_accept_v1"):source.index("def baixar_candidato_5_2")]
+        self.assertIn("return False", helper)
+        self.assertIn("return True", helper)
 
 
 class ProfessionalPipelinePolishTests(unittest.TestCase):
