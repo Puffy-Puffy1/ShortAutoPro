@@ -14,10 +14,15 @@ ROOT = Path(__file__).resolve().parents[1]
 class ConsolidationArchitectureTests(unittest.TestCase):
     def test_obsolete_runtime_wrappers_are_absent(self):
         obsolete = [
+            "gerar_short.sh",
             "gerar_short_professional.sh",
             "professional_pipeline_runtime.py",
             "resume_short_professional_runtime.py",
             "v6_professional_runtime.py",
+            "v6_runtime.py",
+            "v6.py",
+            "video.py",
+            "limpar_storage.sh",
             "tools/apply_consolidation_1_0.py",
             "31",
             "SYNC_TEST.TXT",
@@ -28,17 +33,21 @@ class ConsolidationArchitectureTests(unittest.TestCase):
         self.assertFalse((ROOT / "_arquivo_historico").exists())
 
     def test_single_canonical_pipeline_and_resume(self):
-        generator = (ROOT / "gerar_short.sh").read_text(encoding="utf-8")
+        main = (ROOT / "main.py").read_text(encoding="utf-8")
         profile = (ROOT / "profile_run.sh").read_text(encoding="utf-8")
-        resume = (ROOT / "resume_short.sh").read_text(encoding="utf-8")
-        self.assertIn('SAP_PRO_EDIT="${SAP_PRO_EDIT:-1}"', generator)
-        self.assertIn("professional_edit_director.py", generator)
-        self.assertIn("video_professional.py", generator)
-        self.assertIn('"video.py"', generator)
-        self.assertIn("v6_runtime.py", generator)
-        self.assertIn('GENERATOR="$BASE/gerar_short.sh"', profile)
-        self.assertIn('RUNTIME="$BASE/resume_short_runtime.py"', resume)
-        self.assertNotIn("STATUS: QUALITY PASS", generator)
+        resume = (ROOT / "resume_short_runtime.py").read_text(encoding="utf-8")
+        self.assertIn("CONSOLIDATION_3_0", main)
+        self.assertIn("PROFESSIONAL_CANONICAL", main)
+        self.assertIn("professional_edit_director.py", main)
+        self.assertIn("video_professional.py", main)
+        self.assertIn("v6_professional.py", main)
+        self.assertIn("release_gate.py", main)
+        self.assertIn('MAIN="$BASE/main.py"', profile)
+        self.assertIn('"$MAIN" run', profile)
+        self.assertIn("import main as canonical", resume)
+        self.assertIn("PROFESSIONAL_CANONICAL", resume)
+        self.assertNotIn("SAP_PRO_EDIT", main)
+        self.assertNotIn("gerar_short.sh", profile)
 
 
 class EvolutionFacadeRegressionTests(unittest.TestCase):
