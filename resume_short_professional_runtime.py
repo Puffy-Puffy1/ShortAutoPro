@@ -73,6 +73,7 @@ def resume(sid: str) -> int:
             base.run_python(sid, "GERANDO VOZ PIPER", "audio.py")
         if rank <= 2:
             base.run_python(sid, "WHISPER + LEGENDA", "legenda_dinamica.py")
+            base.run_python(sid, "PROFESSIONAL CAPTION DIRECTOR", "professional_caption_director.py")
             base.run_python(sid, "CAPTION AUDIT", "shortautopro_evolution.py", "caption-audit")
         if rank <= 3:
             base.run_python(sid, "PROFESSIONAL SCENE ASSEMBLER", "video_professional.py")

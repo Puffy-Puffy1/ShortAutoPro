@@ -22,6 +22,8 @@ BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))
 SHORT_ID = os.getenv("SHORT_ID", "").strip()
 PLAN = BASE / "roteiros" / f"pro_edit_plan_{SHORT_ID}.json"
 RUNTIME = BASE / "roteiros" / f"pro_edit_runtime_{SHORT_ID}.json"
+CAPTION = BASE / "roteiros" / f"pro_caption_{SHORT_ID}.json"
+MEDIA = BASE / "roteiros" / f"media_quality_{SHORT_ID}.json"
 VIDEO = BASE / "videos" / f"short_v6_{SHORT_ID}.mp4"
 LEGACY = BASE / "manifests" / f"{SHORT_ID}_quality.json"
 OUTPUT = BASE / "manifests" / f"{SHORT_ID}_professional.json"
@@ -71,6 +73,33 @@ def parse_fps(value: Any) -> float:
         return float(raw)
     except Exception:
         return 0.0
+
+
+def media_score(report: dict[str, Any]) -> tuple[float, list[str]]:
+    if not report:
+        return 75.0, ["media_report_missing"]
+    critical = report.get("critical", []) if isinstance(report.get("critical"), list) else []
+    warnings = report.get("warnings", []) if isinstance(report.get("warnings"), list) else []
+    if critical or str(report.get("status", "")).upper() == "BLOCK":
+        return 0.0, ["media_master_blocked"] + [str(x) for x in critical]
+
+    score = 100.0
+    notes: list[str] = []
+    for warning in warnings:
+        text = str(warning)
+        if text.startswith("low_resolution:"):
+            score -= 4.0
+            notes.append(text)
+        elif text.startswith("near_duplicate:"):
+            score -= 5.0
+            notes.append(text)
+        elif text.startswith("low_motion_mix="):
+            score -= 4.0
+            notes.append(text)
+        elif text.startswith("short_video:"):
+            score -= 2.0
+            notes.append(text)
+    return max(0.0, score), notes
 
 
 def technical_score() -> tuple[float, list[str], dict[str, Any]]:
@@ -136,11 +165,18 @@ def main() -> int:
         return 1
     plan = read_json(PLAN)
     runtime = read_json(RUNTIME)
+    caption = read_json(CAPTION)
+    media = read_json(MEDIA)
     legacy = read_json(LEGACY)
     critical: list[str] = []
 
     plan_score = safe_float(plan.get("professional_score"), 0.0)
     runtime_score = 100.0 if runtime.get("status") == "PASS" else 0.0
+    caption_score = safe_float(caption.get("score"), 75.0 if not caption else 0.0)
+    media_quality_score, media_notes = media_score(media)
+    if "media_master_blocked" in media_notes:
+        critical.append("media_master_blocked")
+
     tech_score, tech_errors, tech_details = technical_score()
     if tech_errors:
         critical.extend(x for x in tech_errors if x in {"video_missing", "video_codec", "audio_codec"} or x.startswith("resolution="))
@@ -162,18 +198,32 @@ def main() -> int:
     legacy_editorial = safe_float(legacy.get("total_score"), 80.0 if legacy else 0.0)
     components = {
         "edit_plan": round(plan_score, 1),
+        "media": round(media_quality_score, 1),
+        "captions": round(max(0.0, min(100.0, caption_score)), 1),
         "assembly": round(runtime_score, 1),
         "technical": round(tech_score, 1),
         "audio_master": round(loudness_score, 1),
         "editorial": round(max(0.0, min(100.0, legacy_editorial)), 1),
     }
-    weights = {"edit_plan": 0.30, "assembly": 0.15, "technical": 0.25, "audio_master": 0.10, "editorial": 0.20}
+    weights = {
+        "edit_plan": 0.20,
+        "media": 0.10,
+        "captions": 0.10,
+        "assembly": 0.10,
+        "technical": 0.20,
+        "audio_master": 0.10,
+        "editorial": 0.20,
+    }
     total = round(sum(components[key] * weights[key] for key in weights), 1)
     threshold = safe_float(os.getenv("SAP_PROFESSIONAL_MIN_SCORE", "88"), 88.0)
     status = "PASS" if total >= threshold and not critical else ("REVIEW" if not critical else "BLOCK")
     remediation: list[str] = []
     if components["edit_plan"] < 88:
         remediation.append("melhorar variedade de enquadramento, pacing e transições")
+    if components["media"] < 88:
+        remediation.append("substituir mídia fraca/repetida quando não for evidência documental rara")
+    if components["captions"] < 88:
+        remediation.append("recalibrar densidade/quebra/área segura das legendas")
     if components["audio_master"] < 88:
         remediation.append("recalibrar loudness/true peak")
     if components["editorial"] < 88:
@@ -181,7 +231,7 @@ def main() -> int:
 
     result = {
         "short_id": SHORT_ID,
-        "version": "PRO_QUALITY_1.0",
+        "version": "PRO_QUALITY_1.1",
         "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
         "profile": plan.get("profile", os.getenv("SAP_CHANNEL_PROFILE", "default")),
         "score": total,
@@ -191,15 +241,17 @@ def main() -> int:
         "weights": weights,
         "critical": critical,
         "remediation": remediation,
+        "media_notes": media_notes,
         "technical": tech_details,
         "loudness": loudness,
+        "caption_report": caption,
         "audio_policy": {"target_lufs": target_lufs, "true_peak_db": target_tp},
         "enforced": os.getenv("SAP_PROFESSIONAL_ENFORCE", "0") == "1",
     }
     atomic_json(OUTPUT, result)
 
     print("\n================================")
-    print("PROFESSIONAL QUALITY GATE 1.0")
+    print("PROFESSIONAL QUALITY GATE 1.1")
     print("================================")
     print(json.dumps(result, ensure_ascii=False, indent=2))
     if result["enforced"] and status != "PASS":
