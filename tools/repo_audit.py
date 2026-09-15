@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
 import map_active_graph
@@ -39,6 +38,12 @@ REQUIRED = {
     "shortautopro_evolution.py",
     "shortautopro_evolution_core.py",
     "visual_quality_policy_v1.py",
+    "docs/CONSOLIDATION_2_0.md",
+}
+
+REQUIRED_IGNORE_RULES = {
+    "_arquivo_historico/",
+    "*.pre_segment_fix",
 }
 
 
@@ -66,6 +71,7 @@ def main() -> int:
     canonical = (ROOT / "gerar_short.sh").read_text(encoding="utf-8", errors="ignore") if (ROOT / "gerar_short.sh").is_file() else ""
     profile_run = (ROOT / "profile_run.sh").read_text(encoding="utf-8", errors="ignore") if (ROOT / "profile_run.sh").is_file() else ""
     resume_shell = (ROOT / "resume_short.sh").read_text(encoding="utf-8", errors="ignore") if (ROOT / "resume_short.sh").is_file() else ""
+    gitignore = (ROOT / ".gitignore").read_text(encoding="utf-8", errors="ignore") if (ROOT / ".gitignore").is_file() else ""
 
     required_pipeline_tokens = [
         'SAP_PRO_EDIT="${SAP_PRO_EDIT:-1}"',
@@ -80,6 +86,10 @@ def main() -> int:
     for token in required_pipeline_tokens:
         if token not in canonical:
             issues.append(f"canonical_pipeline_missing:{token}")
+
+    for rule in sorted(REQUIRED_IGNORE_RULES):
+        if rule not in gitignore.splitlines():
+            issues.append(f"gitignore_rule_missing:{rule}")
 
     if "STATUS: QUALITY PASS" in canonical:
         issues.append("hardcoded_final_quality_status")
