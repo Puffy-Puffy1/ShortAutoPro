@@ -1,0 +1,103 @@
+import json
+import os
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+
+import shortautopro_evolution as evo
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+class ConsolidationArchitectureTests(unittest.TestCase):
+    def test_obsolete_runtime_wrappers_are_absent(self):
+        obsolete = [
+            "gerar_short_professional.sh",
+            "professional_pipeline_runtime.py",
+            "resume_short_professional_runtime.py",
+            "v6_professional_runtime.py",
+            "tools/apply_consolidation_1_0.py",
+            "31",
+            "SYNC_TEST.TXT",
+            ".resume_vi710_after_semantic_fix.sh.pre_segment_fix",
+        ]
+        for relative in obsolete:
+            self.assertFalse((ROOT / relative).exists(), relative)
+        self.assertFalse((ROOT / "_arquivo_historico").exists())
+
+    def test_single_canonical_pipeline_and_resume(self):
+        generator = (ROOT / "gerar_short.sh").read_text(encoding="utf-8")
+        profile = (ROOT / "profile_run.sh").read_text(encoding="utf-8")
+        resume = (ROOT / "resume_short.sh").read_text(encoding="utf-8")
+        self.assertIn('SAP_PRO_EDIT="${SAP_PRO_EDIT:-1}"', generator)
+        self.assertIn("professional_edit_director.py", generator)
+        self.assertIn("video_professional.py", generator)
+        self.assertIn('"video.py"', generator)
+        self.assertIn("v6_runtime.py", generator)
+        self.assertIn('GENERATOR="$BASE/gerar_short.sh"', profile)
+        self.assertIn('RUNTIME="$BASE/resume_short_runtime.py"', resume)
+        self.assertNotIn("STATUS: QUALITY PASS", generator)
+
+
+class EvolutionFacadeRegressionTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.base = Path(self.temp.name)
+        self.old = {
+            "BASE": evo.BASE,
+            "STATE_DIR": evo.STATE_DIR,
+            "REPORT_DIR": evo.REPORT_DIR,
+            "METRICS_DIR": evo.METRICS_DIR,
+            "PROFILES_FILE": evo.PROFILES_FILE,
+        }
+        evo.BASE = self.base
+        evo.STATE_DIR = self.base / ".sap_state"
+        evo.REPORT_DIR = self.base / "reports" / "evolution"
+        evo.METRICS_DIR = self.base / "metrics"
+        evo.PROFILES_FILE = self.base / "config" / "channel_profiles.json"
+        evo.PROFILES_FILE.parent.mkdir(parents=True, exist_ok=True)
+        evo.PROFILES_FILE.write_text(json.dumps({
+            "default": {"audio": {"target_lufs": -14}},
+            "true_crime": {"audio": {"target_lufs": -14}},
+        }), encoding="utf-8")
+
+    def tearDown(self):
+        for key, value in self.old.items():
+            setattr(evo, key, value)
+        self.temp.cleanup()
+
+    def test_explicit_missing_short_never_falls_back_to_unrelated_video(self):
+        videos = self.base / "videos"
+        videos.mkdir(parents=True)
+        (videos / "short_v6_other.mp4").write_bytes(b"unrelated")
+        self.assertIsNone(evo.latest_video("missing"))
+        self.assertEqual(evo.latest_video(None).name, "short_v6_other.mp4")
+
+    def test_manual_quality_score_recovers_profile_from_short_artifact(self):
+        roteiros = self.base / "roteiros"
+        roteiros.mkdir(parents=True)
+        (roteiros / "pro_edit_plan_demo.json").write_text(
+            json.dumps({"profile": "true_crime"}), encoding="utf-8"
+        )
+        os.environ.pop("SAP_CHANNEL_PROFILE", None)
+        with patch.object(
+            evo,
+            "_ORIGINAL_QUALITY_SCORE",
+            side_effect=lambda sid: {
+                "short_id": sid,
+                "profile": os.getenv("SAP_CHANNEL_PROFILE", "default"),
+            },
+        ):
+            result = evo.quality_score("demo")
+        self.assertEqual(result["profile"], "true_crime")
+        self.assertNotIn("SAP_CHANNEL_PROFILE", os.environ)
+
+    def test_module_sandbox_assignment_is_forwarded_to_core(self):
+        self.assertEqual(evo._core.BASE, self.base)
+        self.assertEqual(evo._core.REPORT_DIR, self.base / "reports" / "evolution")
+
+
+if __name__ == "__main__":
+    unittest.main()
