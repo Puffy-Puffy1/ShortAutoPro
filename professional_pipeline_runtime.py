@@ -28,7 +28,11 @@ def build(source: str) -> str:
     source = replace_once(
         source,
         'set -e\nset -o pipefail\n',
-        'set -e\nset -o pipefail\n\nexport SAP_PRO_EDIT="${SAP_PRO_EDIT:-1}"\nexport SAP_PROFESSIONAL_MIN_SCORE="${SAP_PROFESSIONAL_MIN_SCORE:-88}"\nexport SAP_PROFESSIONAL_ENFORCE="${SAP_PROFESSIONAL_ENFORCE:-0}"\n',
+        'set -e\nset -o pipefail\n\n'
+        'export SAP_PRO_EDIT="${SAP_PRO_EDIT:-1}"\n'
+        'export SAP_PROFESSIONAL_MIN_SCORE="${SAP_PROFESSIONAL_MIN_SCORE:-88}"\n'
+        'export SAP_PROFESSIONAL_ENFORCE="${SAP_PROFESSIONAL_ENFORCE:-0}"\n'
+        'export SAP_PRO_MEDIA_MIN_PIXELS="${SAP_PRO_MEDIA_MIN_PIXELS:-921600}"\n',
         "professional_flags",
     )
     source = replace_once(
@@ -38,6 +42,13 @@ def build(source: str) -> str:
         'rodar_python "6C1/12 - PROFESSIONAL EDIT DIRECTOR" "professional_edit_director.py"\n'
         'rodar_python "6C2/12 - PROFESSIONAL EDIT AUTO-REPAIR" "professional_edit_repair.py"\n',
         "professional_director",
+    )
+    source = replace_once(
+        source,
+        'rodar_python "8/12 - WHISPER + LEGENDA DINÂMICA" "legenda_dinamica.py"\n',
+        'rodar_python "8/12 - WHISPER + LEGENDA DINÂMICA" "legenda_dinamica.py"\n'
+        'rodar_python "8A/12 - PROFESSIONAL CAPTION DIRECTOR" "professional_caption_director.py"\n',
+        "professional_caption_director",
     )
     source = replace_once(
         source,
@@ -77,6 +88,7 @@ def main() -> int:
         required = [
             "professional_edit_director.py",
             "professional_edit_repair.py",
+            "professional_caption_director.py",
             "video_professional.py",
             "v6_professional_runtime.py",
             "professional_quality_gate.py",
