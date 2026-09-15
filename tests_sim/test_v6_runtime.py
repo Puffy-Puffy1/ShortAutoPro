@@ -3,6 +3,7 @@ import subprocess
 import unittest
 from unittest import mock
 
+import v6_runtime
 from v6_runtime import render_timeout, run_renderer, validate_probe
 
 
@@ -46,11 +47,25 @@ class V6RuntimeTests(unittest.TestCase):
         self.assertTrue(any(x.startswith("resolution_invalid=") for x in errors))
         self.assertTrue(any(x.startswith("duration_invalid=") for x in errors))
 
-    def test_render_timeout_is_bounded(self):
-        with mock.patch.dict(os.environ, {"SHORT_RENDER_TIMEOUT": "10"}, clear=False):
+    def test_render_timeout_is_bounded_in_standard_mode(self):
+        with mock.patch.dict(os.environ, {"SAP_PRO_EDIT": "0", "SHORT_RENDER_TIMEOUT": "10"}, clear=False):
             self.assertEqual(render_timeout(), 120)
-        with mock.patch.dict(os.environ, {"SHORT_RENDER_TIMEOUT": "99999"}, clear=False):
+        with mock.patch.dict(os.environ, {"SAP_PRO_EDIT": "0", "SHORT_RENDER_TIMEOUT": "99999"}, clear=False):
             self.assertEqual(render_timeout(), 1800)
+
+    def test_render_timeout_is_bounded_in_professional_mode(self):
+        with mock.patch.dict(os.environ, {"SAP_PRO_EDIT": "1", "SHORT_RENDER_TIMEOUT": "10"}, clear=False):
+            self.assertEqual(render_timeout(), 180)
+        with mock.patch.dict(os.environ, {"SAP_PRO_EDIT": "1", "SHORT_RENDER_TIMEOUT": "99999"}, clear=False):
+            self.assertEqual(render_timeout(), 2400)
+
+    def test_renderer_target_switches_without_duplicate_runtime(self):
+        with mock.patch.dict(os.environ, {"SAP_PRO_EDIT": "1"}, clear=False):
+            self.assertEqual(v6_runtime.renderer_target().name, "v6_professional.py")
+            self.assertEqual(v6_runtime.renderer_mode(), "PROFESSIONAL")
+        with mock.patch.dict(os.environ, {"SAP_PRO_EDIT": "0"}, clear=False):
+            self.assertEqual(v6_runtime.renderer_target().name, "v6.py")
+            self.assertEqual(v6_runtime.renderer_mode(), "STANDARD_ROLLBACK")
 
     @mock.patch("v6_runtime.subprocess.Popen")
     def test_renderer_stdin_is_detached(self, popen):
