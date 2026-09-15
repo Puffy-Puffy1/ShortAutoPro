@@ -111,6 +111,14 @@ def output_ok(short_id: str) -> bool:
     return isinstance(data, dict) and bool(data.get("approved"))
 
 
+def all_items_approved(items: list[dict[str, Any]]) -> bool:
+    return all(
+        item.get("status") == "PASS"
+        and output_ok(str(item.get("short_id")))
+        for item in items
+    )
+
+
 def run_job(path: Path, job: dict[str, Any], execute: bool) -> int:
     validate_job(job)
     items = ensure_items(job)
@@ -185,11 +193,12 @@ def run_job(path: Path, job: dict[str, Any], execute: bool) -> int:
         job["updated_at"] = now_iso()
         atomic_json(path, job)
 
-    if not execute:
-        job["status"] = "QUEUED"
-    elif all(item.get("status") == "PASS" and output_ok(str(item.get("short_id"))) for item in items):
+    approved = all_items_approved(items)
+    if approved:
         job["status"] = "PASS"
-        job["completed_at"] = now_iso()
+        job.setdefault("completed_at", now_iso())
+    elif not execute:
+        job["status"] = "QUEUED"
     else:
         job["status"] = "PARTIAL"
     job["updated_at"] = now_iso()
