@@ -178,6 +178,12 @@ credits/short_20*.txt
 manifests/20*.json
 roteiros/supervisor_20*.json
 
+# Jobs de cliente também são artefatos locais de produção.
+credits/attribution_client_*.txt
+credits/ledger_client_*.json
+credits/short_client_*.txt
+manifests/client_*.json
+
 # resultados locais de auditoria
 score_candidate_binding_audit.json
 
