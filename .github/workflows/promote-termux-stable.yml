@@ -2,7 +2,9 @@ name: Promote Termux Stable
 
 on:
   workflow_run:
-    workflows: ["ShortAutoPro Remote Control"]
+    workflows:
+      - "ShortAutoPro Remote Control"
+      - "ShortAutoPro Portable Validation"
     types: [completed]
 
 permissions:
@@ -16,7 +18,9 @@ jobs:
   promote:
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'main'
+      github.event.workflow_run.head_branch == 'main' &&
+      (github.event.workflow_run.name == 'ShortAutoPro Remote Control' ||
+       github.event.workflow_run.name == 'ShortAutoPro Portable Validation')
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
@@ -31,11 +35,13 @@ jobs:
         shell: bash
         env:
           TESTED_SHA: ${{ github.event.workflow_run.head_sha }}
+          VALIDATOR: ${{ github.event.workflow_run.name }}
         run: |
           set -euo pipefail
           actual="$(git rev-parse HEAD)"
           test "$actual" = "$TESTED_SHA"
           echo "TESTED_SHA=$actual"
+          echo "VALIDATOR=$VALIDATOR"
 
       - name: Promote fast-forward only
         shell: bash
