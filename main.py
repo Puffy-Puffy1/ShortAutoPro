@@ -4,8 +4,9 @@
 Official Short flow:
   tema -> roteiro -> cenas -> midia -> audio -> legenda -> edicao -> QA -> exportacao
 
-Specialized files are stages, never alternate pipelines. This module owns stage
-order, retries, locking, checkpoints, repair, release decision and export.
+There is exactly one production pipeline. Specialized files are stages, never
+alternate pipelines. Recovery means resuming validated checkpoints from this
+same pipeline, not switching to a legacy renderer or assembler.
 """
 from __future__ import annotations
 
@@ -33,13 +34,18 @@ DEFAULT_ENV = {
     "SAP_VQE5_RESCUE": "1",
     "SAP_VQE5_QUERY_EXTRA": "2",
     "SAP_VQE5_COMMIT": "1",
-    # Retired selectors stay disabled; VI6 active mode is the conservative
-    # semantic/documentary winner on top of the native media selector.
-    "SAP_VSE_V2": "0", "SAP_VSE_V3": "0", "SAP_VSE_V4": "0", "SAP_VSE_V42": "0",
-    "SAP_VSE4": "0", "SAP_VSE42": "0", "SAP_VSE4_RUNTIME": "0", "SAP_SCENE_COMMIT_LOCK": "0",
+    # Retired experimental selectors stay disabled. VI6 ACTIVE is the
+    # conservative semantic/documentary layer on top of the canonical selector.
+    "SAP_VSE_V2": "0",
+    "SAP_VSE_V3": "0",
+    "SAP_VSE_V4": "0",
+    "SAP_VSE_V42": "0",
+    "SAP_VSE4": "0",
+    "SAP_VSE42": "0",
+    "SAP_VSE4_RUNTIME": "0",
+    "SAP_SCENE_COMMIT_LOCK": "0",
     "VISUAL_INTELLIGENCE_MODE": "ACTIVE",
     "VISUAL_INTELLIGENCE_6_SHADOW": "1",
-    "SAP_PRO_EDIT": "1",
     "SAP_PROFESSIONAL_MIN_SCORE": "88",
     "SAP_PROFESSIONAL_ENFORCE": "0",
     "SAP_PRO_MEDIA_MIN_PIXELS": "921600",
@@ -60,11 +66,15 @@ def atomic_json(path: Path, payload: Any) -> None:
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
             json.dump(payload, handle, ensure_ascii=False, indent=2)
-            handle.write("\n"); handle.flush(); os.fsync(handle.fileno())
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
         os.replace(tmp, path)
     except Exception:
-        try: os.unlink(tmp)
-        except OSError: pass
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
         raise
 
 
@@ -74,7 +84,10 @@ def source_config() -> None:
         raise RuntimeError("config.sh não encontrado")
     proc = subprocess.run(
         ["bash", "-c", 'set -a; source "$1"; env -0', "bash", str(cfg)],
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False, timeout=30,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+        timeout=30,
     )
     if proc.returncode != 0:
         raise RuntimeError("config.sh falhou ao carregar")
@@ -102,6 +115,8 @@ def allocate_id() -> str:
 
 
 class RunLock:
+    """Per-production lock: different Short IDs may run concurrently."""
+
     def __init__(self, sid: str):
         LOCK_DIR.mkdir(parents=True, exist_ok=True)
         self.path = LOCK_DIR / f"{sid}.lock"
@@ -113,59 +128,101 @@ class RunLock:
             fcntl.flock(self.handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError as exc:
             raise RuntimeError(f"produção {self.path.stem} já está em andamento") from exc
-        self.handle.seek(0); self.handle.truncate(); self.handle.write(str(os.getpid())); self.handle.flush()
+        self.handle.seek(0)
+        self.handle.truncate()
+        self.handle.write(str(os.getpid()))
+        self.handle.flush()
         return self
 
     def __exit__(self, *_):
         if self.handle:
-            try: fcntl.flock(self.handle.fileno(), fcntl.LOCK_UN)
-            except OSError: pass
+            try:
+                fcntl.flock(self.handle.fileno(), fcntl.LOCK_UN)
+            except OSError:
+                pass
             self.handle.close()
-        try: self.path.unlink(missing_ok=True)
-        except OSError: pass
+        try:
+            self.path.unlink(missing_ok=True)
+        except OSError:
+            pass
 
 
 class Pipeline:
     def __init__(self, sid: str):
         self.sid = sid
         self.state_path = STATE_DIR / f"pipeline_{sid}.json"
-        self.state = {"short_id": sid, "version": "CONSOLIDATION_3_0", "started_at": now(), "status": "RUNNING", "stages": []}
+        self.state = {
+            "short_id": sid,
+            "version": "CONSOLIDATION_3_0",
+            "pipeline": "PROFESSIONAL_CANONICAL",
+            "started_at": now(),
+            "status": "RUNNING",
+            "stages": [],
+        }
         atomic_json(self.state_path, self.state)
 
     def checkpoint(self, name: str, status: str, title: str, elapsed: float | None = None) -> None:
         entry = {"stage": name, "title": title, "status": status, "at": now()}
         if elapsed is not None:
             entry["elapsed_seconds"] = round(elapsed, 3)
-        self.state["stages"].append(entry); self.state["updated_at"] = now(); atomic_json(self.state_path, self.state)
+        self.state["stages"].append(entry)
+        self.state["updated_at"] = now()
+        atomic_json(self.state_path, self.state)
         if EVOLUTION.is_file():
             try:
-                subprocess.run([sys.executable, str(EVOLUTION), "checkpoint", "--stage", name, "--status", status, "--title", title], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=20)
+                subprocess.run(
+                    [sys.executable, str(EVOLUTION), "checkpoint", "--stage", name, "--status", status, "--title", title],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    timeout=20,
+                )
             except Exception:
                 pass
 
     def finish(self, status: str) -> None:
-        self.state["status"] = status; self.state["finished_at"] = now(); atomic_json(self.state_path, self.state)
+        self.state["status"] = status
+        self.state["finished_at"] = now()
+        atomic_json(self.state_path, self.state)
         if EVOLUTION.is_file():
-            try: subprocess.run([sys.executable, str(EVOLUTION), "finish", "--status", status], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=20)
-            except Exception: pass
+            try:
+                subprocess.run(
+                    [sys.executable, str(EVOLUTION), "finish", "--status", status],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    timeout=20,
+                )
+            except Exception:
+                pass
 
-    def run(self, title: str, file: str, *args: str, shell: bool = False, retries: int = 0, allow_codes: set[int] | None = None) -> int:
+    def run(
+        self,
+        title: str,
+        file: str,
+        *args: str,
+        shell: bool = False,
+        retries: int = 0,
+        allow_codes: set[int] | None = None,
+    ) -> int:
         path = BASE / file
         if not path.is_file():
             raise RuntimeError(f"arquivo obrigatório ausente: {file}")
         allow_codes = allow_codes or {0}
-        print(f"\n{'-'*48}\n{title}\n{'-'*48}\n")
-        self.checkpoint(file, "start", title); start = time.monotonic(); last = 1
+        print(f"\n{'-' * 48}\n{title}\n{'-' * 48}\n")
+        self.checkpoint(file, "start", title)
+        start = time.monotonic()
+        last = 1
+        cmd: list[str] = []
         for attempt in range(retries + 1):
-            cmd = (["bash", str(path), *args] if shell else [sys.executable, str(path), *args])
+            cmd = ["bash", str(path), *args] if shell else [sys.executable, str(path), *args]
             proc = subprocess.run(cmd, cwd=BASE, env=os.environ.copy(), check=False)
             last = proc.returncode
             if last in allow_codes:
-                self.checkpoint(file, "pass", title, time.monotonic() - start)
-                print(f"ETAPA OK: {time.monotonic()-start:.1f}s")
+                elapsed = time.monotonic() - start
+                self.checkpoint(file, "pass", title, elapsed)
+                print(f"ETAPA OK: {elapsed:.1f}s")
                 return last
             if attempt < retries:
-                print(f"AUTO-RECOVERY {attempt+1}/{retries}: {file} retornou {last}")
+                print(f"AUTO-RECOVERY {attempt + 1}/{retries}: {file} retornou {last}")
                 time.sleep(min(8, 2 * (attempt + 1)))
         self.checkpoint(file, "fail", title, time.monotonic() - start)
         raise subprocess.CalledProcessError(last, cmd)
@@ -173,7 +230,18 @@ class Pipeline:
 
 def probe_video(path: Path) -> dict[str, Any]:
     try:
-        proc = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration,size", "-show_entries", "stream=codec_type,codec_name,width,height,avg_frame_rate", "-of", "json", str(path)], capture_output=True, text=True, check=True, timeout=45)
+        proc = subprocess.run(
+            [
+                "ffprobe", "-v", "error",
+                "-show_entries", "format=duration,size",
+                "-show_entries", "stream=codec_type,codec_name,width,height,avg_frame_rate",
+                "-of", "json", str(path),
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=45,
+        )
         return json.loads(proc.stdout)
     except Exception:
         return {}
@@ -201,21 +269,14 @@ def stages_before_render(p: Pipeline) -> None:
     p.run("5D2 - POST-SCRIPT TRUTH LOCK", "post_script_truth_lock.py")
     p.run("5E - SEMANTIC INTEGRITY GATE", "semantic_integrity_gate.py")
 
-    # Providers compete inside the native selector. Documentary routes prefer
-    # factual Wikimedia evidence; generic routes naturally favor strong stock/video.
     p.run("6 - SMART MEDIA SELECTOR", "midia.py", retries=1)
     p.run("6A - MEDIA MASTER GATE", "media_master_gate.py")
     p.run("6A1 - MULTIDIMENSIONAL VISUAL SCORE", "visual_score_engine.py")
     p.run("6B - CINEMATIC MOTION DIRECTOR", "motion_director.py")
     p.run("6C - MONTAGE RHYTHM DIRECTOR", "rhythm_director.py")
-
-    if os.getenv("SAP_PRO_EDIT", "1") == "1":
-        p.run("6C1 - PROFESSIONAL EDIT DIRECTOR", "professional_edit_director.py")
-        p.run("6C2 - PROFESSIONAL EDIT AUTO-REPAIR", "professional_edit_repair.py")
-        p.run("6C2B - MULTI-ASSET DIRECTOR", "multi_asset_director.py", retries=1)
-
-    # User-requested pre-render retention gate: one deterministic pacing repair
-    # is attempted, then the video is not rendered if it remains below target.
+    p.run("6C1 - PROFESSIONAL EDIT DIRECTOR", "professional_edit_director.py")
+    p.run("6C2 - PROFESSIONAL EDIT AUTO-REPAIR", "professional_edit_repair.py")
+    p.run("6C2B - MULTI-ASSET DIRECTOR", "multi_asset_director.py", retries=1)
     p.run("6C3 - RETENTION ENGINE + SAFE REPAIR", "retention_engine.py", "--repair", "--enforce")
     p.run("6C4 - SOUND DESIGN ENGINE", "sound_design_engine.py")
     p.run("6D - PRODUCTION SUPERVISOR", "production_supervisor.py")
@@ -225,18 +286,14 @@ def stages_before_render(p: Pipeline) -> None:
     p.run("6F - SPEECH DIRECTOR", "speech_director.py")
     p.run("7 - VOZ PIPER", "audio.py", retries=1)
     p.run("8 - WHISPER + LEGENDA DINÂMICA", "legenda_dinamica.py", retries=1)
-    if os.getenv("SAP_PRO_EDIT", "1") == "1":
-        p.run("8A - PROFESSIONAL CAPTION DIRECTOR", "professional_caption_director.py")
-        p.run("8A1 - CAPTION SAFE-ZONE GUARD", "caption_layout_guard.py")
+    p.run("8A - PROFESSIONAL CAPTION DIRECTOR", "professional_caption_director.py")
+    p.run("8A1 - CAPTION SAFE-ZONE GUARD", "caption_layout_guard.py")
     p.run("8B - EVOLUTION CAPTION AUDIT", "shortautopro_evolution.py", "caption-audit")
 
 
 def assemble_and_render(p: Pipeline) -> None:
-    if os.getenv("SAP_PRO_EDIT", "1") == "1":
-        p.run("9 - PROFESSIONAL MULTI-BEAT ASSEMBLER", "video_professional.py")
-    else:
-        p.run("9 - STANDARD SCENE ASSEMBLER", "video.py")
-    p.run("10 - FINAL RENDER V6", "v6_runtime.py", retries=1)
+    p.run("9 - PROFESSIONAL MULTI-BEAT ASSEMBLER", "video_professional.py")
+    p.run("10 - FINAL RENDER V6 PROFESSIONAL", "v6_professional.py", retries=1)
     final = BASE / "videos" / f"short_v6_{p.sid}.mp4"
     if not final.is_file() or final.stat().st_size < 500_000:
         raise RuntimeError(f"vídeo final ausente/inválido: {final}")
@@ -254,17 +311,20 @@ def final_gates(p: Pipeline) -> int:
     p.run("12B - FINAL QUALITY", "final_quality.py")
     evo_args = ["quality-score"] + (["--enforce"] if os.getenv("SAP_EVOLUTION_ENFORCE", "0") == "1" else [])
     p.run("12C - EVOLUTION QUALITY SCORE", "shortautopro_evolution.py", *evo_args)
-    if os.getenv("SAP_PRO_EDIT", "1") == "1":
-        p.run("12D - PROFESSIONAL QUALITY GATE", "professional_quality_gate.py")
+    p.run("12D - PROFESSIONAL QUALITY GATE", "professional_quality_gate.py")
     enforce = os.getenv("SAP_RELEASE_ENFORCE", "1") == "1"
-    return p.run("12E - SHORTAUTOPRO RELEASE GATE", "release_gate.py", *(["--enforce"] if enforce else []), allow_codes={0, 20})
+    return p.run(
+        "12E - SHORTAUTOPRO RELEASE GATE",
+        "release_gate.py",
+        *(["--enforce"] if enforce else []),
+        allow_codes={0, 20},
+    )
 
 
 def repair_cycle(p: Pipeline) -> None:
     print("\nRELEASE GATE solicitou auto-reparo limitado (1 ciclo).")
-    if os.getenv("SAP_PRO_EDIT", "1") == "1":
-        p.run("REPAIR - PROFESSIONAL EDIT", "professional_edit_repair.py")
-        p.run("REPAIR - MULTI-ASSET", "multi_asset_director.py", retries=1)
+    p.run("REPAIR - PROFESSIONAL EDIT", "professional_edit_repair.py")
+    p.run("REPAIR - MULTI-ASSET", "multi_asset_director.py", retries=1)
     p.run("REPAIR - RETENTION PACING", "retention_engine.py", "--repair")
     p.run("REPAIR - SOUND PLAN", "sound_design_engine.py")
     assemble_and_render(p)
@@ -287,7 +347,12 @@ def export(p: Pipeline) -> Path:
 
 
 def run_pipeline() -> int:
-    source_config(); setup_env(); sid = allocate_id(); os.environ["SHORT_ID"] = sid; STATE_DIR.mkdir(parents=True, exist_ok=True)
+    source_config()
+    setup_env()
+    sid = allocate_id()
+    os.environ["SHORT_ID"] = sid
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+
     with RunLock(sid):
         p = Pipeline(sid)
         print("\n==============================================")
@@ -295,7 +360,7 @@ def run_pipeline() -> int:
         print("==============================================")
         print(f"ID: {sid}")
         print("FLUXO: tema -> roteiro -> cenas -> midia -> audio -> legenda -> edicao -> QA -> exportacao")
-        print(f"MODO: {'PROFESSIONAL' if os.getenv('SAP_PRO_EDIT','1') == '1' else 'STANDARD_ROLLBACK'}")
+        print("PIPELINE: PROFESSIONAL_CANONICAL")
         try:
             stages_before_render(p)
             assemble_and_render(p)
@@ -307,9 +372,11 @@ def run_pipeline() -> int:
                     raise RuntimeError("Release Gate ainda requer reparo após ciclo automático")
             destination = export(p)
             p.run("STORAGE CLEANUP", "storage_manager.py", "cleanup", "--execute")
-            p.checkpoint("pipeline", "pass", "ShortAutoPro Consolidation 3.0"); p.finish("SUCCESS")
+            p.checkpoint("pipeline", "pass", "ShortAutoPro Consolidation 3.0")
+            p.finish("SUCCESS")
         except Exception as exc:
-            p.checkpoint("pipeline", "fail", "ShortAutoPro Consolidation 3.0"); p.finish("FAILED")
+            p.checkpoint("pipeline", "fail", "ShortAutoPro Consolidation 3.0")
+            p.finish("FAILED")
             print(f"\nPIPELINE BLOCKED: {exc}")
             return 1
 
@@ -332,23 +399,33 @@ def cli() -> int:
     parser = argparse.ArgumentParser(description="ShortAutoPro official entrypoint")
     sub = parser.add_subparsers(dest="command")
     sub.add_parser("run")
-    resume = sub.add_parser("resume"); resume.add_argument("--short-id", default=None); resume.add_argument("--status", action="store_true")
+    resume = sub.add_parser("resume")
+    resume.add_argument("--short-id", default=None)
+    resume.add_argument("--status", action="store_true")
     sub.add_parser("audit")
-    storage = sub.add_parser("storage"); storage.add_argument("storage_command", choices=["status", "preflight", "cleanup"], default="status", nargs="?"); storage.add_argument("--execute", action="store_true")
-    args = parser.parse_args(); cmd = args.command or "run"
-    if cmd == "run":
+    storage = sub.add_parser("storage")
+    storage.add_argument("storage_command", choices=["status", "preflight", "cleanup"], default="status", nargs="?")
+    storage.add_argument("--execute", action="store_true")
+    args = parser.parse_args()
+    command_name = args.command or "run"
+
+    if command_name == "run":
         return run_pipeline()
+
     setup_env()
-    if cmd == "resume":
+    if command_name == "resume":
         command = [sys.executable, str(BASE / "resume_short_runtime.py")]
-        if args.short_id: command.extend(["--short-id", args.short_id])
-        if args.status: command.append("--status")
+        if args.short_id:
+            command.extend(["--short-id", args.short_id])
+        if args.status:
+            command.append("--status")
         return subprocess.call(command, cwd=BASE, env=os.environ.copy())
-    if cmd == "audit":
+    if command_name == "audit":
         return subprocess.call([sys.executable, str(BASE / "tools" / "repo_audit.py")], cwd=BASE, env=os.environ.copy())
-    if cmd == "storage":
+    if command_name == "storage":
         command = [sys.executable, str(BASE / "storage_manager.py"), args.storage_command]
-        if args.execute: command.append("--execute")
+        if args.execute:
+            command.append("--execute")
         return subprocess.call(command, cwd=BASE, env=os.environ.copy())
     return 2
 
