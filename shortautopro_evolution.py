@@ -9,12 +9,16 @@ without duplicating the scoring engine:
 2. profile-aware audits recover the Short profile from its own artifacts/client
    job when the original shell environment is no longer present.
 
-All public names remain available for existing imports.
+All public names remain available for existing imports. Attribute assignments
+(e.g. test sandboxes replacing BASE/STATE_DIR) are forwarded to the core module
+for backward compatibility.
 """
 
 from __future__ import annotations
 
 import os
+import sys
+import types
 from pathlib import Path
 from typing import Any
 
@@ -32,12 +36,7 @@ _ORIGINAL_QUALITY_SCORE = _core.quality_score
 
 
 def _artifact_profile(sid: str) -> str | None:
-    """Resolve the profile that actually belongs to ``sid``.
-
-    Resolution order intentionally prefers the current explicit environment,
-    then per-Short artifacts, then the client job that owns the item. This
-    keeps manual post-run audits faithful to the generation profile.
-    """
+    """Resolve the profile that actually belongs to ``sid``."""
     env_profile = os.getenv("SAP_CHANNEL_PROFILE", "").strip()
     if env_profile:
         return env_profile
@@ -79,13 +78,7 @@ def _artifact_profile(sid: str) -> str | None:
 
 
 def latest_video(sid: str | None = None) -> Path | None:
-    """Return only the requested Short when ``sid`` is explicit.
-
-    The previous implementation fell back to the newest unrelated V6 file when
-    an explicit Short had no render yet, which could make a failed production
-    look technically healthy. Latest-file fallback remains valid only when no
-    Short ID was requested.
-    """
+    """Return only the requested Short when ``sid`` is explicit."""
     if sid:
         candidate = _core.BASE / "videos" / f"short_v6_{sid}.mp4"
         return candidate if candidate.is_file() else None
@@ -124,10 +117,21 @@ _core.latest_video = latest_video
 _core.caption_audit = caption_audit
 _core.quality_score = quality_score
 
-# Keep wrapper-level imports consistent with the patched core.
 globals()["latest_video"] = latest_video
 globals()["caption_audit"] = caption_audit
 globals()["quality_score"] = quality_score
+
+
+class _EvolutionFacadeModule(types.ModuleType):
+    """Forward public runtime-configuration assignments into the preserved core."""
+
+    def __setattr__(self, name, value):
+        super().__setattr__(name, value)
+        if not name.startswith("_") and hasattr(_core, name):
+            setattr(_core, name, value)
+
+
+sys.modules[__name__].__class__ = _EvolutionFacadeModule
 
 
 def main(argv: list[str] | None = None) -> int:
