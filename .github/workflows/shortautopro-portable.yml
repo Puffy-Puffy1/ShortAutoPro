@@ -1,0 +1,115 @@
+name: ShortAutoPro Portable Validation
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "**.py"
+      - "**.sh"
+      - ".github/workflows/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shortautopro-portable-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  portable-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: "utf-8"
+
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Environment Check
+        shell: bash
+        run: |
+          set -euo pipefail
+          git --version
+          python --version
+          bash --version | head -n 1
+          ffmpeg -version | head -n 1
+          ffprobe -version | head -n 1
+          echo "PORTABLE_ENV=PASS"
+
+      - name: Repository Check
+        shell: bash
+        run: |
+          set -euo pipefail
+          git status --short
+          git log -1 --oneline
+          git rev-parse HEAD
+          echo "PORTABLE_REPO=PASS"
+
+      - name: Python Syntax Audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m compileall -q .
+          echo "PORTABLE_PYTHON_COMPILE=PASS"
+
+      - name: Simulated Regression Tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check --quiet requests
+          python -m unittest discover -s tests_sim -p "test_*.py" -v
+          echo "PORTABLE_SIM_TESTS=PASS"
+
+      - name: Bash Syntax Audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          find . -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
+          echo "PORTABLE_BASH_SYNTAX=PASS"
+
+      - name: Professional Pipeline Contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f professional_edit_director.py
+          test -f professional_edit_repair.py
+          test -f video_professional.py
+          test -f v6_professional.py
+          test -f v6_professional_runtime.py
+          test -f professional_quality_gate.py
+          test -f professional_pipeline_runtime.py
+          test -f gerar_short_professional.sh
+          test -f gerar_short.sh
+          test -f video.py
+          test -f v6.py
+          grep -q 'SAP_PRO_EDIT="${SAP_PRO_EDIT:-1}"' profile_run.sh
+          grep -q 'STANDARD_ROLLBACK' profile_run.sh
+          grep -q 'SAP_PROFESSIONAL_ENFORCE", "0"' professional_quality_gate.py
+          echo "PROFESSIONAL_PIPELINE_CONTRACT=PASS"
+
+      - name: FFmpeg Capabilities
+        shell: bash
+        run: |
+          set -euo pipefail
+          ffmpeg -hide_banner -filters 2>/dev/null | grep -q loudnorm
+          ffmpeg -hide_banner -filters 2>/dev/null | grep -q sidechaincompress
+          ffmpeg -hide_banner -filters 2>/dev/null | grep -q xfade
+          ffmpeg -hide_banner -filters 2>/dev/null | grep -q zoompan
+          echo "PORTABLE_FFMPEG_CAPABILITIES=PASS"
+
+      - name: Final Summary
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          echo "======================================"
+          echo "SHORTAUTOPRO PORTABLE VALIDATION FINISHED"
+          echo "SHA=${GITHUB_SHA}"
+          echo "======================================"
