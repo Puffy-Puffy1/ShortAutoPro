@@ -1,11 +1,10 @@
-import os
-import subprocess
 import unittest
-from unittest import mock
+from pathlib import Path
 
-import v6_runtime
-from v6_runtime import render_timeout, run_renderer, validate_probe
+import production_manifest as manifest
 
+
+ROOT = Path(__file__).resolve().parents[1]
 
 GOOD_PROBE = {
     "streams": [
@@ -22,57 +21,55 @@ GOOD_PROBE = {
 }
 
 
-class V6RuntimeTests(unittest.TestCase):
-    def test_valid_probe_passes(self):
-        self.assertEqual(validate_probe(GOOD_PROBE), [])
+class CanonicalRenderContractTests(unittest.TestCase):
+    def test_valid_probe_is_parsed_as_professional_contract(self):
+        duration, width, height, fps, video_codec, audio_codec = manifest.inspect_video(GOOD_PROBE)
+        self.assertEqual((width, height), (1080, 1920))
+        self.assertAlmostEqual(fps, 30.0)
+        self.assertEqual(video_codec, "h264")
+        self.assertEqual(audio_codec, "aac")
+        self.assertEqual(duration, 45.0)
 
-    def test_missing_audio_blocks(self):
+    def test_missing_audio_is_visible_to_fail_closed_manifest(self):
         probe = {"streams": [GOOD_PROBE["streams"][0]], "format": {"duration": "45"}}
-        self.assertIn("audio_stream_missing", validate_probe(probe))
+        *_, audio_codec = manifest.inspect_video(probe)
+        self.assertEqual(audio_codec, "")
 
-    def test_bad_resolution_and_duration_block(self):
+    def test_bad_resolution_and_duration_are_exposed(self):
         probe = {
             "streams": [
                 {
                     "codec_type": "video",
+                    "codec_name": "h264",
                     "width": 720,
                     "height": 1280,
                     "avg_frame_rate": "30/1",
                 },
-                {"codec_type": "audio"},
+                {"codec_type": "audio", "codec_name": "aac"},
             ],
             "format": {"duration": "181"},
         }
-        errors = validate_probe(probe)
-        self.assertTrue(any(x.startswith("resolution_invalid=") for x in errors))
-        self.assertTrue(any(x.startswith("duration_invalid=") for x in errors))
+        duration, width, height, fps, _, _ = manifest.inspect_video(probe)
+        self.assertEqual((width, height), (720, 1280))
+        self.assertAlmostEqual(fps, 30.0)
+        self.assertEqual(duration, 181.0)
 
-    def test_render_timeout_is_bounded_in_standard_mode(self):
-        with mock.patch.dict(os.environ, {"SAP_PRO_EDIT": "0", "SHORT_RENDER_TIMEOUT": "10"}, clear=False):
-            self.assertEqual(render_timeout(), 120)
-        with mock.patch.dict(os.environ, {"SAP_PRO_EDIT": "0", "SHORT_RENDER_TIMEOUT": "99999"}, clear=False):
-            self.assertEqual(render_timeout(), 1800)
+    def test_manifest_keeps_original_v6_technical_guards(self):
+        source = (ROOT / "production_manifest.py").read_text(encoding="utf-8")
+        self.assertIn('"resolution_ok": width == 1080 and height == 1920', source)
+        self.assertIn('"fps_ok": 29.0 <= fps <= 31.0', source)
+        self.assertIn('"video_codec_ok": video_codec_normalized == "h264"', source)
+        self.assertIn('"audio_codec_ok": audio_codec_normalized == "aac"', source)
+        self.assertIn('"duration_ok": 15.0 <= duration <= 180.0', source)
 
-    def test_render_timeout_is_bounded_in_professional_mode(self):
-        with mock.patch.dict(os.environ, {"SAP_PRO_EDIT": "1", "SHORT_RENDER_TIMEOUT": "10"}, clear=False):
-            self.assertEqual(render_timeout(), 180)
-        with mock.patch.dict(os.environ, {"SAP_PRO_EDIT": "1", "SHORT_RENDER_TIMEOUT": "99999"}, clear=False):
-            self.assertEqual(render_timeout(), 2400)
-
-    def test_renderer_target_switches_without_duplicate_runtime(self):
-        with mock.patch.dict(os.environ, {"SAP_PRO_EDIT": "1"}, clear=False):
-            self.assertEqual(v6_runtime.renderer_target().name, "v6_professional.py")
-            self.assertEqual(v6_runtime.renderer_mode(), "PROFESSIONAL")
-        with mock.patch.dict(os.environ, {"SAP_PRO_EDIT": "0"}, clear=False):
-            self.assertEqual(v6_runtime.renderer_target().name, "v6.py")
-            self.assertEqual(v6_runtime.renderer_mode(), "STANDARD_ROLLBACK")
-
-    @mock.patch("v6_runtime.subprocess.Popen")
-    def test_renderer_stdin_is_detached(self, popen):
-        process = popen.return_value
-        process.wait.return_value = 0
-        self.assertEqual(run_renderer(120), 0)
-        self.assertEqual(popen.call_args.kwargs["stdin"], subprocess.DEVNULL)
+    def test_main_has_only_the_professional_renderer_route(self):
+        source = (ROOT / "main.py").read_text(encoding="utf-8")
+        self.assertIn('p.run("10 - FINAL RENDER V6 PROFESSIONAL", "v6_professional.py"', source)
+        self.assertNotIn("v6_runtime.py", source)
+        self.assertNotIn('"v6.py"', source)
+        self.assertNotIn("SAP_PRO_EDIT", source)
+        self.assertFalse((ROOT / "v6_runtime.py").exists())
+        self.assertFalse((ROOT / "v6.py").exists())
 
 
 if __name__ == "__main__":
