@@ -15,6 +15,13 @@ SID=os.getenv("SHORT_ID",date.today().isoformat()).strip()
 R=BASE/"roteiros"; SCRIPT=R/f"short_{SID}.txt"; MAP=R/f"scene_map_{SID}.json"; PLAN=R/f"pro_edit_plan_{SID}.json"; REPORT=R/f"retention_{SID}.json"
 
 
+def env_float(name:str,default:float,minimum:float,maximum:float)->float:
+    try:value=float(os.getenv(name,str(default)))
+    except (TypeError,ValueError):value=default
+    if not math.isfinite(value):value=default
+    return max(minimum,min(maximum,value))
+
+
 def atomic(path:Path,payload:Any)->None:
     path.parent.mkdir(parents=True,exist_ok=True); fd,tmp=tempfile.mkstemp(prefix=f".{path.name}.",suffix=".tmp",dir=str(path.parent))
     try:
@@ -75,8 +82,10 @@ def score()->dict[str,Any]:
     if pscenes:
         vals=[]
         for x in pscenes:
-            try: vals.append(round(float(x.get("pace_multiplier",1.0)),2))
-            except Exception: pass
+            try:
+                value=float(x.get("pace_multiplier",1.0))
+                if math.isfinite(value):vals.append(round(value,2))
+            except (TypeError,ValueError):pass
         if len(set(vals))<3: pace-=18; issues.append("pacing_variety_low")
         runs=0
         for i in range(2,len(vals)):
@@ -84,9 +93,9 @@ def score()->dict[str,Any]:
         pace-=min(20,runs*5)
 
     total=round(0.22*hook+0.16*language+0.18*micro_score+0.12*payoff+0.20*visual+0.12*pace,1)
-    minimum=float(os.getenv("SAP_RETENTION_MIN_SCORE","78"))
+    minimum=env_float("SAP_RETENTION_MIN_SCORE",78.0,60.0,95.0)
     status="PASS" if total>=minimum else "REVIEW" if total>=70 else "BLOCK"
-    return {"short_id":SID,"version":"1.0","retention_score":total,"threshold":minimum,"status":status,"components":{"hook":round(hook,1),"language":round(language,1),"micro_hooks":round(micro_score,1),"payoff":round(payoff,1),"visual_change":round(visual,1),"pacing":round(pace,1)},"metrics":{"sentence_count":len(sents),"long_sentences":long,"very_long_sentences":very_long,"micro_hooks":micro,"visual_query_uniqueness":round(unique_q,3)},"issues":issues}
+    return {"short_id":SID,"version":"1.1","retention_score":total,"threshold":minimum,"status":status,"components":{"hook":round(hook,1),"language":round(language,1),"micro_hooks":round(micro_score,1),"payoff":round(payoff,1),"visual_change":round(visual,1),"pacing":round(pace,1)},"metrics":{"sentence_count":len(sents),"long_sentences":long,"very_long_sentences":very_long,"micro_hooks":micro,"visual_query_uniqueness":round(unique_q,3)},"issues":issues}
 
 
 def repair_pacing(report:dict[str,Any])->list[str]:
@@ -97,7 +106,9 @@ def repair_pacing(report:dict[str,Any])->list[str]:
     for i,item in enumerate(scenes):
         if not isinstance(item,dict): continue
         role=str(item.get("narrative_role","")).lower()
-        current=float(item.get("pace_multiplier",1.0) or 1.0)
+        try:current=float(item.get("pace_multiplier",1.0) or 1.0)
+        except (TypeError,ValueError):current=1.0
+        if not math.isfinite(current):current=1.0
         target=current
         if role in {"hook","cold_open","escalation"}: target=min(current,0.94)
         elif role in {"evidence","reveal","payoff","conclusion"}: target=max(current,1.04)
@@ -106,7 +117,7 @@ def repair_pacing(report:dict[str,Any])->list[str]:
         if abs(target-current)>=0.015:
             item["pace_multiplier"]=target; changes.append(f"scene_{i+1}:{current:.2f}->{target:.2f}")
     if changes:
-        plan["retention_repair"]={"version":"1.0","changes":changes}; atomic(PLAN,plan)
+        plan["retention_repair"]={"version":"1.1","changes":changes}; atomic(PLAN,plan)
     return changes
 
 
