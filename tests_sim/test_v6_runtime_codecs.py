@@ -1,10 +1,14 @@
 import unittest
+from pathlib import Path
 
-from v6_runtime import validate_probe
+import production_manifest as manifest
 
 
-class V6RuntimeCodecTests(unittest.TestCase):
-    def test_non_h264_and_non_aac_are_rejected(self):
+ROOT = Path(__file__).resolve().parents[1]
+
+
+class CanonicalCodecContractTests(unittest.TestCase):
+    def test_non_h264_and_non_aac_are_exposed_and_rejected_by_manifest_contract(self):
         probe = {
             "streams": [
                 {
@@ -18,9 +22,13 @@ class V6RuntimeCodecTests(unittest.TestCase):
             ],
             "format": {"duration": "45"},
         }
-        errors = validate_probe(probe)
-        self.assertIn("video_codec_invalid=vp9", errors)
-        self.assertIn("audio_codec_invalid=opus", errors)
+        _, _, _, _, video_codec, audio_codec = manifest.inspect_video(probe)
+        self.assertEqual(video_codec, "vp9")
+        self.assertEqual(audio_codec, "opus")
+
+        source = (ROOT / "production_manifest.py").read_text(encoding="utf-8")
+        self.assertIn('video_codec_normalized == "h264"', source)
+        self.assertIn('audio_codec_normalized == "aac"', source)
 
 
 if __name__ == "__main__":
