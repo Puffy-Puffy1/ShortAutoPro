@@ -33,7 +33,7 @@ class MediaRuntimeAdapterTests(unittest.TestCase):
         self.assertEqual(candidate["description"], candidate["descricao"])
         self.assertEqual(candidate["must_coverage"], 1.0)
 
-        scored = vse.score_candidate(
+        scored = unified._score(
             candidate,
             {
                 "visual_query": "police tape crime scene investigation",
@@ -42,6 +42,7 @@ class MediaRuntimeAdapterTests(unittest.TestCase):
             EMPTY_STATE,
         )
         self.assertGreaterEqual(scored.get("must", 0), 1)
+        self.assertEqual(scored.get("must_verified_hits"), 1)
 
     def test_visual_unified_preserves_structured_must_and_reverifies_it(self):
         scene = unified.scene_from_runtime(
@@ -73,10 +74,14 @@ class MediaRuntimeAdapterTests(unittest.TestCase):
         adapter.normalize_candidate(real_match, must_have=["police tape"])
         adapter.normalize_candidate(false_declared_match, must_have=["police tape"])
 
-        good_score = vse.score_candidate(real_match, scene, EMPTY_STATE)
-        bad_score = vse.score_candidate(false_declared_match, scene, EMPTY_STATE)
+        good_score = unified._score(real_match, scene, EMPTY_STATE)
+        bad_score = unified._score(false_declared_match, scene, EMPTY_STATE)
         self.assertGreaterEqual(good_score.get("must", 0), 1)
+        self.assertEqual(good_score.get("must_verified_hits"), 1)
         self.assertEqual(bad_score.get("must", 0), 0)
+        self.assertEqual(bad_score.get("must_verified_hits"), 0)
+        self.assertIn("police tape", bad_score.get("must_verified_missing", []))
+        self.assertLess(bad_score.get("effective", 0), good_score.get("effective", 0))
 
     def test_contextual_rescue_is_only_valid_in_relaxed_retry(self):
         candidate = {
@@ -199,6 +204,7 @@ class MediaRuntimeAdapterTests(unittest.TestCase):
             self.assertEqual(os.environ["SAP_VSE4_QUERY_EXPANSION"], "1")
             self.assertEqual(os.environ["SAP_VSE42_RESCUE"], "0")
             self.assertEqual(os.environ["SAP_VG4X"], "0")
+            self.assertEqual(os.environ["VISUAL_INTELLIGENCE_MODE"], "SHADOW")
             self.assertTrue(result["query_expansion"])
 
 
