@@ -32,6 +32,13 @@ REQUIRED = {
     "profile_run.sh",
     "resume_short.sh",
     "resume_short_runtime.py",
+    "midia.py",
+    "media_runtime_adapter_v1.py",
+    "vg4x_bridge.py",
+    "visual_engine_unified.py",
+    "visual_query_expansion_v4.py",
+    "visual_query_planner_v4.py",
+    "visual_selection_engine_v4.py",
     "video_professional.py",
     "v6_professional.py",
     "professional_edit_director.py",
@@ -103,9 +110,25 @@ MAIN_FORBIDDEN_TOKENS = {
     '"gerar_short.sh"',
 }
 
+MEDIA_ADAPTER_REQUIRED_TOKENS = {
+    '"SAP_VISUAL_UNIFIED": "1"',
+    '"SAP_VSE42_BRIDGE": "0"',
+    '"SAP_VSE4_QUERY_EXPANSION": "1"',
+    '"SAP_VSE42_RESCUE": "0"',
+    '"SAP_VG4X": "0"',
+    "_sap_contextual_rescue",
+    "SAP_PROVIDER_SKIP",
+    "normalize_candidate",
+}
+
 
 def rel_files() -> set[str]:
     return set(map_active_graph.repo_files())
+
+
+def read_text(path: str) -> str:
+    target = ROOT / path
+    return target.read_text(encoding="utf-8", errors="ignore") if target.is_file() else ""
 
 
 def main() -> int:
@@ -123,10 +146,14 @@ def main() -> int:
     for path in sorted(REQUIRED - files):
         issues.append(f"required_file_missing:{path}")
 
-    main_text = (ROOT / "main.py").read_text(encoding="utf-8", errors="ignore") if (ROOT / "main.py").is_file() else ""
-    profile_text = (ROOT / "profile_run.sh").read_text(encoding="utf-8", errors="ignore") if (ROOT / "profile_run.sh").is_file() else ""
-    resume_text = (ROOT / "resume_short_runtime.py").read_text(encoding="utf-8", errors="ignore") if (ROOT / "resume_short_runtime.py").is_file() else ""
-    gitignore = (ROOT / ".gitignore").read_text(encoding="utf-8", errors="ignore") if (ROOT / ".gitignore").is_file() else ""
+    main_text = read_text("main.py")
+    profile_text = read_text("profile_run.sh")
+    resume_text = read_text("resume_short_runtime.py")
+    gitignore = read_text(".gitignore")
+    adapter_text = read_text("media_runtime_adapter_v1.py")
+    vg4x_bridge_text = read_text("vg4x_bridge.py")
+    preflight_text = read_text("preflight_check.sh")
+    health_text = read_text("health_check.sh")
 
     for token in sorted(MAIN_REQUIRED_TOKENS):
         if token not in main_text:
@@ -144,6 +171,25 @@ def main() -> int:
     for token in ("STANDARD_ROLLBACK", "SAP_PRO_EDIT", '"video.py"', '"v6_runtime.py"'):
         if token in resume_text:
             issues.append(f"resume_legacy_token:{token}")
+
+    # Canonical media runtime: query expansion may enrich the pool, but only
+    # Visual Unified is allowed to make the production rerank decision.
+    for token in sorted(MEDIA_ADAPTER_REQUIRED_TOKENS):
+        if token not in adapter_text:
+            issues.append(f"media_runtime_contract_missing:{token}")
+    if "from media_runtime_adapter_v1 import install as install_media_runtime" not in vg4x_bridge_text:
+        issues.append("vg4x_bridge_not_routed_to_media_adapter")
+    if 'os.getenv("SAP_VG4X_LEGACY", "0") == "1"' not in vg4x_bridge_text:
+        issues.append("vg4x_legacy_not_opt_in")
+    for text_name, text in (("preflight", preflight_text), ("health", health_text)):
+        for token in (
+            "media_runtime_adapter_v1.py",
+            "vg4x_bridge.py",
+            "visual_engine_unified.py",
+            "visual_query_expansion_v4.py",
+        ):
+            if token not in text:
+                issues.append(f"{text_name}_media_runtime_missing:{token}")
 
     ignore_lines = set(gitignore.splitlines())
     for rule in sorted(REQUIRED_IGNORE_RULES):
