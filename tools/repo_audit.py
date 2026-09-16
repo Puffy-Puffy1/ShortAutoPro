@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed repository architecture audit for ShortAutoPro Consolidation 3.0."""
+"""Fail-closed repository architecture audit for ShortAutoPro Consolidation 3.1."""
 from __future__ import annotations
 
 import json
@@ -59,6 +59,7 @@ REQUIRED = {
     "storage_manager.py",
     "shortautopro_evolution.py",
     "shortautopro_evolution_core.py",
+    "automation/termux_bridge.sh",
 }
 
 REQUIRED_IGNORE_RULES = {
@@ -99,6 +100,9 @@ MAIN_REQUIRED_TOKENS = {
     "professional_quality_gate.py",
     "release_gate.py",
     "storage_manager.py",
+    'PRODUCTION_LOCK_PATH = LOCK_DIR / "production.lock"',
+    '"VISUAL_INTELLIGENCE_MODE": "SHADOW"',
+    'os.environ["SAP_PRODUCTION_LOCK_HELD"] = self.sid',
 }
 
 MAIN_FORBIDDEN_TOKENS = {
@@ -108,6 +112,7 @@ MAIN_FORBIDDEN_TOKENS = {
     '"v6.py"',
     '"v6_runtime.py"',
     '"gerar_short.sh"',
+    'LOCK_DIR / "runs"',
 }
 
 MEDIA_ADAPTER_V1_REQUIRED_TOKENS = {
@@ -153,6 +158,41 @@ MUST_VERIFIER_REQUIRED_TOKENS = {
     "visual_query",
 }
 
+RESUME_REQUIRED_TOKENS = {
+    "evolution_states",
+    "pipeline_states",
+    "_state_sid",
+    "_state_status",
+    'SAP_RELEASE_ENFORCE',
+    "storage_manager.py",
+}
+
+BRIDGE_REQUIRED_TOKENS = {
+    'PRODUCTION_LOCK="$PROJECT_DIR/.locks/production.lock"',
+    "BRIDGE_SKIP=production_active",
+    "flock -n 8",
+    "python tools/repo_audit.py",
+    "git merge --ff-only",
+}
+
+RELEASE_REQUIRED_TOKENS = {
+    "required_report_missing:",
+    "missing_reports",
+    "final_audio",
+    "visual_qa",
+    "professional_quality",
+    "media_quality_not_pass",
+    "legacy_final_quality_not_approved",
+}
+
+STORAGE_REQUIRED_TOKENS = {
+    'PRODUCTION_LOCK = BASE / ".locks" / "production.lock"',
+    "class CleanupGuard",
+    "SAP_PRODUCTION_LOCK_HELD",
+    "cleanup bloqueado: produção/atualização ativa",
+    '"status"] = "WARN" if result["errors"] else "PASS"',
+}
+
 
 def rel_files() -> set[str]:
     return set(map_active_graph.repo_files())
@@ -188,6 +228,9 @@ def main() -> int:
     vg4x_bridge_text = read_text("vg4x_bridge.py")
     preflight_text = read_text("preflight_check.sh")
     health_text = read_text("health_check.sh")
+    bridge_text = read_text("automation/termux_bridge.sh")
+    release_text = read_text("release_gate.py")
+    storage_text = read_text("storage_manager.py")
 
     for token in sorted(MAIN_REQUIRED_TOKENS):
         if token not in main_text:
@@ -205,10 +248,10 @@ def main() -> int:
     for token in ("STANDARD_ROLLBACK", "SAP_PRO_EDIT", '"video.py"', '"v6_runtime.py"'):
         if token in resume_text:
             issues.append(f"resume_legacy_token:{token}")
+    for token in sorted(RESUME_REQUIRED_TOKENS):
+        if token not in resume_text:
+            issues.append(f"resume_safety_contract_missing:{token}")
 
-    # Canonical media runtime: V1 owns normalization/strict MUST verification;
-    # V2 is the production reliability layer that preserves Visual Unified as
-    # the single winner authority while query expansion only enriches pools.
     for token in sorted(MEDIA_ADAPTER_V1_REQUIRED_TOKENS):
         if token not in adapter_v1_text:
             issues.append(f"media_runtime_v1_contract_missing:{token}")
@@ -224,6 +267,8 @@ def main() -> int:
         issues.append("visual_unified_missing_must_score_recalibration")
     if "from media_runtime_adapter_v2 import install as install_media_runtime" not in vg4x_bridge_text:
         issues.append("vg4x_bridge_not_routed_to_media_adapter_v2")
+    if "MEDIA_RUNTIME_CANONICAL=FAIL_CLOSED" not in vg4x_bridge_text or "raise SystemExit(70)" not in vg4x_bridge_text:
+        issues.append("canonical_media_adapter_not_fail_closed")
     if 'os.getenv("SAP_VG4X_LEGACY", "0") == "1"' not in vg4x_bridge_text:
         issues.append("vg4x_legacy_not_opt_in")
 
@@ -239,6 +284,16 @@ def main() -> int:
             if token not in text:
                 issues.append(f"{text_name}_media_runtime_missing:{token}")
 
+    for token in sorted(BRIDGE_REQUIRED_TOKENS):
+        if token not in bridge_text:
+            issues.append(f"termux_bridge_safety_missing:{token}")
+    for token in sorted(RELEASE_REQUIRED_TOKENS):
+        if token not in release_text:
+            issues.append(f"release_fail_closed_missing:{token}")
+    for token in sorted(STORAGE_REQUIRED_TOKENS):
+        if token not in storage_text:
+            issues.append(f"storage_safety_missing:{token}")
+
     ignore_lines = set(gitignore.splitlines())
     for rule in sorted(REQUIRED_IGNORE_RULES):
         if rule not in ignore_lines:
@@ -250,15 +305,14 @@ def main() -> int:
     if "main.py" not in active:
         issues.append("main_not_active")
 
-    # Consolidation 3.0.1 rule: tracked operational code may not be orphaned.
-    # Tests and workflows are graph seeds, so any remaining .py/.sh entry here
-    # is neither production-reachable nor test-reachable and must be removed or
-    # deliberately wired into the canonical architecture.
+    # Tracked operational code may not be orphaned. Tests/workflows are graph
+    # seeds, so any remaining .py/.sh entry here is neither production- nor
+    # test-reachable and must be removed or deliberately wired in.
     for path in inactive:
         issues.append(f"inactive_code:{path}")
 
     payload = {
-        "version": "CONSOLIDATION_3_0_2_AUDIT",
+        "version": "CONSOLIDATION_3_1_AUDIT",
         "scope": "tracked_git_files",
         "status": "PASS" if not issues else "FAIL",
         "files": len(files),
