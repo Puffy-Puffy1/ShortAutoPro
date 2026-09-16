@@ -102,19 +102,24 @@ def _strict_must_into_candidate(candidate: dict[str, Any], must: list[str]) -> N
         return
 
     try:
-        declared = int(candidate.get("must_hits", 0) or 0)
+        current_declared = int(candidate.get("must_hits", 0) or 0)
     except (TypeError, ValueError):
-        declared = 0
+        current_declared = 0
+
+    try:
+        original_declared = int(candidate.get("_sap_declared_must_hits", current_declared) or 0)
+    except (TypeError, ValueError):
+        original_declared = current_declared
 
     check = verified_must(candidate, {"must_have": must})
     verified = int(check.get("hits", 0) or 0)
     total = max(1, int(check.get("total", len(must)) or len(must)))
 
-    candidate.setdefault("_sap_declared_must_hits", declared)
+    candidate.setdefault("_sap_declared_must_hits", original_declared)
     candidate["_sap_verified_must_hits"] = verified
     candidate["_sap_verified_must_missing"] = list(check.get("missing", []))
     candidate["_sap_must_total"] = total
-    candidate["_sap_must_corrected"] = verified != declared
+    candidate["_sap_must_corrected"] = verified != original_declared
     candidate["must_hits"] = verified
     candidate["must_coverage"] = max(0.0, min(1.0, verified / total))
 
