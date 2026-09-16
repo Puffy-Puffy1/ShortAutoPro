@@ -31,7 +31,8 @@ ARQUIVOS=(
     visual_shot_bridge.py visual_shot_policy.py visual_editorial_policy.py
     visual_risk_guard.py editorial_continuity.py visual_continuity_engine.py scene_lossless_repair.py post_script_truth_lock.py
     semantic_integrity_gate.py wikimedia_source.py wikimedia_query_bridge.py source_router.py evidence_guard.py
-    midia.py visual_pipeline_bridge_v42.py visual_selection_engine_v4.py visual_intelligence_6.py
+    midia.py media_runtime_adapter_v1.py media_must_verifier.py vg4x_bridge.py visual_engine_unified.py
+    visual_query_expansion_v4.py visual_query_planner_v4.py visual_pipeline_bridge_v42.py visual_selection_engine_v4.py visual_intelligence_6.py
     vi6_8_runtime_policy.py vi6_9_runtime_policy.py media_master_gate.py visual_score_engine.py
     motion_director.py rhythm_director.py professional_edit_director.py professional_edit_repair.py
     multi_asset_director.py retention_engine.py sound_design_engine.py production_supervisor.py editorial_gate.py
@@ -96,6 +97,12 @@ for name in (
     "topic_reserve",
     "source_identity",
     "wiki_client",
+    "visual_selection_engine_v4",
+    "media_must_verifier",
+    "visual_engine_unified",
+    "visual_query_expansion_v4",
+    "media_runtime_adapter_v1",
+    "vg4x_bridge",
     "visual_continuity_engine",
     "visual_score_engine",
     "retention_engine",

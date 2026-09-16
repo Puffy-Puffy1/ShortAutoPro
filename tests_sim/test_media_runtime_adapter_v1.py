@@ -1,0 +1,285 @@
+import os
+import unittest
+from unittest import mock
+
+import media_runtime_adapter_v1 as adapter
+import visual_engine_unified as unified
+
+
+EMPTY_STATE = {"providers": [], "groups": [], "types": [], "keys": []}
+
+
+class MediaRuntimeAdapterTests(unittest.TestCase):
+    def setUp(self):
+        adapter._PROVIDER_SKIP_PRINTED.clear()
+
+    def test_normalizes_portuguese_candidate_fields_and_verified_must(self):
+        candidate = {
+            "fonte": "Pixabay",
+            "tipo": "foto",
+            "descricao": "yellow police tape around a crime scene",
+            "score": 50.0,
+            "must_hits": 1,
+            "avoid_hits": 0,
+        }
+        adapter.normalize_candidate(
+            candidate,
+            query="police tape crime scene",
+            must_have=["police tape"],
+        )
+        self.assertEqual(candidate["provider"], "Pixabay")
+        self.assertEqual(candidate["media_type"], "photo")
+        self.assertEqual(candidate["description"], candidate["descricao"])
+        self.assertEqual(candidate["_sap_declared_must_hits"], 1)
+        self.assertEqual(candidate["_sap_verified_must_hits"], 1)
+        self.assertEqual(candidate["must_hits"], 1)
+        self.assertEqual(candidate["must_coverage"], 1.0)
+
+        scored = unified._score(
+            candidate,
+            {
+                "visual_query": "police tape crime scene investigation",
+                "must_have": ["police tape"],
+            },
+            EMPTY_STATE,
+        )
+        self.assertGreaterEqual(scored.get("must", 0), 1)
+        self.assertEqual(scored.get("must_verified_hits"), 1)
+
+    def test_false_provider_must_is_corrected_before_legacy_filters(self):
+        candidate = {
+            "fonte": "Pixabay",
+            "tipo": "foto",
+            "descricao": "detective writing notes inside an office",
+            "score": 90.0,
+            "must_hits": 1,
+            "avoid_hits": 0,
+        }
+        adapter.normalize_candidate(candidate, must_have=["police tape"])
+        self.assertEqual(candidate["_sap_declared_must_hits"], 1)
+        self.assertEqual(candidate["_sap_verified_must_hits"], 0)
+        self.assertEqual(candidate["must_hits"], 0)
+        self.assertEqual(candidate["must_coverage"], 0.0)
+        self.assertTrue(candidate["_sap_must_corrected"])
+        self.assertIn("police tape", candidate["_sap_verified_must_missing"])
+
+    def test_visual_unified_preserves_structured_must_and_reverifies_it(self):
+        scene = unified.scene_from_runtime(
+            {
+                "segmento": "Police investigated the museum gallery.",
+                "busca": "police tape crime scene investigation museum gallery",
+                "must_have": ["police tape"],
+                "avoid": ["medical pills"],
+                "visual_mode": "evidence",
+            }
+        )
+        self.assertEqual(scene["must_have"], ["police tape"])
+        self.assertEqual(scene["visual_query"], "police tape crime scene investigation museum gallery")
+
+        real_match = {
+            "fonte": "Pixabay",
+            "tipo": "foto",
+            "descricao": "yellow police tape around crime scene",
+            "score": 50,
+            "must_hits": 1,
+        }
+        false_declared_match = {
+            "fonte": "Pixabay",
+            "tipo": "foto",
+            "descricao": "detective writing notes inside an office",
+            "score": 90,
+            "must_hits": 1,
+        }
+        adapter.normalize_candidate(real_match, must_have=["police tape"])
+        adapter.normalize_candidate(false_declared_match, must_have=["police tape"])
+
+        good_score = unified._score(real_match, scene, EMPTY_STATE)
+        bad_score = unified._score(false_declared_match, scene, EMPTY_STATE)
+        self.assertGreaterEqual(good_score.get("must", 0), 1)
+        self.assertEqual(good_score.get("must_verified_hits"), 1)
+        self.assertEqual(bad_score.get("must", 0), 0)
+        self.assertEqual(bad_score.get("must_verified_hits"), 0)
+        self.assertIn("police tape", bad_score.get("must_verified_missing", []))
+        self.assertLess(bad_score.get("effective", 0), good_score.get("effective", 0))
+
+    def test_false_declared_must_can_enter_only_contextual_relaxed_rescue(self):
+        candidate = {
+            "fonte": "Pixabay",
+            "tipo": "foto",
+            "descricao": "police crime investigation detective evidence",
+            "score": 46.0,
+            "must_hits": 1,
+            "avoid_hits": 0,
+            "id": "ctx-false-must",
+            "url": "https://cdn.pixabay.com/example.jpg",
+        }
+
+        def search(busca, must_have, avoid, segmento="", visual_mode=""):
+            return [dict(candidate)]
+
+        def validator(candidato, total_must, relaxado=False):
+            return int(candidato.get("must_hits", 0) or 0) > 0
+
+        def metadata(_candidate):
+            return True
+
+        ns = {
+            "buscar_todos_candidatos": search,
+            "candidato_semanticamente_valido": validator,
+            "metadata_confiavel": metadata,
+            "PEXELS_KEY": "",
+            "USAR_PEXELS": True,
+        }
+        adapter.install(ns)
+        pool = ns["buscar_todos_candidatos"](
+            "police tape crime investigation",
+            ["police tape"],
+            [],
+            visual_mode="evidence",
+        )
+        rescued = pool[0]
+        self.assertEqual(rescued["_sap_declared_must_hits"], 1)
+        self.assertEqual(rescued["must_hits"], 0)
+        self.assertTrue(rescued.get("_sap_contextual_rescue"))
+        self.assertFalse(ns["candidato_semanticamente_valido"](rescued, 1, relaxado=False))
+        self.assertTrue(ns["candidato_semanticamente_valido"](rescued, 1, relaxado=True))
+        self.assertFalse(ns["metadata_confiavel"](rescued))
+
+    def test_contextual_rescue_is_only_valid_in_relaxed_retry(self):
+        candidate = {
+            "fonte": "Pixabay",
+            "tipo": "foto",
+            "descricao": "police crime investigation detective evidence",
+            "score": 46.0,
+            "must_hits": 0,
+            "avoid_hits": 0,
+            "id": "ctx-1",
+            "url": "https://cdn.pixabay.com/example.jpg",
+        }
+
+        def search(busca, must_have, avoid, segmento="", visual_mode=""):
+            return [dict(candidate)]
+
+        def validator(candidato, total_must, relaxado=False):
+            return int(candidato.get("must_hits", 0) or 0) > 0
+
+        def metadata(_candidate):
+            return True
+
+        ns = {
+            "buscar_todos_candidatos": search,
+            "candidato_semanticamente_valido": validator,
+            "metadata_confiavel": metadata,
+            "PEXELS_KEY": "",
+            "USAR_PEXELS": True,
+        }
+
+        with mock.patch.dict(os.environ, {}, clear=False):
+            result = adapter.install(ns)
+            pool = ns["buscar_todos_candidatos"](
+                "police tape crime investigation",
+                ["police tape"],
+                [],
+                visual_mode="evidence",
+            )
+
+        self.assertTrue(result["installed"])
+        self.assertEqual(len(pool), 1)
+        rescued = pool[0]
+        self.assertTrue(rescued.get("_sap_contextual_rescue"))
+        self.assertEqual(rescued.get("must_hits"), 0)
+        self.assertFalse(ns["candidato_semanticamente_valido"](rescued, 1, relaxado=False))
+        self.assertTrue(ns["candidato_semanticamente_valido"](rescued, 1, relaxado=True))
+        self.assertFalse(ns["metadata_confiavel"](rescued))
+
+    def test_literal_must_candidate_is_not_marked_as_contextual_rescue(self):
+        candidate = {
+            "fonte": "Pixabay",
+            "tipo": "foto",
+            "descricao": "police tape crime scene",
+            "score": 80.0,
+            "must_hits": 1,
+            "avoid_hits": 0,
+        }
+        marked = adapter._mark_contextual_rescue(
+            [candidate],
+            "police tape crime investigation",
+            ["police tape"],
+            "evidence",
+        )
+        self.assertFalse(marked[0].get("_sap_contextual_rescue", False))
+
+    def test_contextual_rescue_rejects_avoid_and_identity_risk(self):
+        avoid_candidate = {
+            "descricao": "police crime investigation",
+            "score": 80,
+            "must_hits": 0,
+            "avoid_hits": 1,
+        }
+        ok, _, reason = adapter._contextual_metrics(
+            avoid_candidate,
+            "police tape",
+            ["police tape"],
+            "evidence",
+        )
+        self.assertFalse(ok)
+        self.assertEqual(reason, "AVOID_HIT")
+
+        identity_candidate = {
+            "descricao": "generic portrait woman",
+            "score": 80,
+            "must_hits": 0,
+            "avoid_hits": 0,
+        }
+        ok, _, reason = adapter._contextual_metrics(
+            identity_candidate,
+            "specific historical woman portrait",
+            ["woman portrait"],
+            "named person identity",
+        )
+        self.assertFalse(ok)
+        self.assertEqual(reason, "IDENTITY_SENSITIVE")
+
+    def test_missing_pexels_key_skips_provider_without_calling_original(self):
+        called = {"value": False}
+
+        def pexels_video(busca, must_have, avoid):
+            called["value"] = True
+            return [{"id": "should-not-run"}]
+
+        ns = {
+            "pexels_video": pexels_video,
+            "PEXELS_KEY": "",
+            "USAR_PEXELS": True,
+        }
+        adapter.install(ns)
+        result = ns["pexels_video"]("museum", [], [])
+        self.assertEqual(result, [])
+        self.assertFalse(called["value"])
+
+    def test_install_keeps_only_one_decision_authority(self):
+        ns = {}
+        with mock.patch.dict(os.environ, {}, clear=False):
+            result = adapter.install(ns)
+            expected = {
+                "SAP_VISUAL_UNIFIED": "1",
+                "SAP_VSE4": "0",
+                "SAP_VSE4_RESCUE": "0",
+                "SAP_VSE_V42": "0",
+                "SAP_VSE42": "0",
+                "SAP_VSE42_RUNTIME": "0",
+                "SAP_VSE42_BRIDGE": "0",
+                "SAP_VSE42_RESCUE": "0",
+                "SAP_VSE4_QUERY_EXPANSION": "1",
+                "SAP_VG4X": "0",
+                "VISUAL_INTELLIGENCE_MODE": "SHADOW",
+            }
+            for key, value in expected.items():
+                self.assertEqual(os.environ[key], value, key)
+            self.assertTrue(result["query_expansion"])
+            self.assertFalse(result["legacy_vse4"])
+            self.assertFalse(result["legacy_vse42"])
+
+
+if __name__ == "__main__":
+    unittest.main()

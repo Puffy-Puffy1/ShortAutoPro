@@ -1,645 +1,258 @@
 #!/usr/bin/env python3
+"""ShortAutoPro Visual Engine Unified V5.2.
 
+Sole production reranker between media acquisition and scene commit. Explicit
+scene MUST requirements are re-verified from real asset evidence and override
+legacy provider-declared must_hits/must_coverage values.
 """
-ShortAutoPro Visual Engine Unified V5.
+from __future__ import annotations
 
-Única fachada entre midia.py e o motor visual.
-
-Responsabilidades:
-- normalizar contexto da cena
-- reranquear pool
-- bloquear mismatch forte
-- diversidade entre cenas
-- persistir commits
-- fail-open
-
-Não baixa mídia.
-Não renderiza vídeo.
-"""
-
-from pathlib import Path
 import json
 import os
 import tempfile
-
-
-ROOT = (
-    Path.home()
-    / "ShortAutoPro"
-)
-
+from pathlib import Path
+from typing import Any
 
 import visual_selection_engine_v4 as vse
+from media_must_verifier import verified_must
+
+ROOT = Path.home() / "ShortAutoPro"
+VERSION = "5.2"
+_MUST_WEIGHT = 115.0  # same weight used by the legacy VSE effective score
 
 
-VERSION = "5.0"
-
-
-def _sid(ctx=None):
-
-    if isinstance(
-        ctx,
-        dict,
-    ):
-
-        for key in (
-            "SHORT_ID",
-            "short_id",
-        ):
-
-            value = ctx.get(
-                key
-            )
-
+def _sid(ctx: Any = None) -> str:
+    if isinstance(ctx, dict):
+        for key in ("SHORT_ID", "short_id"):
+            value = ctx.get(key)
             if value:
                 return str(value)
+    return os.getenv("SHORT_ID", "default")
 
 
-    return os.getenv(
-        "SHORT_ID",
-        "default",
-    )
+def _state_path(sid: str) -> Path:
+    return ROOT / "temp" / f"visual_unified_state_{sid}.json"
 
 
-def _state_path(sid):
-
-    return (
-        ROOT
-        / "temp"
-        / f"visual_unified_state_{sid}.json"
-    )
+def _empty_state() -> dict[str, list[Any]]:
+    return {"providers": [], "groups": [], "types": [], "keys": []}
 
 
-def _empty_state():
-
-    return {
-        "providers": [],
-        "groups": [],
-        "types": [],
-        "keys": [],
-    }
-
-
-def _load_state(sid):
-
-    path = _state_path(
-        sid
-    )
-
+def _load_state(sid: str) -> dict[str, list[Any]]:
+    path = _state_path(sid)
     if not path.is_file():
         return _empty_state()
-
-
     try:
-
-        data = json.loads(
-            path.read_text(
-                encoding="utf-8"
-            )
-        )
-
+        data = json.loads(path.read_text(encoding="utf-8"))
     except Exception:
-
         return _empty_state()
-
-
     state = _empty_state()
-
-    for key in state:
-
-        value = data.get(
-            key,
-            []
-        )
-
-        if isinstance(
-            value,
-            list,
-        ):
-            state[key] = value[-24:]
-
-
+    if isinstance(data, dict):
+        for key in state:
+            value = data.get(key, [])
+            if isinstance(value, list):
+                state[key] = value[-24:]
     return state
 
 
-def _save_state(
-    sid,
-    state,
-):
-
-    path = _state_path(
-        sid
-    )
-
-    path.parent.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
-
-
-    payload = {
-        key:
-            list(
-                state.get(
-                    key,
-                    [],
-                )
-            )[-24:]
-        for key in (
-            "providers",
-            "groups",
-            "types",
-            "keys",
-        )
-    }
-
-
-    fd, tmp_name = tempfile.mkstemp(
-        prefix=path.name + ".",
-        suffix=".tmp",
-        dir=str(path.parent),
-    )
-
-
+def _save_state(sid: str, state: dict[str, list[Any]]) -> None:
+    path = _state_path(sid)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {key: list(state.get(key, []))[-24:] for key in _empty_state()}
+    fd, tmp_name = tempfile.mkstemp(prefix=path.name + ".", suffix=".tmp", dir=str(path.parent))
     try:
-
-        with os.fdopen(
-            fd,
-            "w",
-            encoding="utf-8",
-        ) as f:
-
-            json.dump(
-                payload,
-                f,
-                ensure_ascii=False,
-                indent=2,
-            )
-
-
-        os.replace(
-            tmp_name,
-            path,
-        )
-
-
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle, ensure_ascii=False, indent=2)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp_name, path)
     finally:
-
         try:
-
-            if os.path.exists(
-                tmp_name
-            ):
-                os.unlink(
-                    tmp_name
-                )
-
-        except Exception:
-
+            if os.path.exists(tmp_name):
+                os.unlink(tmp_name)
+        except OSError:
             pass
 
 
-def _context_value(
-    ctx,
-    names,
-):
-
-    if not isinstance(
-        ctx,
-        dict,
-    ):
+def _context_value(ctx: Any, names: tuple[str, ...]) -> Any:
+    if not isinstance(ctx, dict):
         return None
-
-
     for name in names:
-
-        value = ctx.get(
-            name
-        )
-
-        if value not in (
-            None,
-            "",
-            [],
-            {},
-        ):
+        value = ctx.get(name)
+        if value not in (None, "", [], {}):
             return value
-
-
     return None
 
 
-def scene_from_runtime(ctx):
+def scene_from_runtime(ctx: Any) -> dict[str, Any]:
+    """Build the structured scene contract consumed by canonical scoring."""
+    if not isinstance(ctx, dict):
+        return {"texto": str(ctx or "")}
 
-    pieces = []
+    scene: dict[str, Any] = {}
+    for name in ("cena", "scene"):
+        value = ctx.get(name)
+        if isinstance(value, dict):
+            scene.update(value)
+            break
 
-
-    candidates = (
-
-        (
-            "segmento",
-            "scene",
-            "cena",
-        ),
-
-        (
-            "texto",
-            "text",
-            "narracao",
-            "narration",
-        ),
-
-        (
-            "visual_query",
-            "busca",
-            "query",
-        ),
-
-        (
-            "must_have",
-            "must",
-        ),
-
-        (
-            "location",
-            "local",
-            "geo",
-        ),
-
+    mapping = (
+        ("texto", ("texto", "text", "narracao", "narration", "segmento")),
+        ("visual_query", ("visual_query", "busca", "query")),
+        ("must_have", ("must_have", "must")),
+        ("avoid", ("avoid", "avoid_terms")),
+        ("location", ("location", "local", "geo")),
+        ("visual_mode", ("visual_mode", "modo_visual")),
+        ("topic", ("topic", "tema", "ASSUNTO")),
     )
-
-
-    for group in candidates:
-
-        value = _context_value(
-            ctx,
-            group,
-        )
-
+    for target, names in mapping:
+        value = _context_value(ctx, names)
         if value is not None:
-            pieces.append(
-                value
-            )
+            scene[target] = value
+    return scene
 
 
-    return {
-        "texto":
-            pieces,
-    }
-
-
-def _score(
-    candidate,
-    scene,
-    state,
-):
-
+def _number(value: Any, default: float = 0.0) -> float:
     try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
 
-        result = vse.score_candidate(
-            candidate,
-            scene,
-            state,
+
+def _apply_verified_must(result: dict[str, Any], candidate: Any, scene: Any) -> dict[str, Any]:
+    """Make real asset evidence authoritative for explicit MUST requirements."""
+    check = verified_must(candidate, scene)
+    if not check.get("explicit"):
+        return result
+
+    upgraded = dict(result)
+    old_must = int(max(0, min(2, _number(upgraded.get("must", 0), 0.0))))
+    new_must = int(check.get("tier", 0) or 0)
+    old_effective = _number(upgraded.get("effective", 0.0), 0.0)
+
+    upgraded["must_pre_verification"] = old_must
+    upgraded["must"] = new_must
+    upgraded["must_verified_hits"] = int(check.get("hits", 0) or 0)
+    upgraded["must_verified_total"] = int(check.get("total", 0) or 0)
+    upgraded["must_verified_coverage"] = check.get("coverage", 0.0)
+    upgraded["must_verified_matched"] = list(check.get("matched", []))
+    upgraded["must_verified_missing"] = list(check.get("missing", []))
+
+    # Remove exactly the legacy MUST contribution and add the verified one.
+    # Preserve hard-guard sentinel scores such as -10000.
+    if old_effective > -9000.0:
+        upgraded["effective_pre_must_verification"] = old_effective
+        upgraded["effective"] = round(
+            old_effective + (new_must - old_must) * _MUST_WEIGHT,
+            3,
         )
 
+    if check.get("missing"):
+        reasons = list(upgraded.get("mismatch_reasons", []) or [])
+        marker = "EXPLICIT_MUST_UNVERIFIED"
+        if marker not in reasons:
+            reasons.append(marker)
+        upgraded["mismatch_reasons"] = reasons
 
-        if not isinstance(
-            result,
-            dict,
-        ):
+    return upgraded
+
+
+def _score(candidate: Any, scene: Any, state: dict[str, Any]) -> dict[str, Any]:
+    try:
+        result = vse.score_candidate(candidate, scene, state)
+        if not isinstance(result, dict):
             result = {}
-
-
     except Exception as exc:
-
-        return {
-            "hard_mismatch":
-                False,
-
-            "effective":
-                vse.base_score(
-                    candidate
-                ),
-
-            "must":
-                vse.must_tier(
-                    candidate,
-                    scene,
-                ),
-
-            "error":
-                (
-                    type(exc).__name__
-                    +
-                    ": "
-                    +
-                    str(exc)
-                ),
+        result = {
+            "hard_mismatch": False,
+            "effective": vse.base_score(candidate),
+            "must": vse.must_tier(candidate, scene),
+            "error": f"{type(exc).__name__}: {exc}",
         }
 
-
     if "must" not in result:
+        result["must"] = vse.must_tier(candidate, scene)
+    if "effective" not in result:
+        result["effective"] = vse.base_score(candidate)
 
-        result[
-            "must"
-        ] = vse.must_tier(
-            candidate,
-            scene,
-        )
+    return _apply_verified_must(result, candidate, scene)
 
 
-    return result
-
-
-def rerank_pool_runtime(
-    pool,
-    ctx=None,
-):
-
-    if os.getenv(
-        "SAP_VISUAL_UNIFIED",
-        "1",
-    ) != "1":
-
+def rerank_pool_runtime(pool: Any, ctx: Any = None):
+    if os.getenv("SAP_VISUAL_UNIFIED", "1") != "1":
         return pool
-
-
-    if not isinstance(
-        pool,
-        list,
-    ):
-
+    if not isinstance(pool, list):
         try:
             pool = list(pool)
         except Exception:
             return pool
-
-
     if len(pool) <= 1:
         return pool
 
-
-    scene = scene_from_runtime(
-        ctx or {}
-    )
-
-
-    sid = _sid(
-        ctx
-    )
-
-
-    state = _load_state(
-        sid
-    )
-
-
+    scene = scene_from_runtime(ctx or {})
+    state = _load_state(_sid(ctx))
     ranked = []
+    for index, candidate in enumerate(pool):
+        result = _score(candidate, scene, state)
+        hard = bool(result.get("hard_mismatch", False))
+        must = int(max(0, min(2, _number(result.get("must", 0), 0.0))))
+        effective = _number(result.get("effective", 0.0), 0.0)
+        ranked.append((hard, -must, -effective, index, candidate, result))
 
-
-    for index, candidate in enumerate(
-        pool
-    ):
-
-        result = _score(
-            candidate,
-            scene,
-            state,
-        )
-
-
-        hard = bool(
-            result.get(
-                "hard_mismatch",
-                False,
-            )
-        )
-
-
-        must = result.get(
-            "must",
-            0,
-        )
-
-
-        try:
-            must = int(
-                float(must)
-            )
-        except Exception:
-            must = 0
-
-
-        effective = result.get(
-            "effective",
-            0.0,
-        )
-
-
-        try:
-            effective = float(
-                effective
-            )
-        except Exception:
-            effective = 0.0
-
-
-        ranked.append(
-            (
-                hard,
-                -must,
-                -effective,
-                index,
-                candidate,
-                result,
-            )
-        )
-
-
-    # Se todos forem hard mismatch,
-    # mantém o comportamento anterior.
-    if all(
-        item[0]
-        for item in ranked
-    ):
-
-        print(
-            "VISUAL_UNIFIED="
-            "ALL_HARD_FAIL_OPEN"
-        )
-
+    if all(item[0] for item in ranked):
+        print("VISUAL_UNIFIED=ALL_HARD_FAIL_OPEN")
         return pool
 
-
-    ranked.sort(
-        key=lambda item:
-            (
-                item[0],
-                item[1],
-                item[2],
-                item[3],
-            )
-    )
-
-
-    result_pool = [
-        item[4]
-        for item in ranked
-    ]
-
-
+    ranked.sort(key=lambda item: (item[0], item[1], item[2], item[3]))
+    result_pool = [item[4] for item in ranked]
     winner = ranked[0]
-
     winner_result = winner[5]
 
-
-    print(
-        "VISUAL_UNIFIED_V5=ACTIVE"
-    )
-
-    print(
-        "VISUAL_UNIFIED_POOL="
-        f"{len(pool)}"
-    )
-
-    print(
-        "VISUAL_UNIFIED_WINNER="
-        f"{vse.provider(winner[4])}/"
-        f"{vse.media_type(winner[4])}"
-    )
-
-    print(
-        "VISUAL_UNIFIED_MUST="
-        f"{winner_result.get('must', 0)}"
-    )
-
-    print(
-        "VISUAL_UNIFIED_EFFECTIVE="
-        f"{winner_result.get('effective', 0)}"
-    )
-
-    print(
-        "VISUAL_UNIFIED_HARD="
-        f"{winner_result.get('hard_mismatch', False)}"
-    )
-
-    reasons = winner_result.get(
-        "safety_reasons",
-        [],
-    )
-
-    if reasons:
-
+    print("VISUAL_UNIFIED_V5=ACTIVE")
+    print(f"VISUAL_UNIFIED_POOL={len(pool)}")
+    print(f"VISUAL_UNIFIED_WINNER={vse.provider(winner[4])}/{vse.media_type(winner[4])}")
+    print(f"VISUAL_UNIFIED_MUST={winner_result.get('must', 0)}")
+    if winner_result.get("must_verified_total") is not None:
         print(
-            "VISUAL_UNIFIED_REASONS="
-            +
-            ",".join(
-                map(
-                    str,
-                    reasons,
-                )
-            )
+            "VISUAL_UNIFIED_MUST_VERIFIED="
+            f"{winner_result.get('must_verified_hits', 0)}/"
+            f"{winner_result.get('must_verified_total', 0)}"
         )
+    print(f"VISUAL_UNIFIED_EFFECTIVE={winner_result.get('effective', 0)}")
+    print(f"VISUAL_UNIFIED_HARD={winner_result.get('hard_mismatch', False)}")
 
-
+    reasons = winner_result.get("mismatch_reasons") or winner_result.get("safety_reasons") or []
+    if reasons:
+        print("VISUAL_UNIFIED_REASONS=" + ",".join(map(str, reasons)))
     return result_pool
 
 
-def note_commit_runtime(
-    candidate,
-    ctx=None,
-):
-
-    sid = _sid(
-        ctx
-    )
-
-
-    state = _load_state(
-        sid
-    )
-
-
+def note_commit_runtime(candidate: Any, ctx: Any = None) -> None:
+    sid = _sid(ctx)
+    state = _load_state(sid)
     values = {
-
-        "providers":
-            vse.provider(
-                candidate
-            ),
-
-        "groups":
-            vse.source_group(
-                candidate
-            ),
-
-        "types":
-            vse.media_type(
-                candidate
-            ),
-
-        "keys":
-            vse.candidate_key(
-                candidate
-            ),
+        "providers": vse.provider(candidate),
+        "groups": vse.source_group(candidate),
+        "types": vse.media_type(candidate),
+        "keys": vse.candidate_key(candidate),
     }
-
-
     for bucket, value in values.items():
-
-        if value in (
-            None,
-            "",
-            "unknown",
-        ):
+        if value in (None, "", "unknown"):
             continue
-
-        state[
-            bucket
-        ].append(
-            value
-        )
-
-        state[
-            bucket
-        ] = state[
-            bucket
-        ][-24:]
+        state[bucket].append(value)
+        state[bucket] = state[bucket][-24:]
+    _save_state(sid, state)
+    print("VISUAL_UNIFIED_COMMIT=PASS")
 
 
-    _save_state(
-        sid,
-        state,
-    )
-
-
-    print(
-        "VISUAL_UNIFIED_COMMIT=PASS"
-    )
-
-
-def reset_state(
-    sid,
-):
-
-    path = _state_path(
-        sid
-    )
-
+def reset_state(sid: str) -> None:
     try:
-
-        path.unlink()
-
+        _state_path(sid).unlink()
     except FileNotFoundError:
-
         pass
 
 
 if __name__ == "__main__":
-
-    print(
-        "VISUAL_ENGINE_UNIFIED_V5=PASS"
-    )
-
-    print(
-        f"VERSION={VERSION}"
-    )
+    print("VISUAL_ENGINE_UNIFIED_V5=PASS")
+    print(f"VERSION={VERSION}")
