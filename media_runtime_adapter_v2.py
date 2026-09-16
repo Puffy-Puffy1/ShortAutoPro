@@ -1,21 +1,20 @@
 #!/usr/bin/env python3
-"""ShortAutoPro media runtime reliability layer 3.0.2.
+"""ShortAutoPro media runtime reliability layer 3.0.3.
 
-Installed after media_runtime_adapter_v1.  This layer closes production-only
-Termux gaps without weakening strict MUST verification:
+Installed after media_runtime_adapter_v1. This layer hardens production-only
+Termux behavior without weakening explicit scene truth requirements:
 
-- contextual rescue uses a neutral score that restores only the legacy
-  missing-MUST penalty and never fabricates MUST coverage;
-- a marked rescue is allowed into failover only after the strict/relaxed
-  canonical pool is otherwise empty;
+- contextual rescue is available only after the canonical strict pool is empty;
+- repeated empty Coverr responses open a process-local circuit breaker so one
+  unavailable provider is not called again for every scene/retry;
+- Visual Unified may prefer a video only when it preserves the winning MUST
+  tier, safety constraints and semantic score within a small bounded tolerance;
+- blind previous-scene reuse is disabled by default. A scene with explicit MUST
+  requirements can never silently fall back to an unrelated local asset;
 - the safe Visual Unified winner cannot be rejected by a stale pre-rerank
   reference;
 - retired VSE42 aliases remain passthrough/no-op while query expansion stays
-  available only as candidate enrichment;
-- if every provider and rescue is exhausted, the last successfully validated
-  scene asset may be reused as an explicit low-trust continuity fallback so a
-  single sparse query does not crash an otherwise complete production.  Final
-  QA/release gates still retain authority to repair/block the output.
+  candidate enrichment only.
 """
 from __future__ import annotations
 
@@ -27,7 +26,7 @@ from typing import Any
 
 import media_runtime_adapter_v1 as v1
 
-VERSION = "2.1"
+VERSION = "2.2"
 MISSING_MUST_PENALTY = 20.0
 
 
@@ -54,24 +53,44 @@ def _must_list(value: Any) -> list[str]:
     return [str(item).strip() for item in value if str(item).strip()]
 
 
+def _int(value: Any, default: int = 0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError, OverflowError):
+        return default
+
+
+def _float(value: Any, default: float = 0.0) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError, OverflowError):
+        return default
+
+
+def _media_type(candidate: Any) -> str:
+    if not isinstance(candidate, dict):
+        return ""
+    value = str(
+        candidate.get("media_type")
+        or candidate.get("tipo")
+        or candidate.get("type")
+        or ""
+    ).casefold()
+    if "video" in value or "vídeo" in value:
+        return "video"
+    if any(token in value for token in ("foto", "photo", "image", "imagem")):
+        return "photo"
+    return value
+
+
 def neutral_context_score(candidate: dict[str, Any]) -> float:
     """Return score before only the legacy missing-MUST penalty."""
-    try:
-        base = float(candidate.get("score", 0.0) or 0.0)
-    except (TypeError, ValueError):
-        base = 0.0
-
-    try:
-        total = int(candidate.get("_sap_must_total", 0) or 0)
-    except (TypeError, ValueError):
-        total = 0
-    try:
-        verified = int(
-            candidate.get("_sap_verified_must_hits", candidate.get("must_hits", 0)) or 0
-        )
-    except (TypeError, ValueError):
-        verified = 0
-
+    base = _float(candidate.get("score", 0.0), 0.0)
+    total = _int(candidate.get("_sap_must_total", 0), 0)
+    verified = _int(
+        candidate.get("_sap_verified_must_hits", candidate.get("must_hits", 0)),
+        0,
+    )
     missing = max(0, total - verified)
     return base + (MISSING_MUST_PENALTY * missing)
 
@@ -101,7 +120,12 @@ def _mark_neutral_rescue(
         probe = dict(candidate)
         probe["score"] = neutral
 
-        ok, semantic, _reason = v1._contextual_metrics(probe, query, must, visual_mode)
+        ok, semantic, _reason = v1._contextual_metrics(
+            probe,
+            query,
+            must,
+            visual_mode,
+        )
         if not ok:
             continue
 
@@ -136,6 +160,9 @@ def _wrap_search(namespace: dict[str, Any]) -> bool:
         visual_mode = str(
             _argument(signature, args, kwargs, ("visual_mode", "modo_visual"), "") or ""
         )
+        namespace["_SAP_LAST_SEARCH_QUERY"] = query
+        namespace["_SAP_LAST_SEARCH_MUST"] = _must_list(must)
+        namespace["_SAP_LAST_VISUAL_MODE"] = visual_mode
         result = original(*args, **kwargs)
         return _mark_neutral_rescue(result, query, must, visual_mode)
 
@@ -145,13 +172,14 @@ def _wrap_search(namespace: dict[str, Any]) -> bool:
 
 
 def _wrap_failover(namespace: dict[str, Any]) -> bool:
-    """Expose marked contextual rescue only when canonical failover is empty."""
+    """Expose safe contextual rescue only when canonical failover is empty."""
     original = namespace.get("ordenar_failover_5_2")
     if not callable(original) or getattr(original, "_sap_media_adapter_v2", False):
         return False
 
     @functools.wraps(original)
     def wrapped(candidates, total_must, route, previous_description=""):
+        namespace["_SAP_CURRENT_TOTAL_MUST"] = max(0, _int(total_must, 0))
         result = original(candidates, total_must, route, previous_description)
         if result:
             return result
@@ -193,8 +221,117 @@ def _wrap_failover(namespace: dict[str, Any]) -> bool:
     return True
 
 
+def _wrap_coverr_circuit(namespace: dict[str, Any]) -> bool:
+    """Stop repeatedly calling Coverr after the first empty/unavailable result."""
+    original = namespace.get("coverr_video")
+    if not callable(original) or getattr(original, "_sap_coverr_circuit_v2", False):
+        return False
+
+    state = {"open": False, "skip_printed": False}
+
+    @functools.wraps(original)
+    def wrapped(*args: Any, **kwargs: Any):
+        enabled = os.getenv("SAP_COVERR_CIRCUIT_BREAKER", "1") == "1"
+        if enabled and state["open"]:
+            if not state["skip_printed"]:
+                print("SAP_PROVIDER_SKIP provider=coverr reason=CIRCUIT_OPEN")
+                state["skip_printed"] = True
+            return []
+
+        result = original(*args, **kwargs)
+        if enabled and not result:
+            state["open"] = True
+            print(
+                "SAP_PROVIDER_CIRCUIT_OPEN provider=coverr "
+                "reason=FIRST_EMPTY_RESULT"
+            )
+        return result
+
+    wrapped._sap_coverr_circuit_v2 = True
+    namespace["coverr_video"] = wrapped
+    return True
+
+
+def _motion_balance_result(unified: Any, result: list[Any], ctx: Any) -> list[Any]:
+    """Prefer video only when it preserves semantic/MUST quality."""
+    if os.getenv("SAP_MOTION_BALANCE", "1") != "1":
+        return result
+    if not result or not isinstance(ctx, dict):
+        return result
+
+    videos_total = _int(ctx.get("videos_total"), 0)
+    target = _int(ctx.get("VIDEO_META"), 0)
+    if target <= 0 or videos_total >= target:
+        return result
+
+    if _media_type(result[0]) == "video":
+        return result
+
+    scene = unified.scene_from_runtime(ctx)
+    state = unified._load_state(unified._sid(ctx))
+    winner = result[0]
+    winner_score = unified._score(winner, scene, state)
+    if bool(winner_score.get("hard_mismatch", False)):
+        return result
+
+    winner_must = _int(winner_score.get("must"), 0)
+    winner_effective = _float(winner_score.get("effective"), 0.0)
+    winner_evidence = str(winner.get("evidence_class", "") or "").upper()
+
+    tolerance = _float(os.getenv("SAP_MOTION_SEMANTIC_TOLERANCE", "18"), 18.0)
+    remaining = max(1, _int(ctx.get("cenas_restantes"), 1))
+    needed = max(0, target - videos_total)
+    if needed >= remaining:
+        tolerance = max(tolerance, 28.0)
+
+    choices: list[tuple[float, int, Any, dict[str, Any]]] = []
+    for index, candidate in enumerate(result[1:], 1):
+        if _media_type(candidate) != "video":
+            continue
+        if not isinstance(candidate, dict):
+            continue
+        if int(candidate.get("avoid_hits", 0) or 0) > 0:
+            continue
+
+        score = unified._score(candidate, scene, state)
+        if bool(score.get("hard_mismatch", False)):
+            continue
+        must = _int(score.get("must"), 0)
+        effective = _float(score.get("effective"), -9999.0)
+
+        # Motion is never allowed to reduce explicit MUST coverage.
+        if must < winner_must:
+            continue
+        if effective < winner_effective - tolerance:
+            continue
+
+        # Preserve direct documentary evidence unless the video is also direct.
+        if winner_evidence == "CASE_DIRECT":
+            candidate_evidence = str(candidate.get("evidence_class", "") or "").upper()
+            if candidate_evidence != "CASE_DIRECT":
+                continue
+
+        choices.append((effective, -index, candidate, score))
+
+    if not choices:
+        return result
+
+    choices.sort(key=lambda item: (item[0], item[1]), reverse=True)
+    effective, _neg_index, selected, selected_score = choices[0]
+    selected_index = result.index(selected)
+    balanced = [selected] + result[:selected_index] + result[selected_index + 1 :]
+    print(
+        "SAP_MOTION_BALANCE_OVERRIDE=YES "
+        f"videos={videos_total}/{target} "
+        f"must={selected_score.get('must', 0)} "
+        f"effective={effective:.1f} winner_effective={winner_effective:.1f} "
+        f"tolerance={tolerance:.1f}"
+    )
+    return balanced
+
+
 def _wrap_unified_winner() -> bool:
-    """Tag only a safe first-place Visual Unified candidate."""
+    """Tag only a safe first-place Visual Unified candidate after motion balance."""
     try:
         import visual_engine_unified as unified
     except Exception:
@@ -211,6 +348,8 @@ def _wrap_unified_winner() -> bool:
         result = original(pool, ctx)
         if not isinstance(result, list):
             return result
+
+        result = _motion_balance_result(unified, result, ctx)
 
         for candidate in result:
             if isinstance(candidate, dict):
@@ -322,17 +461,27 @@ def _wrap_download_tracking(namespace: dict[str, Any]) -> bool:
 
 
 def _wrap_local_continuity(namespace: dict[str, Any]) -> bool:
-    """Last-resort reuse of the previous validated scene media."""
+    """Reject blind local/previous-scene fallback for explicit scene contracts."""
     original = namespace.get("buscar_local")
     if not callable(original) or getattr(original, "_sap_media_adapter_v2", False):
         return False
 
     @functools.wraps(original)
     def wrapped(prefer_video: bool):
+        total_must = max(0, _int(namespace.get("_SAP_CURRENT_TOTAL_MUST"), 0))
+        allow_unverified = os.getenv("SAP_ALLOW_UNVERIFIED_LOCAL_FALLBACK", "0") == "1"
+
         local = original(prefer_video)
-        if local:
+        if local and (total_must == 0 or allow_unverified):
             return local
-        if os.getenv("SAP_MEDIA_CONTINUITY_FALLBACK", "1") != "1":
+        if local and total_must > 0:
+            print(
+                "SAP_LOCAL_FALLBACK_REJECTED reason=EXPLICIT_MUST_UNVERIFIED "
+                f"must_total={total_must}"
+            )
+
+        allow_previous = os.getenv("SAP_ALLOW_LOW_TRUST_CONTINUITY", "0") == "1"
+        if not allow_previous:
             return None
 
         previous = str(namespace.get("_SAP_LAST_VALID_MEDIA_PATH", "") or "")
@@ -345,7 +494,7 @@ def _wrap_local_continuity(namespace: dict[str, Any]) -> bool:
         namespace["_SAP_CONTINUITY_REUSE_ID"] = path.name
         print(
             "SAP_MEDIA_CONTINUITY_FALLBACK=REUSE_PREVIOUS_SCENE "
-            f"path={path.name} trust=LOW"
+            f"path={path.name} trust=LOW explicit_opt_in=YES"
         )
         return str(path)
 
@@ -377,9 +526,19 @@ def _wrap_continuity_metadata(namespace: dict[str, Any]) -> bool:
 
 
 def install(namespace: dict[str, Any]) -> dict[str, Any]:
-    os.environ.setdefault("SAP_MEDIA_CONTINUITY_FALLBACK", "1")
+    # Contextual rescue still never fabricates MUST hits. These lower bounds are
+    # used only after the strict pool is empty and identity-sensitive scenes are
+    # already rejected by v1._contextual_metrics.
+    os.environ.setdefault("SAP_CONTEXTUAL_RESCUE_MIN_SCORE", "20")
+    os.environ.setdefault("SAP_CONTEXTUAL_RESCUE_MIN_SEMANTIC", "0.20")
+    os.environ.setdefault("SAP_COVERR_CIRCUIT_BREAKER", "1")
+    os.environ.setdefault("SAP_MOTION_BALANCE", "1")
+    os.environ.setdefault("SAP_MOTION_SEMANTIC_TOLERANCE", "18")
+    os.environ.setdefault("SAP_ALLOW_UNVERIFIED_LOCAL_FALLBACK", "0")
+    os.environ.setdefault("SAP_ALLOW_LOW_TRUST_CONTINUITY", "0")
 
     base = v1.install(namespace)
+    coverr_circuit = _wrap_coverr_circuit(namespace)
     search = _wrap_search(namespace)
     failover = _wrap_failover(namespace)
     unified_winner = _wrap_unified_winner()
@@ -393,9 +552,11 @@ def install(namespace: dict[str, Any]) -> dict[str, Any]:
         "version": VERSION,
         "installed": True,
         "base": base,
+        "provider_circuit": coverr_circuit,
         "neutral_contextual_rescue": search,
         "contextual_failover": failover,
         "unified_winner_guard": unified_winner,
+        "motion_balance": unified_winner,
         "reference_guard": reference_guard,
         "download_tracking": download_tracking,
         "continuity_fallback": continuity,
@@ -409,9 +570,10 @@ def install(namespace: dict[str, Any]) -> dict[str, Any]:
 
     print(
         "MEDIA_RUNTIME_ADAPTER_V2=INSTALLED "
-        f"version={VERSION} neutral_rescue={search} failover={failover} "
+        f"version={VERSION} provider_circuit={coverr_circuit} "
+        f"neutral_rescue={search} failover={failover} "
         f"unified_guard={unified_winner and reference_guard} "
-        f"continuity={continuity} "
+        f"motion_balance={unified_winner} continuity={continuity} "
         f"vse42_decision_disabled={result['vse42_authority_disabled']} "
         "query_expansion=True authority=VISUAL_UNIFIED"
     )
