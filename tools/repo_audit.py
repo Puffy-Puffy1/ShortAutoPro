@@ -9,8 +9,6 @@ import map_active_graph
 
 ROOT = Path(__file__).resolve().parents[1]
 
-# These files represent duplicate/retired Short production paths and are not
-# allowed back into the operational tree after Consolidation 3.0.
 FORBIDDEN_EXACT = {
     "31",
     "SYNC_TEST.TXT",
@@ -34,6 +32,7 @@ REQUIRED = {
     "resume_short_runtime.py",
     "midia.py",
     "media_runtime_adapter_v1.py",
+    "media_must_verifier.py",
     "vg4x_bridge.py",
     "visual_engine_unified.py",
     "visual_query_expansion_v4.py",
@@ -116,9 +115,19 @@ MEDIA_ADAPTER_REQUIRED_TOKENS = {
     '"SAP_VSE4_QUERY_EXPANSION": "1"',
     '"SAP_VSE42_RESCUE": "0"',
     '"SAP_VG4X": "0"',
+    '"VISUAL_INTELLIGENCE_MODE": "SHADOW"',
     "_sap_contextual_rescue",
     "SAP_PROVIDER_SKIP",
     "normalize_candidate",
+}
+
+MUST_VERIFIER_REQUIRED_TOKENS = {
+    "asset_evidence_text",
+    "strict_concept_hits",
+    "verified_must",
+    "query",
+    "search_query",
+    "visual_query",
 }
 
 
@@ -142,7 +151,6 @@ def main() -> int:
             issues.append(f"historical_archive_tracked:{path}")
         if path.startswith("imagens/short_"):
             issues.append(f"generated_media_tracked:{path}")
-
     for path in sorted(REQUIRED - files):
         issues.append(f"required_file_missing:{path}")
 
@@ -151,6 +159,8 @@ def main() -> int:
     resume_text = read_text("resume_short_runtime.py")
     gitignore = read_text(".gitignore")
     adapter_text = read_text("media_runtime_adapter_v1.py")
+    verifier_text = read_text("media_must_verifier.py")
+    unified_text = read_text("visual_engine_unified.py")
     vg4x_bridge_text = read_text("vg4x_bridge.py")
     preflight_text = read_text("preflight_check.sh")
     health_text = read_text("health_check.sh")
@@ -172,15 +182,23 @@ def main() -> int:
         if token in resume_text:
             issues.append(f"resume_legacy_token:{token}")
 
-    # Canonical media runtime: query expansion may enrich the pool, but only
-    # Visual Unified is allowed to make the production rerank decision.
+    # Canonical media runtime: query expansion enriches the pool, while Visual
+    # Unified is the sole production reranker. VI6 is telemetry-only SHADOW.
     for token in sorted(MEDIA_ADAPTER_REQUIRED_TOKENS):
         if token not in adapter_text:
             issues.append(f"media_runtime_contract_missing:{token}")
+    for token in sorted(MUST_VERIFIER_REQUIRED_TOKENS):
+        if token not in verifier_text:
+            issues.append(f"must_verifier_contract_missing:{token}")
+    if "from media_must_verifier import verified_must" not in unified_text:
+        issues.append("visual_unified_missing_strict_must_verifier")
+    if "effective_pre_must_verification" not in unified_text:
+        issues.append("visual_unified_missing_must_score_recalibration")
     if "from media_runtime_adapter_v1 import install as install_media_runtime" not in vg4x_bridge_text:
         issues.append("vg4x_bridge_not_routed_to_media_adapter")
     if 'os.getenv("SAP_VG4X_LEGACY", "0") == "1"' not in vg4x_bridge_text:
         issues.append("vg4x_legacy_not_opt_in")
+
     for text_name, text in (("preflight", preflight_text), ("health", health_text)):
         for token in (
             "media_runtime_adapter_v1.py",
