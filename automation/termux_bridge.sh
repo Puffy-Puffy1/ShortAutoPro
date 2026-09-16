@@ -5,8 +5,9 @@
 # Safety rules:
 #   - never overwrites tracked local changes
 #   - only accepts fast-forward updates from origin/termux-stable
-#   - validates tracked Python and shell files after update
-#   - rolls back automatically if syntax validation fails
+#   - never changes code while a production/resume is active
+#   - validates tracked Python/shell files and the repository contract
+#   - rolls back automatically if post-update validation fails
 
 set -uo pipefail
 
@@ -42,6 +43,7 @@ if ! command -v flock >/dev/null 2>&1; then
     exit 11
 fi
 
+# Serialize bridge invocations themselves.
 exec 9>"$LOCK_FILE"
 if ! flock -n 9; then
     log "BRIDGE_SKIP=already_running"
@@ -57,6 +59,17 @@ cd "$PROJECT_DIR" || {
     log "BRIDGE_ERROR=cannot_cd PROJECT_DIR=$PROJECT_DIR"
     exit 13
 }
+
+# This is the same persistent lock file used by main.py / resume. Do not unlink
+# it: flock protects the inode while the file remains a stable rendezvous point.
+mkdir -p "$PROJECT_DIR/.locks"
+PRODUCTION_LOCK="$PROJECT_DIR/.locks/production.lock"
+exec 8>>"$PRODUCTION_LOCK"
+if ! flock -n 8; then
+    log "BRIDGE_SKIP=production_active"
+    exit 0
+fi
+printf 'bridge pid=%s started_at=%s\n' "$$" "$(stamp)" >&8
 
 CURRENT_BRANCH="$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)"
 if [ "$CURRENT_BRANCH" != "$BRANCH" ]; then
@@ -133,6 +146,12 @@ while IFS= read -r -d '' file; do
         rollback "bash_syntax:$file"
     fi
 done < <(git ls-files -z '*.sh')
+
+# Structural validation is cheap and catches an incomplete/unsafe deployment
+# even when every individual file still parses.
+if [ ! -f "tools/repo_audit.py" ] || ! python tools/repo_audit.py >/dev/null; then
+    rollback "repository_audit"
+fi
 
 NEW_COMMIT="$(git rev-parse HEAD)"
 printf '%s\n' "$NEW_COMMIT" > "$LAST_OK_FILE"
