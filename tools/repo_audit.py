@@ -111,12 +111,21 @@ MAIN_FORBIDDEN_TOKENS = {
 
 MEDIA_ADAPTER_REQUIRED_TOKENS = {
     '"SAP_VISUAL_UNIFIED": "1"',
+    '"SAP_VSE4": "0"',
+    '"SAP_VSE4_RESCUE": "0"',
+    '"SAP_VSE_V42": "0"',
+    '"SAP_VSE42": "0"',
+    '"SAP_VSE42_RUNTIME": "0"',
     '"SAP_VSE42_BRIDGE": "0"',
-    '"SAP_VSE4_QUERY_EXPANSION": "1"',
     '"SAP_VSE42_RESCUE": "0"',
+    '"SAP_VSE4_QUERY_EXPANSION": "1"',
     '"SAP_VG4X": "0"',
     '"VISUAL_INTELLIGENCE_MODE": "SHADOW"',
+    "from media_must_verifier import verified_must",
     "_sap_contextual_rescue",
+    "_sap_declared_must_hits",
+    "_sap_verified_must_hits",
+    'candidate["must_hits"] = verified',
     "SAP_PROVIDER_SKIP",
     "normalize_candidate",
 }
@@ -202,6 +211,7 @@ def main() -> int:
     for text_name, text in (("preflight", preflight_text), ("health", health_text)):
         for token in (
             "media_runtime_adapter_v1.py",
+            "media_must_verifier.py",
             "vg4x_bridge.py",
             "visual_engine_unified.py",
             "visual_query_expansion_v4.py",
