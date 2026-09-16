@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
-"""Resume ShortAutoPro from conservative, artifact-validated boundaries.
+"""Artifact-validated resume for the single ShortAutoPro 3.0 pipeline.
 
-One runtime serves both Professional Edit and the explicit standard rollback.
-The early narrative/media chain is intentionally NOT skipped unless the
-Production Supervisor boundary is proven. Professional partial resume also
-requires a valid professional edit plan before any stage can be skipped.
+Resume never switches pipelines. If the saved production does not contain the
+Consolidation 3.0 planning artifacts, it restarts through main.py with the same
+Short ID rather than trying to interpret legacy state.
 """
-
 from __future__ import annotations
 
 import argparse
@@ -18,13 +16,10 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import main as canonical
 import shortautopro_evolution as evo
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
-
-
-def professional_enabled() -> bool:
-    return os.getenv("SAP_PRO_EDIT", "1").strip() == "1"
 
 
 def read_json(path: Path) -> dict[str, Any]:
@@ -42,12 +37,6 @@ def nonempty(path: Path, minimum: int = 1) -> bool:
         return False
 
 
-def scene_count(sid: str) -> int:
-    data = read_json(BASE / "roteiros" / f"scene_map_{sid}.json")
-    scenes = data.get("scenes", []) if isinstance(data, dict) else []
-    return len(scenes) if isinstance(scenes, list) else 0
-
-
 def expected_scenes() -> int:
     try:
         value = int(os.getenv("SHORT_QTD_CENAS", "12"))
@@ -56,32 +45,60 @@ def expected_scenes() -> int:
     return max(6, min(value, 20))
 
 
-def media_ok(sid: str) -> bool:
-    """Only certify the media boundary after Media Master Gate PASS."""
-    report = read_json(BASE / "roteiros" / f"media_quality_{sid}.json")
-    if str(report.get("status", "")).upper() != "PASS":
-        return False
-    if report.get("critical"):
-        return False
+def scene_count(sid: str) -> int:
+    data = read_json(BASE / "roteiros" / f"scene_map_{sid}.json")
+    scenes = data.get("scenes", []) if isinstance(data, dict) else []
+    return len(scenes) if isinstance(scenes, list) else 0
 
+
+def media_ok(sid: str) -> bool:
+    report = read_json(BASE / "roteiros" / f"media_quality_{sid}.json")
+    if str(report.get("status", "")).upper() != "PASS" or report.get("critical"):
+        return False
     folder = BASE / "imagens" / f"short_{sid}"
     if not folder.is_dir():
         return False
     valid = [
-        p for p in folder.iterdir()
-        if p.is_file()
-        and p.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp", ".mp4"}
-        and p.stat().st_size > 1000
+        path
+        for path in folder.iterdir()
+        if path.is_file()
+        and path.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".webm", ".mkv"}
+        and path.stat().st_size > 1000
     ]
     return len(valid) >= expected_scenes()
 
 
 def supervisor_ok(sid: str) -> bool:
     data = read_json(BASE / "roteiros" / f"supervisor_{sid}.json")
-    status = str(data.get("status", "")).upper()
-    state = evo.load_state(sid)
-    stage = state.get("stages", {}).get("production_supervisor.py", {}) if isinstance(state.get("stages"), dict) else {}
-    return status in {"PASS", "QUALITY_PASS", "OK"} and isinstance(stage, dict) and stage.get("status") == "PASS"
+    return str(data.get("status", "")).upper() in {"PASS", "QUALITY_PASS", "OK"}
+
+
+def pro_plan_ok(sid: str) -> bool:
+    data = read_json(BASE / "roteiros" / f"pro_edit_plan_{sid}.json")
+    scenes = data.get("scenes", []) if isinstance(data, dict) else []
+    return (
+        str(data.get("version", "")).startswith("PRO_EDIT_")
+        and isinstance(scenes, list)
+        and len(scenes) == expected_scenes()
+    )
+
+
+def consolidation_plan_ok(sid: str) -> bool:
+    if not pro_plan_ok(sid):
+        return False
+    required = [
+        BASE / "roteiros" / f"retention_{sid}.json",
+        BASE / "roteiros" / f"sound_design_{sid}.json",
+        BASE / "roteiros" / f"multi_asset_{sid}.json",
+        BASE / "roteiros" / f"visual_score_{sid}.json",
+        BASE / "roteiros" / f"visual_continuity_{sid}.json",
+    ]
+    if not all(nonempty(path, 20) for path in required):
+        return False
+    retention = read_json(required[0])
+    return float(retention.get("retention_score", retention.get("score", 0)) or 0) >= float(
+        os.getenv("SAP_RETENTION_MIN_SCORE", "78")
+    )
 
 
 def audio_ok(sid: str) -> bool:
@@ -107,17 +124,23 @@ def render_ok(sid: str) -> bool:
     if not nonempty(video, 100_000) or shutil.which("ffprobe") is None:
         return False
     try:
-        raw = subprocess.check_output([
-            "ffprobe", "-v", "error", "-show_entries",
-            "stream=codec_name,codec_type,width,height", "-of", "json", str(video),
-        ], text=True, timeout=45)
-        data = json.loads(raw)
-        streams = data.get("streams", [])
-        v = next((x for x in streams if x.get("codec_type") == "video"), {})
-        a = next((x for x in streams if x.get("codec_type") == "audio"), {})
+        raw = subprocess.check_output(
+            [
+                "ffprobe", "-v", "error",
+                "-show_entries", "stream=codec_name,codec_type,width,height",
+                "-of", "json", str(video),
+            ],
+            text=True,
+            timeout=45,
+        )
+        streams = json.loads(raw).get("streams", [])
+        video_stream = next((item for item in streams if item.get("codec_type") == "video"), {})
+        audio_stream = next((item for item in streams if item.get("codec_type") == "audio"), {})
         return (
-            v.get("codec_name") == "h264" and a.get("codec_name") == "aac"
-            and int(v.get("width", 0) or 0) == 1080 and int(v.get("height", 0) or 0) == 1920
+            video_stream.get("codec_name") == "h264"
+            and audio_stream.get("codec_name") == "aac"
+            and int(video_stream.get("width", 0) or 0) == 1080
+            and int(video_stream.get("height", 0) or 0) == 1920
         )
     except Exception:
         return False
@@ -125,40 +148,32 @@ def render_ok(sid: str) -> bool:
 
 def final_ok(sid: str) -> bool:
     quality = read_json(BASE / "manifests" / f"{sid}_quality.json")
-    return render_ok(sid) and quality.get("approved") is True
-
-
-def pro_plan_ok(sid: str) -> bool:
-    data = read_json(BASE / "roteiros" / f"pro_edit_plan_{sid}.json")
-    scenes = data.get("scenes", []) if isinstance(data, dict) else []
+    release = read_json(BASE / "manifests" / f"{sid}_release.json")
     return (
-        str(data.get("version", "")).startswith("PRO_EDIT_")
-        and isinstance(scenes, list)
-        and len(scenes) == expected_scenes()
+        render_ok(sid)
+        and quality.get("approved") is True
+        and release.get("decision") in {"PUBLISH", "ACCEPTABLE"}
     )
 
 
-def base_boundary(sid: str) -> str:
+def boundary(sid: str) -> str:
     if final_ok(sid):
         return "complete"
+    # Never partially resume an older architecture. This is intentionally
+    # conservative because new 3.0 gates depend on these planning artifacts.
+    if not consolidation_plan_ok(sid):
+        return "full"
     if render_ok(sid):
         return "post_render"
     if assembly_ok(sid) and audio_ok(sid) and captions_ok(sid):
         return "post_assembly"
-    if captions_ok(sid) and audio_ok(sid) and supervisor_ok(sid) and media_ok(sid):
+    if captions_ok(sid) and audio_ok(sid):
         return "post_captions"
-    if audio_ok(sid) and supervisor_ok(sid) and media_ok(sid):
+    if audio_ok(sid):
         return "post_audio"
     if supervisor_ok(sid) and media_ok(sid) and scene_count(sid) == expected_scenes():
-        return "post_media"
+        return "post_planning"
     return "full"
-
-
-def boundary(sid: str) -> str:
-    point = base_boundary(sid)
-    if professional_enabled() and point not in {"complete", "full"} and not pro_plan_ok(sid):
-        return "full"
-    return point
 
 
 def checkpoint(stage: str, status: str, title: str, sid: str) -> None:
@@ -168,33 +183,35 @@ def checkpoint(stage: str, status: str, title: str, sid: str) -> None:
         pass
 
 
-def run_python(sid: str, title: str, script: str, *args: str) -> None:
+def run_python(
+    sid: str,
+    title: str,
+    script: str,
+    *args: str,
+    allow: set[int] | None = None,
+) -> int:
     path = BASE / script
     if not path.is_file():
         raise RuntimeError(f"arquivo ausente: {script}")
     print(f"\n--- {title} ---")
     checkpoint(script, "start", title, sid)
     result = subprocess.run([sys.executable, str(path), *args], cwd=str(BASE), env=os.environ.copy())
-    if result.returncode != 0:
+    allowed = allow or {0}
+    if result.returncode not in allowed:
         checkpoint(script, "fail", title, sid)
         raise RuntimeError(f"{script} falhou com código {result.returncode}")
     checkpoint(script, "pass", title, sid)
+    return result.returncode
 
 
-def acquire_generation_lock():
-    try:
-        import fcntl
-    except ImportError:
-        return None
-    lock_root = BASE / ".locks"
-    lock_root.mkdir(parents=True, exist_ok=True)
-    handle = (lock_root / "gerar_short.lock").open("a+")
-    try:
-        fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except OSError:
-        handle.close()
-        raise RuntimeError("já existe uma geração ShortAutoPro em andamento")
-    return handle
+def full_rerun(sid: str) -> int:
+    main_path = BASE / "main.py"
+    if not main_path.is_file():
+        raise RuntimeError("main.py ausente")
+    print("Checkpoint parcial incompatível ou insuficiente. Reexecutando o pipeline oficial com o mesmo ID.")
+    env = os.environ.copy()
+    env["SHORT_ID"] = sid
+    return subprocess.run([sys.executable, str(main_path), "run"], cwd=str(BASE), env=env).returncode
 
 
 def copy_download(sid: str) -> str:
@@ -211,100 +228,109 @@ def copy_download(sid: str) -> str:
     return str(final)
 
 
-def full_rerun(sid: str) -> int:
-    generator = BASE / "gerar_short.sh"
-    if not generator.is_file():
-        raise RuntimeError("gerar_short.sh ausente")
-    mode = "profissional" if professional_enabled() else "standard rollback"
-    print(f"Nenhum checkpoint parcial é seguro. Reexecutando pipeline completo ({mode}).")
-    env = os.environ.copy()
-    env["SHORT_ID"] = sid
-    env["SAP_PRO_EDIT"] = "1" if professional_enabled() else "0"
-    return subprocess.run(["bash", str(generator)], cwd=str(BASE), env=env).returncode
+def final_gates(sid: str) -> int:
+    stages = [
+        ("EVOLUTION E2E", "shortautopro_evolution.py", ("e2e",)),
+        ("QUALITY GATE", "quality_check.py", ()),
+        ("PUBLISH PACK", "publish_pack.py", ()),
+        ("SOURCE LEDGER", "source_ledger.py", ()),
+        ("PUBLISH INTEGRITY", "publish_integrity_gate.py", ()),
+        ("PRODUCTION MANIFEST", "production_manifest.py", ()),
+        ("FINAL QUALITY", "final_quality.py", ()),
+    ]
+    for title, script, args in stages:
+        run_python(sid, title, script, *args)
+    quality_args = ["quality-score"] + (["--enforce"] if os.getenv("SAP_EVOLUTION_ENFORCE", "0") == "1" else [])
+    run_python(sid, "EVOLUTION QUALITY SCORE", "shortautopro_evolution.py", *quality_args)
+    run_python(sid, "PROFESSIONAL QUALITY GATE", "professional_quality_gate.py")
+    return run_python(sid, "SHORTAUTOPRO RELEASE GATE", "release_gate.py", "--enforce", allow={0, 20})
+
+
+def render_tail(sid: str) -> None:
+    run_python(sid, "PROFESSIONAL MULTI-BEAT ASSEMBLER", "video_professional.py")
+    run_python(sid, "FINAL RENDER V6 PROFESSIONAL", "v6_professional.py")
+    if not render_ok(sid):
+        raise RuntimeError("renderer terminou sem artefato técnico válido")
+    run_python(sid, "FINAL AUDIO MASTER", "audio_finalizer.py")
+    run_python(sid, "VISUAL QA", "visual_qa.py")
 
 
 def resume(sid: str) -> int:
     os.environ["SHORT_ID"] = sid
     point = boundary(sid)
-    pro = professional_enabled()
-    mode = "PROFESSIONAL" if pro else "STANDARD_ROLLBACK"
     print("========================================")
-    print(" SHORTAUTOPRO - UNIFIED SAFE RESUME")
+    print(" SHORTAUTOPRO 3.0 - SAFE RESUME")
     print("========================================")
     print(f"ID: {sid}")
-    print(f"Mode: {mode}")
-    print(f"Boundary: {point}")
-    print()
+    print("Pipeline: PROFESSIONAL_CANONICAL")
+    print(f"Boundary: {point}\n")
 
     if point == "complete":
-        print("Produção já possui vídeo e Quality Gate aprovados.")
+        print("Produção já aprovada pelo Release Gate.")
         return 0
     if point == "full":
         return full_rerun(sid)
 
-    lock = acquire_generation_lock()
     try:
-        order = {"post_media": 1, "post_audio": 2, "post_captions": 3, "post_assembly": 4, "post_render": 5}
-        rank = order[point]
-        if rank <= 1:
-            if pro:
-                run_python(sid, "PROFESSIONAL EDIT DIRECTOR", "professional_edit_director.py")
-                run_python(sid, "PROFESSIONAL EDIT AUTO-REPAIR", "professional_edit_repair.py")
-            run_python(sid, "FINAL EDITORIAL GATE", "editorial_gate.py")
-            run_python(sid, "GERANDO VOZ PIPER", "audio.py")
-        if rank <= 2:
-            run_python(sid, "WHISPER + LEGENDA", "legenda_dinamica.py")
-            if pro:
-                run_python(sid, "PROFESSIONAL CAPTION DIRECTOR", "professional_caption_director.py")
-            run_python(sid, "CAPTION AUDIT", "shortautopro_evolution.py", "caption-audit")
-        if rank <= 3:
-            if pro:
-                run_python(sid, "PROFESSIONAL SCENE ASSEMBLER", "video_professional.py")
-            else:
-                run_python(sid, "MONTANDO CENAS", "video.py")
-        if rank <= 4:
-            run_python(sid, "RENDER FINAL V6", "v6_runtime.py")
-            if not render_ok(sid):
-                raise RuntimeError("V6 terminou sem artefato técnico válido")
+        with canonical.RunLock(sid):
+            order = {
+                "post_planning": 1,
+                "post_audio": 2,
+                "post_captions": 3,
+                "post_assembly": 4,
+                "post_render": 5,
+            }
+            rank = order[point]
 
-        run_python(sid, "EVOLUTION E2E", "shortautopro_evolution.py", "e2e")
-        run_python(sid, "QUALITY GATE", "quality_check.py")
-        run_python(sid, "PUBLISH PACK", "publish_pack.py")
-        run_python(sid, "SOURCE LEDGER", "source_ledger.py")
-        run_python(sid, "PUBLISH INTEGRITY", "publish_integrity_gate.py")
-        run_python(sid, "PRODUCTION MANIFEST", "production_manifest.py")
-        run_python(sid, "FINAL QUALITY", "final_quality.py")
-        quality_args = ["quality-score"]
-        if os.getenv("SAP_EVOLUTION_ENFORCE", "0") == "1":
-            quality_args.append("--enforce")
-        run_python(sid, "EVOLUTION QUALITY SCORE", "shortautopro_evolution.py", *quality_args)
-        if pro:
-            run_python(sid, "PROFESSIONAL QUALITY GATE", "professional_quality_gate.py")
-        if not final_ok(sid):
-            raise RuntimeError("retomada terminou sem Quality Gate aprovado")
-        run_python(sid, "REGISTRANDO ASSUNTO", "register_topic.py")
-        destination = copy_download(sid)
-        evo.finish_production("SUCCESS", sid)
-        print("\nRESUME_STATUS=PASS")
-        print(f"MODE={mode}")
-        print(f"Vídeo: {destination}")
-        return 0
+            if rank <= 1:
+                run_python(sid, "FINAL EDITORIAL GATE", "editorial_gate.py")
+                run_python(sid, "SPEECH DIRECTOR", "speech_director.py")
+                run_python(sid, "GERANDO VOZ PIPER", "audio.py")
+            if rank <= 2:
+                run_python(sid, "WHISPER + LEGENDA", "legenda_dinamica.py")
+                run_python(sid, "PROFESSIONAL CAPTION DIRECTOR", "professional_caption_director.py")
+                run_python(sid, "CAPTION SAFE-ZONE GUARD", "caption_layout_guard.py")
+                run_python(sid, "CAPTION AUDIT", "shortautopro_evolution.py", "caption-audit")
+            if rank <= 3:
+                render_tail(sid)
+            elif rank <= 4:
+                run_python(sid, "FINAL RENDER V6 PROFESSIONAL", "v6_professional.py")
+                if not render_ok(sid):
+                    raise RuntimeError("renderer terminou sem artefato técnico válido")
+                run_python(sid, "FINAL AUDIO MASTER", "audio_finalizer.py")
+                run_python(sid, "VISUAL QA", "visual_qa.py")
+            else:
+                run_python(sid, "FINAL AUDIO MASTER", "audio_finalizer.py")
+                run_python(sid, "VISUAL QA", "visual_qa.py")
+
+            code = final_gates(sid)
+            if code == 20:
+                run_python(sid, "REPAIR EDIT", "professional_edit_repair.py")
+                run_python(sid, "REPAIR MULTI-ASSET", "multi_asset_director.py")
+                run_python(sid, "REPAIR RETENTION", "retention_engine.py", "--repair")
+                run_python(sid, "REPAIR SOUND", "sound_design_engine.py")
+                render_tail(sid)
+                code = final_gates(sid)
+            if code == 20 or not final_ok(sid):
+                raise RuntimeError("retomada terminou sem Release Gate aprovado")
+
+            run_python(sid, "REGISTRANDO ASSUNTO", "register_topic.py")
+            destination = copy_download(sid)
+            evo.finish_production("SUCCESS", sid)
+            print("\nRESUME_STATUS=PASS")
+            print("PIPELINE=PROFESSIONAL_CANONICAL")
+            print(f"Vídeo: {destination}")
+            return 0
     except Exception as exc:
         evo.finish_production("FAILED", sid)
         print(f"RESUME_ERROR={type(exc).__name__}: {exc}", file=sys.stderr)
         return 1
-    finally:
-        if lock is not None:
-            try:
-                lock.close()
-            except Exception:
-                pass
 
 
 def latest_incomplete() -> str | None:
     if not evo.STATE_DIR.is_dir():
         return None
-    states = sorted(evo.STATE_DIR.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+    states = sorted(evo.STATE_DIR.glob("*.json"), key=lambda path: path.stat().st_mtime, reverse=True)
     for path in states:
         data = read_json(path)
         if str(data.get("production_status", "")).upper() != "SUCCESS":
@@ -313,24 +339,31 @@ def latest_incomplete() -> str | None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="ShortAutoPro unified safe resume runtime")
+    parser = argparse.ArgumentParser(description="Resume the canonical ShortAutoPro 3.0 pipeline")
     parser.add_argument("--short-id", default=None)
     parser.add_argument("--status", action="store_true")
     args = parser.parse_args()
+
+    canonical.source_config()
+    canonical.setup_env()
     sid = args.short_id or os.getenv("SHORT_ID", "").strip() or latest_incomplete()
     if not sid:
         print("Nenhuma produção encontrada para retomar.")
         return 0
     if args.status:
-        payload = {
-            "short_id": sid,
-            "mode": "PROFESSIONAL" if professional_enabled() else "STANDARD_ROLLBACK",
-            "boundary": boundary(sid),
-            "plan": evo.resume_plan(sid),
-        }
-        if professional_enabled():
-            payload["professional_plan"] = pro_plan_ok(sid)
-        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        print(
+            json.dumps(
+                {
+                    "short_id": sid,
+                    "pipeline": "PROFESSIONAL_CANONICAL",
+                    "boundary": boundary(sid),
+                    "consolidation_plan": consolidation_plan_ok(sid),
+                    "plan": evo.resume_plan(sid),
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
         return 0
     return resume(sid)
 

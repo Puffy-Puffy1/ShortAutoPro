@@ -157,9 +157,10 @@ class ClientRunnerTests(unittest.TestCase):
 
 class IntegrationTests(unittest.TestCase):
     def test_main_pipeline_uses_verified_topic_runtime(self):
-        text = (ROOT / "gerar_short.sh").read_text(encoding="utf-8")
-        self.assertIn('"topic_engine_runtime.py"', text)
-        self.assertNotIn('"1/12 - TOPIC ENGINE" "topic_engine.py"', text)
+        text = (ROOT / "main.py").read_text(encoding="utf-8")
+        self.assertIn('p.run("1 - TOPIC ENGINE", "topic_engine_runtime.py"', text)
+        self.assertNotIn('p.run("1 - TOPIC ENGINE", "topic_engine.py"', text)
+        self.assertFalse((ROOT / "gerar_short.sh").exists())
 
     def test_profile_runner_only_eval_trusted_profile_output(self):
         text = (ROOT / "profile_run.sh").read_text(encoding="utf-8")

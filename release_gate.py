@@ -1,0 +1,58 @@
+#!/usr/bin/env python3
+"""Unified ShortAutoPro confidence score and final release decision."""
+from __future__ import annotations
+import argparse,json,math,os,tempfile
+from datetime import date,datetime
+from pathlib import Path
+from typing import Any
+BASE=Path(os.getenv("SHORTAUTOPRO_BASE",os.path.expanduser("~/ShortAutoPro"))).resolve();SID=os.getenv("SHORT_ID",date.today().isoformat()).strip();R=BASE/"roteiros";M=BASE/"manifests";E=BASE/"reports"/"evolution";OUT=M/f"{SID}_release.json"
+def load(p:Path)->dict[str,Any]:
+ try:
+  x=json.loads(p.read_text(encoding="utf-8"));return x if isinstance(x,dict) else {}
+ except Exception:return {}
+def num(v:Any,d:float=0.0)->float:
+ try:x=float(v);return x if math.isfinite(x) else d
+ except Exception:return d
+def atomic(p:Path,x:Any)->None:
+ p.parent.mkdir(parents=True,exist_ok=True);fd,t=tempfile.mkstemp(prefix=f".{p.name}.",suffix=".tmp",dir=str(p.parent))
+ try:
+  with os.fdopen(fd,"w",encoding="utf-8") as f:json.dump(x,f,ensure_ascii=False,indent=2);f.write("\n");f.flush();os.fsync(f.fileno())
+  os.replace(t,p)
+ except Exception:
+  try:os.unlink(t)
+  except OSError:pass
+  raise
+def clamp(x:float)->float:return round(max(0,min(100,x)),1)
+def main()->int:
+ ap=argparse.ArgumentParser();ap.add_argument("--enforce",action="store_true");args=ap.parse_args()
+ retention=load(R/f"retention_{SID}.json");continuity=load(R/f"visual_continuity_{SID}.json");vscore=load(R/f"visual_score_{SID}.json");vqa=load(E/f"visual_qa_{SID}.json");audio=load(E/f"final_audio_{SID}.json");pro=load(M/f"{SID}_professional.json");legacy=load(M/f"{SID}_quality.json");media=load(R/f"media_quality_{SID}.json");caption=load(R/f"pro_caption_{SID}.json");caption_layout=load(R/f"caption_layout_{SID}.json");vd=load(R/f"visual_director_{SID}.json")
+ factual_ok=bool(legacy.get("approved",False));critical=[]
+ if not factual_ok:critical.append("legacy_final_quality_not_approved")
+ if str(vqa.get("status","PASS")).upper()=="BLOCK":critical.append("visual_qa_block")
+ if str(audio.get("status","PASS")).upper()=="BLOCK":critical.append("audio_master_block")
+ script=clamp((num(retention.get("components",{}).get("hook"),80)+num(retention.get("components",{}).get("language"),80)+num(retention.get("components",{}).get("payoff"),80))/3)
+ media_score=num(pro.get("components",{}).get("media"),100 if str(media.get("status","")).upper()=="PASS" else 75)
+ visual=clamp(0.18*num(vd.get("visual_director_score"),80)+0.20*num(continuity.get("visual_continuity_score"),80)+0.37*num(vscore.get("visual_score"),80)+0.25*num(vqa.get("visual_qa_score"),80))
+ if audio:
+  aft=audio.get("after",{}) if isinstance(audio.get("after"),dict) else {};target=audio.get("target",{}) if isinstance(audio.get("target"),dict) else {};le=abs(num(aft.get("lufs"),-14)-num(target.get("lufs"),-14));tp_over=max(0,num(aft.get("true_peak_db"),-1.5)-num(target.get("true_peak_db"),-1.5));audio_score=clamp(100-le*12-tp_over*18)
+ else:audio_score=num(pro.get("components",{}).get("audio_master"),75)
+ subtitle_base=num(caption.get("score"),num(pro.get("components",{}).get("captions"),75));layout_score=num(caption_layout.get("score"),subtitle_base);subtitle=clamp(0.75*subtitle_base+0.25*layout_score)
+ ret=clamp(num(retention.get("retention_score"),75));technical=clamp(num(pro.get("components",{}).get("technical"),100 if factual_ok else 0))
+ components={"script_score":script,"media_score":clamp(media_score),"visual_score":visual,"audio_score":audio_score,"subtitle_score":subtitle,"retention_score":ret,"technical_score":technical}
+ weights={"script_score":0.14,"media_score":0.16,"visual_score":0.18,"audio_score":0.12,"subtitle_score":0.10,"retention_score":0.15,"technical_score":0.15};score=round(sum(components[k]*weights[k] for k in weights),1)
+ if critical:decision="BLOCK"
+ elif score>=90:decision="PUBLISH"
+ elif score>=80:decision="ACCEPTABLE"
+ elif score>=70:decision="REPAIR"
+ else:decision="BLOCK"
+ actions=[]
+ weak_scenes=vscore.get("weak_scenes",[]) if isinstance(vscore.get("weak_scenes"),list) else []
+ if components["media_score"]<80 or components["visual_score"]<80:actions.append("replace_weak_or_generic_media" + (":"+",".join(map(str,weak_scenes)) if weak_scenes else ""))
+ if components["retention_score"]<80:actions.append("repair_pacing")
+ if components["audio_score"]<90:actions.append("remaster_audio")
+ if components["subtitle_score"]<85:actions.append("repair_caption_layout")
+ payload={"short_id":SID,"version":"RELEASE_GATE_1.1","generated_at":datetime.now().astimezone().isoformat(timespec="seconds"),"shortautopro_score":score,"decision":decision,"components":components,"weights":weights,"critical":critical,"repair_actions":actions,"visual_multiscore":vscore};atomic(OUT,payload);print(json.dumps(payload,ensure_ascii=False,indent=2))
+ if args.enforce and decision=="BLOCK":return 1
+ if args.enforce and decision=="REPAIR":return 20
+ return 0
+if __name__=="__main__":raise SystemExit(main())

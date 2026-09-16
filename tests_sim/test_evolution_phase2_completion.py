@@ -102,26 +102,31 @@ class ResumeBoundaryTests(unittest.TestCase):
         evo.STATE_DIR = self.base / ".sap_state"
         self.sid = "resume_test"
         os.environ["SHORT_QTD_CENAS"] = "12"
-        os.environ["SAP_PRO_EDIT"] = "1"
 
-        scene_map = self.base / "roteiros" / f"scene_map_{self.sid}.json"
-        scene_map.parent.mkdir(parents=True)
-        scene_map.write_text(json.dumps({"scenes": [{"scene": i} for i in range(1, 13)]}), encoding="utf-8")
-
-        supervisor = self.base / "roteiros" / f"supervisor_{self.sid}.json"
-        supervisor.write_text(json.dumps({"status": "PASS"}), encoding="utf-8")
-
-        media_quality = self.base / "roteiros" / f"media_quality_{self.sid}.json"
-        media_quality.write_text(json.dumps({"status": "PASS", "critical": []}), encoding="utf-8")
-
-        # A retomada parcial Professional só é segura quando o plano editorial
-        # profissional já foi materializado e cobre todas as cenas.
-        pro_plan = self.base / "roteiros" / f"pro_edit_plan_{self.sid}.json"
-        pro_plan.write_text(json.dumps({
+        roteiros = self.base / "roteiros"
+        roteiros.mkdir(parents=True)
+        (roteiros / f"scene_map_{self.sid}.json").write_text(
+            json.dumps({"scenes": [{"scene": i} for i in range(1, 13)]}), encoding="utf-8"
+        )
+        (roteiros / f"supervisor_{self.sid}.json").write_text(json.dumps({"status": "PASS"}), encoding="utf-8")
+        (roteiros / f"media_quality_{self.sid}.json").write_text(
+            json.dumps({"status": "PASS", "critical": []}), encoding="utf-8"
+        )
+        (roteiros / f"pro_edit_plan_{self.sid}.json").write_text(json.dumps({
             "version": "PRO_EDIT_1_0",
             "profile": "true_crime",
             "scenes": [{"scene": i} for i in range(1, 13)],
         }), encoding="utf-8")
+
+        planning = {
+            f"retention_{self.sid}.json": {"status": "PASS", "retention_score": 95, "notes": ["validated"]},
+            f"sound_design_{self.sid}.json": {"status": "PASS", "scenes": [{"scene": 1, "mood": "tension"}]},
+            f"multi_asset_{self.sid}.json": {"status": "PASS", "scenes": [{"scene": 1, "assets": ["scene_01.jpg"]}]},
+            f"visual_score_{self.sid}.json": {"status": "PASS", "visual_score": 92, "dimensions": {"relevance": 94}},
+            f"visual_continuity_{self.sid}.json": {"status": "PASS", "visual_continuity_score": 91, "pairs": 11},
+        }
+        for name, payload in planning.items():
+            (roteiros / name).write_text(json.dumps(payload), encoding="utf-8")
 
         state = self.base / ".sap_state" / f"{self.sid}.json"
         state.parent.mkdir(parents=True)
@@ -140,11 +145,10 @@ class ResumeBoundaryTests(unittest.TestCase):
         evo.BASE = self.old["evo_base"]
         evo.STATE_DIR = self.old["evo_state"]
         os.environ.pop("SHORT_QTD_CENAS", None)
-        os.environ.pop("SAP_PRO_EDIT", None)
         self.temp.cleanup()
 
     def test_resume_advances_only_when_artifacts_exist(self):
-        self.assertEqual(rsr.boundary(self.sid), "post_media")
+        self.assertEqual(rsr.boundary(self.sid), "post_planning")
 
         audio = self.base / "audios" / f"short_{self.sid}.mp3"
         audio.parent.mkdir(parents=True)
@@ -171,6 +175,10 @@ class ResumeBoundaryTests(unittest.TestCase):
             "status": "BLOCK",
             "critical": ["very_low_resolution:scene_09.jpg"],
         }), encoding="utf-8")
+        self.assertEqual(rsr.boundary(self.sid), "full")
+
+    def test_resume_falls_back_to_full_without_consolidation_plan(self):
+        (self.base / "roteiros" / f"retention_{self.sid}.json").unlink()
         self.assertEqual(rsr.boundary(self.sid), "full")
 
     def test_render_boundary_can_skip_to_final_gates(self):
@@ -204,11 +212,13 @@ class CompletionIntegrationTests(unittest.TestCase):
         self.assertIn("longform/", text)
         self.assertIn("reports/evolution/", text)
 
-    def test_safe_resume_never_claims_early_stage_skip(self):
+    def test_safe_resume_never_claims_legacy_partial_skip(self):
         text = (ROOT / "resume_short_runtime.py").read_text(encoding="utf-8")
         self.assertIn('return "full"', text)
-        self.assertIn("Production Supervisor", text)
+        self.assertIn("consolidation_plan_ok", text)
+        self.assertIn("PROFESSIONAL_CANONICAL", text)
         self.assertIn("supervisor_ok", text)
+        self.assertNotIn("SAP_PRO_EDIT", text)
 
 
 if __name__ == "__main__":

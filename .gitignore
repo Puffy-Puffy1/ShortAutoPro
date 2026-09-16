@@ -98,7 +98,7 @@ roteiros/hook_*.json
 roteiros/hook_*.txt
 roteiros/visual_intelligence_6_*.json
 
-# Professional runtime / auditorias por Short.
+# Professional / Consolidation 3.0 runtime por Short.
 roteiros/pro_caption_*.json
 roteiros/pro_edit_plan_*.json
 roteiros/pro_edit_plan_pre_repair_*.json
@@ -106,6 +106,14 @@ roteiros/pro_edit_runtime_*.json
 roteiros/supervisor_*.json
 !roteiros/supervisor_template.json
 roteiros/visual_shot_bridge_*.json
+roteiros/retention_*.json
+roteiros/sound_design_*.json
+roteiros/multi_asset_*.json
+roteiros/visual_score_*.json
+roteiros/visual_continuity_*.json
+roteiros/caption_layout_*.json
+roteiros/speech_plan_*.json
+roteiros/visual_qa_*.json
 
 # testes/resultados gerados
 roteiros/*teste*.txt
@@ -119,42 +127,29 @@ Thumbs.db
 .vscode/
 .idea/
 
-# vídeos gerados
 videos/
+audios/
 
 # =========================
 # OUTRAS SAÍDAS GERADAS
 # =========================
-audios/
 temp/
 *.bak
 *.bak_*
 *.backup
 *.old
-
-# arquivos de ambiente temporários
 **/*.env
 **/*_env.sh
-
-# resultados de testes
 **/*self_test*.log
 **/*test*.log
-
-# versões antigas / backups locais
 backups/
 
-# Consolidação 2.0: arquivo histórico/migrações ficam apenas no histórico Git,
-# nunca novamente na árvore operacional do Termux.
+# Arquivo histórico/migrações ficam apenas no histórico Git.
 _arquivo_historico/
 *.pre_segment_fix
 
-# diagnósticos gerados
 diagnosticos/
-
-# configuração local / possíveis credenciais
 config.sh
-
-# arquivo avulso ainda não identificado
 aa
 
 # =========================
@@ -174,31 +169,25 @@ roteiros/used_topic_*.txt
 roteiros/visual_director_*.json
 roteiros/visual_risk_*.json
 
-# Proveniência capturada durante execuções reais; não faz parte do código-fonte.
 manifests/source_provenance_live/
 
 # =========================
 # ESTADO LOCAL DE PRODUÇÃO
 # =========================
-# O histórico muda durante a geração e deve permanecer local no Termux.
 historico_assuntos.json
 historico_assuntos.json.lock
 
-# Artefatos de execução datados. Mantemos os arquivos antigos já versionados,
-# mas novas produções ficam locais e não poluem o status do Git.
 credits/attribution_20*.txt
 credits/ledger_20*.json
 credits/short_20*.txt
 manifests/20*.json
 roteiros/supervisor_20*.json
 
-# Jobs de cliente também são artefatos locais de produção.
 credits/attribution_client_*.txt
 credits/ledger_client_*.json
 credits/short_client_*.txt
 manifests/client_*.json
 
-# resultados locais de auditoria
 score_candidate_binding_audit.json
 
 # =========================

@@ -8,12 +8,14 @@ on:
       - "**.py"
       - "**.sh"
       - ".github/workflows/**"
+      - ".gitignore"
   push:
     branches: [main]
     paths:
       - "**.py"
       - "**.sh"
       - ".github/workflows/**"
+      - ".gitignore"
 
 permissions:
   contents: read
@@ -25,7 +27,7 @@ concurrency:
 jobs:
   portable-validation:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 18
     env:
       PYTHONUTF8: "1"
       PYTHONIOENCODING: "utf-8"
@@ -89,32 +91,37 @@ jobs:
           find . -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
           echo "PORTABLE_BASH_SYNTAX=PASS"
 
-      - name: Unified Professional Pipeline Contract
+      - name: Consolidation 3.0 Pipeline Contract
         shell: bash
         run: |
           set -euo pipefail
-          test -f professional_edit_director.py
-          test -f professional_edit_repair.py
-          test -f professional_caption_director.py
-          test -f video_professional.py
-          test -f v6_professional.py
-          test -f professional_quality_gate.py
-          test -f gerar_short.sh
-          test -f video.py
-          test -f v6.py
-          test -f v6_runtime.py
-          test -f resume_short_runtime.py
-          test -f shortautopro_evolution_core.py
-          test ! -e professional_pipeline_runtime.py
-          test ! -e gerar_short_professional.sh
-          test ! -e v6_professional_runtime.py
-          test ! -e resume_short_professional_runtime.py
-          grep -q 'SAP_PRO_EDIT="${SAP_PRO_EDIT:-1}"' gerar_short.sh
-          grep -q 'professional_edit_director.py' gerar_short.sh
-          grep -q 'professional_caption_director.py' gerar_short.sh
-          grep -q 'STANDARD_ROLLBACK' profile_run.sh
-          grep -q 'SAP_PROFESSIONAL_ENFORCE", "0"' professional_quality_gate.py
-          echo "UNIFIED_PROFESSIONAL_PIPELINE_CONTRACT=PASS"
+          for f in \
+            main.py profile_run.sh resume_short_runtime.py \
+            professional_edit_director.py professional_edit_repair.py \
+            professional_caption_director.py video_professional.py v6_professional.py \
+            visual_continuity_engine.py visual_score_engine.py multi_asset_director.py \
+            retention_engine.py sound_design_engine.py speech_director.py \
+            caption_layout_guard.py audio_finalizer.py visual_qa.py release_gate.py \
+            storage_manager.py professional_quality_gate.py; do
+            test -f "$f"
+          done
+
+          for legacy in \
+            gerar_short.sh gerar_short_professional.sh professional_pipeline_runtime.py \
+            resume_short_professional_runtime.py v6_professional_runtime.py \
+            v6_runtime.py v6.py video.py limpar_storage.sh; do
+            test ! -e "$legacy"
+          done
+
+          grep -q 'PROFESSIONAL_CANONICAL' main.py
+          grep -q 'video_professional.py' main.py
+          grep -q 'v6_professional.py' main.py
+          grep -q 'release_gate.py' main.py
+          grep -q 'MAIN="$BASE/main.py"' profile_run.sh
+          ! grep -q 'STANDARD_ROLLBACK' main.py
+          ! grep -q 'SAP_PRO_EDIT' main.py
+          ! grep -q 'STANDARD_ROLLBACK' profile_run.sh
+          echo "CONSOLIDATION_3_0_PIPELINE_CONTRACT=PASS"
 
       - name: Consolidation Repository Audit
         shell: bash
@@ -127,10 +134,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ffmpeg -hide_banner -filters 2>/dev/null | grep -q loudnorm
-          ffmpeg -hide_banner -filters 2>/dev/null | grep -q sidechaincompress
-          ffmpeg -hide_banner -filters 2>/dev/null | grep -q xfade
-          ffmpeg -hide_banner -filters 2>/dev/null | grep -q zoompan
+          filters="$(ffmpeg -hide_banner -filters 2>/dev/null)"
+          grep -q loudnorm <<<"$filters"
+          grep -q sidechaincompress <<<"$filters"
+          grep -q xfade <<<"$filters"
+          grep -q zoompan <<<"$filters"
+          grep -q blackdetect <<<"$filters"
+          grep -q cropdetect <<<"$filters"
           echo "PORTABLE_FFMPEG_CAPABILITIES=PASS"
 
       - name: Final Summary

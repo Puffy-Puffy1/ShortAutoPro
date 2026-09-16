@@ -1,416 +1,291 @@
 #!/usr/bin/env python3
+"""AI Visual Director — structured, factual scene contract for ShortAutoPro.
+
+The director never rewrites narration. It enriches each approved scene with
+search and editorial metadata consumed by media selection, continuity, motion,
+retention and QA.
+"""
+from __future__ import annotations
 
 import json
 import os
 import re
 import shutil
 import sys
+import tempfile
 import time
 import unicodedata
 from datetime import date
+from pathlib import Path
+from typing import Any
 
 import requests
 
-BASE = os.path.expanduser("~/ShortAutoPro")
-SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat())
-API_KEY = os.getenv("GEMINI_API_KEY", "")
-MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
+BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
+SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat()).strip()
+API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
+MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite").strip()
+R = BASE / "roteiros"
+MAPA = R / f"scene_map_{SHORT_ID}.json"
+BACKUP = R / f"scene_map_pre_visual_{SHORT_ID}.json"
+REPORT = R / f"visual_director_{SHORT_ID}.json"
 
 try:
-    QTD_CENAS = int(os.getenv("SHORT_QTD_CENAS", "12"))
+    QTD_CENAS = max(6, min(20, int(os.getenv("SHORT_QTD_CENAS", "12"))))
 except ValueError:
     QTD_CENAS = 12
-QTD_CENAS = max(6, min(QTD_CENAS, 20))
 
-R = os.path.join(BASE, "roteiros")
-MAPA = os.path.join(R, f"scene_map_{SHORT_ID}.json")
-BACKUP = os.path.join(R, f"scene_map_pre_visual_{SHORT_ID}.json")
-REPORT = os.path.join(R, f"visual_director_{SHORT_ID}.json")
-
-if not os.path.isfile(MAPA):
-    sys.exit(f"ERRO: scene_map não encontrado: {MAPA}")
-if not API_KEY:
-    sys.exit("ERRO: GEMINI_API_KEY não configurada.")
+ALLOWED_SHOTS = {"wide", "medium", "close_up", "detail", "overhead", "aerial", "portrait", "document"}
+ALLOWED_MOVES = {"none", "hold", "pan_left", "pan_right", "zoom_in", "zoom_out", "parallax", "native"}
 
 
-def atomic_json(path, data):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    tmp = f"{path}.{os.getpid()}.tmp"
-    try:
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp, path)
-    finally:
-        if os.path.exists(tmp):
-            try:
-                os.remove(tmp)
-            except OSError:
-                pass
+def clean(value: Any) -> str:
+    return " ".join(str(value or "").replace("\n", " ").split())
 
 
-def texto_limpo(texto):
-    return " ".join(str(texto or "").replace("\n", " ").split())
-
-
-def lista_limpa(valor, limite=10):
-    if not isinstance(valor, list):
+def clean_list(value: Any, limit: int) -> list[str]:
+    if not isinstance(value, list):
         return []
-    saida = []
-    vistos = set()
-    for item in valor:
-        item = texto_limpo(item).lower()
-        key = item.casefold()
-        if item and key not in vistos:
-            vistos.add(key)
-            saida.append(item)
-    return saida[:limite]
+    out: list[str] = []
+    seen: set[str] = set()
+    for item in value:
+        text = clean(item).lower()
+        if text and text.casefold() not in seen:
+            seen.add(text.casefold())
+            out.append(text)
+    return out[:limit]
 
 
-def normalizar(texto):
-    texto = unicodedata.normalize("NFKD", str(texto or ""))
-    texto = "".join(c for c in texto if not unicodedata.combining(c))
-    return texto.lower()
+def norm(value: Any) -> str:
+    text = unicodedata.normalize("NFKD", clean(value))
+    return "".join(c for c in text if not unicodedata.combining(c)).lower()
 
 
-def tokens(texto):
-    return set(re.findall(r"[a-z0-9]+", normalizar(texto)))
+def tokens(value: Any) -> set[str]:
+    return {x for x in re.findall(r"[a-z0-9]+", norm(value)) if len(x) >= 3}
 
 
-try:
-    with open(MAPA, "r", encoding="utf-8") as f:
-        original = json.load(f)
-except Exception as exc:
-    sys.exit(f"ERRO lendo scene_map: {exc}")
-
-if not isinstance(original, dict):
-    sys.exit("ERRO: scene_map não é objeto JSON.")
-cenas_originais = original.get("scenes", [])
-if not isinstance(cenas_originais, list):
-    sys.exit("ERRO: campo scenes inválido.")
-cenas_originais = [x for x in cenas_originais if isinstance(x, dict)]
-if len(cenas_originais) != QTD_CENAS:
-    sys.exit(
-        f"ERRO: esperado {QTD_CENAS} cenas; recebido {len(cenas_originais)}."
-    )
-
-esperado = list(range(1, QTD_CENAS + 1))
-numeros = []
-for index, cena in enumerate(cenas_originais, start=1):
+def atomic_json(path: Path, payload: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent))
     try:
-        numeros.append(int(cena.get("scene")))
-    except (TypeError, ValueError):
-        sys.exit(f"ERRO: cena original {index} sem número válido.")
-if numeros != esperado:
-    sys.exit("ERRO: numeração original das cenas não é sequencial.")
-
-shutil.copy2(MAPA, BACKUP)
-
-OBJETOS = {
-    "aviao": "airplane",
-    "aeronave": "airplane",
-    "helicoptero": "helicopter",
-    "navio": "ship",
-    "barco": "boat",
-    "carro": "car",
-    "veiculo": "vehicle",
-    "hotel": "hotel",
-    "elevador": "elevator",
-    "tanque": "water tank",
-    "montanha": "mountain",
-    "montanhas": "mountains",
-    "neve": "snow",
-    "floresta": "forest",
-    "caverna": "cave",
-    "documento": "document",
-    "relatorio": "document",
-    "camera": "security camera",
-    "policia": "police",
-    "corpo": "body",
-    "rugby": "rugby team",
-}
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle, ensure_ascii=False, indent=2)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp, path)
+    except Exception:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
 
 
-def objetos_do_segmento(segmento):
-    seg_tokens = tokens(segmento)
-    saida = []
-    for termo, ingles in OBJETOS.items():
-        termo_tokens = tokens(termo)
-        if termo_tokens and termo_tokens <= seg_tokens and ingles not in saida:
-            saida.append(ingles)
-    return saida
+def load_map() -> dict[str, Any]:
+    if not MAPA.is_file():
+        raise ValueError(f"scene_map não encontrado: {MAPA}")
+    data = json.loads(MAPA.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError("scene_map não é objeto JSON")
+    scenes = data.get("scenes")
+    if not isinstance(scenes, list) or len(scenes) != QTD_CENAS:
+        raise ValueError(f"scene_map precisa ter {QTD_CENAS} cenas")
+    for idx, scene in enumerate(scenes, 1):
+        if not isinstance(scene, dict) or int(scene.get("scene", 0) or 0) != idx:
+            raise ValueError(f"cena {idx} inválida")
+    return data
 
 
-SHOT_TERMS = [
-    "security footage", "close up", "wide shot", "medium shot", "aerial",
-    "portrait", "interior", "exterior", "overhead", "macro", "silhouette",
-    "document", "drone", "landscape",
-]
-
-
-def detectar_plano(query):
-    q = texto_limpo(query).lower()
-    for termo in SHOT_TERMS:
-        if re.search(r"(?<![a-z0-9])" + re.escape(termo) + r"(?![a-z0-9])", q):
-            return termo
-    return "generic"
-
-
-def segmento_tem_nome_proprio(segmento):
-    palavras = re.findall(r"\b[A-ZÀ-Ý][A-Za-zÀ-ÿ'-]{2,}\b", str(segmento))
-    return len(palavras) >= 2
-
-
-def proteger_retrato_generico(segmento, query, must_have):
-    if not segmento_tem_nome_proprio(segmento):
-        return query, must_have, False
-    q = texto_limpo(query).lower()
-    termos = {"portrait", "headshot", "face", "man portrait", "woman portrait"}
-    if not any(
-        re.search(r"(?<![a-z0-9])" + re.escape(termo) + r"(?![a-z0-9])", q)
-        for termo in termos
-    ):
-        return query, must_have, False
-    return (
-        "vintage archival case documents and partially visible old photograph",
-        ["document", "photograph"],
-        True,
-    )
-
-
-def avaliar_cena(cena):
-    segmento = texto_limpo(cena.get("segment", ""))
-    query = texto_limpo(cena.get("query", ""))
-    must = lista_limpa(cena.get("must_have", []), 3)
-    avoid = lista_limpa(cena.get("avoid", []), 5)
-    score = 100
-    problemas = []
-
-    if not segmento:
-        score -= 50
-        problemas.append("segmento_vazio")
-    if len(query.split()) < 4:
-        score -= 25
-        problemas.append("query_generica")
+def local_contract(scene: dict[str, Any]) -> dict[str, Any]:
+    segment = clean(scene.get("segment"))
+    query = clean(scene.get("query"))
+    must = clean_list(scene.get("must_have"), 4)
+    avoid = clean_list(scene.get("avoid"), 6)
     if not must:
-        score -= 25
-        problemas.append("sem_must")
-
-    objetos = objetos_do_segmento(segmento)
-    must_text = " ".join(must)
-    if objetos and not any(obj in must_text for obj in objetos):
-        score -= 30
-        problemas.append("objeto_principal_ausente")
-    if not avoid:
-        score -= 5
-        problemas.append("sem_avoid")
-
+        # deterministic factual fallback: only reuse words already present.
+        candidates = [x for x in re.findall(r"[A-Za-zÀ-ÿ0-9'-]+", segment) if len(x) >= 5]
+        must = [x.lower() for x in candidates[:2]] or ["context"]
     return {
-        "score": max(0, score),
-        "problems": problemas,
-        "objects": objetos,
-        "shot": detectar_plano(query),
+        "scene": int(scene["scene"]),
+        "segment": segment,
+        "main_subject": clean(scene.get("main_subject")) or " ".join(must[:2]),
+        "environment": clean(scene.get("environment") or scene.get("setting")),
+        "location": clean(scene.get("location")),
+        "era": clean(scene.get("era")),
+        "emotion": clean(scene.get("emotion") or scene.get("mood")) or "neutral",
+        "shot_type": clean(scene.get("shot_type")) or "medium",
+        "movement": clean(scene.get("movement")) or "hold",
+        "must_have": must,
+        "avoid": avoid,
+        "query": query or " ".join(must + ["documentary"]),
+        "alt_queries": clean_list(scene.get("alt_queries"), 3),
+        "protected_zone": clean(scene.get("protected_zone")) or "center",
+        "reason": "deterministic fallback",
     }
 
 
-entrada = []
-for cena in cenas_originais:
-    avaliacao = avaliar_cena(cena)
-    entrada.append({
-        "scene": cena["scene"],
-        "segment": texto_limpo(cena.get("segment", "")),
-        "current_query": texto_limpo(cena.get("query", "")),
-        "current_must": lista_limpa(cena.get("must_have", []), 3),
-        "current_avoid": lista_limpa(cena.get("avoid", []), 5),
-        "local_score": avaliacao["score"],
-        "local_problems": avaliacao["problems"],
-    })
+def build_prompt(scenes: list[dict[str, Any]]) -> str:
+    seed = [local_contract(scene) for scene in scenes]
+    return f"""
+Você é o Diretor Visual factual do ShortAutoPro para documentários verticais.
+Receba EXATAMENTE {QTD_CENAS} cenas já aprovadas. NÃO reescreva `segment` e NÃO invente pessoas, locais, datas, objetos, crimes, causas ou evidências.
 
-prompt = f"""
-Você é diretor visual profissional de vídeos documentais verticais.
-Você receberá EXATAMENTE {QTD_CENAS} cenas.
-Não altere o roteiro. Melhore SOMENTE query, must_have e avoid.
+Para cada cena, devolva:
+- main_subject: assunto/objeto principal visível e factual;
+- environment: ambiente visual; location apenas se sustentado;
+- era: época apenas quando sustentada, senão string vazia;
+- emotion: atmosfera editorial, não alegação factual;
+- shot_type: wide|medium|close_up|detail|overhead|aerial|portrait|document;
+- movement: none|hold|pan_left|pan_right|zoom_in|zoom_out|parallax|native;
+- must_have: 1–4 elementos obrigatórios sustentados;
+- avoid: 2–6 elementos que causariam representação errada/genérica;
+- query: busca principal em inglês, 5–14 palavras;
+- alt_queries: 2–3 buscas alternativas em inglês, semanticamente equivalentes;
+- protected_zone: center|top|bottom|left|right, onde assunto importante tende a ficar;
+- reason: justificativa curta.
 
-REGRAS:
-- identifique o objeto principal da frase;
-- não acrescente fatos, identidades, crimes, armas, causas ou locais não sustentados;
-- pessoas reais específicas não devem ser substituídas por retratos genéricos;
-- teoria/paranormal/UFO deve ser visualmente ambíguo, nunca mostrado como fato;
-- query em inglês, 5 a 12 palavras;
-- must_have: 1 a 3 itens;
-- avoid: 2 a 4 itens quando possível;
-- relevância factual acima de movimento;
-- preserve exatamente os números das cenas.
+PRIORIDADES:
+1) evidência documental real e identidade correta;
+2) significado completo da frase, nunca correspondência de palavra isolada;
+3) manter personagem/local/época entre cenas quando a narrativa continua no mesmo contexto;
+4) variar enquadramento e movimento sem transformar documento/foto histórica em efeito artificial;
+5) proibir stock lifestyle genérico quando não representa de fato a cena;
+6) pessoas reais específicas não podem virar retratos genéricos;
+7) teoria/paranormal deve permanecer visualmente ambígua.
 
-CENAS:
-{json.dumps(entrada, ensure_ascii=False, indent=2)}
+ENTRADA:
+{json.dumps(seed, ensure_ascii=False, indent=2)}
 
 RESPONDA SOMENTE JSON VÁLIDO:
-{{"scenes":[{{"scene":1,"query":"english visual search","must_have":["object"],"avoid":["wrong object"],"shot_type":"wide shot","reason":"short explanation"}}]}}
+{{"scenes":[{{"scene":1,"main_subject":"...","environment":"...","location":"","era":"","emotion":"...","shot_type":"medium","movement":"hold","must_have":["..."],"avoid":["generic lifestyle","wrong person"],"query":"...","alt_queries":["...","..."],"protected_zone":"center","reason":"..."}}]}}
 EXATAMENTE {QTD_CENAS} cenas.
 """
 
-URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent"
-HEADERS = {"Content-Type": "application/json", "x-goog-api-key": API_KEY}
-payload = {
-    "contents": [{"parts": [{"text": prompt}]}],
-    "generationConfig": {"temperature": 0.25, "maxOutputTokens": 4500},
-}
 
-resposta = None
-print()
-print("================================")
-print("VISUAL DIRECTOR PASS - STABLE 3.1")
-print("================================")
-print()
-
-for tentativa in range(1, 4):
-    print(f"Visual Director tentativa {tentativa}/3...")
-    try:
-        response = requests.post(
-            URL,
-            headers=HEADERS,
-            json=payload,
-            timeout=120,
-        )
-    except Exception as exc:
-        if tentativa == 3:
-            sys.exit(f"ERRO Visual Director: {exc}")
-        time.sleep(4)
-        continue
-
-    if response.ok:
+def call_ai(scenes: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if not API_KEY:
+        return None
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent"
+    payload = {
+        "contents": [{"parts": [{"text": build_prompt(scenes)}]}],
+        "generationConfig": {"temperature": 0.18, "maxOutputTokens": 6500},
+    }
+    for attempt in range(1, 4):
         try:
-            resposta = response.json()["candidates"][0]["content"]["parts"][0]["text"]
-            resposta = str(resposta).strip()
-            if resposta:
+            response = requests.post(
+                url,
+                headers={"Content-Type": "application/json", "x-goog-api-key": API_KEY},
+                json=payload,
+                timeout=120,
+            )
+            if response.ok:
+                text = response.json()["candidates"][0]["content"]["parts"][0]["text"]
+                text = str(text).replace("```json", "").replace("```", "").strip()
+                data = json.loads(text)
+                return data if isinstance(data, dict) else None
+            if response.status_code not in {429, 500, 502, 503, 504}:
                 break
         except Exception:
-            resposta = None
+            pass
+        if attempt < 3:
+            time.sleep(4 * attempt)
+    return None
 
-    if response.status_code in {429, 500, 502, 503, 504} and tentativa < 3:
-        time.sleep(6)
-        continue
-    sys.exit(f"ERRO Visual Director HTTP {response.status_code}")
 
-if not resposta:
-    sys.exit("ERRO: Visual Director sem resposta.")
+def safe_scene(original: dict[str, Any], proposal: dict[str, Any] | None) -> tuple[dict[str, Any], dict[str, Any]]:
+    fallback = local_contract(original)
+    p = proposal if isinstance(proposal, dict) else {}
+    out = dict(original)
 
-resposta = resposta.replace("```json", "").replace("```", "").strip()
-try:
-    novo = json.loads(resposta)
-except Exception:
-    sys.exit("ERRO: Visual Director retornou JSON inválido.")
+    query = clean(p.get("query"))
+    if not 5 <= len(query.split()) <= 16:
+        query = fallback["query"]
+    must = clean_list(p.get("must_have"), 4) or fallback["must_have"]
+    avoid = clean_list(p.get("avoid"), 6) or fallback["avoid"]
+    shot = norm(p.get("shot_type")).replace(" ", "_")
+    if shot not in ALLOWED_SHOTS:
+        shot = norm(fallback["shot_type"]).replace(" ", "_")
+    if shot not in ALLOWED_SHOTS:
+        shot = "medium"
+    movement = norm(p.get("movement")).replace(" ", "_")
+    if movement not in ALLOWED_MOVES:
+        movement = "hold"
 
-if not isinstance(novo, dict):
-    sys.exit("ERRO: resposta do Visual Director não é objeto JSON.")
-novas_cenas = novo.get("scenes", [])
-if not isinstance(novas_cenas, list):
-    sys.exit("ERRO: campo scenes do Visual Director não é lista.")
-if len(novas_cenas) != QTD_CENAS:
-    sys.exit(
-        f"ERRO: Visual Director retornou {len(novas_cenas)} cenas; esperado {QTD_CENAS}."
-    )
+    # Identity guard: AI cannot silently drop all original required anchors.
+    original_must = clean_list(original.get("must_have"), 4)
+    if original_must and not (tokens(" ".join(original_must)) & tokens(" ".join(must) + " " + query)):
+        must = original_must
+        query = fallback["query"]
 
-por_numero = {}
-for item in novas_cenas:
-    if not isinstance(item, dict):
-        sys.exit("ERRO: Visual Director retornou cena inválida.")
+    fields = {
+        "main_subject": clean(p.get("main_subject")) or fallback["main_subject"],
+        "environment": clean(p.get("environment")) or fallback["environment"],
+        "location": clean(p.get("location")) or fallback["location"],
+        "era": clean(p.get("era")) or fallback["era"],
+        "emotion": clean(p.get("emotion")) or fallback["emotion"],
+        "shot_type": shot,
+        "movement": movement,
+        "must_have": must,
+        "avoid": avoid,
+        "query": query,
+        "alt_queries": clean_list(p.get("alt_queries"), 3),
+        "protected_zone": norm(p.get("protected_zone")) if norm(p.get("protected_zone")) in {"center", "top", "bottom", "left", "right"} else "center",
+    }
+    if not fields["alt_queries"]:
+        fields["alt_queries"] = [query]
+    out.update(fields)
+
+    completeness = sum(bool(fields[k]) for k in ("main_subject", "emotion", "shot_type", "movement", "must_have", "avoid", "query", "alt_queries"))
+    score = round(100.0 * completeness / 8.0, 1)
+    report = {"scene": int(original["scene"]), "contract_score": score, **fields, "reason": clean(p.get("reason"))}
+    return out, report
+
+
+def main() -> int:
     try:
-        numero = int(item.get("scene"))
-    except (TypeError, ValueError):
-        sys.exit("ERRO: Visual Director retornou número de cena inválido.")
-    if numero in por_numero:
-        sys.exit(f"ERRO: cena {numero} duplicada no Visual Director.")
-    por_numero[numero] = item
+        data = load_map()
+        scenes = data["scenes"]
+        shutil.copy2(MAPA, BACKUP)
+        ai = call_ai(scenes)
+        proposals = {}
+        if isinstance(ai, dict) and isinstance(ai.get("scenes"), list):
+            for item in ai["scenes"]:
+                if isinstance(item, dict):
+                    try:
+                        proposals[int(item.get("scene"))] = item
+                    except (TypeError, ValueError):
+                        pass
 
-if set(por_numero) != set(esperado):
-    sys.exit("ERRO: numeração das cenas inválida.")
+        output_scenes: list[dict[str, Any]] = []
+        reports: list[dict[str, Any]] = []
+        for idx, scene in enumerate(scenes, 1):
+            enriched, report = safe_scene(scene, proposals.get(idx))
+            output_scenes.append(enriched)
+            reports.append(report)
 
-resultado_cenas = []
-relatorio = []
+        if len(output_scenes) != QTD_CENAS or any(int(s.get("scene", 0)) != i for i, s in enumerate(output_scenes, 1)):
+            raise ValueError("contrato visual perdeu cenas ou sequência")
 
-for original_scene in cenas_originais:
-    numero = int(original_scene["scene"])
-    melhoria = por_numero[numero]
-    antes = avaliar_cena(original_scene)
+        avg = round(sum(float(x["contract_score"]) for x in reports) / len(reports), 1)
+        final = dict(data)
+        final["scenes"] = output_scenes
+        final["visual_director"] = {"version": "4.0", "structured_contract": True, "ai_used": bool(proposals), "score": avg}
+        atomic_json(MAPA, final)
+        atomic_json(REPORT, {"short_id": SHORT_ID, "version": "4.0", "ai_used": bool(proposals), "visual_director_score": avg, "backup": str(BACKUP), "scenes": reports})
+    except Exception as exc:
+        print(f"ERRO VISUAL DIRECTOR 4.0: {exc}")
+        return 1
 
-    query = texto_limpo(melhoria.get("query", ""))
-    must = lista_limpa(melhoria.get("must_have", []), 3)
-    avoid = lista_limpa(melhoria.get("avoid", []), 5)
+    print("\n================================")
+    print("AI VISUAL DIRECTOR 4.0")
+    print("================================")
+    print(f"Cenas: {QTD_CENAS} | AI: {'ON' if proposals else 'SAFE FALLBACK'}")
+    print(f"Visual director score: {avg}/100")
+    print("VISUAL DIRECTOR: PASS")
+    return 0
 
-    if not 4 <= len(query.split()) <= 15:
-        query = texto_limpo(original_scene.get("query", ""))
-    if not 1 <= len(must) <= 3:
-        must = lista_limpa(original_scene.get("must_have", []), 3)
-    if not 1 <= len(avoid) <= 5:
-        avoid = lista_limpa(original_scene.get("avoid", []), 5)
 
-    if not query or not must:
-        sys.exit(f"ERRO: cena {numero} perdeu query ou must_have.")
-
-    query, must, retrato_protegido = proteger_retrato_generico(
-        original_scene.get("segment", ""),
-        query,
-        must,
-    )
-
-    candidato = dict(original_scene)
-    candidato.update({"query": query, "must_have": must, "avoid": avoid})
-    depois = avaliar_cena(candidato)
-
-    # O refinamento não pode piorar o score heurístico, salvo quando a
-    # proteção de identidade foi acionada deliberadamente.
-    reverted = False
-    if depois["score"] < antes["score"] and not retrato_protegido:
-        candidato = dict(original_scene)
-        depois = antes
-        reverted = True
-
-    resultado_cenas.append(candidato)
-    relatorio.append({
-        "scene": numero,
-        "before_score": antes["score"],
-        "after_score": depois["score"],
-        "before_query": original_scene.get("query", ""),
-        "after_query": candidato.get("query", ""),
-        "must_have": candidato.get("must_have", []),
-        "avoid": candidato.get("avoid", []),
-        "shot_type": texto_limpo(melhoria.get("shot_type", "")),
-        "reason": texto_limpo(melhoria.get("reason", "")),
-        "portrait_guard": retrato_protegido,
-        "reverted_regression": reverted,
-    })
-
-shots = [detectar_plano(x.get("query", "")) for x in resultado_cenas]
-repeticoes = sum(
-    1
-    for i in range(1, len(shots))
-    if shots[i] == shots[i - 1] and shots[i] != "generic"
-)
-
-mapa_final = dict(original)
-mapa_final["scenes"] = resultado_cenas
-mapa_final["visual_director"] = {
-    "version": "3.1",
-    "applied": True,
-    "expected_scenes": QTD_CENAS,
-    "consecutive_shot_repetitions": repeticoes,
-}
-
-atomic_json(MAPA, mapa_final)
-atomic_json(REPORT, {
-    "short_id": SHORT_ID,
-    "version": "3.1",
-    "backup": BACKUP,
-    "shot_repetitions": repeticoes,
-    "scenes": relatorio,
-})
-
-print()
-print(f"Cenas processadas: {len(resultado_cenas)}/{QTD_CENAS}")
-print(f"Repetições consecutivas de plano: {repeticoes}")
-print(f"Backup original: {BACKUP}")
-print(f"Relatório: {REPORT}")
-print("VISUAL DIRECTOR PASS: OK")
+if __name__ == "__main__":
+    raise SystemExit(main())

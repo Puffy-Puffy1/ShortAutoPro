@@ -16,8 +16,9 @@ class MediaResolutionGuardTests(unittest.TestCase):
 
     def test_runtime_rewrite_module_is_not_required(self):
         self.assertFalse((ROOT / "midia_runtime.py").exists())
-        pipeline = (ROOT / "gerar_short.sh").read_text(encoding="utf-8")
-        self.assertIn('"6/12 - SMART MEDIA SELECTOR" "midia.py"', pipeline)
+        self.assertFalse((ROOT / "gerar_short.sh").exists())
+        pipeline = (ROOT / "main.py").read_text(encoding="utf-8")
+        self.assertIn('p.run("6 - SMART MEDIA SELECTOR", "midia.py"', pipeline)
         self.assertNotIn("midia_runtime.py", pipeline)
 
 

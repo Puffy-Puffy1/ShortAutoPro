@@ -8,25 +8,28 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class EvolutionRuntimeIntegrationTests(unittest.TestCase):
     def test_generation_pipeline_has_evolution_observability(self):
-        text = (ROOT / "gerar_short.sh").read_text(encoding="utf-8")
-        self.assertIn('shortautopro_evolution.py" visual-audit', text)
-        self.assertIn('shortautopro_evolution.py" caption-audit', text)
-        self.assertIn('shortautopro_evolution.py" e2e', text)
-        self.assertIn('shortautopro_evolution.py" quality-score', text)
-        self.assertIn('evolution_checkpoint "$ARQUIVO" "start"', text)
-        self.assertIn('evolution_finish "SUCCESS"', text)
+        text = (ROOT / "main.py").read_text(encoding="utf-8")
+        self.assertIn('"shortautopro_evolution.py", "visual-audit"', text)
+        self.assertIn('"shortautopro_evolution.py", "caption-audit"', text)
+        self.assertIn('"shortautopro_evolution.py", "e2e"', text)
+        self.assertIn('evo_args = ["quality-score"]', text)
+        self.assertIn("self.checkpoint(file, \"start\", title)", text)
+        self.assertIn('p.finish("SUCCESS")', text)
 
     def test_quality_enforcement_is_safe_rollout(self):
-        text = (ROOT / "gerar_short.sh").read_text(encoding="utf-8")
-        self.assertIn('SAP_EVOLUTION_ENFORCE:-0', text)
-        self.assertIn('quality-score --enforce', text)
+        text = (ROOT / "main.py").read_text(encoding="utf-8")
+        self.assertIn('SAP_EVOLUTION_ENFORCE", "0"', text)
+        self.assertIn('["--enforce"]', text)
+        self.assertIn('SAP_RELEASE_ENFORCE", "1"', text)
+        self.assertIn('release_gate.py', text)
 
     def test_audio_uses_loudness_mastering(self):
         text = (ROOT / "audio.py").read_text(encoding="utf-8")
-        self.assertIn('SAP_AUDIO_TARGET_LUFS', text)
-        self.assertIn('SAP_AUDIO_TRUE_PEAK_DB', text)
-        self.assertIn('loudnorm=I=', text)
-        self.assertIn('"-b:a", "160k"', text)
+        self.assertIn("SAP_AUDIO_TARGET_LUFS", text)
+        self.assertIn("SAP_AUDIO_TRUE_PEAK_DB", text)
+        self.assertIn("loudnorm=I=", text)
+        self.assertIn("160k", text)
+        self.assertIn("atempo", text)
 
     def test_caption_audit_mirror_is_preserved(self):
         text = (ROOT / "legenda_dinamica.py").read_text(encoding="utf-8")
@@ -42,11 +45,11 @@ class EvolutionRuntimeIntegrationTests(unittest.TestCase):
         self.assertTrue(profiles["default"]["visual"]["retry_weak_scenes"])
         self.assertTrue(all(str(data.get("language", "pt-BR")).lower().startswith("pt") for data in profiles.values()))
 
-    def test_final_summary_uses_real_quality_reports(self):
-        text = (ROOT / "gerar_short.sh").read_text(encoding="utf-8")
-        self.assertIn("QUALITY_REPORT=", text)
-        self.assertIn("EVOLUTION_REPORT", text)
-        self.assertIn("REVIEW (EVOLUTION", text)
+    def test_final_summary_uses_real_release_report(self):
+        text = (ROOT / "main.py").read_text(encoding="utf-8")
+        self.assertIn('release_path = BASE / "manifests" / f"{sid}_release.json"', text)
+        self.assertIn("ShortAutoPro Score:", text)
+        self.assertIn("Release:", text)
         self.assertNotIn('echo "QUALITY: PASS"', text)
 
 
