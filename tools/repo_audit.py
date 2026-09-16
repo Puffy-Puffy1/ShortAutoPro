@@ -32,6 +32,7 @@ REQUIRED = {
     "resume_short_runtime.py",
     "midia.py",
     "media_runtime_adapter_v1.py",
+    "media_runtime_adapter_v2.py",
     "media_must_verifier.py",
     "vg4x_bridge.py",
     "visual_engine_unified.py",
@@ -109,7 +110,7 @@ MAIN_FORBIDDEN_TOKENS = {
     '"gerar_short.sh"',
 }
 
-MEDIA_ADAPTER_REQUIRED_TOKENS = {
+MEDIA_ADAPTER_V1_REQUIRED_TOKENS = {
     '"SAP_VISUAL_UNIFIED": "1"',
     '"SAP_VSE4": "0"',
     '"SAP_VSE4_RESCUE": "0"',
@@ -128,6 +129,19 @@ MEDIA_ADAPTER_REQUIRED_TOKENS = {
     'candidate["must_hits"] = verified',
     "SAP_PROVIDER_SKIP",
     "normalize_candidate",
+}
+
+MEDIA_ADAPTER_V2_REQUIRED_TOKENS = {
+    "import media_runtime_adapter_v1 as v1",
+    "neutral_context_score",
+    "SAFE_CONTEXTUAL_RESCUE_NEUTRAL_MUST",
+    "_disable_legacy_vse42_authority",
+    'namespace["_vse42_enabled"] = disabled',
+    'namespace["_vse42_finalize_pool"] = passthrough',
+    'namespace["_vse42_note_success"] = no_note',
+    'namespace["_vse42_commit_media"] = no_commit',
+    '"authority": "VISUAL_UNIFIED"',
+    "MEDIA_RUNTIME_ADAPTER_V2=INSTALLED",
 }
 
 MUST_VERIFIER_REQUIRED_TOKENS = {
@@ -167,7 +181,8 @@ def main() -> int:
     profile_text = read_text("profile_run.sh")
     resume_text = read_text("resume_short_runtime.py")
     gitignore = read_text(".gitignore")
-    adapter_text = read_text("media_runtime_adapter_v1.py")
+    adapter_v1_text = read_text("media_runtime_adapter_v1.py")
+    adapter_v2_text = read_text("media_runtime_adapter_v2.py")
     verifier_text = read_text("media_must_verifier.py")
     unified_text = read_text("visual_engine_unified.py")
     vg4x_bridge_text = read_text("vg4x_bridge.py")
@@ -191,11 +206,15 @@ def main() -> int:
         if token in resume_text:
             issues.append(f"resume_legacy_token:{token}")
 
-    # Canonical media runtime: query expansion enriches the pool, while Visual
-    # Unified is the sole production reranker. VI6 is telemetry-only SHADOW.
-    for token in sorted(MEDIA_ADAPTER_REQUIRED_TOKENS):
-        if token not in adapter_text:
-            issues.append(f"media_runtime_contract_missing:{token}")
+    # Canonical media runtime: V1 owns normalization/strict MUST verification;
+    # V2 is the production reliability layer that preserves Visual Unified as
+    # the single winner authority while query expansion only enriches pools.
+    for token in sorted(MEDIA_ADAPTER_V1_REQUIRED_TOKENS):
+        if token not in adapter_v1_text:
+            issues.append(f"media_runtime_v1_contract_missing:{token}")
+    for token in sorted(MEDIA_ADAPTER_V2_REQUIRED_TOKENS):
+        if token not in adapter_v2_text:
+            issues.append(f"media_runtime_v2_contract_missing:{token}")
     for token in sorted(MUST_VERIFIER_REQUIRED_TOKENS):
         if token not in verifier_text:
             issues.append(f"must_verifier_contract_missing:{token}")
@@ -203,14 +222,15 @@ def main() -> int:
         issues.append("visual_unified_missing_strict_must_verifier")
     if "effective_pre_must_verification" not in unified_text:
         issues.append("visual_unified_missing_must_score_recalibration")
-    if "from media_runtime_adapter_v1 import install as install_media_runtime" not in vg4x_bridge_text:
-        issues.append("vg4x_bridge_not_routed_to_media_adapter")
+    if "from media_runtime_adapter_v2 import install as install_media_runtime" not in vg4x_bridge_text:
+        issues.append("vg4x_bridge_not_routed_to_media_adapter_v2")
     if 'os.getenv("SAP_VG4X_LEGACY", "0") == "1"' not in vg4x_bridge_text:
         issues.append("vg4x_legacy_not_opt_in")
 
     for text_name, text in (("preflight", preflight_text), ("health", health_text)):
         for token in (
             "media_runtime_adapter_v1.py",
+            "media_runtime_adapter_v2.py",
             "media_must_verifier.py",
             "vg4x_bridge.py",
             "visual_engine_unified.py",
@@ -238,7 +258,7 @@ def main() -> int:
         issues.append(f"inactive_code:{path}")
 
     payload = {
-        "version": "CONSOLIDATION_3_0_AUDIT",
+        "version": "CONSOLIDATION_3_0_2_AUDIT",
         "scope": "tracked_git_files",
         "status": "PASS" if not issues else "FAIL",
         "files": len(files),
