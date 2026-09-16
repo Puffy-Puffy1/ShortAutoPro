@@ -6,6 +6,10 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 BASE=Path(os.getenv("SHORTAUTOPRO_BASE",os.path.expanduser("~/ShortAutoPro"))).resolve();SID=os.getenv("SHORT_ID",date.today().isoformat()).strip();MEDIA=BASE/"imagens"/f"short_{SID}";VIDEO=BASE/"videos"/f"short_v6_{SID}.mp4";MAP=BASE/"roteiros"/f"scene_map_{SID}.json";VSCORE=BASE/"roteiros"/f"visual_score_{SID}.json";OUT=BASE/"reports"/"evolution"/f"visual_qa_{SID}.json"
+def safe_int(name:str,default:int,minimum:int,maximum:int)->int:
+ try:value=int(os.getenv(name,str(default)))
+ except (TypeError,ValueError):value=default
+ return max(minimum,min(maximum,value))
 def atomic(p:Path,x:Any)->None:
  p.parent.mkdir(parents=True,exist_ok=True);fd,t=tempfile.mkstemp(prefix=f".{p.name}.",suffix=".tmp",dir=str(p.parent))
  try:
@@ -49,7 +53,7 @@ def main()->int:
  issues=[];warnings=[];assets=[];hashes={};scene_map=load(MAP);scenes=scene_map.get("scenes",[]) if isinstance(scene_map.get("scenes"),list) else [];vscore=load(VSCORE);score_rows=vscore.get("scenes",[]) if isinstance(vscore.get("scenes"),list) else []
  if not MEDIA.is_dir():issues.append("media_directory_missing")
  else:
-  files=sorted(p for p in MEDIA.iterdir() if p.is_file() and p.suffix.lower() in {".jpg",".jpeg",".png",".webp",".mp4",".mov",".webm"});expected=int(os.getenv("SHORT_QTD_CENAS","12"));primary=[p for p in files if re.fullmatch(r"scene_\d{2}\.(?:jpg|jpeg|png|webp|mp4|mov|webm)",p.name,re.I)]
+  files=sorted(p for p in MEDIA.iterdir() if p.is_file() and p.suffix.lower() in {".jpg",".jpeg",".png",".webp",".mp4",".mov",".webm"});expected=safe_int("SHORT_QTD_CENAS",12,6,20);primary=[p for p in files if re.fullmatch(r"scene_\d{2}\.(?:jpg|jpeg|png|webp|mp4|mov|webm)",p.name,re.I)]
   if len(primary)!=expected:issues.append(f"primary_scene_count:{len(primary)}/{expected}")
   for p in primary:
    meta=probe(p);w=int(meta.get("width",0) or 0);h=int(meta.get("height",0) or 0);digest=sha(p);dup=hashes.get(digest);hashes[digest]=p.name;scene_no=int(re.search(r"(\d{2})",p.name).group(1));scene=scenes[scene_no-1] if scene_no<=len(scenes) and isinstance(scenes[scene_no-1],dict) else {};score_row=score_rows[scene_no-1] if scene_no<=len(score_rows) and isinstance(score_rows[scene_no-1],dict) else {};provider=str(score_row.get("provider","") or "")
@@ -68,5 +72,5 @@ def main()->int:
  if crop and (crop["width"]<1060 or crop["height"]<1880):warnings.append(f"black_bar_or_border_risk:{crop['width']}x{crop['height']}+{crop['x']}+{crop['y']}")
  blur=blur_risk(VIDEO) if VIDEO.is_file() else None
  score=100.0-len(issues)*18.0-len(warnings)*2.5;score=round(max(0,min(100,score)),1);status="PASS" if not issues and score>=85 else "REVIEW" if not issues else "BLOCK"
- payload={"short_id":SID,"version":"1.1","visual_qa_score":score,"status":status,"issues":issues,"warnings":warnings,"measurements":{"black_seconds":round(black,3),"cropdetect":crop,"blur_metric":blur,"blur_detector_available":filter_exists("blurdetect"),"crop_detector_available":filter_exists("cropdetect")},"assets":assets,"limitations":{"watermark":"provider/provenance risk only; no OCR/CV watermark classifier installed","face_crop":"storyboard/framing risk heuristic; no face detector installed"}};atomic(OUT,payload);print(f"VISUAL QA: {status} | score={score}/100 | issues={len(issues)} warnings={len(warnings)}");return 0 if status!="BLOCK" else 1
+ payload={"short_id":SID,"version":"1.2","visual_qa_score":score,"status":status,"issues":issues,"warnings":warnings,"measurements":{"black_seconds":round(black,3),"cropdetect":crop,"blur_metric":blur,"blur_detector_available":filter_exists("blurdetect"),"crop_detector_available":filter_exists("cropdetect")},"assets":assets,"limitations":{"watermark":"provider/provenance risk only; no OCR/CV watermark classifier installed","face_crop":"storyboard/framing risk heuristic; no face detector installed"}};atomic(OUT,payload);print(f"VISUAL QA: {status} | score={score}/100 | issues={len(issues)} warnings={len(warnings)}");return 0 if status!="BLOCK" else 1
 if __name__=="__main__":raise SystemExit(main())
