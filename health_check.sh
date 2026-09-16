@@ -7,7 +7,7 @@ BASE="$HOME/ShortAutoPro"
 
 echo
 echo "======================================"
-echo " SHORTAUTO PRO - HEALTH CHECK 2.6"
+echo " SHORTAUTO PRO - HEALTH CHECK 3.0"
 echo "======================================"
 echo
 
@@ -24,23 +24,36 @@ checar_arquivo() {
 }
 
 ARQUIVOS=(
-    config.sh gerar_short.sh
-    topic_engine.py topic_memory.py topic_reserve.py topic_index.py wiki_client.py source_identity.py
-    roteiro.py used_topic.py hook_engine.py narrative_director.py cold_open_director.py
+    config.sh main.py profile_run.sh resume_short_runtime.py
+    topic_engine_runtime.py topic_engine.py topic_memory.py topic_reserve.py topic_index.py wiki_client.py source_identity.py
+    roteiro.py used_topic.py hook_engine.py hook_runtime.py narrative_director.py cold_open_director.py
     scene_director.py scene_truth_refiner_6_7.py documentary_director.py visual_director.py
     visual_shot_bridge.py visual_shot_policy.py visual_editorial_policy.py
-    visual_risk_guard.py editorial_continuity.py scene_lossless_repair.py post_script_truth_lock.py
+    visual_risk_guard.py editorial_continuity.py visual_continuity_engine.py scene_lossless_repair.py post_script_truth_lock.py
     semantic_integrity_gate.py wikimedia_source.py wikimedia_query_bridge.py source_router.py evidence_guard.py
     midia.py visual_pipeline_bridge_v42.py visual_selection_engine_v4.py visual_intelligence_6.py
-    vi6_8_runtime_policy.py vi6_9_runtime_policy.py media_master_gate.py motion_director.py rhythm_director.py
-    production_supervisor.py editorial_gate.py audio.py legenda_dinamica.py subtitle_alignment.py subtitle_style_policy.py video.py v6.py v6_runtime.py quality_check.py
-    publish_pack.py source_ledger.py publish_integrity_gate.py production_manifest.py final_quality.py register_topic.py
-    limpar_storage.sh batch_report.py batch_queue.sh batch_recovery.sh control_center.sh
+    vi6_8_runtime_policy.py vi6_9_runtime_policy.py media_master_gate.py visual_score_engine.py
+    motion_director.py rhythm_director.py professional_edit_director.py professional_edit_repair.py
+    multi_asset_director.py retention_engine.py sound_design_engine.py production_supervisor.py editorial_gate.py
+    speech_director.py audio.py legenda_dinamica.py subtitle_alignment.py subtitle_style_policy.py
+    professional_caption_director.py caption_layout_guard.py video_professional.py v6_professional.py
+    audio_finalizer.py visual_qa.py quality_check.py publish_pack.py source_ledger.py publish_integrity_gate.py
+    production_manifest.py final_quality.py professional_quality_gate.py release_gate.py register_topic.py storage_manager.py
+    batch_report.py batch_queue.sh batch_recovery.sh control_center.sh
     preflight_check.sh diagnostico.sh release_check.sh
 )
 
 for arq in "${ARQUIVOS[@]}"; do
     checar_arquivo "$arq"
+done
+
+for legacy in gerar_short.sh video.py v6.py v6_runtime.py limpar_storage.sh; do
+    if [ -e "$BASE/$legacy" ]; then
+        echo "ERRO  legado proibido presente: $legacy"
+        ERROS=$((ERROS + 1))
+    else
+        echo "OK  legado ausente: $legacy"
+    fi
 done
 
 echo
@@ -65,26 +78,14 @@ fi
 WHISPER_CLI="${WHISPER_CLI:-$HOME/whisper.cpp/build/bin/whisper-cli}"
 WHISPER_MODEL="${WHISPER_MODEL:-$HOME/whisper.cpp/models/ggml-base.bin}"
 
-if [ -x "$WHISPER_CLI" ]; then
-    echo "OK  Whisper CLI"
-else
-    echo "ERRO  Whisper CLI ausente: $WHISPER_CLI"
-    ERROS=$((ERROS + 1))
-fi
+if [ -x "$WHISPER_CLI" ]; then echo "OK  Whisper CLI"; else echo "ERRO  Whisper CLI ausente: $WHISPER_CLI"; ERROS=$((ERROS + 1)); fi
+if [ -f "$WHISPER_MODEL" ]; then echo "OK  Whisper model"; else echo "ERRO  Whisper model ausente: $WHISPER_MODEL"; ERROS=$((ERROS + 1)); fi
 
-if [ -f "$WHISPER_MODEL" ]; then
-    echo "OK  Whisper model"
-else
-    echo "ERRO  Whisper model ausente: $WHISPER_MODEL"
-    ERROS=$((ERROS + 1))
-fi
-
-# Catch local runtime dependencies without starting production work.
+# Import-only smoke test para dependências internas sem disparar produção.
 if (
     cd "$BASE" &&
     python - <<'PY' >/dev/null 2>&1
 import importlib
-
 for name in (
     "subtitle_alignment",
     "subtitle_style_policy",
@@ -95,14 +96,17 @@ for name in (
     "topic_reserve",
     "source_identity",
     "wiki_client",
-    "v6_runtime",
+    "visual_continuity_engine",
+    "visual_score_engine",
+    "retention_engine",
+    "sound_design_engine",
 ):
     importlib.import_module(name)
 PY
 ); then
-    echo "OK  imports runtime críticos"
+    echo "OK  imports runtime críticos 3.0"
 else
-    echo "ERRO  imports runtime críticos"
+    echo "ERRO  imports runtime críticos 3.0"
     ERROS=$((ERROS + 1))
 fi
 
@@ -110,7 +114,7 @@ echo
 echo "--------------------------------------"
 
 if [ "$ERROS" -eq 0 ]; then
-    echo "STATUS: SAUDÁVEL"
+    echo "STATUS: SAUDÁVEL 3.0"
     exit 0
 fi
 
