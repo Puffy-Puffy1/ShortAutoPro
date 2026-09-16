@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ShortAutoPro canonical entrypoint — Consolidation 3.0.
+"""ShortAutoPro canonical entrypoint — Consolidation 3.0.3.
 
 Official Short flow:
   tema -> roteiro -> cenas -> midia -> audio -> legenda -> edicao -> QA -> exportacao
@@ -27,15 +27,15 @@ from typing import Any
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
 EVOLUTION = BASE / "shortautopro_evolution.py"
 STATE_DIR = BASE / ".sap_state"
-LOCK_DIR = BASE / ".locks" / "runs"
+LOCK_FILE = BASE / ".locks" / "production.lock"
 
 DEFAULT_ENV = {
     "SAP_VQE5": "1",
     "SAP_VQE5_RESCUE": "1",
     "SAP_VQE5_QUERY_EXTRA": "2",
     "SAP_VQE5_COMMIT": "1",
-    # Retired experimental selectors stay disabled. VI6 ACTIVE is the
-    # conservative semantic/documentary layer on top of the canonical selector.
+    # Retired experimental selectors stay disabled. VI6 is telemetry-only;
+    # Visual Unified is the single production winner authority.
     "SAP_VSE_V2": "0",
     "SAP_VSE_V3": "0",
     "SAP_VSE_V4": "0",
@@ -44,15 +44,25 @@ DEFAULT_ENV = {
     "SAP_VSE42": "0",
     "SAP_VSE4_RUNTIME": "0",
     "SAP_SCENE_COMMIT_LOCK": "0",
-    "VISUAL_INTELLIGENCE_MODE": "ACTIVE",
+    "VISUAL_INTELLIGENCE_MODE": "SHADOW",
     "VISUAL_INTELLIGENCE_6_SHADOW": "1",
     "SAP_PROFESSIONAL_MIN_SCORE": "88",
     "SAP_PROFESSIONAL_ENFORCE": "0",
+    "SAP_PRO_MEDIA_ENFORCE": "1",
     "SAP_PRO_MEDIA_MIN_PIXELS": "921600",
     "SAP_RETENTION_MIN_SCORE": "78",
     "SAP_VISUAL_SCORE_MIN": "72",
     "SAP_RELEASE_ENFORCE": "1",
     "SAP_MULTI_ASSET_MAX": "4",
+}
+
+_OVERRIDE_PREFIXES = ("SHORT_", "SAP_", "PIPER_", "WHISPER_")
+_OVERRIDE_KEYS = {
+    "SHORTAUTOPRO_BASE",
+    "GEMINI_API_KEY",
+    "PEXELS_API_KEY",
+    "PIXABAY_API_KEY",
+    "COVERR_API_KEY",
 }
 
 
@@ -78,10 +88,24 @@ def atomic_json(path: Path, payload: Any) -> None:
         raise
 
 
+def _runtime_overrides() -> dict[str, str]:
+    """Capture explicit caller/profile values that must beat config.sh."""
+    return {
+        key: value
+        for key, value in os.environ.items()
+        if key in _OVERRIDE_KEYS or key.startswith(_OVERRIDE_PREFIXES)
+    }
+
+
 def source_config() -> None:
     cfg = BASE / "config.sh"
     if not cfg.is_file():
         raise RuntimeError("config.sh não encontrado")
+
+    # Precedence is explicit runtime/profile env > config.sh > canonical defaults.
+    # This prevents profile_run.sh and one-off CLI overrides from being silently
+    # overwritten when config.sh is sourced inside Python.
+    overrides = _runtime_overrides()
     proc = subprocess.run(
         ["bash", "-c", 'set -a; source "$1"; env -0', "bash", str(cfg)],
         stdout=subprocess.PIPE,
@@ -90,7 +114,8 @@ def source_config() -> None:
         timeout=30,
     )
     if proc.returncode != 0:
-        raise RuntimeError("config.sh falhou ao carregar")
+        detail = proc.stderr.decode("utf-8", errors="replace").strip()
+        raise RuntimeError(f"config.sh falhou ao carregar{': ' + detail if detail else ''}")
     for item in proc.stdout.split(b"\0"):
         if b"=" not in item:
             continue
@@ -99,6 +124,7 @@ def source_config() -> None:
             os.environ[key.decode()] = value.decode()
         except UnicodeDecodeError:
             continue
+    os.environ.update(overrides)
 
 
 def setup_env() -> None:
@@ -115,36 +141,62 @@ def allocate_id() -> str:
 
 
 class RunLock:
-    """Per-production lock: different Short IDs may run concurrently."""
+    """Global production lock shared by run, resume, storage and deploy."""
 
     def __init__(self, sid: str):
-        LOCK_DIR.mkdir(parents=True, exist_ok=True)
-        self.path = LOCK_DIR / f"{sid}.lock"
+        self.sid = sid
+        self.path = LOCK_FILE
         self.handle = None
+        self.previous_held = None
 
     def __enter__(self):
+        self.path.parent.mkdir(parents=True, exist_ok=True)
         self.handle = self.path.open("a+")
         try:
             fcntl.flock(self.handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError as exc:
-            raise RuntimeError(f"produção {self.path.stem} já está em andamento") from exc
+            try:
+                self.handle.seek(0)
+                owner = self.handle.read().strip()
+            except OSError:
+                owner = ""
+            self.handle.close()
+            self.handle = None
+            detail = f" ({owner})" if owner else ""
+            raise RuntimeError(f"outra produção/atualização já está em andamento{detail}") from exc
+
         self.handle.seek(0)
         self.handle.truncate()
-        self.handle.write(str(os.getpid()))
+        self.handle.write(
+            json.dumps(
+                {"pid": os.getpid(), "short_id": self.sid, "started_at": now()},
+                ensure_ascii=False,
+            )
+            + "\n"
+        )
         self.handle.flush()
+        os.fsync(self.handle.fileno())
+        self.previous_held = os.environ.get("SAP_PRODUCTION_LOCK_HELD")
+        os.environ["SAP_PRODUCTION_LOCK_HELD"] = "1"
         return self
 
     def __exit__(self, *_):
+        if self.previous_held is None:
+            os.environ.pop("SAP_PRODUCTION_LOCK_HELD", None)
+        else:
+            os.environ["SAP_PRODUCTION_LOCK_HELD"] = self.previous_held
         if self.handle:
             try:
+                self.handle.seek(0)
+                self.handle.truncate()
+                self.handle.flush()
                 fcntl.flock(self.handle.fileno(), fcntl.LOCK_UN)
             except OSError:
                 pass
             self.handle.close()
-        try:
-            self.path.unlink(missing_ok=True)
-        except OSError:
-            pass
+            self.handle = None
+        # The shared lock file is intentionally persistent. Removing it after
+        # unlock can race with a process that has already acquired the old inode.
 
 
 class Pipeline:
@@ -153,7 +205,7 @@ class Pipeline:
         self.state_path = STATE_DIR / f"pipeline_{sid}.json"
         self.state = {
             "short_id": sid,
-            "version": "CONSOLIDATION_3_0",
+            "version": "CONSOLIDATION_3_0_3",
             "pipeline": "PROFESSIONAL_CANONICAL",
             "started_at": now(),
             "status": "RUNNING",
@@ -346,6 +398,29 @@ def export(p: Pipeline) -> Path:
     return destination
 
 
+def optional_storage_cleanup(p: Pipeline) -> None:
+    """Run post-release maintenance without invalidating a valid deliverable."""
+    title = "STORAGE CLEANUP"
+    path = BASE / "storage_manager.py"
+    if not path.is_file():
+        print("AVISO: storage_manager.py ausente; limpeza pós-produção ignorada")
+        p.checkpoint("storage_manager.py", "warn", title)
+        return
+    start = time.monotonic()
+    proc = subprocess.run(
+        [sys.executable, str(path), "cleanup", "--execute"],
+        cwd=BASE,
+        env=os.environ.copy(),
+        check=False,
+    )
+    elapsed = time.monotonic() - start
+    if proc.returncode == 0:
+        p.checkpoint("storage_manager.py", "pass", title, elapsed)
+    else:
+        p.checkpoint("storage_manager.py", "warn", title, elapsed)
+        print(f"AVISO: limpeza pós-produção retornou {proc.returncode}; vídeo aprovado foi preservado")
+
+
 def run_pipeline() -> int:
     source_config()
     setup_env()
@@ -356,7 +431,7 @@ def run_pipeline() -> int:
     with RunLock(sid):
         p = Pipeline(sid)
         print("\n==============================================")
-        print(" SHORTAUTOPRO CONSOLIDATION 3.0 - MAIN.PY")
+        print(" SHORTAUTOPRO CONSOLIDATION 3.0.3 - MAIN.PY")
         print("==============================================")
         print(f"ID: {sid}")
         print("FLUXO: tema -> roteiro -> cenas -> midia -> audio -> legenda -> edicao -> QA -> exportacao")
@@ -371,11 +446,11 @@ def run_pipeline() -> int:
                 if code == 20:
                     raise RuntimeError("Release Gate ainda requer reparo após ciclo automático")
             destination = export(p)
-            p.run("STORAGE CLEANUP", "storage_manager.py", "cleanup", "--execute")
-            p.checkpoint("pipeline", "pass", "ShortAutoPro Consolidation 3.0")
+            optional_storage_cleanup(p)
+            p.checkpoint("pipeline", "pass", "ShortAutoPro Consolidation 3.0.3")
             p.finish("SUCCESS")
         except Exception as exc:
-            p.checkpoint("pipeline", "fail", "ShortAutoPro Consolidation 3.0")
+            p.checkpoint("pipeline", "fail", "ShortAutoPro Consolidation 3.0.3")
             p.finish("FAILED")
             print(f"\nPIPELINE BLOCKED: {exc}")
             return 1
