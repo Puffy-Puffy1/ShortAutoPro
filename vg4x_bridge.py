@@ -1,22 +1,41 @@
 #!/usr/bin/env python3
 
-"""Bridge point used by midia.py before scene acquisition starts.
+"""Compatibility bridge that installs the canonical media runtime.
 
-Consolidation 3.0 keeps this import path for compatibility, but the old VG4X
-acquisition/commit stack is no longer an independent selection authority.
-The bridge now installs the canonical media runtime adapter and only enables
-legacy VG4X when explicitly requested for diagnostics.
+The old VG4X acquisition/commit stack is diagnostic-only. The canonical media
+adapter is mandatory: if it cannot be imported/installed, media acquisition
+must stop instead of silently falling back to a retired selection authority.
 """
 
 import os
 
-from media_runtime_adapter_v2 import install as install_media_runtime
+
+def _install_canonical(namespace):
+    try:
+        from media_runtime_adapter_v2 import install as install_media_runtime
+        result = install_media_runtime(namespace)
+    except Exception as exc:
+        print(
+            "MEDIA_RUNTIME_CANONICAL=FAIL_CLOSED "
+            + type(exc).__name__
+            + ":"
+            + str(exc)
+        )
+        raise SystemExit(70) from exc
+
+    if not isinstance(result, dict) or result.get("installed") is not True:
+        print("MEDIA_RUNTIME_CANONICAL=FAIL_CLOSED invalid_install_result")
+        raise SystemExit(70)
+    if result.get("authority") != "VISUAL_UNIFIED":
+        print("MEDIA_RUNTIME_CANONICAL=FAIL_CLOSED invalid_authority")
+        raise SystemExit(70)
+    return result
 
 
 def install(namespace):
-    media_runtime = install_media_runtime(namespace)
+    media_runtime = _install_canonical(namespace)
 
-    # Legacy VG4X is diagnostic/rollback-only.  It must never silently compete
+    # Legacy VG4X is diagnostic/rollback-only. It must never silently compete
     # with the canonical Visual Unified selector in production.
     legacy_enabled = os.getenv("SAP_VG4X_LEGACY", "0") == "1"
     acquisition = {"installed": False}
