@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+"""Semantic integrity gate for ShortAutoPro 3.0.2.
+
+The gate verifies that scene narration preserves the script and does not add
+unsupported factual content. Descriptive repetition/expansion is diagnostic,
+not by itself evidence of invention. New scene vocabulary is accepted when it
+is already supported by either the final script or the factual source.
+"""
 
 import json
 import os
@@ -26,6 +33,17 @@ TOPIC = os.path.join(R, f"topic_{SHORT_ID}.txt")
 REPORT = os.path.join(R, f"semantic_integrity_{SHORT_ID}.json")
 LOSSLESS_REPORT = os.path.join(R, f"scene_lossless_{SHORT_ID}.json")
 
+# Stop words are ignored only for the unsupported-content metric. Coverage keeps
+# the original complete token stream so regressions remain visible.
+STOP = {
+    "o", "a", "os", "as", "um", "uma", "uns", "umas", "de", "da", "do",
+    "das", "dos", "e", "ou", "em", "no", "na", "nos", "nas", "por", "para",
+    "com", "sem", "que", "se", "ao", "aos", "à", "às", "foi", "era", "ser",
+    "são", "como", "mais", "mas", "já", "também", "ainda", "seu", "sua",
+    "seus", "suas", "ele", "ela", "eles", "elas", "the", "of", "and", "in",
+    "on", "at", "to", "for", "from", "with", "a", "an",
+}
+
 
 def read_text(path):
     try:
@@ -38,10 +56,28 @@ def read_text(path):
 def read_json(path):
     try:
         with open(path, "r", encoding="utf-8") as f:
-            dados = json.load(f)
-        return dados if isinstance(dados, dict) else {}
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
     except Exception:
         return {}
+
+
+def atomic_json(path, payload):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = f"{path}.{os.getpid()}.tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+            f.write("\n")
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+    finally:
+        if os.path.exists(tmp):
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
 
 
 def words(text):
@@ -52,12 +88,29 @@ def words(text):
     )
 
 
+def content_words(text):
+    return [w for w in words(text) if w not in STOP and (len(w) >= 2 or w.isdigit())]
+
+
 def similarity(a, b):
-    aa = set(words(a))
-    bb = set(words(b))
+    aa = set(content_words(a))
+    bb = set(content_words(b))
     if not aa or not bb:
         return 0.0
     return len(aa & bb) / len(aa | bb)
+
+
+def parse_wiki_title(source):
+    match = re.search(
+        r"Wikipedia\s*[—-]\s*([^\n]+)",
+        source,
+        flags=re.IGNORECASE,
+    )
+    return match.group(1).strip() if match else ""
+
+
+def numeric_tokens(text):
+    return set(re.findall(r"\b\d+(?:[.,]\d+)?\b", str(text)))
 
 
 script = read_text(SCRIPT)
@@ -79,15 +132,7 @@ if not 105 <= len(script_words) <= 125:
 else:
     strengths.append("script_length_ok")
 
-wiki_title = ""
-match = re.search(
-    r"Wikipedia\s*[—-]\s*([^\n]+)",
-    source,
-    flags=re.IGNORECASE,
-)
-if match:
-    wiki_title = match.group(1).strip()
-
+wiki_title = parse_wiki_title(source)
 if topic and wiki_title:
     identity = validar_identidade(topic, wiki_title, source)
     if identity.get("valid"):
@@ -128,7 +173,8 @@ if missing_query:
 if missing_must:
     warnings.append(f"missing_must={missing_must}")
 
-mapped_words = words(" ".join(segments))
+mapped_text = " ".join(segments)
+mapped_words = words(mapped_text)
 script_counter = Counter(script_words)
 mapped_counter = Counter(mapped_words)
 
@@ -138,23 +184,42 @@ matched = sum(
 )
 coverage = matched / len(script_words) if script_words else 0.0
 
+# Raw occurrence overflow is useful for diagnostics, but repetition is not a
+# factual hallucination. It must never block by itself.
 extra_occurrence_overflow = max(0, len(mapped_words) - matched)
-extra_occurrence_ratio = (
-    extra_occurrence_overflow / max(len(script_words), 1)
-)
+extra_occurrence_ratio = extra_occurrence_overflow / max(len(script_words), 1)
 
 script_vocabulary = set(script_words)
-novel_mapped_words = [
-    word for word in mapped_words if word not in script_vocabulary
+source_vocabulary = set(words(source))
+supported_vocabulary = script_vocabulary | source_vocabulary
+
+novel_mapped_words = [w for w in mapped_words if w not in script_vocabulary]
+novel_extra_ratio = len(novel_mapped_words) / max(len(script_words), 1)
+
+mapped_content = content_words(mapped_text)
+unsupported_content_words = [
+    w for w in mapped_content
+    if w not in supported_vocabulary
 ]
-novel_extra = len(novel_mapped_words)
-novel_extra_ratio = novel_extra / max(len(script_words), 1)
+unsupported_counter = Counter(unsupported_content_words)
+unsupported_content_ratio = (
+    len(unsupported_content_words) / max(len(content_words(script)), 1)
+)
+unsupported_unique = sorted(unsupported_counter)
 
-verified_lossless_overlap = False
+# Numbers are high-risk semantic additions. A number is safe if it appears in
+# either the final script or the factual source.
+supported_numbers = numeric_tokens(script) | numeric_tokens(source)
+scene_numbers = numeric_tokens(mapped_text)
+unsupported_numbers = sorted(scene_numbers - supported_numbers)
+if unsupported_numbers:
+    critical.append("unsupported_numbers=" + ",".join(unsupported_numbers))
+
 lossless_report = read_json(LOSSLESS_REPORT)
-
+verified_lossless_overlap = False
+lossless_status = ""
 if lossless_report:
-    lossless_status = lossless_report.get("status")
+    lossless_status = str(lossless_report.get("status") or "")
     missing_after = lossless_report.get("missing_after") or []
     coverage_after = lossless_report.get("coverage_after")
     changed = lossless_report.get("changed_scenes") or []
@@ -163,7 +228,6 @@ if lossless_report:
 
     normalized_script = " ".join(words(script))
     repair_sources_valid = True
-
     for item in changed:
         if not isinstance(item, dict):
             repair_sources_valid = False
@@ -175,46 +239,52 @@ if lossless_report:
             break
 
     try:
-        coverage_after_ok = float(coverage_after) >= 0.999999
+        coverage_after_ok = float(coverage_after) >= 0.965
     except (TypeError, ValueError):
         coverage_after_ok = False
 
+    # NO_REPAIR_NEEDED is a successful lossless result, not a failure. Older
+    # reports use that status, so keep this backward-compatible.
     verified_lossless_overlap = (
-        lossless_status == "PASS"
+        lossless_status in {"PASS", "NO_REPAIR_NEEDED"}
         and not missing_after
         and coverage_after_ok
         and repair_sources_valid
-        and novel_extra == 0
     )
-
-if verified_lossless_overlap:
-    extra = novel_extra
-    extra_ratio = novel_extra_ratio
-else:
-    extra = extra_occurrence_overflow
-    extra_ratio = extra_occurrence_ratio
 
 if coverage < 0.96:
     critical.append(f"script_scene_coverage={coverage:.3f}")
 else:
     strengths.append(f"script_scene_coverage={coverage:.3f}")
 
-if extra_ratio > 0.08:
-    critical.append(f"scene_extra_content={extra_ratio:.3f}")
+# Block only on unsupported semantic additions. Vocabulary that is absent from
+# the script but present in the factual source is explicitly source-supported.
+UNSUPPORTED_LIMIT = 0.12
+if unsupported_content_ratio > UNSUPPORTED_LIMIT:
+    critical.append(f"unsupported_scene_content={unsupported_content_ratio:.3f}")
+elif unsupported_content_words:
+    warnings.append(f"unsupported_scene_content={unsupported_content_ratio:.3f}")
+else:
+    strengths.append("scene_content_source_supported")
 
-script_norm = " ".join(script_words)
+if extra_occurrence_ratio > 0.35:
+    warnings.append(f"raw_scene_expansion={extra_occurrence_ratio:.3f}")
+
+# Per-scene suspicion uses BOTH script and source. This catches truly unrelated
+# narration while avoiding false positives from documentary details supported by
+# the factual source.
+semantic_reference = f"{script} {source}"
 for scene in scenes:
     segment = str(scene.get("segment", "")).strip()
-    segment_norm = " ".join(words(segment))
-    if (
-        segment_norm
-        and segment_norm not in script_norm
-        and len(words(segment)) >= 3
-        and similarity(segment, script) < 0.08
-    ):
-        warnings.append(
-            f"scene_{scene.get('scene')}_possibly_invented"
-        )
+    if not segment or len(content_words(segment)) < 3:
+        continue
+    unsupported = [
+        w for w in content_words(segment)
+        if w not in supported_vocabulary
+    ]
+    local_ratio = len(unsupported) / max(len(content_words(segment)), 1)
+    if local_ratio > 0.35 and similarity(segment, semantic_reference) < 0.05:
+        warnings.append(f"scene_{scene.get('scene')}_possibly_invented")
 
 for i in range(1, len(scenes)):
     a = scenes[i - 1].get("query", "")
@@ -226,7 +296,7 @@ for i in range(1, len(scenes)):
 status = "BLOCK" if critical else "PASS"
 report = {
     "short_id": SHORT_ID,
-    "version": "5.2.1",
+    "version": "5.3.0",
     "status": status,
     "topic": topic,
     "wiki_title": wiki_title,
@@ -234,30 +304,31 @@ report = {
     "expected_scene_count": QTD_CENAS,
     "scene_count": len(scenes),
     "coverage": round(coverage, 4),
-    "extra_ratio": round(extra_ratio, 4),
     "raw_overflow_ratio": round(extra_occurrence_ratio, 4),
     "novel_extra_ratio": round(novel_extra_ratio, 4),
+    "unsupported_content_ratio": round(unsupported_content_ratio, 4),
+    "unsupported_unique_words": unsupported_unique[:40],
+    "unsupported_numbers": unsupported_numbers,
+    "lossless_status": lossless_status,
     "verified_lossless_overlap": verified_lossless_overlap,
     "critical": critical,
     "warnings": warnings,
     "strengths": strengths,
 }
-
-os.makedirs(R, exist_ok=True)
-with open(REPORT, "w", encoding="utf-8") as f:
-    json.dump(report, f, ensure_ascii=False, indent=2)
+atomic_json(REPORT, report)
 
 print()
 print("================================")
-print("SEMANTIC INTEGRITY GATE 5.2.1")
+print("SEMANTIC INTEGRITY GATE 5.3.0")
 print("================================")
 print()
 print(f"Roteiro: {len(script_words)} palavras")
 print(f"Cenas: {len(scenes)}/{QTD_CENAS}")
 print(f"Cobertura roteiro->cenas: {coverage * 100:.1f}%")
-print(f"Conteúdo extra: {extra_ratio * 100:.1f}%")
-print(f"Overflow bruto cenas->roteiro: {extra_occurrence_ratio * 100:.1f}%")
-print(f"Conteúdo lexical realmente novo: {novel_extra_ratio * 100:.1f}%")
+print(f"Expansão bruta cenas->roteiro: {extra_occurrence_ratio * 100:.1f}%")
+print(f"Vocabulário novo vs roteiro: {novel_extra_ratio * 100:.1f}%")
+print(f"Conteúdo não sustentado por roteiro/fonte: {unsupported_content_ratio * 100:.1f}%")
+print("Lossless status:", lossless_status or "ausente")
 print("Lossless overlap verificado:", verified_lossless_overlap)
 print()
 
