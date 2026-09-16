@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Artifact-validated resume for the single ShortAutoPro 3.0 pipeline.
+"""Artifact-validated resume for the single ShortAutoPro 3.1 pipeline.
 
 Resume never switches pipelines. If the saved production does not contain the
-Consolidation 3.0 planning artifacts, it restarts through main.py with the same
+Consolidation planning artifacts, it restarts through main.py with the same
 Short ID rather than trying to interpret legacy state.
 """
 from __future__ import annotations
@@ -35,6 +35,13 @@ def nonempty(path: Path, minimum: int = 1) -> bool:
         return path.is_file() and path.stat().st_size >= minimum
     except OSError:
         return False
+
+
+def safe_float(value: Any, default: float) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
 
 
 def expected_scenes() -> int:
@@ -96,9 +103,8 @@ def consolidation_plan_ok(sid: str) -> bool:
     if not all(nonempty(path, 20) for path in required):
         return False
     retention = read_json(required[0])
-    return float(retention.get("retention_score", retention.get("score", 0)) or 0) >= float(
-        os.getenv("SAP_RETENTION_MIN_SCORE", "78")
-    )
+    threshold = safe_float(os.getenv("SAP_RETENTION_MIN_SCORE", "78"), 78.0)
+    return safe_float(retention.get("retention_score", retention.get("score", 0)), 0.0) >= threshold
 
 
 def audio_ok(sid: str) -> bool:
@@ -159,8 +165,6 @@ def final_ok(sid: str) -> bool:
 def boundary(sid: str) -> str:
     if final_ok(sid):
         return "complete"
-    # Never partially resume an older architecture. This is intentionally
-    # conservative because new 3.0 gates depend on these planning artifacts.
     if not consolidation_plan_ok(sid):
         return "full"
     if render_ok(sid):
@@ -243,7 +247,8 @@ def final_gates(sid: str) -> int:
     quality_args = ["quality-score"] + (["--enforce"] if os.getenv("SAP_EVOLUTION_ENFORCE", "0") == "1" else [])
     run_python(sid, "EVOLUTION QUALITY SCORE", "shortautopro_evolution.py", *quality_args)
     run_python(sid, "PROFESSIONAL QUALITY GATE", "professional_quality_gate.py")
-    return run_python(sid, "SHORTAUTOPRO RELEASE GATE", "release_gate.py", "--enforce", allow={0, 20})
+    release_args = ("--enforce",) if os.getenv("SAP_RELEASE_ENFORCE", "1") == "1" else ()
+    return run_python(sid, "SHORTAUTOPRO RELEASE GATE", "release_gate.py", *release_args, allow={0, 20})
 
 
 def render_tail(sid: str) -> None:
@@ -259,7 +264,7 @@ def resume(sid: str) -> int:
     os.environ["SHORT_ID"] = sid
     point = boundary(sid)
     print("========================================")
-    print(" SHORTAUTOPRO 3.0 - SAFE RESUME")
+    print(" SHORTAUTOPRO 3.1 - SAFE RESUME")
     print("========================================")
     print(f"ID: {sid}")
     print("Pipeline: PROFESSIONAL_CANONICAL")
@@ -316,6 +321,9 @@ def resume(sid: str) -> int:
 
             run_python(sid, "REGISTRANDO ASSUNTO", "register_topic.py")
             destination = copy_download(sid)
+            # Cleanup shares the production lock through the inherited env and
+            # is best-effort; it cannot invalidate an already approved resume.
+            run_python(sid, "STORAGE CLEANUP", "storage_manager.py", "cleanup", "--execute")
             evo.finish_production("SUCCESS", sid)
             print("\nRESUME_STATUS=PASS")
             print("PIPELINE=PROFESSIONAL_CANONICAL")
@@ -327,19 +335,55 @@ def resume(sid: str) -> int:
         return 1
 
 
+def _state_sid(path: Path, data: dict[str, Any]) -> str:
+    sid = str(data.get("short_id", "") or "").strip()
+    if sid:
+        return sid
+    name = path.stem
+    return name[len("pipeline_"):] if name.startswith("pipeline_") else name
+
+
+def _state_status(data: dict[str, Any]) -> str:
+    return str(data.get("production_status", data.get("status", "")) or "").upper()
+
+
 def latest_incomplete() -> str | None:
+    """Return a real Short ID, never the filename of pipeline_<sid>.json."""
     if not evo.STATE_DIR.is_dir():
         return None
-    states = sorted(evo.STATE_DIR.glob("*.json"), key=lambda path: path.stat().st_mtime, reverse=True)
-    for path in states:
+
+    all_states = sorted(
+        (path for path in evo.STATE_DIR.glob("*.json") if path.is_file()),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+    evolution_states = [path for path in all_states if not path.stem.startswith("pipeline_")]
+    pipeline_states = [path for path in all_states if path.stem.startswith("pipeline_")]
+
+    # Evolution state is authoritative because it contains production_status
+    # and the full checkpoint model. Pipeline state is only a fallback if an
+    # interrupted run died before Evolution could write its state file.
+    for path in evolution_states:
         data = read_json(path)
-        if str(data.get("production_status", "")).upper() != "SUCCESS":
-            return path.stem
-    return states[0].stem if states else None
+        if _state_status(data) != "SUCCESS":
+            return _state_sid(path, data)
+
+    for path in pipeline_states:
+        data = read_json(path)
+        if _state_status(data) != "SUCCESS":
+            return _state_sid(path, data)
+
+    if evolution_states:
+        data = read_json(evolution_states[0])
+        return _state_sid(evolution_states[0], data)
+    if pipeline_states:
+        data = read_json(pipeline_states[0])
+        return _state_sid(pipeline_states[0], data)
+    return None
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Resume the canonical ShortAutoPro 3.0 pipeline")
+    parser = argparse.ArgumentParser(description="Resume the canonical ShortAutoPro 3.1 pipeline")
     parser.add_argument("--short-id", default=None)
     parser.add_argument("--status", action="store_true")
     args = parser.parse_args()
