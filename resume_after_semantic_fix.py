@@ -96,25 +96,24 @@ def reset_media_tail(sid: str) -> None:
     """Remove only stage-6-and-later artifacts for a deterministic clean rerun."""
     removed: list[str] = []
 
-    # Media files and per-render temp are derived artifacts. Removing the whole
-    # per-ID directories also prevents old .jpg/.mp4 siblings from coexisting.
     _remove_tree(BASE / "imagens" / f"short_{sid}", removed)
     _remove_tree(BASE / "imagens" / f"short_{sid}_secondary", removed)
     _remove_tree(BASE / "temp" / sid, removed)
     _remove_file(BASE / "temp" / f"visual_unified_state_{sid}.json", removed)
 
-    # Audio/captions/final video are downstream from media and must not make the
-    # canonical resume think an old partial tail is still valid.
     _remove_file(BASE / "audios" / f"short_{sid}.mp3", removed)
     _remove_file(BASE / "videos" / f"short_{sid}.ass", removed)
     _remove_file(BASE / "videos" / f"short_v6_{sid}.mp4", removed)
 
     r = BASE / "roteiros"
     tail_names = [
+        f"media_selection_{sid}.json",
         f"media_quality_{sid}.json",
+        f"visual_intelligence_6_{sid}.json",
         f"visual_score_{sid}.json",
-        f"motion_{sid}.json",
-        f"rhythm_{sid}.json",
+        f"motion_plan_{sid}.json",
+        f"motion_plan_pre_rhythm_{sid}.json",
+        f"rhythm_plan_{sid}.json",
         f"pro_edit_plan_{sid}.json",
         f"pro_edit_runtime_{sid}.json",
         f"multi_asset_{sid}.json",
@@ -178,6 +177,9 @@ def run_stage(
             print(f"ETAPA OK: {title}")
             return
         if attempt < retries:
+            if script == "midia.py":
+                print("MEDIA_RETRY_RESET=YES")
+                reset_media_tail(sid)
             delay = min(8, 2 * (attempt + 1))
             print(
                 f"AUTO-RECOVERY {attempt + 1}/{retries}: {script} retornou {last}; "
