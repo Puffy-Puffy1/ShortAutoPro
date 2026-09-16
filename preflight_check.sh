@@ -13,7 +13,7 @@ erro() { echo "ERRO   $1"; ERROS=$((ERROS + 1)); }
 
 echo
 echo "======================================"
-echo " SHORTAUTO PRO - PREFLIGHT CHECK 3.0"
+echo " SHORTAUTO PRO - PREFLIGHT CHECK 3.0.2"
 echo "======================================"
 echo
 
@@ -38,7 +38,7 @@ for cmd in python ffmpeg ffprobe piper bash; do
     fi
 done
 
-# Somente componentes do pipeline canônico 3.0 e utilitários operacionais ativos.
+# Somente componentes do pipeline canônico 3.0.2 e utilitários operacionais ativos.
 ARQUIVOS=(
     main.py profile_run.sh resume_short_runtime.py finalize_short.sh
     topic_engine_runtime.py topic_engine.py topic_memory.py topic_reserve.py topic_index.py wiki_client.py source_identity.py
@@ -47,7 +47,7 @@ ARQUIVOS=(
     visual_shot_bridge.py visual_shot_policy.py visual_editorial_policy.py
     visual_risk_guard.py editorial_continuity.py visual_continuity_engine.py scene_lossless_repair.py post_script_truth_lock.py
     semantic_integrity_gate.py wikimedia_source.py wikimedia_query_bridge.py source_router.py evidence_guard.py
-    midia.py media_runtime_adapter_v1.py media_must_verifier.py vg4x_bridge.py visual_engine_unified.py
+    midia.py media_runtime_adapter_v1.py media_runtime_adapter_v2.py media_must_verifier.py vg4x_bridge.py visual_engine_unified.py
     visual_query_expansion_v4.py visual_query_planner_v4.py visual_pipeline_bridge_v42.py visual_selection_engine_v4.py visual_intelligence_6.py
     vi6_8_runtime_policy.py vi6_9_runtime_policy.py media_master_gate.py visual_score_engine.py
     motion_director.py rhythm_director.py professional_edit_director.py professional_edit_repair.py
@@ -141,7 +141,7 @@ PY_FILES=(
     scene_director.py scene_truth_refiner_6_7.py documentary_director.py visual_director.py visual_shot_bridge.py
     visual_shot_policy.py visual_editorial_policy.py visual_risk_guard.py editorial_continuity.py visual_continuity_engine.py
     scene_lossless_repair.py post_script_truth_lock.py semantic_integrity_gate.py wikimedia_source.py wikimedia_query_bridge.py
-    source_router.py evidence_guard.py midia.py media_runtime_adapter_v1.py media_must_verifier.py vg4x_bridge.py visual_engine_unified.py
+    source_router.py evidence_guard.py midia.py media_runtime_adapter_v1.py media_runtime_adapter_v2.py media_must_verifier.py vg4x_bridge.py visual_engine_unified.py
     visual_query_expansion_v4.py visual_query_planner_v4.py visual_pipeline_bridge_v42.py visual_selection_engine_v4.py visual_intelligence_6.py
     vi6_8_runtime_policy.py vi6_9_runtime_policy.py media_master_gate.py visual_score_engine.py motion_director.py rhythm_director.py
     professional_edit_director.py professional_edit_repair.py multi_asset_director.py retention_engine.py sound_design_engine.py
@@ -174,6 +174,7 @@ for name in (
     "visual_engine_unified",
     "visual_query_expansion_v4",
     "media_runtime_adapter_v1",
+    "media_runtime_adapter_v2",
     "vg4x_bridge",
     "visual_intelligence_6",
     "vi6_8_runtime_policy",
@@ -186,9 +187,9 @@ for name in (
     importlib.import_module(name)
 PY
 ); then
-    ok "imports runtime críticos 3.0"
+    ok "imports runtime críticos 3.0.2"
 else
-    erro "dependência/import runtime crítico 3.0 quebrado"
+    erro "dependência/import runtime crítico 3.0.2 quebrado"
 fi
 
 echo
@@ -200,7 +201,7 @@ echo "Avisos: $AVISOS"
 echo
 
 if [ "$ERROS" -eq 0 ]; then
-    echo "STATUS: PRONTO PARA PRODUÇÃO 3.0"
+    echo "STATUS: PRONTO PARA PRODUÇÃO 3.0.2"
     exit 0
 fi
 
