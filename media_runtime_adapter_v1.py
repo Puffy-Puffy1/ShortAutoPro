@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
 """Canonical runtime adapter for ShortAutoPro media acquisition.
 
-This module is intentionally small and surgical.  It is installed once by
+This module is intentionally small and surgical. It is installed once by
 ``vg4x_bridge`` after ``midia.py`` has defined its acquisition/selection
 functions and before the scene loop starts.
 
 Responsibilities:
 - normalize legacy Portuguese candidate fields into the canonical VSE schema;
 - skip Pexels cleanly when no API key is configured;
-- keep retired VSE4.2/VG4X sub-bridges disabled in Consolidation 3.0;
+- keep retired VSE4.2/VG4X decision bridges disabled in Consolidation 3.0;
+- keep query expansion active only as candidate-pool enrichment;
 - provide a conservative contextual rescue only after normal MUST selection
   has failed and ``midia.py`` enters its relaxed retry path.
 
-Contextual rescue NEVER fabricates must_hits.  It remains must=0, is marked as
+Contextual rescue NEVER fabricates must_hits. It remains must=0, is marked as
 low semantic trust, and is eligible only when it is safe, relevant enough and
 there is no stronger literal-MUST candidate.
 """
@@ -22,17 +23,17 @@ import functools
 import inspect
 import os
 import re
-from typing import Any, Callable
+from typing import Any
 
 
-VERSION = "1.0"
+VERSION = "1.1"
 
 # Canonical 3.0 has one active reranker: visual_engine_unified.
-# The old sub-bridges remain import-compatible but must not compete at runtime.
+# Query expansion only enriches the pool; it does not choose the winner.
 _CANONICAL_ENV = {
     "SAP_VISUAL_UNIFIED": "1",
     "SAP_VSE42_BRIDGE": "0",
-    "SAP_VSE4_QUERY_EXPANSION": "0",
+    "SAP_VSE4_QUERY_EXPANSION": "1",
     "SAP_VSE42_RESCUE": "0",
     "SAP_VG4X": "0",
 }
@@ -128,16 +129,19 @@ def normalize_candidate(
 
 def _normalize_result(result: Any, query: str, must_have: Any) -> Any:
     must = list(must_have or []) if isinstance(must_have, (list, tuple, set)) else []
-    if isinstance(result, list):
-        for candidate in result:
-            normalize_candidate(candidate, query=query, must_have=must)
-    elif isinstance(result, tuple):
+    if isinstance(result, (list, tuple)):
         for candidate in result:
             normalize_candidate(candidate, query=query, must_have=must)
     return result
 
 
-def _argument(signature: inspect.Signature, args: tuple[Any, ...], kwargs: dict[str, Any], names: tuple[str, ...], default: Any = None) -> Any:
+def _argument(
+    signature: inspect.Signature,
+    args: tuple[Any, ...],
+    kwargs: dict[str, Any],
+    names: tuple[str, ...],
+    default: Any = None,
+) -> Any:
     try:
         bound = signature.bind_partial(*args, **kwargs)
     except Exception:
@@ -188,7 +192,12 @@ def _identity_sensitive(visual_mode: str) -> bool:
     )
 
 
-def _contextual_metrics(candidate: dict[str, Any], query: str, must_have: list[str], visual_mode: str) -> tuple[bool, float, str]:
+def _contextual_metrics(
+    candidate: dict[str, Any],
+    query: str,
+    must_have: list[str],
+    visual_mode: str,
+) -> tuple[bool, float, str]:
     if int(candidate.get("avoid_hits", 0) or 0) > 0:
         return False, 0.0, "AVOID_HIT"
     if int(candidate.get("must_hits", 0) or 0) > 0:
@@ -235,7 +244,10 @@ def _contextual_metrics(candidate: dict[str, Any], query: str, must_have: list[s
         for term in getattr(vse, "GENERIC_LIFESTYLE", set()):
             generic_terms.update(_tokens(term))
         generic_hits = bool(asset_tokens & generic_terms)
-        documentary = bool(scene_concepts & {"police", "investigation", "crime_scene", "evidence", "forensics", "court", "prison", "law"})
+        documentary = bool(
+            scene_concepts
+            & {"police", "investigation", "crime_scene", "evidence", "forensics", "court", "prison", "law"}
+        )
         generic_mismatch = generic_hits and documentary and not (scene_concepts & asset_concepts)
     except Exception:
         pass
@@ -253,8 +265,17 @@ def _contextual_metrics(candidate: dict[str, Any], query: str, must_have: list[s
     return True, semantic, "SAFE_CONTEXTUAL_RESCUE"
 
 
-def _mark_contextual_rescue(result: Any, query: str, must_have: Any, visual_mode: str) -> Any:
-    must = [str(x) for x in (must_have or []) if str(x).strip()] if isinstance(must_have, (list, tuple, set)) else []
+def _mark_contextual_rescue(
+    result: Any,
+    query: str,
+    must_have: Any,
+    visual_mode: str,
+) -> Any:
+    must = (
+        [str(x) for x in must_have if str(x).strip()]
+        if isinstance(must_have, (list, tuple, set))
+        else []
+    )
     candidates = result if isinstance(result, (list, tuple)) else []
     marked = 0
     for candidate in candidates:
@@ -308,7 +329,9 @@ def _wrap_semantic_policy(namespace: dict[str, Any]) -> tuple[bool, bool]:
                     return False
                 if int(candidate.get("avoid_hits", 0) or 0) > 0:
                     return False
-                if float(candidate.get("_sap_contextual_score", 0.0) or 0.0) < _env_float("SAP_CONTEXTUAL_RESCUE_MIN_SEMANTIC", 0.25):
+                if float(candidate.get("_sap_contextual_score", 0.0) or 0.0) < _env_float(
+                    "SAP_CONTEXTUAL_RESCUE_MIN_SEMANTIC", 0.25
+                ):
                     return False
                 return True
             return original_validator(candidate, total_must, relaxado=relaxado)
@@ -333,7 +356,6 @@ def _wrap_semantic_policy(namespace: dict[str, Any]) -> tuple[bool, bool]:
 
 def install(namespace: dict[str, Any]) -> dict[str, Any]:
     for key, value in _CANONICAL_ENV.items():
-        # Runtime adapter is authoritative for retired duplicate gates.
         os.environ[key] = value
 
     provider_names = (
@@ -353,11 +375,12 @@ def install(namespace: dict[str, Any]) -> dict[str, Any]:
         "metadata": metadata,
         "legacy_vse42_bridge": False,
         "legacy_vg4x": False,
+        "query_expansion": True,
     }
     print(
         "MEDIA_RUNTIME_ADAPTER=INSTALLED "
         f"providers={len(providers)} search={search} "
-        f"contextual_policy={validator and metadata}"
+        f"contextual_policy={validator and metadata} query_expansion=True"
     )
     return result
 
