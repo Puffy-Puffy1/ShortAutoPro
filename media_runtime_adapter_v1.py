@@ -1,20 +1,11 @@
 #!/usr/bin/env python3
 """Canonical runtime adapter for ShortAutoPro media acquisition.
 
-Installed once by ``vg4x_bridge`` after ``midia.py`` has defined its
-acquisition/selection functions and before the scene loop starts.
-
-Responsibilities:
-- normalize legacy Portuguese candidate fields into the canonical VSE schema;
-- make strict asset-evidence MUST verification authoritative at acquisition;
-- skip Pexels cleanly when no API key is configured;
-- keep retired VSE4/VSE4.2/VG4X decision bridges disabled;
-- keep VI6 as observability/shadow, not a second winner authority;
-- keep query expansion active only as candidate-pool enrichment;
-- provide a conservative contextual rescue only in the relaxed retry path.
-
-Contextual rescue never fabricates MUST coverage. A rescue remains must=0,
-is marked low-trust, and is eligible only when safe and contextually relevant.
+This adapter is installed once by ``vg4x_bridge`` after ``midia.py`` has
+defined its acquisition/selection functions and before the scene loop starts.
+It keeps strict MUST verification authoritative, makes Visual Unified the sole
+production reranker, and supplies safe retry/continuity fallbacks without
+fabricating semantic coverage.
 """
 from __future__ import annotations
 
@@ -22,15 +13,13 @@ import functools
 import inspect
 import os
 import re
+from pathlib import Path
 from typing import Any
 
 from media_must_verifier import verified_must
 
+VERSION = "1.4"
 
-VERSION = "1.3"
-
-# Visual Unified is the sole production reranker. Query expansion may enrich
-# the candidate pool but every legacy decision/commit reranker is disabled.
 _CANONICAL_ENV = {
     "SAP_VISUAL_UNIFIED": "1",
     "SAP_VSE4": "0",
@@ -43,6 +32,7 @@ _CANONICAL_ENV = {
     "SAP_VSE4_QUERY_EXPANSION": "1",
     "SAP_VG4X": "0",
     "VISUAL_INTELLIGENCE_MODE": "SHADOW",
+    "SAP_MEDIA_CONTINUITY_FALLBACK": "1",
 }
 
 _PROVIDER_SKIP_PRINTED: set[str] = set()
@@ -65,6 +55,8 @@ def _tokens(value: Any) -> set[str]:
         "a", "an", "and", "at", "by", "for", "from", "in", "of", "on",
         "or", "the", "to", "with", "de", "da", "do", "das", "dos", "e",
         "em", "na", "no", "nas", "nos", "para", "por", "com",
+        "cinematic", "dramatic", "moody", "shot", "scene", "view", "close",
+        "documentary", "footage",
     }
     return {
         token
@@ -74,7 +66,6 @@ def _tokens(value: Any) -> set[str]:
 
 
 def _asset_text(candidate: dict[str, Any]) -> str:
-    """Asset evidence only; deliberately excludes search/query fields."""
     values: list[str] = []
     for key in (
         "description", "descricao", "title", "name", "caption", "alt",
@@ -91,23 +82,16 @@ def _asset_text(candidate: dict[str, Any]) -> str:
 
 
 def _strict_must_into_candidate(candidate: dict[str, Any], must: list[str]) -> None:
-    """Replace provider-declared MUST hits with independently verified hits.
-
-    The provider value is retained for diagnostics under
-    ``_sap_declared_must_hits``. All legacy filters downstream therefore see
-    the same verified coverage used by Visual Unified, eliminating the split
-    where one gate logged must=1 while another recomputed must=0.
-    """
     if not must:
         return
-
     try:
         current_declared = int(candidate.get("must_hits", 0) or 0)
     except (TypeError, ValueError):
         current_declared = 0
-
     try:
-        original_declared = int(candidate.get("_sap_declared_must_hits", current_declared) or 0)
+        original_declared = int(
+            candidate.get("_sap_declared_must_hits", current_declared) or 0
+        )
     except (TypeError, ValueError):
         original_declared = current_declared
 
@@ -159,7 +143,10 @@ def normalize_candidate(
 
     must = [str(x).strip() for x in (must_have or []) if str(x).strip()]
     _strict_must_into_candidate(candidate, must)
-
+    if query:
+        candidate["_sap_search_query"] = str(query)
+    if must:
+        candidate["_sap_search_must"] = list(must)
     candidate.setdefault("_sap_schema", "MEDIA_RUNTIME_ADAPTER_V1")
     return candidate
 
@@ -245,13 +232,6 @@ def _contextual_metrics(
     if evidence_class in {"RISKY_IDENTITY", "BLOCKED", "MISLEADING_REENACTMENT"}:
         return False, 0.0, "EVIDENCE_RISK"
 
-    try:
-        base_score = float(candidate.get("score", 0.0) or 0.0)
-    except (TypeError, ValueError):
-        base_score = 0.0
-    if base_score < _env_float("SAP_CONTEXTUAL_RESCUE_MIN_SCORE", 34.0):
-        return False, 0.0, "LOW_BASE_SCORE"
-
     scene_text = " ".join([query, *must_have]).strip()
     asset_text = _asset_text(candidate)
     scene_tokens = _tokens(scene_text)
@@ -259,14 +239,14 @@ def _contextual_metrics(
     if not scene_tokens or not asset_tokens:
         return False, 0.0, "NO_SEMANTIC_TEXT"
 
-    overlap = len(scene_tokens & asset_tokens) / max(1, min(len(scene_tokens), 4))
+    overlap_count = len(scene_tokens & asset_tokens)
+    overlap = overlap_count / max(1, min(len(scene_tokens), 4))
     concept_overlap = 0
     geo_conflict = False
     generic_mismatch = False
 
     try:
         import visual_selection_engine_v4 as vse
-
         scene_concepts = set(vse.concept_hits(scene_text))
         asset_concepts = set(vse.concept_hits(asset_text))
         concept_overlap = len(scene_concepts & asset_concepts)
@@ -285,7 +265,9 @@ def _contextual_metrics(
                 "forensics", "court", "prison", "law",
             }
         )
-        generic_mismatch = generic_hits and documentary and not (scene_concepts & asset_concepts)
+        generic_mismatch = (
+            generic_hits and documentary and not (scene_concepts & asset_concepts)
+        )
     except Exception:
         pass
 
@@ -295,8 +277,21 @@ def _contextual_metrics(
         return False, 0.0, "GENERIC_LIFESTYLE"
 
     semantic = overlap + min(0.50, concept_overlap * 0.20)
-    if semantic < _env_float("SAP_CONTEXTUAL_RESCUE_MIN_SEMANTIC", 0.25):
+    min_semantic = _env_float("SAP_CONTEXTUAL_RESCUE_MIN_SEMANTIC", 0.25)
+    if semantic < min_semantic:
         return False, semantic, "LOW_CONTEXT_OVERLAP"
+
+    try:
+        base_score = float(candidate.get("score", 0.0) or 0.0)
+    except (TypeError, ValueError):
+        base_score = 0.0
+    min_score = _env_float("SAP_CONTEXTUAL_RESCUE_MIN_SCORE", 8.0)
+    strong_semantic = _env_float("SAP_CONTEXTUAL_RESCUE_STRONG_SEMANTIC", 0.50)
+    if base_score < min_score and semantic < strong_semantic:
+        return False, semantic, "LOW_BASE_SCORE"
+    if overlap_count <= 0 and concept_overlap <= 0:
+        return False, semantic, "NO_DIRECT_CONTEXT"
+
     return True, semantic, "SAFE_CONTEXTUAL_RESCUE"
 
 
@@ -317,6 +312,7 @@ def _mark_contextual_rescue(
         if not isinstance(candidate, dict):
             continue
         normalize_candidate(candidate, query=query, must_have=must)
+        candidate["_sap_visual_mode"] = visual_mode
         ok, semantic, reason = _contextual_metrics(candidate, query, must, visual_mode)
         if not ok:
             continue
@@ -337,9 +333,13 @@ def _wrap_search(namespace: dict[str, Any]) -> bool:
 
     @functools.wraps(original)
     def wrapped(*args: Any, **kwargs: Any):
-        query = str(_argument(signature, args, kwargs, ("busca", "query", "search"), "") or "")
+        query = str(
+            _argument(signature, args, kwargs, ("busca", "query", "search"), "") or ""
+        )
         must = _argument(signature, args, kwargs, ("must_have", "must"), [])
-        visual_mode = str(_argument(signature, args, kwargs, ("visual_mode", "modo_visual"), "") or "")
+        visual_mode = str(
+            _argument(signature, args, kwargs, ("visual_mode", "modo_visual"), "") or ""
+        )
         result = original(*args, **kwargs)
         result = _normalize_result(result, query, must)
         return _mark_contextual_rescue(result, query, must, visual_mode)
@@ -355,7 +355,9 @@ def _wrap_semantic_policy(namespace: dict[str, Any]) -> tuple[bool, bool]:
     validator_installed = False
     metadata_installed = False
 
-    if callable(original_validator) and not getattr(original_validator, "_sap_media_adapter", False):
+    if callable(original_validator) and not getattr(
+        original_validator, "_sap_media_adapter", False
+    ):
         @functools.wraps(original_validator)
         def validator(candidate: Any, total_must: int, relaxado: bool = False):
             if isinstance(candidate, dict) and candidate.get("_sap_contextual_rescue"):
@@ -363,16 +365,18 @@ def _wrap_semantic_policy(namespace: dict[str, Any]) -> tuple[bool, bool]:
                     return False
                 if int(candidate.get("avoid_hits", 0) or 0) > 0:
                     return False
-                return float(candidate.get("_sap_contextual_score", 0.0) or 0.0) >= _env_float(
-                    "SAP_CONTEXTUAL_RESCUE_MIN_SEMANTIC", 0.25
-                )
+                return float(
+                    candidate.get("_sap_contextual_score", 0.0) or 0.0
+                ) >= _env_float("SAP_CONTEXTUAL_RESCUE_MIN_SEMANTIC", 0.25)
             return original_validator(candidate, total_must, relaxado=relaxado)
 
         validator._sap_media_adapter = True
         namespace["candidato_semanticamente_valido"] = validator
         validator_installed = True
 
-    if callable(original_metadata) and not getattr(original_metadata, "_sap_media_adapter", False):
+    if callable(original_metadata) and not getattr(
+        original_metadata, "_sap_media_adapter", False
+    ):
         @functools.wraps(original_metadata)
         def metadata(candidate: Any):
             if isinstance(candidate, dict) and candidate.get("_sap_contextual_rescue"):
@@ -386,12 +390,212 @@ def _wrap_semantic_policy(namespace: dict[str, Any]) -> tuple[bool, bool]:
     return validator_installed, metadata_installed
 
 
+def _wrap_failover(namespace: dict[str, Any]) -> bool:
+    original = namespace.get("ordenar_failover_5_2")
+    if not callable(original) or getattr(original, "_sap_media_adapter", False):
+        return False
+
+    @functools.wraps(original)
+    def wrapped(candidatos, total_must, rota_fonte, descricao_anterior=""):
+        result = original(candidatos, total_must, rota_fonte, descricao_anterior)
+        if result:
+            return result
+
+        pool = candidatos if isinstance(candidatos, (list, tuple)) else []
+        rescue = [
+            c
+            for c in pool
+            if isinstance(c, dict)
+            and c.get("_sap_contextual_rescue")
+            and int(c.get("avoid_hits", 0) or 0) == 0
+        ]
+        rescue.sort(
+            key=lambda c: (
+                float(c.get("_sap_contextual_score", 0.0) or 0.0),
+                float(c.get("score", -999.0) or -999.0),
+                1 if str(c.get("tipo", "")).casefold() in {"vídeo", "video"} else 0,
+            ),
+            reverse=True,
+        )
+        if rescue:
+            print(
+                "SAP_CONTEXTUAL_RESCUE_ACTIVATED="
+                f"{len(rescue)} best={rescue[0].get('_sap_contextual_score', 0)}"
+            )
+        return rescue
+
+    wrapped._sap_media_adapter = True
+    namespace["ordenar_failover_5_2"] = wrapped
+    return True
+
+
+def _patch_unified_reranker() -> bool:
+    try:
+        import visual_engine_unified as unified
+    except Exception:
+        return False
+
+    original = getattr(unified, "rerank_pool_runtime", None)
+    if not callable(original) or getattr(original, "_sap_media_adapter", False):
+        return bool(callable(original))
+
+    @functools.wraps(original)
+    def wrapped(pool: Any, ctx: Any = None):
+        result = original(pool, ctx)
+        if isinstance(result, list):
+            for candidate in result:
+                if isinstance(candidate, dict):
+                    candidate.pop("_sap_visual_unified_winner", None)
+            if result and isinstance(result[0], dict):
+                result[0]["_sap_visual_unified_winner"] = True
+        return result
+
+    wrapped._sap_media_adapter = True
+    unified.rerank_pool_runtime = wrapped
+    return True
+
+
+def _wrap_reference_guard(namespace: dict[str, Any]) -> bool:
+    original = namespace.get("fallback_preserva_5_2")
+    if not callable(original) or getattr(original, "_sap_media_adapter", False):
+        return False
+
+    @functools.wraps(original)
+    def wrapped(candidate: Any, reference: Any):
+        if isinstance(candidate, dict) and candidate.get("_sap_visual_unified_winner"):
+            if int(candidate.get("avoid_hits", 0) or 0) > 0:
+                return False
+            return True
+        return original(candidate, reference)
+
+    wrapped._sap_media_adapter = True
+    namespace["fallback_preserva_5_2"] = wrapped
+    return True
+
+
+def _patch_legacy_decision_bridges(namespace: dict[str, Any]) -> bool:
+    patched = 0
+
+    if "_vse42_finalize_pool" in namespace:
+        namespace["_vse42_finalize_pool"] = lambda pool, escolhido, ctx=None: pool
+        patched += 1
+    if "_vse42_enabled" in namespace:
+        namespace["_vse42_enabled"] = lambda *args, **kwargs: False
+        patched += 1
+
+    try:
+        import visual_selection_engine_v4 as module
+        module.choose_from_context = lambda ctx, globals_ns, current: current
+        patched += 1
+    except Exception:
+        pass
+
+    try:
+        import visual_selection_runtime_v42 as module
+
+        def no_enhance(escolhido, pool, *args, **kwargs):
+            return escolhido, pool, {"disabled": True, "authority": "VISUAL_UNIFIED"}
+
+        module.enhance_selection = no_enhance
+        module.note_commit = lambda *args, **kwargs: None
+        patched += 1
+    except Exception:
+        pass
+
+    try:
+        import visual_selection_bridge_v42 as module
+
+        def no_rank(pool, escolhido, *args, **kwargs):
+            return pool, escolhido, {"disabled": True, "authority": "VISUAL_UNIFIED"}
+
+        module.rank_pool = no_rank
+        module.commit_candidate = lambda *args, **kwargs: True
+        patched += 1
+    except Exception:
+        pass
+
+    try:
+        import visual_gate_v4x as module
+
+        def no_gate(ctx, pool, escolhido, *args, **kwargs):
+            return escolhido, pool, {"disabled": True, "authority": "VISUAL_UNIFIED"}
+
+        module.choose_from_locals = no_gate
+        patched += 1
+    except Exception:
+        pass
+
+    try:
+        import visual_selection_runtime_bridge_v42 as module
+        module.rerank_pool = lambda pool, ctx=None: (
+            pool,
+            {"disabled": True, "authority": "VISUAL_UNIFIED"},
+        )
+        module.note_selected = lambda *args, **kwargs: None
+        patched += 1
+    except Exception:
+        pass
+
+    print(
+        "MEDIA_LEGACY_DECISION_BRIDGES=DISABLED "
+        f"patched={patched} authority=VISUAL_UNIFIED"
+    )
+    return patched > 0
+
+
+def _wrap_download_tracking(namespace: dict[str, Any]) -> bool:
+    original = namespace.get("baixar_candidato_5_2")
+    if not callable(original) or getattr(original, "_sap_media_adapter", False):
+        return False
+
+    @functools.wraps(original)
+    def wrapped(candidate: Any, numero: int, rotulo: str):
+        ok, destino = original(candidate, numero, rotulo)
+        if ok and destino:
+            namespace["_SAP_LAST_SUCCESS_PATH"] = str(destino)
+            namespace["_SAP_LAST_SUCCESS_CANDIDATE"] = candidate
+        return ok, destino
+
+    wrapped._sap_media_adapter = True
+    namespace["baixar_candidato_5_2"] = wrapped
+    return True
+
+
+def _wrap_local_continuity_fallback(namespace: dict[str, Any]) -> bool:
+    original = namespace.get("buscar_local")
+    if not callable(original) or getattr(original, "_sap_media_adapter", False):
+        return False
+
+    @functools.wraps(original)
+    def wrapped(preferir_video: bool):
+        result = original(preferir_video)
+        if result:
+            return result
+        if os.getenv("SAP_MEDIA_CONTINUITY_FALLBACK", "1") != "1":
+            return None
+
+        previous = str(namespace.get("_SAP_LAST_SUCCESS_PATH", "") or "")
+        if not previous:
+            return None
+        path = Path(previous)
+        if not path.is_file():
+            return None
+
+        print(
+            "SAP_MEDIA_CONTINUITY_FALLBACK=REUSE_PREVIOUS_SCENE "
+            f"path={path.name}"
+        )
+        return str(path)
+
+    wrapped._sap_media_adapter = True
+    namespace["buscar_local"] = wrapped
+    return True
+
+
 def install(namespace: dict[str, Any]) -> dict[str, Any]:
     for key, value in _CANONICAL_ENV.items():
         os.environ[key] = value
 
-    # midia.py resolves VI6_MODE before this adapter is installed. Update the
-    # live module namespace too, otherwise ACTIVE could survive the env switch.
     if "VI6_MODE" in namespace:
         namespace["VI6_MODE"] = "SHADOW"
 
@@ -402,6 +606,12 @@ def install(namespace: dict[str, Any]) -> dict[str, Any]:
     providers = [name for name in provider_names if _wrap_provider(namespace, name)]
     search = _wrap_search(namespace)
     validator, metadata = _wrap_semantic_policy(namespace)
+    failover = _wrap_failover(namespace)
+    unified = _patch_unified_reranker()
+    reference_guard = _wrap_reference_guard(namespace)
+    legacy_disabled = _patch_legacy_decision_bridges(namespace)
+    download_tracking = _wrap_download_tracking(namespace)
+    continuity = _wrap_local_continuity_fallback(namespace)
 
     result = {
         "version": VERSION,
@@ -410,6 +620,12 @@ def install(namespace: dict[str, Any]) -> dict[str, Any]:
         "search": search,
         "validator": validator,
         "metadata": metadata,
+        "failover": failover,
+        "unified": unified,
+        "reference_guard": reference_guard,
+        "legacy_disabled": legacy_disabled,
+        "download_tracking": download_tracking,
+        "continuity": continuity,
         "legacy_vse4": False,
         "legacy_vse42": False,
         "legacy_vg4x": False,
@@ -418,11 +634,18 @@ def install(namespace: dict[str, Any]) -> dict[str, Any]:
     }
     print(
         "MEDIA_RUNTIME_ADAPTER=INSTALLED "
-        f"providers={len(providers)} search={search} "
-        f"contextual_policy={validator and metadata} "
-        "query_expansion=True authority=VISUAL_UNIFIED vi6=SHADOW"
+        f"version={VERSION} providers={len(providers)} search={search} "
+        f"contextual_policy={validator and metadata} failover={failover} "
+        f"continuity={continuity} query_expansion=True "
+        "authority=VISUAL_UNIFIED vi6=SHADOW"
     )
     return result
 
 
-__all__ = ["VERSION", "install", "normalize_candidate"]
+__all__ = [
+    "VERSION",
+    "install",
+    "normalize_candidate",
+    "_contextual_metrics",
+    "_mark_contextual_rescue",
+]
