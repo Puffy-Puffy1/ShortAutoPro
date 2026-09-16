@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 
 """
-ShortAutoPro Visual Engine Unified V5.
+ShortAutoPro Visual Engine Unified V5.1.
 
 Única fachada entre midia.py e o motor visual.
 
 Responsabilidades:
-- normalizar contexto da cena
+- normalizar contexto estruturado da cena
 - reranquear pool
 - bloquear mismatch forte
 - diversidade entre cenas
@@ -32,7 +32,7 @@ ROOT = (
 import visual_selection_engine_v4 as vse
 
 
-VERSION = "5.0"
+VERSION = "5.1"
 
 
 def _sid(ctx=None):
@@ -230,62 +230,72 @@ def _context_value(
 
 
 def scene_from_runtime(ctx):
+    """Build one structured scene contract for VSE scoring.
 
-    pieces = []
+    Previous versions flattened ``must_have`` into a generic text list. That
+    prevented ``visual_selection_engine_v4`` from independently verifying each
+    explicit MUST against the candidate metadata. Keep semantic fields
+    structured so the score printed by Visual Unified matches the evidence
+    used to choose the downloaded asset.
+    """
 
+    if not isinstance(ctx, dict):
+        return {"texto": str(ctx or "")}
 
-    candidates = (
+    scene = {}
 
-        (
-            "segmento",
-            "scene",
-            "cena",
-        ),
+    # Start with the structured scene when it exists.
+    for name in ("cena", "scene"):
+        value = ctx.get(name)
+        if isinstance(value, dict):
+            scene.update(value)
+            break
 
-        (
-            "texto",
-            "text",
-            "narracao",
-            "narration",
-        ),
-
-        (
-            "visual_query",
-            "busca",
-            "query",
-        ),
-
-        (
-            "must_have",
-            "must",
-        ),
-
-        (
-            "location",
-            "local",
-            "geo",
-        ),
-
+    text = _context_value(
+        ctx,
+        ("texto", "text", "narracao", "narration", "segmento"),
+    )
+    query = _context_value(
+        ctx,
+        ("visual_query", "busca", "query"),
+    )
+    must = _context_value(
+        ctx,
+        ("must_have", "must"),
+    )
+    avoid = _context_value(
+        ctx,
+        ("avoid", "avoid_terms"),
+    )
+    location = _context_value(
+        ctx,
+        ("location", "local", "geo"),
+    )
+    visual_mode = _context_value(
+        ctx,
+        ("visual_mode", "modo_visual"),
+    )
+    topic = _context_value(
+        ctx,
+        ("topic", "tema", "ASSUNTO"),
     )
 
+    if text is not None:
+        scene["texto"] = text
+    if query is not None:
+        scene["visual_query"] = query
+    if must is not None:
+        scene["must_have"] = must
+    if avoid is not None:
+        scene["avoid"] = avoid
+    if location is not None:
+        scene["location"] = location
+    if visual_mode is not None:
+        scene["visual_mode"] = visual_mode
+    if topic is not None:
+        scene["topic"] = topic
 
-    for group in candidates:
-
-        value = _context_value(
-            ctx,
-            group,
-        )
-
-        if value is not None:
-            pieces.append(
-                value
-            )
-
-
-    return {
-        "texto":
-            pieces,
-    }
+    return scene
 
 
 def _score(
