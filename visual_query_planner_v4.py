@@ -131,6 +131,24 @@ CONCEPT_QUERY = {
 }
 
 
+def _alias_present(query_norm, alias):
+    """Match aliases on token/phrase boundaries, never as substrings.
+
+    This prevents terms such as ``mar`` (Portuguese for sea) from matching
+    unrelated words like ``marshals``, which previously produced ocean query
+    expansions for ``federal marshals``.
+    """
+    alias_norm = norm(alias)
+    if not alias_norm:
+        return False
+    return bool(
+        re.search(
+            r"(?:^|\s)" + re.escape(alias_norm) + r"(?:$|\s)",
+            query_norm,
+        )
+    )
+
+
 def detect_concepts(query):
 
     q = norm(query)
@@ -262,7 +280,7 @@ def detect_concepts(query):
     for concept, terms in aliases.items():
 
         if any(
-            norm(term) in q
+            _alias_present(q, term)
             for term in terms
         ):
             hits.append(
@@ -345,6 +363,7 @@ if __name__ == "__main__":
         "forensic evidence crime scene",
         "rocket launch",
         "ocean mystery",
+        "vintage federal marshals wanted",
     )
 
     for test in tests:
