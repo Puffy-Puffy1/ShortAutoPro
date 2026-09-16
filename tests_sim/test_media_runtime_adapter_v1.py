@@ -86,6 +86,23 @@ class MediaRuntimeAdapterTests(unittest.TestCase):
         self.assertTrue(ns["candidato_semanticamente_valido"](rescued, 1, relaxado=True))
         self.assertFalse(ns["metadata_confiavel"](rescued))
 
+    def test_literal_must_candidate_is_not_marked_as_contextual_rescue(self):
+        candidate = {
+            "fonte": "Pixabay",
+            "tipo": "foto",
+            "descricao": "police tape crime scene",
+            "score": 80.0,
+            "must_hits": 1,
+            "avoid_hits": 0,
+        }
+        marked = adapter._mark_contextual_rescue(
+            [candidate],
+            "police tape crime investigation",
+            ["police tape"],
+            "evidence",
+        )
+        self.assertFalse(marked[0].get("_sap_contextual_rescue", False))
+
     def test_contextual_rescue_rejects_avoid_and_identity_risk(self):
         avoid_candidate = {
             "descricao": "police crime investigation",
@@ -134,15 +151,16 @@ class MediaRuntimeAdapterTests(unittest.TestCase):
         self.assertEqual(result, [])
         self.assertFalse(called["value"])
 
-    def test_install_disables_duplicate_legacy_selection_authorities(self):
+    def test_install_keeps_only_one_decision_authority(self):
         ns = {}
         with mock.patch.dict(os.environ, {}, clear=False):
-            adapter.install(ns)
+            result = adapter.install(ns)
             self.assertEqual(os.environ["SAP_VISUAL_UNIFIED"], "1")
             self.assertEqual(os.environ["SAP_VSE42_BRIDGE"], "0")
-            self.assertEqual(os.environ["SAP_VSE4_QUERY_EXPANSION"], "0")
+            self.assertEqual(os.environ["SAP_VSE4_QUERY_EXPANSION"], "1")
             self.assertEqual(os.environ["SAP_VSE42_RESCUE"], "0")
             self.assertEqual(os.environ["SAP_VG4X"], "0")
+            self.assertTrue(result["query_expansion"])
 
 
 if __name__ == "__main__":
