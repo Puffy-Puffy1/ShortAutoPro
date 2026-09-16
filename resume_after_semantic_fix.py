@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Resume a canonical ShortAutoPro run after a semantic-gate code fix.
+"""Resume a canonical ShortAutoPro run after semantic/media runtime fixes.
 
-This helper is intentionally narrow: it reuses already validated script/scene
-artifacts, reruns the semantic gate with the current code, rebuilds the media and
-professional planning tail, then hands control to the canonical safe-resume
-runtime. It never switches to a legacy pipeline.
+The helper preserves validated research/script/scene truth artifacts, reruns the
+semantic gate, resets only stale media-and-later outputs for the same Short ID,
+rebuilds the professional planning tail, then hands control to the canonical
+artifact-validated resume runtime. It never switches to a legacy pipeline.
 """
 
 from __future__ import annotations
@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -73,6 +74,82 @@ def validate_checkpoint(sid: str) -> None:
         raise RuntimeError("POST-SCRIPT TRUTH LOCK não está PASS; retomada recusada")
 
 
+def _remove_file(path: Path, removed: list[str]) -> None:
+    try:
+        if path.is_file() or path.is_symlink():
+            path.unlink()
+            removed.append(str(path.relative_to(BASE)))
+    except OSError as exc:
+        raise RuntimeError(f"não foi possível limpar {path}: {exc}") from exc
+
+
+def _remove_tree(path: Path, removed: list[str]) -> None:
+    try:
+        if path.is_dir():
+            shutil.rmtree(path)
+            removed.append(str(path.relative_to(BASE)) + "/")
+    except OSError as exc:
+        raise RuntimeError(f"não foi possível limpar {path}: {exc}") from exc
+
+
+def reset_media_tail(sid: str) -> None:
+    """Remove only stage-6-and-later artifacts for a deterministic clean rerun."""
+    removed: list[str] = []
+
+    # Media files and per-render temp are derived artifacts. Removing the whole
+    # per-ID directories also prevents old .jpg/.mp4 siblings from coexisting.
+    _remove_tree(BASE / "imagens" / f"short_{sid}", removed)
+    _remove_tree(BASE / "imagens" / f"short_{sid}_secondary", removed)
+    _remove_tree(BASE / "temp" / sid, removed)
+    _remove_file(BASE / "temp" / f"visual_unified_state_{sid}.json", removed)
+
+    # Audio/captions/final video are downstream from media and must not make the
+    # canonical resume think an old partial tail is still valid.
+    _remove_file(BASE / "audios" / f"short_{sid}.mp3", removed)
+    _remove_file(BASE / "videos" / f"short_{sid}.ass", removed)
+    _remove_file(BASE / "videos" / f"short_v6_{sid}.mp4", removed)
+
+    r = BASE / "roteiros"
+    tail_names = [
+        f"media_quality_{sid}.json",
+        f"visual_score_{sid}.json",
+        f"motion_{sid}.json",
+        f"rhythm_{sid}.json",
+        f"pro_edit_plan_{sid}.json",
+        f"pro_edit_runtime_{sid}.json",
+        f"multi_asset_{sid}.json",
+        f"retention_{sid}.json",
+        f"sound_design_{sid}.json",
+        f"supervisor_{sid}.json",
+        f"pro_caption_{sid}.json",
+        f"caption_layout_{sid}.json",
+    ]
+    for name in tail_names:
+        _remove_file(r / name, removed)
+
+    m = BASE / "manifests"
+    for name in (
+        f"{sid}_quality.json",
+        f"{sid}_release.json",
+        f"{sid}_professional.json",
+    ):
+        _remove_file(m / name, removed)
+
+    evolution = BASE / "reports" / "evolution"
+    for name in (
+        f"visual_qa_{sid}.json",
+        f"final_audio_{sid}.json",
+    ):
+        _remove_file(evolution / name, removed)
+
+    print("MEDIA_TAIL_RESET=PASS")
+    print(f"MEDIA_TAIL_RESET_REMOVED={len(removed)}")
+    for item in removed[:24]:
+        print(f"  RESET: {item}")
+    if len(removed) > 24:
+        print(f"  RESET: ... +{len(removed) - 24} artefatos")
+
+
 def run_stage(
     sid: str,
     title: str,
@@ -113,7 +190,7 @@ def run_stage(
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Retoma ShortAutoPro após correção do Semantic Integrity Gate"
+        description="Retoma ShortAutoPro após correções semânticas/de mídia"
     )
     parser.add_argument("--short-id", required=True)
     args = parser.parse_args()
@@ -143,13 +220,14 @@ def main() -> int:
     ]
 
     print("==============================================")
-    print(" SHORTAUTOPRO - RESUME AFTER SEMANTIC FIX")
+    print(" SHORTAUTOPRO - CLEAN RESUME FROM MEDIA")
     print("==============================================")
     print(f"ID: {sid}")
     print("PIPELINE: PROFESSIONAL_CANONICAL")
 
     try:
         with canonical.RunLock(sid):
+            reset_media_tail(sid)
             for title, script, stage_args, retries in stages:
                 run_stage(sid, title, script, stage_args, retries)
     except Exception as exc:
