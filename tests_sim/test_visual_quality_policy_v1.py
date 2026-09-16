@@ -1,5 +1,7 @@
+import os
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import visual_quality_policy_v1 as policy
 import visual_selection_runtime_bridge_v42 as bridge
@@ -96,7 +98,8 @@ class VisualQualityPolicyV1Tests(unittest.TestCase):
         self.assertIn("RESOLUTION_1080P_PLUS", result["reasons"])
         self.assertGreater(result["adjustment"], 60)
 
-    def test_final_reranker_prefers_scene_relevant_asset(self):
+    def test_legacy_bridge_policy_still_prefers_scene_relevant_asset_in_isolation(self):
+        """Unit-test the retired bridge algorithm without re-enabling it in production."""
         context = {
             "segmento": "Lars ligou desesperado para a mãe pelo telefone.",
             "busca": "man urgent phone call mother",
@@ -122,7 +125,8 @@ class VisualQualityPolicyV1Tests(unittest.TestCase):
             "must_hits": 0,
         }
 
-        ranked, meta = bridge.rerank_pool([ocean, phone], context)
+        with mock.patch.dict(os.environ, {"SAP_VSE42_RUNTIME": "1"}, clear=False):
+            ranked, meta = bridge.rerank_pool([ocean, phone], context)
         self.assertEqual(ranked[0]["id"], "phone")
         self.assertIn("top_visual_quality_adjustment", meta)
 
