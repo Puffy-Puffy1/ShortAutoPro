@@ -13,7 +13,7 @@ erro() { echo "ERRO   $1"; ERROS=$((ERROS + 1)); }
 
 echo
 echo "======================================"
-echo " SHORTAUTO PRO - PREFLIGHT CHECK 2.8"
+echo " SHORTAUTO PRO - PREFLIGHT CHECK 3.0"
 echo "======================================"
 echo
 
@@ -26,7 +26,7 @@ else
 fi
 
 if [ -n "${GEMINI_API_KEY:-}" ]; then ok "GEMINI_API_KEY"; else erro "GEMINI_API_KEY não configurada"; fi
-if [ -n "${PEXELS_API_KEY:-}" ]; then ok "PEXELS_API_KEY"; else aviso "PEXELS_API_KEY ausente"; fi
+if [ -n "${PEXELS_API_KEY:-}" ]; then ok "PEXELS_API_KEY"; else aviso "PEXELS_API_KEY ausente; fallback gratuito continuará disponível"; fi
 if [ -n "${PIXABAY_API_KEY:-}" ]; then ok "PIXABAY_API_KEY"; else aviso "PIXABAY_API_KEY ausente"; fi
 if [ -n "${COVERR_API_KEY:-}" ]; then ok "COVERR_API_KEY"; else aviso "COVERR_API_KEY ausente"; fi
 
@@ -38,26 +38,37 @@ for cmd in python ffmpeg ffprobe piper bash; do
     fi
 done
 
+# Somente componentes do pipeline canônico 3.0 e utilitários operacionais ativos.
 ARQUIVOS=(
-    gerar_short.sh finalize_short.sh
-    topic_engine.py topic_memory.py topic_reserve.py topic_index.py wiki_client.py source_identity.py
+    main.py profile_run.sh resume_short_runtime.py finalize_short.sh
+    topic_engine_runtime.py topic_engine.py topic_memory.py topic_reserve.py topic_index.py wiki_client.py source_identity.py
     roteiro.py used_topic.py hook_engine.py hook_runtime.py narrative_director.py cold_open_director.py
     scene_director.py scene_truth_refiner_6_7.py documentary_director.py visual_director.py
     visual_shot_bridge.py visual_shot_policy.py visual_editorial_policy.py
-    visual_risk_guard.py editorial_continuity.py scene_lossless_repair.py post_script_truth_lock.py
+    visual_risk_guard.py editorial_continuity.py visual_continuity_engine.py scene_lossless_repair.py post_script_truth_lock.py
     semantic_integrity_gate.py wikimedia_source.py wikimedia_query_bridge.py source_router.py evidence_guard.py
     midia.py visual_pipeline_bridge_v42.py visual_selection_engine_v4.py visual_intelligence_6.py
-    vi6_8_runtime_policy.py vi6_9_runtime_policy.py media_master_gate.py motion_director.py rhythm_director.py
-    production_supervisor.py editorial_gate.py audio.py legenda_dinamica.py subtitle_alignment.py subtitle_style_policy.py video.py v6.py v6_runtime.py
-    quality_check.py publish_pack.py source_ledger.py publish_integrity_gate.py production_manifest.py final_quality.py
-    register_topic.py health_check.sh limpar_storage.sh batch_queue.sh batch_recovery.sh control_center.sh
+    vi6_8_runtime_policy.py vi6_9_runtime_policy.py media_master_gate.py visual_score_engine.py
+    motion_director.py rhythm_director.py professional_edit_director.py professional_edit_repair.py
+    multi_asset_director.py retention_engine.py sound_design_engine.py production_supervisor.py editorial_gate.py
+    speech_director.py audio.py legenda_dinamica.py subtitle_alignment.py subtitle_style_policy.py
+    professional_caption_director.py caption_layout_guard.py video_professional.py v6_professional.py
+    audio_finalizer.py visual_qa.py quality_check.py publish_pack.py source_ledger.py publish_integrity_gate.py
+    production_manifest.py final_quality.py professional_quality_gate.py release_gate.py register_topic.py storage_manager.py
+    health_check.sh batch_queue.sh batch_recovery.sh control_center.sh
 )
 
 for arq in "${ARQUIVOS[@]}"; do
     if [ -f "$BASE/$arq" ]; then ok "$arq"; else erro "$arq ausente"; fi
 done
 
-PASTAS=(roteiros audios imagens videos temp logs manifests backups queue credits)
+# Legados da arquitetura 2.x não podem reaparecer silenciosamente.
+LEGADOS=(gerar_short.sh video.py v6.py v6_runtime.py limpar_storage.sh)
+for arq in "${LEGADOS[@]}"; do
+    if [ -e "$BASE/$arq" ]; then erro "legado proibido presente: $arq"; else ok "legado ausente: $arq"; fi
+done
+
+PASTAS=(roteiros audios imagens videos temp logs manifests backups queue credits reports .sap_state .locks)
 for pasta in "${PASTAS[@]}"; do
     if [ -d "$BASE/$pasta" ]; then
         ok "pasta $pasta"
@@ -98,7 +109,6 @@ if [ -f "$BASE/historico_assuntos.json" ]; then
 import json
 import os
 from pathlib import Path
-
 p = Path(os.environ["BASE_CHECK"]) / "historico_assuntos.json"
 with p.open(encoding="utf-8") as f:
     d = json.load(f)
@@ -115,7 +125,7 @@ else
 fi
 
 SHELL_FILES=(
-    gerar_short.sh finalize_short.sh health_check.sh limpar_storage.sh batch_queue.sh batch_recovery.sh
+    profile_run.sh finalize_short.sh health_check.sh batch_queue.sh batch_recovery.sh
     control_center.sh preflight_check.sh diagnostico.sh release_check.sh
 )
 for arq in "${SHELL_FILES[@]}"; do
@@ -125,17 +135,18 @@ for arq in "${SHELL_FILES[@]}"; do
 done
 
 PY_FILES=(
-    topic_engine.py topic_memory.py topic_reserve.py topic_index.py wiki_client.py source_identity.py
+    main.py resume_short_runtime.py topic_engine_runtime.py topic_engine.py topic_memory.py topic_reserve.py topic_index.py wiki_client.py source_identity.py
     roteiro.py used_topic.py hook_engine.py hook_runtime.py narrative_director.py cold_open_director.py
-    scene_director.py scene_truth_refiner_6_7.py documentary_director.py visual_director.py
-    visual_shot_bridge.py visual_shot_policy.py visual_editorial_policy.py
-    visual_risk_guard.py editorial_continuity.py scene_lossless_repair.py post_script_truth_lock.py
-    semantic_integrity_gate.py wikimedia_source.py wikimedia_query_bridge.py source_router.py evidence_guard.py
-    midia.py visual_pipeline_bridge_v42.py visual_selection_engine_v4.py visual_intelligence_6.py
-    vi6_8_runtime_policy.py vi6_9_runtime_policy.py media_master_gate.py motion_director.py rhythm_director.py
-    production_supervisor.py editorial_gate.py audio.py legenda_dinamica.py subtitle_alignment.py subtitle_style_policy.py video.py v6.py v6_runtime.py
+    scene_director.py scene_truth_refiner_6_7.py documentary_director.py visual_director.py visual_shot_bridge.py
+    visual_shot_policy.py visual_editorial_policy.py visual_risk_guard.py editorial_continuity.py visual_continuity_engine.py
+    scene_lossless_repair.py post_script_truth_lock.py semantic_integrity_gate.py wikimedia_source.py wikimedia_query_bridge.py
+    source_router.py evidence_guard.py midia.py visual_pipeline_bridge_v42.py visual_selection_engine_v4.py visual_intelligence_6.py
+    vi6_8_runtime_policy.py vi6_9_runtime_policy.py media_master_gate.py visual_score_engine.py motion_director.py rhythm_director.py
+    professional_edit_director.py professional_edit_repair.py multi_asset_director.py retention_engine.py sound_design_engine.py
+    production_supervisor.py editorial_gate.py speech_director.py audio.py legenda_dinamica.py subtitle_alignment.py subtitle_style_policy.py
+    professional_caption_director.py caption_layout_guard.py video_professional.py v6_professional.py audio_finalizer.py visual_qa.py
     quality_check.py publish_pack.py source_ledger.py publish_integrity_gate.py production_manifest.py final_quality.py
-    register_topic.py
+    professional_quality_gate.py release_gate.py register_topic.py storage_manager.py
 )
 
 for arq in "${PY_FILES[@]}"; do
@@ -144,14 +155,12 @@ for arq in "${PY_FILES[@]}"; do
     fi
 done
 
-# Import-only checks for active runtime supervisors and visual/subtitle dependencies.
+# Import-only checks: módulos sem efeitos de produção na importação.
 if (
     cd "$BASE" &&
     python - <<'PY' >/dev/null 2>&1
 import importlib
-
 for name in (
-    "hook_runtime",
     "subtitle_alignment",
     "subtitle_style_policy",
     "visual_shot_policy",
@@ -161,14 +170,17 @@ for name in (
     "visual_intelligence_6",
     "vi6_8_runtime_policy",
     "vi6_9_runtime_policy",
-    "v6_runtime",
+    "visual_continuity_engine",
+    "visual_score_engine",
+    "retention_engine",
+    "sound_design_engine",
 ):
     importlib.import_module(name)
 PY
 ); then
-    ok "imports runtime críticos"
+    ok "imports runtime críticos 3.0"
 else
-    erro "dependência/import runtime crítico quebrado"
+    erro "dependência/import runtime crítico 3.0 quebrado"
 fi
 
 echo
@@ -180,7 +192,7 @@ echo "Avisos: $AVISOS"
 echo
 
 if [ "$ERROS" -eq 0 ]; then
-    echo "STATUS: PRONTO PARA PRODUÇÃO"
+    echo "STATUS: PRONTO PARA PRODUÇÃO 3.0"
     exit 0
 fi
 
