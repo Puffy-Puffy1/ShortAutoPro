@@ -10,7 +10,7 @@ legacy VG4X when explicitly requested for diagnostics.
 
 import os
 
-from media_runtime_adapter_v1 import install as install_media_runtime
+from media_runtime_adapter_v2 import install as install_media_runtime
 
 
 def install(namespace):
