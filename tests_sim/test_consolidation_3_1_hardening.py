@@ -11,8 +11,10 @@ from unittest.mock import patch
 import audio_finalizer
 import main as canonical
 import resume_short_runtime as resume
+import retention_engine
 import storage_manager
 import vg4x_bridge
+import visual_qa
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -177,6 +179,18 @@ class ConfigHardeningTests(unittest.TestCase):
             self.assertEqual(audio_finalizer.env_float("SAP_TEST_FLOAT", -14.0, -30.0, -5.0), -14.0)
         with patch.dict(os.environ, {"SAP_TEST_FLOAT": "999"}, clear=False):
             self.assertEqual(audio_finalizer.env_float("SAP_TEST_FLOAT", -14.0, -30.0, -5.0), -5.0)
+
+    def test_retention_threshold_is_bounded_and_nonfinite_safe(self):
+        with patch.dict(os.environ, {"SAP_TEST_RETENTION": "nan"}, clear=False):
+            self.assertEqual(retention_engine.env_float("SAP_TEST_RETENTION", 78.0, 60.0, 95.0), 78.0)
+        with patch.dict(os.environ, {"SAP_TEST_RETENTION": "999"}, clear=False):
+            self.assertEqual(retention_engine.env_float("SAP_TEST_RETENTION", 78.0, 60.0, 95.0), 95.0)
+
+    def test_visual_scene_count_config_is_bounded_and_invalid_safe(self):
+        with patch.dict(os.environ, {"SAP_TEST_SCENES": "oops"}, clear=False):
+            self.assertEqual(visual_qa.safe_int("SAP_TEST_SCENES", 12, 6, 20), 12)
+        with patch.dict(os.environ, {"SAP_TEST_SCENES": "99"}, clear=False):
+            self.assertEqual(visual_qa.safe_int("SAP_TEST_SCENES", 12, 6, 20), 20)
 
 
 if __name__ == "__main__":
