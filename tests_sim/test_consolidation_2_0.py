@@ -36,7 +36,7 @@ class ConsolidationArchitectureTests(unittest.TestCase):
         main = (ROOT / "main.py").read_text(encoding="utf-8")
         profile = (ROOT / "profile_run.sh").read_text(encoding="utf-8")
         resume = (ROOT / "resume_short_runtime.py").read_text(encoding="utf-8")
-        self.assertIn("CONSOLIDATION_3_0", main)
+        self.assertIn("CONSOLIDATION_3_1", main)
         self.assertIn("PROFESSIONAL_CANONICAL", main)
         self.assertIn("professional_edit_director.py", main)
         self.assertIn("video_professional.py", main)
