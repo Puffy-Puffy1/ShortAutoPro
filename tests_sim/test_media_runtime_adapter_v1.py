@@ -3,7 +3,11 @@ import unittest
 from unittest import mock
 
 import media_runtime_adapter_v1 as adapter
+import visual_engine_unified as unified
 import visual_selection_engine_v4 as vse
+
+
+EMPTY_STATE = {"providers": [], "groups": [], "types": [], "keys": []}
 
 
 class MediaRuntimeAdapterTests(unittest.TestCase):
@@ -35,9 +39,44 @@ class MediaRuntimeAdapterTests(unittest.TestCase):
                 "visual_query": "police tape crime scene investigation",
                 "must_have": ["police tape"],
             },
-            {"providers": [], "groups": [], "types": [], "keys": []},
+            EMPTY_STATE,
         )
         self.assertGreaterEqual(scored.get("must", 0), 1)
+
+    def test_visual_unified_preserves_structured_must_and_reverifies_it(self):
+        scene = unified.scene_from_runtime(
+            {
+                "segmento": "Police investigated the museum gallery.",
+                "busca": "police tape crime scene investigation museum gallery",
+                "must_have": ["police tape"],
+                "avoid": ["medical pills"],
+                "visual_mode": "evidence",
+            }
+        )
+        self.assertEqual(scene["must_have"], ["police tape"])
+        self.assertEqual(scene["visual_query"], "police tape crime scene investigation museum gallery")
+
+        real_match = {
+            "fonte": "Pixabay",
+            "tipo": "foto",
+            "descricao": "yellow police tape around crime scene",
+            "score": 50,
+            "must_hits": 1,
+        }
+        false_declared_match = {
+            "fonte": "Pixabay",
+            "tipo": "foto",
+            "descricao": "detective writing notes inside an office",
+            "score": 90,
+            "must_hits": 1,
+        }
+        adapter.normalize_candidate(real_match, must_have=["police tape"])
+        adapter.normalize_candidate(false_declared_match, must_have=["police tape"])
+
+        good_score = vse.score_candidate(real_match, scene, EMPTY_STATE)
+        bad_score = vse.score_candidate(false_declared_match, scene, EMPTY_STATE)
+        self.assertGreaterEqual(good_score.get("must", 0), 1)
+        self.assertEqual(bad_score.get("must", 0), 0)
 
     def test_contextual_rescue_is_only_valid_in_relaxed_retry(self):
         candidate = {
