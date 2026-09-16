@@ -1,20 +1,21 @@
 #!/usr/bin/env python3
 """Canonical runtime adapter for ShortAutoPro media acquisition.
 
-Installed once by ``vg4x_bridge`` after ``midia.py`` has defined its
-acquisition/selection functions and before the scene loop starts.
+The adapter is installed by ``vg4x_bridge`` after ``midia.py`` has defined
+its acquisition/selection functions and before the scene loop starts.
 
 Responsibilities:
 - normalize legacy Portuguese candidate fields into the canonical VSE schema;
 - make strict asset-evidence MUST verification authoritative at acquisition;
 - skip Pexels cleanly when no API key is configured;
-- keep retired VSE4/VSE4.2/VG4X decision bridges disabled;
-- keep VI6 as observability/shadow, not a second winner authority;
-- keep query expansion active only as candidate-pool enrichment;
-- provide a conservative contextual rescue only in the relaxed retry path.
+- keep VI6 in SHADOW and retire legacy VSE4/VSE4.2/VG4X decision authority;
+- keep query expansion only as candidate-pool enrichment;
+- provide a conservative contextual rescue in the relaxed retry path;
+- make the Visual Unified winner survive legacy failover/commit plumbing.
 
-Contextual rescue never fabricates MUST coverage. A rescue remains must=0,
-is marked low-trust, and is eligible only when safe and contextually relevant.
+A contextual rescue never fabricates MUST coverage. It remains must=0, is
+marked low-trust, and is eligible only when the asset itself is safe and
+contextually relevant.
 """
 from __future__ import annotations
 
@@ -27,10 +28,8 @@ from typing import Any
 from media_must_verifier import verified_must
 
 
-VERSION = "1.3"
+VERSION = "1.4"
 
-# Visual Unified is the sole production reranker. Query expansion may enrich
-# the candidate pool but every legacy decision/commit reranker is disabled.
 _CANONICAL_ENV = {
     "SAP_VISUAL_UNIFIED": "1",
     "SAP_VSE4": "0",
@@ -74,7 +73,7 @@ def _tokens(value: Any) -> set[str]:
 
 
 def _asset_text(candidate: dict[str, Any]) -> str:
-    """Asset evidence only; deliberately excludes search/query fields."""
+    """Return only asset evidence; search/query text is deliberately absent."""
     values: list[str] = []
     for key in (
         "description", "descricao", "title", "name", "caption", "alt",
@@ -82,44 +81,38 @@ def _asset_text(candidate: dict[str, Any]) -> str:
         "city", "country", "filename",
     ):
         value = candidate.get(key)
-        if value:
-            if isinstance(value, (list, tuple, set)):
-                values.extend(str(item) for item in value if item)
-            else:
-                values.append(str(value))
+        if not value:
+            continue
+        if isinstance(value, (list, tuple, set)):
+            values.extend(str(item) for item in value if item)
+        else:
+            values.append(str(value))
     return " ".join(values)
 
 
 def _strict_must_into_candidate(candidate: dict[str, Any], must: list[str]) -> None:
-    """Replace provider-declared MUST hits with independently verified hits.
-
-    The provider value is retained for diagnostics under
-    ``_sap_declared_must_hits``. All legacy filters downstream therefore see
-    the same verified coverage used by Visual Unified, eliminating the split
-    where one gate logged must=1 while another recomputed must=0.
-    """
     if not must:
         return
-
     try:
-        current_declared = int(candidate.get("must_hits", 0) or 0)
+        declared_now = int(candidate.get("must_hits", 0) or 0)
     except (TypeError, ValueError):
-        current_declared = 0
-
+        declared_now = 0
     try:
-        original_declared = int(candidate.get("_sap_declared_must_hits", current_declared) or 0)
+        declared_original = int(
+            candidate.get("_sap_declared_must_hits", declared_now) or 0
+        )
     except (TypeError, ValueError):
-        original_declared = current_declared
+        declared_original = declared_now
 
     check = verified_must(candidate, {"must_have": must})
     verified = int(check.get("hits", 0) or 0)
     total = max(1, int(check.get("total", len(must)) or len(must)))
 
-    candidate.setdefault("_sap_declared_must_hits", original_declared)
+    candidate.setdefault("_sap_declared_must_hits", declared_original)
     candidate["_sap_verified_must_hits"] = verified
     candidate["_sap_verified_must_missing"] = list(check.get("missing", []))
     candidate["_sap_must_total"] = total
-    candidate["_sap_must_corrected"] = verified != original_declared
+    candidate["_sap_must_corrected"] = verified != declared_original
     candidate["must_hits"] = verified
     candidate["must_coverage"] = max(0.0, min(1.0, verified / total))
 
@@ -159,7 +152,6 @@ def normalize_candidate(
 
     must = [str(x).strip() for x in (must_have or []) if str(x).strip()]
     _strict_must_into_candidate(candidate, must)
-
     candidate.setdefault("_sap_schema", "MEDIA_RUNTIME_ADAPTER_V1")
     return candidate
 
@@ -245,13 +237,6 @@ def _contextual_metrics(
     if evidence_class in {"RISKY_IDENTITY", "BLOCKED", "MISLEADING_REENACTMENT"}:
         return False, 0.0, "EVIDENCE_RISK"
 
-    try:
-        base_score = float(candidate.get("score", 0.0) or 0.0)
-    except (TypeError, ValueError):
-        base_score = 0.0
-    if base_score < _env_float("SAP_CONTEXTUAL_RESCUE_MIN_SCORE", 34.0):
-        return False, 0.0, "LOW_BASE_SCORE"
-
     scene_text = " ".join([query, *must_have]).strip()
     asset_text = _asset_text(candidate)
     scene_tokens = _tokens(scene_text)
@@ -295,8 +280,22 @@ def _contextual_metrics(
         return False, 0.0, "GENERIC_LIFESTYLE"
 
     semantic = overlap + min(0.50, concept_overlap * 0.20)
-    if semantic < _env_float("SAP_CONTEXTUAL_RESCUE_MIN_SEMANTIC", 0.25):
+    min_semantic = _env_float("SAP_CONTEXTUAL_RESCUE_MIN_SEMANTIC", 0.25)
+    if semantic < min_semantic:
         return False, semantic, "LOW_CONTEXT_OVERLAP"
+
+    try:
+        base_score = float(candidate.get("score", 0.0) or 0.0)
+    except (TypeError, ValueError):
+        base_score = 0.0
+
+    normal_floor = _env_float("SAP_CONTEXTUAL_RESCUE_MIN_SCORE", 34.0)
+    soft_floor = _env_float("SAP_CONTEXTUAL_RESCUE_SOFT_SCORE", 15.0)
+    strong_semantic = _env_float("SAP_CONTEXTUAL_RESCUE_STRONG_SEMANTIC", 0.50)
+    if base_score < normal_floor:
+        if base_score < soft_floor or semantic < strong_semantic:
+            return False, semantic, "LOW_BASE_SCORE"
+
     return True, semantic, "SAFE_CONTEXTUAL_RESCUE"
 
 
@@ -386,12 +385,146 @@ def _wrap_semantic_policy(namespace: dict[str, Any]) -> tuple[bool, bool]:
     return validator_installed, metadata_installed
 
 
+def _candidate_safe(candidate: Any) -> bool:
+    if not isinstance(candidate, dict):
+        return False
+    if int(candidate.get("avoid_hits", 0) or 0) > 0:
+        return False
+    if candidate.get("_sap_hard_mismatch") is True:
+        return False
+    return True
+
+
+def _canonical_winner(pool: Any, reference: Any = None) -> Any:
+    try:
+        items = list(pool or [])
+    except Exception:
+        items = []
+    for candidate in items:
+        if isinstance(candidate, dict) and candidate.get("_sap_visual_unified_winner"):
+            return candidate
+    return items[0] if items else reference
+
+
+def _canonical_pool(pool: Any, reference: Any = None) -> list[Any]:
+    try:
+        items = list(pool or [])
+    except Exception:
+        items = []
+    winner = _canonical_winner(items, reference)
+    if winner is None:
+        return items
+    if winner in items and items and items[0] is not winner:
+        items = [winner] + [item for item in items if item is not winner]
+    return items
+
+
+def _wrap_failover_policy(namespace: dict[str, Any]) -> tuple[bool, bool]:
+    preserve_original = namespace.get("fallback_preserva_5_2")
+    degraded_original = namespace.get("fallback_degradado_ok_5_2")
+    preserve_installed = False
+    degraded_installed = False
+
+    if callable(preserve_original) and not getattr(preserve_original, "_sap_media_adapter", False):
+        @functools.wraps(preserve_original)
+        def preserve(candidate: Any, reference: Any):
+            if isinstance(candidate, dict) and candidate.get("_sap_visual_unified_winner"):
+                return _candidate_safe(candidate)
+            if isinstance(candidate, dict) and candidate.get("_sap_contextual_rescue"):
+                ref_must = int(reference.get("must_hits", 0) or 0) if isinstance(reference, dict) else 0
+                if ref_must <= 0 and _candidate_safe(candidate):
+                    return True
+            return preserve_original(candidate, reference)
+
+        preserve._sap_media_adapter = True
+        namespace["fallback_preserva_5_2"] = preserve
+        preserve_installed = True
+
+    if callable(degraded_original) and not getattr(degraded_original, "_sap_media_adapter", False):
+        @functools.wraps(degraded_original)
+        def degraded(candidate: Any, total_must: int):
+            if isinstance(candidate, dict) and candidate.get("_sap_contextual_rescue"):
+                return _candidate_safe(candidate) and float(
+                    candidate.get("_sap_contextual_score", 0.0) or 0.0
+                ) >= _env_float("SAP_CONTEXTUAL_RESCUE_MIN_SEMANTIC", 0.25)
+            return degraded_original(candidate, total_must)
+
+        degraded._sap_media_adapter = True
+        namespace["fallback_degradado_ok_5_2"] = degraded
+        degraded_installed = True
+
+    return preserve_installed, degraded_installed
+
+
+def _install_canonical_passthroughs(namespace: dict[str, Any]) -> list[str]:
+    """Make retired bridges preserve canonical pool order instead of choosing."""
+    installed: list[str] = []
+
+    def finalize_pool(pool: Any, escolhido: Any = None, _ctx: Any = None):
+        return _canonical_pool(pool, escolhido)
+
+    if "_vse42_finalize_pool" in namespace:
+        namespace["_vse42_finalize_pool"] = finalize_pool
+        installed.append("pipeline_finalize")
+
+    try:
+        import visual_selection_runtime_v42 as runtime
+
+        runtime.ENABLED = False
+
+        def enhance_selection(reference: Any, candidates: Any, local_ctx: Any, search_fn: Any = None):
+            pool = _canonical_pool(candidates, reference)
+            winner = _canonical_winner(pool, reference)
+            return winner, pool, {
+                "enabled": False,
+                "reason": "CANONICAL_VISUAL_UNIFIED_PASSTHROUGH",
+            }
+
+        runtime.enhance_selection = enhance_selection
+        installed.append("runtime_v42")
+    except Exception:
+        pass
+
+    try:
+        import visual_selection_bridge_v42 as bridge
+
+        def rank_pool(pool: Any, escolhido: Any = None, context: Any = None):
+            ordered = _canonical_pool(pool, escolhido)
+            winner = _canonical_winner(ordered, escolhido)
+            return ordered, winner, {
+                "active": False,
+                "reason": "CANONICAL_VISUAL_UNIFIED_PASSTHROUGH",
+                "pool_size": len(ordered),
+            }
+
+        bridge.rank_pool = rank_pool
+        installed.append("bridge_v42")
+    except Exception:
+        pass
+
+    try:
+        import visual_gate_v4x as gate
+
+        def choose_from_locals(local_ctx: Any, pool: Any, escolhido: Any = None):
+            ordered = _canonical_pool(pool, escolhido)
+            winner = _canonical_winner(ordered, escolhido)
+            return winner, ordered, {
+                "active": False,
+                "reason": "CANONICAL_VISUAL_UNIFIED_PASSTHROUGH",
+            }
+
+        gate.choose_from_locals = choose_from_locals
+        installed.append("vg4x")
+    except Exception:
+        pass
+
+    return installed
+
+
 def install(namespace: dict[str, Any]) -> dict[str, Any]:
     for key, value in _CANONICAL_ENV.items():
         os.environ[key] = value
 
-    # midia.py resolves VI6_MODE before this adapter is installed. Update the
-    # live module namespace too, otherwise ACTIVE could survive the env switch.
     if "VI6_MODE" in namespace:
         namespace["VI6_MODE"] = "SHADOW"
 
@@ -402,6 +535,8 @@ def install(namespace: dict[str, Any]) -> dict[str, Any]:
     providers = [name for name in provider_names if _wrap_provider(namespace, name)]
     search = _wrap_search(namespace)
     validator, metadata = _wrap_semantic_policy(namespace)
+    preserve, degraded = _wrap_failover_policy(namespace)
+    passthroughs = _install_canonical_passthroughs(namespace)
 
     result = {
         "version": VERSION,
@@ -410,6 +545,9 @@ def install(namespace: dict[str, Any]) -> dict[str, Any]:
         "search": search,
         "validator": validator,
         "metadata": metadata,
+        "failover_preserve": preserve,
+        "failover_degraded": degraded,
+        "canonical_passthroughs": passthroughs,
         "legacy_vse4": False,
         "legacy_vse42": False,
         "legacy_vg4x": False,
@@ -418,8 +556,9 @@ def install(namespace: dict[str, Any]) -> dict[str, Any]:
     }
     print(
         "MEDIA_RUNTIME_ADAPTER=INSTALLED "
-        f"providers={len(providers)} search={search} "
+        f"version={VERSION} providers={len(providers)} search={search} "
         f"contextual_policy={validator and metadata} "
+        f"passthroughs={','.join(passthroughs) or 'none'} "
         "query_expansion=True authority=VISUAL_UNIFIED vi6=SHADOW"
     )
     return result
