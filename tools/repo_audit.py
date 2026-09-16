@@ -230,6 +230,13 @@ def main() -> int:
     if "main.py" not in active:
         issues.append("main_not_active")
 
+    # Consolidation 3.0.1 rule: tracked operational code may not be orphaned.
+    # Tests and workflows are graph seeds, so any remaining .py/.sh entry here
+    # is neither production-reachable nor test-reachable and must be removed or
+    # deliberately wired into the canonical architecture.
+    for path in inactive:
+        issues.append(f"inactive_code:{path}")
+
     payload = {
         "version": "CONSOLIDATION_3_0_AUDIT",
         "scope": "tracked_git_files",
