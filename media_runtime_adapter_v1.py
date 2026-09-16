@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Canonical runtime adapter for ShortAutoPro media acquisition.
 
-This module is intentionally small and surgical. It is installed once by
-``vg4x_bridge`` after ``midia.py`` has defined its acquisition/selection
-functions and before the scene loop starts.
+Installed once by ``vg4x_bridge`` after ``midia.py`` has defined its
+acquisition/selection functions and before the scene loop starts.
 
 Responsibilities:
 - normalize legacy Portuguese candidate fields into the canonical VSE schema;
 - skip Pexels cleanly when no API key is configured;
 - keep retired VSE4.2/VG4X decision bridges disabled in Consolidation 3.0;
+- keep VI6 as observability/shadow, not a second winner authority;
 - keep query expansion active only as candidate-pool enrichment;
 - provide a conservative contextual rescue only after normal MUST selection
   has failed and ``midia.py`` enters its relaxed retry path.
@@ -26,16 +26,17 @@ import re
 from typing import Any
 
 
-VERSION = "1.1"
+VERSION = "1.2"
 
-# Canonical 3.0 has one active reranker: visual_engine_unified.
-# Query expansion only enriches the pool; it does not choose the winner.
+# Visual Unified is the sole production reranker. Query expansion can enrich
+# the candidate pool; VI6 continues in SHADOW so its telemetry is preserved.
 _CANONICAL_ENV = {
     "SAP_VISUAL_UNIFIED": "1",
     "SAP_VSE42_BRIDGE": "0",
     "SAP_VSE4_QUERY_EXPANSION": "1",
     "SAP_VSE42_RESCUE": "0",
     "SAP_VG4X": "0",
+    "VISUAL_INTELLIGENCE_MODE": "SHADOW",
 }
 
 _PROVIDER_SKIP_PRINTED: set[str] = set()
@@ -358,6 +359,12 @@ def install(namespace: dict[str, Any]) -> dict[str, Any]:
     for key, value in _CANONICAL_ENV.items():
         os.environ[key] = value
 
+    # midia.py resolves VI6_MODE as a module global before this adapter is
+    # installed. Update the live namespace too, otherwise ACTIVE would survive
+    # even though the environment says SHADOW.
+    if "VI6_MODE" in namespace:
+        namespace["VI6_MODE"] = "SHADOW"
+
     provider_names = (
         "pexels_video", "pexels_foto", "pixabay_video", "pixabay_foto",
         "coverr_video", "buscar_wikimedia_fotos",
@@ -376,11 +383,13 @@ def install(namespace: dict[str, Any]) -> dict[str, Any]:
         "legacy_vse42_bridge": False,
         "legacy_vg4x": False,
         "query_expansion": True,
+        "vi6_mode": "SHADOW",
     }
     print(
         "MEDIA_RUNTIME_ADAPTER=INSTALLED "
         f"providers={len(providers)} search={search} "
-        f"contextual_policy={validator and metadata} query_expansion=True"
+        f"contextual_policy={validator and metadata} "
+        "query_expansion=True vi6=SHADOW"
     )
     return result
 
