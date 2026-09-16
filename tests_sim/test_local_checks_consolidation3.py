@@ -61,8 +61,20 @@ class LocalChecksConsolidation3Tests(unittest.TestCase):
         self.assertIn("cropdetect", text)
         self.assertNotIn("Preflight V6", text)
 
+    def test_finalize_is_only_a_canonical_resume_wrapper(self):
+        text = self.read("finalize_short.sh")
+        self.assertIn('exec python "$BASE/main.py" resume --short-id "$SHORT_ID"', text)
+        self.assertNotIn("STATUS: QUALITY PASS", text)
+        self.assertNotIn('run_py "QUALITY GATE"', text)
+
     def test_all_local_shell_checks_parse(self):
-        for name in ("preflight_check.sh", "health_check.sh", "diagnostico.sh", "release_check.sh"):
+        for name in (
+            "preflight_check.sh",
+            "health_check.sh",
+            "diagnostico.sh",
+            "release_check.sh",
+            "finalize_short.sh",
+        ):
             proc = subprocess.run(["bash", "-n", str(ROOT / name)], capture_output=True, text=True)
             self.assertEqual(proc.returncode, 0, f"{name}: {proc.stderr}")
 
