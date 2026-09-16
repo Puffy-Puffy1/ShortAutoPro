@@ -252,8 +252,6 @@ def _wrap_reference_guard(namespace: dict[str, Any]) -> bool:
                 "_sap_visual_unified_hard", False
             ):
                 return True
-            # Contextual rescue is produced only by the retry/search path and
-            # already passed identity/avoid/geography safeguards.
             if candidate.get("_sap_contextual_rescue"):
                 return True
         return original(candidate, reference)
@@ -273,7 +271,9 @@ def _disable_legacy_vse42_authority(namespace: dict[str, Any]) -> dict[str, bool
     }
 
     if "_vse42_enabled" in namespace:
-        namespace["_vse42_enabled"] = lambda: False
+        def disabled() -> bool:
+            return False
+        namespace["_vse42_enabled"] = disabled
         patched["enabled"] = True
 
     if "_vse42_finalize_pool" in namespace:
@@ -288,11 +288,17 @@ def _disable_legacy_vse42_authority(namespace: dict[str, Any]) -> dict[str, bool
         patched["finalize"] = True
 
     if "_vse42_note_success" in namespace:
-        namespace["_vse42_note_success"] = lambda candidate: None
+        def no_note(candidate: Any):
+            del candidate
+            return None
+        namespace["_vse42_note_success"] = no_note
         patched["note_success"] = True
 
     if "_vse42_commit_media" in namespace:
-        namespace["_vse42_commit_media"] = lambda path: []
+        def no_commit(path: Any):
+            del path
+            return []
+        namespace["_vse42_commit_media"] = no_commit
         patched["commit_media"] = True
 
     return patched
