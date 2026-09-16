@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ShortAutoPro canonical entrypoint — Consolidation 3.0.
+"""ShortAutoPro canonical entrypoint — Consolidation 3.1.
 
 Official Short flow:
   tema -> roteiro -> cenas -> midia -> audio -> legenda -> edicao -> QA -> exportacao
@@ -27,15 +27,16 @@ from typing import Any
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
 EVOLUTION = BASE / "shortautopro_evolution.py"
 STATE_DIR = BASE / ".sap_state"
-LOCK_DIR = BASE / ".locks" / "runs"
+LOCK_DIR = BASE / ".locks"
+PRODUCTION_LOCK_PATH = LOCK_DIR / "production.lock"
 
 DEFAULT_ENV = {
     "SAP_VQE5": "1",
     "SAP_VQE5_RESCUE": "1",
     "SAP_VQE5_QUERY_EXTRA": "2",
     "SAP_VQE5_COMMIT": "1",
-    # Retired experimental selectors stay disabled. VI6 ACTIVE is the
-    # conservative semantic/documentary layer on top of the canonical selector.
+    # Visual Unified is the only production winner authority. VI6 remains
+    # telemetry-only SHADOW and the VSE4/VSE42/VG4X legacy authorities stay off.
     "SAP_VSE_V2": "0",
     "SAP_VSE_V3": "0",
     "SAP_VSE_V4": "0",
@@ -44,7 +45,7 @@ DEFAULT_ENV = {
     "SAP_VSE42": "0",
     "SAP_VSE4_RUNTIME": "0",
     "SAP_SCENE_COMMIT_LOCK": "0",
-    "VISUAL_INTELLIGENCE_MODE": "ACTIVE",
+    "VISUAL_INTELLIGENCE_MODE": "SHADOW",
     "VISUAL_INTELLIGENCE_6_SHADOW": "1",
     "SAP_PROFESSIONAL_MIN_SCORE": "88",
     "SAP_PROFESSIONAL_ENFORCE": "0",
@@ -115,11 +116,17 @@ def allocate_id() -> str:
 
 
 class RunLock:
-    """Per-production lock: different Short IDs may run concurrently."""
+    """Global production lock shared by run/resume/bridge/storage operations.
+
+    A phone should never render two Shorts at once: topic reservation, storage,
+    CPU/RAM and code updates are process-global resources. The lock file stays
+    on disk after unlock so another process can never race on a replaced inode.
+    """
 
     def __init__(self, sid: str):
         LOCK_DIR.mkdir(parents=True, exist_ok=True)
-        self.path = LOCK_DIR / f"{sid}.lock"
+        self.sid = sid
+        self.path = PRODUCTION_LOCK_PATH
         self.handle = None
 
     def __enter__(self):
@@ -127,24 +134,35 @@ class RunLock:
         try:
             fcntl.flock(self.handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError as exc:
-            raise RuntimeError(f"produção {self.path.stem} já está em andamento") from exc
+            try:
+                self.handle.seek(0)
+                holder = self.handle.read().strip()
+            except OSError:
+                holder = ""
+            self.handle.close()
+            self.handle = None
+            detail = f" ({holder})" if holder else ""
+            raise RuntimeError(f"outra produção/atualização já está em andamento{detail}") from exc
         self.handle.seek(0)
         self.handle.truncate()
-        self.handle.write(str(os.getpid()))
+        self.handle.write(f"short_id={self.sid} pid={os.getpid()} started_at={now()}\n")
         self.handle.flush()
+        os.environ["SAP_PRODUCTION_LOCK_HELD"] = self.sid
         return self
 
     def __exit__(self, *_):
         if self.handle:
             try:
+                self.handle.seek(0)
+                self.handle.truncate()
+                self.handle.flush()
                 fcntl.flock(self.handle.fileno(), fcntl.LOCK_UN)
             except OSError:
                 pass
             self.handle.close()
-        try:
-            self.path.unlink(missing_ok=True)
-        except OSError:
-            pass
+            self.handle = None
+        if os.environ.get("SAP_PRODUCTION_LOCK_HELD") == self.sid:
+            os.environ.pop("SAP_PRODUCTION_LOCK_HELD", None)
 
 
 class Pipeline:
@@ -153,7 +171,7 @@ class Pipeline:
         self.state_path = STATE_DIR / f"pipeline_{sid}.json"
         self.state = {
             "short_id": sid,
-            "version": "CONSOLIDATION_3_0",
+            "version": "CONSOLIDATION_3_1",
             "pipeline": "PROFESSIONAL_CANONICAL",
             "started_at": now(),
             "status": "RUNNING",
@@ -356,7 +374,7 @@ def run_pipeline() -> int:
     with RunLock(sid):
         p = Pipeline(sid)
         print("\n==============================================")
-        print(" SHORTAUTOPRO CONSOLIDATION 3.0 - MAIN.PY")
+        print(" SHORTAUTOPRO CONSOLIDATION 3.1 - MAIN.PY")
         print("==============================================")
         print(f"ID: {sid}")
         print("FLUXO: tema -> roteiro -> cenas -> midia -> audio -> legenda -> edicao -> QA -> exportacao")
@@ -371,11 +389,14 @@ def run_pipeline() -> int:
                 if code == 20:
                     raise RuntimeError("Release Gate ainda requer reparo após ciclo automático")
             destination = export(p)
+            # Cleanup is an operational optimization after a validated export.
+            # storage_manager reports its own warnings but may never invalidate
+            # an already approved and registered production.
             p.run("STORAGE CLEANUP", "storage_manager.py", "cleanup", "--execute")
-            p.checkpoint("pipeline", "pass", "ShortAutoPro Consolidation 3.0")
+            p.checkpoint("pipeline", "pass", "ShortAutoPro Consolidation 3.1")
             p.finish("SUCCESS")
         except Exception as exc:
-            p.checkpoint("pipeline", "fail", "ShortAutoPro Consolidation 3.0")
+            p.checkpoint("pipeline", "fail", "ShortAutoPro Consolidation 3.1")
             p.finish("FAILED")
             print(f"\nPIPELINE BLOCKED: {exc}")
             return 1
