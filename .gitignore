@@ -203,3 +203,11 @@ manifests/*_evolution.json
 # =========================
 reports/brain/
 reports/analytics/
+
+
+# =========================
+# DIRECTOR / ASSET / REPAIR RUNTIME STATE
+# =========================
+reports/director_ai/
+reports/assets/
+reports/repair/
