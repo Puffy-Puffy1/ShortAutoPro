@@ -261,6 +261,7 @@ def stages_before_render(p: Pipeline) -> None:
     p.run("5A0 - SCENE TRUTH REFINER", "scene_truth_refiner_6_7.py")
     p.run("5A - DOCUMENTARY DIRECTOR", "documentary_director.py")
     p.run("5B - AI VISUAL DIRECTOR", "visual_director.py", retries=1)
+    p.run("5B0 - DIRECTOR AI PROVENANCE + VISUAL INTENT", "shortauto_director_ai.py")
     p.run("5B1 - HUMANIZED SHOT GRAMMAR", "visual_shot_bridge.py")
     p.run("5C - FACTUAL VISUAL RISK GUARD", "visual_risk_guard.py")
     p.run("5D - EDITORIAL CONTINUITY GUARD", "editorial_continuity.py")
@@ -271,6 +272,7 @@ def stages_before_render(p: Pipeline) -> None:
 
     p.run("6 - SMART MEDIA SELECTOR", "midia.py", retries=1)
     p.run("6A - MEDIA MASTER GATE", "media_master_gate.py")
+    p.run("6A0 - ASSET LIBRARY + FIRST FRAME", "shortauto_asset_library.py", "index", "--short-id", p.sid)
     p.run("6A1 - MULTIDIMENSIONAL VISUAL SCORE", "visual_score_engine.py")
     p.run("6B - CINEMATIC MOTION DIRECTOR", "motion_director.py")
     p.run("6C - MONTAGE RHYTHM DIRECTOR", "rhythm_director.py")
@@ -323,9 +325,15 @@ def final_gates(p: Pipeline) -> int:
 
 def repair_cycle(p: Pipeline) -> None:
     print("\nRELEASE GATE solicitou auto-reparo limitado (1 ciclo).")
-    p.run("REPAIR - PROFESSIONAL EDIT", "professional_edit_repair.py")
+    code = p.run(
+        "REPAIR - EVIDENCE-DRIVEN REPAIR ENGINE",
+        "shortauto_repair_engine.py",
+        "--short-id", p.sid, "--execute", "--max-cycles", "1",
+        allow_codes={0, 20},
+    )
+    if code == 20:
+        print("REPAIR ENGINE=HOLD; mantendo gates rígidos e seguindo para revalidação canônica.")
     p.run("REPAIR - MULTI-ASSET", "multi_asset_director.py", retries=1)
-    p.run("REPAIR - RETENTION PACING", "retention_engine.py", "--repair")
     p.run("REPAIR - SOUND PLAN", "sound_design_engine.py")
     assemble_and_render(p)
 
