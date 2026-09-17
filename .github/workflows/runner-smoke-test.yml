@@ -21,7 +21,7 @@ jobs:
           git --version
 
       - name: Checkout ShortAutoPro
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Verify repository
         shell: cmd
