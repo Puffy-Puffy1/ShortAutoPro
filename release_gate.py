@@ -23,6 +23,14 @@ def atomic(p:Path,x:Any)->None:
   except OSError:pass
   raise
 def clamp(x:float)->float:return round(max(0,min(100,x)),1)
+def brain_snapshot()->dict[str,Any]:
+ try:
+  import shortauto_brain as brain
+  prep=brain.prepare(SID)
+  _,quality=brain.quality(SID,enforce=False)
+  return {"status":"PASS","prepare":{"evidence_coverage":prep.get("evidence_map",{}).get("coverage"),"story_arc_ok":prep.get("story_graph",{}).get("arc_ok"),"hook_ab_ready":prep.get("hook_ab",{}).get("ab_ready"),"channel":prep.get("channel"),"autonomy_mode":prep.get("autonomy_mode")},"quality":quality}
+ except Exception as exc:
+  return {"status":"ERROR","error":f"{type(exc).__name__}:{exc}"}
 def main()->int:
  ap=argparse.ArgumentParser();ap.add_argument("--enforce",action="store_true");args=ap.parse_args()
  retention=load(R/f"retention_{SID}.json");continuity=load(R/f"visual_continuity_{SID}.json");vscore=load(R/f"visual_score_{SID}.json");vqa=load(E/f"visual_qa_{SID}.json");audio=load(E/f"final_audio_{SID}.json");pro=load(M/f"{SID}_professional.json");legacy=load(M/f"{SID}_quality.json");media=load(R/f"media_quality_{SID}.json");caption=load(R/f"pro_caption_{SID}.json");caption_layout=load(R/f"caption_layout_{SID}.json");vd=load(R/f"visual_director_{SID}.json")
@@ -40,6 +48,10 @@ def main()->int:
  ret=clamp(num(retention.get("retention_score"),75));technical=clamp(num(pro.get("components",{}).get("technical"),100 if factual_ok else 0))
  components={"script_score":script,"media_score":clamp(media_score),"visual_score":visual,"audio_score":audio_score,"subtitle_score":subtitle,"retention_score":ret,"technical_score":technical}
  weights={"script_score":0.14,"media_score":0.16,"visual_score":0.18,"audio_score":0.12,"subtitle_score":0.10,"retention_score":0.15,"technical_score":0.15};score=round(sum(components[k]*weights[k] for k in weights),1)
+ brain=brain_snapshot();brain_enforce=os.getenv("SAP_BRAIN_ENFORCE","0")=="1";brain_quality=brain.get("quality",{}) if isinstance(brain.get("quality"),dict) else {};brain_budget=brain_quality.get("quality_budget",{}) if isinstance(brain_quality.get("quality_budget"),dict) else {}
+ if brain_enforce and brain.get("status")!="PASS":critical.append("shortauto_brain_error")
+ if brain_enforce and str(brain_budget.get("status","")).upper()=="BLOCK":critical.append("shortauto_brain_quality_budget_block")
+ if brain_enforce and str(brain_quality.get("decision","")).upper()=="BLOCK":critical.append("shortauto_brain_autonomy_block")
  if critical:decision="BLOCK"
  elif score>=90:decision="PUBLISH"
  elif score>=80:decision="ACCEPTABLE"
@@ -47,11 +59,12 @@ def main()->int:
  else:decision="BLOCK"
  actions=[]
  weak_scenes=vscore.get("weak_scenes",[]) if isinstance(vscore.get("weak_scenes"),list) else []
- if components["media_score"]<80 or components["visual_score"]<80:actions.append("replace_weak_or_generic_media" + (":"+",".join(map(str,weak_scenes)) if weak_scenes else ""))
+ if components["media_score"]<80 or components["visual_score"]<80:actions.append("replace_weak_or_generic_media" + (":"+","".join(map(str,weak_scenes)) if False else (":"+",".join(map(str,weak_scenes)) if weak_scenes else "")))
  if components["retention_score"]<80:actions.append("repair_pacing")
  if components["audio_score"]<90:actions.append("remaster_audio")
  if components["subtitle_score"]<85:actions.append("repair_caption_layout")
- payload={"short_id":SID,"version":"RELEASE_GATE_1.1","generated_at":datetime.now().astimezone().isoformat(timespec="seconds"),"shortautopro_score":score,"decision":decision,"components":components,"weights":weights,"critical":critical,"repair_actions":actions,"visual_multiscore":vscore};atomic(OUT,payload);print(json.dumps(payload,ensure_ascii=False,indent=2))
+ if str(brain_budget.get("status","")).upper()=="BLOCK":actions.append("review_shortauto_brain_quality_budget")
+ payload={"short_id":SID,"version":"RELEASE_GATE_1.2_BRAIN","generated_at":datetime.now().astimezone().isoformat(timespec="seconds"),"shortautopro_score":score,"decision":decision,"components":components,"weights":weights,"critical":critical,"repair_actions":actions,"visual_multiscore":vscore,"shortauto_brain":brain,"brain_enforced":brain_enforce};atomic(OUT,payload);print(json.dumps(payload,ensure_ascii=False,indent=2))
  if args.enforce and decision=="BLOCK":return 1
  if args.enforce and decision=="REPAIR":return 20
  return 0
