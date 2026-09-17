@@ -39,9 +39,7 @@ class ShortAutoBrainTests(unittest.TestCase):
     def test_quality_budget_blocks_repetition_and_weak_evidence(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
-            paths = {
-                "retention": root / "r.json", "media": root / "m.json", "caption": root / "c.json", "visual": root / "v.json"
-            }
+            paths = {"retention": root / "r.json", "media": root / "m.json", "caption": root / "c.json", "visual": root / "v.json"}
             paths["retention"].write_text(json.dumps({"retention_score": 90}), encoding="utf-8")
             paths["media"].write_text(json.dumps({"critical": []}), encoding="utf-8")
             paths["caption"].write_text(json.dumps({"score": 95}), encoding="utf-8")
@@ -50,6 +48,19 @@ class ShortAutoBrainTests(unittest.TestCase):
             self.assertEqual(budget["status"], "BLOCK")
             self.assertFalse(budget["checks"]["evidence_coverage"])
             self.assertFalse(budget["checks"]["visual_repetition"])
+
+    def test_quality_budget_limits_low_resolution_assets(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            paths = {"retention": root / "r.json", "media": root / "m.json", "caption": root / "c.json", "visual": root / "v.json"}
+            paths["retention"].write_text(json.dumps({"retention_score": 90}), encoding="utf-8")
+            paths["media"].write_text(json.dumps({"critical": [], "warnings": ["low_resolution:a.jpg", "low_resolution:b.jpg", "low_resolution:c.jpg"]}), encoding="utf-8")
+            paths["caption"].write_text(json.dumps({"score": 95}), encoding="utf-8")
+            paths["visual"].write_text(json.dumps({"score": 90}), encoding="utf-8")
+            budget = brain.quality_budget(paths, {"coverage": 100}, {"repetition_ratio": 0})
+            self.assertEqual(budget["status"], "BLOCK")
+            self.assertFalse(budget["checks"]["low_resolution_budget"])
+            self.assertEqual(budget["observed"]["low_resolution_count"], 3)
 
     def test_cross_video_hash_history_detects_exact_reuse(self):
         with tempfile.TemporaryDirectory() as td:
@@ -87,6 +98,29 @@ class ShortAutoBrainTests(unittest.TestCase):
                 self.assertIn("best_hook_variant=A", summary["insights"])
             finally:
                 brain.ANALYTICS, brain.CHANNEL = old
+
+    def test_editorial_memory_counts_same_short_only_once(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            old = (brain.MEMORY, brain.CHANNEL)
+            try:
+                brain.CHANNEL = "test"
+                brain.MEMORY = root / "memory.json"
+                hook = {"recommended": "A"}
+                story = {"arc_ok": True}
+                evidence = {"coverage": 100}
+                first = brain.update_memory("short_1", "crime prison escape", hook, story, evidence)
+                second = brain.update_memory("short_1", "crime prison escape", hook, story, evidence)
+                self.assertEqual(first["videos_seen"], 1)
+                self.assertEqual(second["videos_seen"], 1)
+                self.assertEqual(second["processed_short_ids"], ["short_1"])
+            finally:
+                brain.MEMORY, brain.CHANNEL = old
+
+    def test_theme_intelligence_surfaces_underused_family(self):
+        result = brain.theme_intelligence({"theme_counts": {"crime": 5, "mysteries": 2}})
+        self.assertIn(result["least_used"], brain.THEME_GROUPS)
+        self.assertEqual(result["counts"]["crime"], 5)
 
 
 if __name__ == "__main__":
