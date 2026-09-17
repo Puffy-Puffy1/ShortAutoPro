@@ -4,16 +4,19 @@
 This module does not relax validation. It only broadens provider retrieval when
 the first acquisition pool contains no asset that can prove every explicit
 MUST requirement. It also prevents repeated Coverr calls after persistent empty
-responses in the same run.
+responses in the same run and caches identical acquisition calls so layered
+query-expansion/retry logic does not hit the same providers twice.
 """
 from __future__ import annotations
 
+import copy
 import functools
-from typing import Any, Callable
+import os
+from typing import Any
 
 import media_must_verifier as mustv
 
-VERSION = "1.0"
+VERSION = "1.1"
 
 
 def _must_list(value: Any) -> list[str]:
@@ -87,6 +90,43 @@ def _rescue_queries(busca: str, must: list[str], assunto: str = "") -> list[str]
     return out[:5]
 
 
+def _rescue_budget() -> int:
+    """Return a bounded per-scene rescue-query budget.
+
+    Five preserves the previously certified behavior. The environment override
+    is useful on constrained/mobile runs without changing validation policy.
+    """
+    raw = os.getenv("SAP_MUST_RESCUE_MAX_QUERIES", "5")
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        value = 5
+    return max(1, min(value, 8))
+
+
+def _cache_key(
+    busca: Any,
+    must_have: Any,
+    avoid: Any,
+    segmento: Any,
+    visual_mode: Any,
+) -> tuple[Any, ...]:
+    def seq(value: Any) -> tuple[str, ...]:
+        if isinstance(value, str):
+            value = [value]
+        if not isinstance(value, (list, tuple, set)):
+            return ()
+        return tuple(str(item or "").strip().casefold() for item in value)
+
+    return (
+        " ".join(str(busca or "").split()).casefold(),
+        seq(must_have),
+        seq(avoid),
+        " ".join(str(segmento or "").split()).casefold(),
+        " ".join(str(visual_mode or "").split()).casefold(),
+    )
+
+
 def _wrap_coverr(namespace: dict[str, Any]) -> bool:
     original = namespace.get("coverr_video")
     if not callable(original) or getattr(original, "_sap_acquisition_recovery", False):
@@ -120,23 +160,43 @@ def _wrap_pool(namespace: dict[str, Any]) -> bool:
     if not callable(original) or getattr(original, "_sap_acquisition_recovery", False):
         return False
 
+    cache: dict[tuple[Any, ...], list[Any]] = {}
+    stats = {"hits": 0, "misses": 0}
+
+    def call_original(busca, must_have, avoid, segmento="", visual_mode="") -> list[Any]:
+        key = _cache_key(busca, must_have, avoid, segmento, visual_mode)
+        if key in cache:
+            stats["hits"] += 1
+            print(
+                "SAP_MEDIA_ACQUISITION_CACHE=HIT "
+                f"hits={stats['hits']} misses={stats['misses']} query={str(busca or '')}"
+            )
+            return copy.deepcopy(cache[key])
+
+        stats["misses"] += 1
+        result = list(original(busca, must_have, avoid, segmento, visual_mode) or [])
+        cache[key] = copy.deepcopy(result)
+        return result
+
     @functools.wraps(original)
     def wrapped(busca, must_have, avoid, segmento="", visual_mode=""):
         must = _must_list(must_have)
-        initial = list(original(busca, must_have, avoid, segmento, visual_mode) or [])
+        initial = call_original(busca, must_have, avoid, segmento, visual_mode)
         if not must or any(_complete(candidate, must) for candidate in initial):
             return initial
 
+        budget = _rescue_budget()
         print(
             f"SAP_MUST_ACQUISITION_RESCUE=START initial={len(initial)} "
-            f"must_total={len(must)}"
+            f"must_total={len(must)} budget={budget}"
         )
 
         combined = list(initial)
         assunto = str(namespace.get("ASSUNTO", "") or "")
-        for query in _rescue_queries(str(busca or ""), must, assunto):
+        queries = _rescue_queries(str(busca or ""), must, assunto)[:budget]
+        for query in queries:
             print(f"SAP_MUST_ACQUISITION_QUERY={query}")
-            extra = list(original(query, must_have, avoid, segmento, visual_mode) or [])
+            extra = call_original(query, must_have, avoid, segmento, visual_mode)
             combined.extend(extra)
             combined = _dedupe(combined)
             if any(_complete(candidate, must) for candidate in combined):
@@ -145,11 +205,16 @@ def _wrap_pool(namespace: dict[str, Any]) -> bool:
                 )
                 break
         else:
-            print(f"SAP_MUST_ACQUISITION_RESCUE=EXHAUSTED pool={len(combined)}")
+            print(
+                f"SAP_MUST_ACQUISITION_RESCUE=EXHAUSTED pool={len(combined)} "
+                f"queries={len(queries)}"
+            )
 
         return combined
 
     wrapped._sap_acquisition_recovery = True
+    wrapped._sap_acquisition_cache = cache
+    wrapped._sap_acquisition_stats = stats
     namespace["buscar_todos_candidatos"] = wrapped
     return True
 
@@ -160,14 +225,22 @@ def install(namespace: dict[str, Any]) -> dict[str, Any]:
         "installed": True,
         "coverr_circuit": _wrap_coverr(namespace),
         "must_pool_rescue": _wrap_pool(namespace),
+        "rescue_budget": _rescue_budget(),
         "policy": "RETRIEVE_MORE_NEVER_RELAX_MUST",
     }
     print(
         "SAP_MEDIA_ACQUISITION_RECOVERY=INSTALLED "
         f"version={VERSION} coverr={result['coverr_circuit']} "
-        f"must_rescue={result['must_pool_rescue']}"
+        f"must_rescue={result['must_pool_rescue']} budget={result['rescue_budget']}"
     )
     return result
 
 
-__all__ = ["VERSION", "install", "_rescue_queries", "_complete"]
+__all__ = [
+    "VERSION",
+    "install",
+    "_rescue_queries",
+    "_rescue_budget",
+    "_cache_key",
+    "_complete",
+]
