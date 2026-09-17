@@ -197,3 +197,9 @@ score_candidate_binding_audit.json
 metrics/
 reports/evolution/
 manifests/*_evolution.json
+
+# =========================
+# SHORTAUTO BRAIN - MEMÓRIA/ANALYTICS LOCAL
+# =========================
+reports/brain/
+reports/analytics/
