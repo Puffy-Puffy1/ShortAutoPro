@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Fail-closed explicit-MUST guard for the canonical media runtime.
 
-This module is intentionally narrow.  It does not replace acquisition, scoring,
-Visual Unified, VSE4, or provider logic.  It only prevents a scene that declares
+This module is intentionally narrow. It does not replace acquisition, scoring,
+Visual Unified, VSE4, or provider logic. It only prevents a scene that declares
 explicit MUST requirements from being committed through a partial/zero-MUST
 runtime escape hatch.
 """
@@ -13,7 +13,7 @@ from typing import Any
 
 import media_runtime_adapter_v1 as v1
 
-VERSION = "1.0"
+VERSION = "1.1"
 
 
 def _must_list(namespace: dict[str, Any]) -> list[str]:
@@ -26,9 +26,13 @@ def _must_list(namespace: dict[str, Any]) -> list[str]:
 def _verified_hits(namespace: dict[str, Any], candidate: Any) -> tuple[int, int]:
     must = _must_list(namespace)
     total = len(must)
-    if total <= 0 or not isinstance(candidate, dict):
-        return (0 if total else total, total)
+    if total <= 0:
+        return total, total
+    if not isinstance(candidate, dict):
+        return 0, total
 
+    # Explicit MUST is safety-critical. If canonical normalization/verification
+    # cannot run, fail closed instead of trusting stale provider-declared hits.
     try:
         v1.normalize_candidate(
             candidate,
@@ -36,16 +40,13 @@ def _verified_hits(namespace: dict[str, Any], candidate: Any) -> tuple[int, int]
             must_have=must,
         )
     except Exception:
-        pass
+        return 0, total
+
+    if "_sap_verified_must_hits" not in candidate:
+        return 0, total
 
     try:
-        verified = int(
-            candidate.get(
-                "_sap_verified_must_hits",
-                candidate.get("must_hits", 0),
-            )
-            or 0
-        )
+        verified = int(candidate.get("_sap_verified_must_hits", 0) or 0)
     except (TypeError, ValueError):
         verified = 0
 
@@ -54,7 +55,7 @@ def _verified_hits(namespace: dict[str, Any], candidate: Any) -> tuple[int, int]
     except (TypeError, ValueError):
         verified_total = total
 
-    # The live scene contract is authoritative.  A stale candidate must never
+    # The live scene contract is authoritative. A stale candidate must never
     # reduce the number of requirements that need to be satisfied.
     return verified, max(total, verified_total)
 
