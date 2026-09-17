@@ -76,7 +76,7 @@ class ShortAutoBrainTests(unittest.TestCase):
             try:
                 brain.ANALYTICS = root
                 brain.CHANNEL = "test"
-                path = root / "test.jsonl"; root.mkdir(parents=True)
+                path = root / "test.jsonl"
                 rows = [
                     {"hook_variant": "A", "percent_viewed": 80},
                     {"hook_variant": "A", "percent_viewed": 90},
