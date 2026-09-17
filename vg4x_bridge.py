@@ -4,17 +4,20 @@
 
 Consolidation 3.0 keeps this import path for compatibility, but the old VG4X
 acquisition/commit stack is no longer an independent selection authority.
-The bridge now installs the canonical media runtime adapter and only enables
-legacy VG4X when explicitly requested for diagnostics.
+The bridge now installs the canonical media runtime adapter plus the narrow
+fail-closed explicit-MUST commit guard, and only enables legacy VG4X when
+explicitly requested for diagnostics.
 """
 
 import os
 
 from media_runtime_adapter_v2 import install as install_media_runtime
+from media_strict_must_guard import install as install_strict_must_guard
 
 
 def install(namespace):
     media_runtime = install_media_runtime(namespace)
+    strict_must = install_strict_must_guard(namespace)
 
     # Legacy VG4X is diagnostic/rollback-only.  It must never silently compete
     # with the canonical Visual Unified selector in production.
@@ -42,6 +45,7 @@ def install(namespace):
     result = {
         "enabled": True,
         "media_runtime": media_runtime,
+        "strict_must": strict_must,
         "legacy_vg4x": legacy_enabled,
         "acquisition": acquisition,
         "commit": commit,
@@ -50,6 +54,7 @@ def install(namespace):
     print(
         "VG4X_BRIDGE=COMPAT "
         f"canonical_adapter={media_runtime.get('installed')} "
+        f"strict_must={strict_must.get('installed')} "
         f"legacy={legacy_enabled}"
     )
 
