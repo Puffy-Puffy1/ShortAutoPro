@@ -14,13 +14,17 @@ ARCHIVE_PREFIX = "_arquivo_historico/"
 CODE_EXTS = {".py", ".sh"}
 
 # Consolidation 3.0 operational entrypoints. main.py is the only Short
-# production root; profile/batch/control entrypoints delegate to it.
+# production root; profile/batch/control entrypoints delegate to it. Recovery
+# helpers that are intentionally invoked directly are seeds too, otherwise the
+# fail-closed repository audit incorrectly classifies a valid manual recovery
+# entrypoint as orphaned code.
 DEFAULT_SEEDS = {
     "main.py",
     "control_center.sh",
     "profile_run.sh",
     "evolution_center.sh",
     "resume_short.sh",
+    "resume_after_semantic_fix.py",
     "batch_queue.sh",
     "batch_recovery.sh",
     "health_check.sh",
