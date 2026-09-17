@@ -24,14 +24,14 @@ checar_arquivo() {
 }
 
 ARQUIVOS=(
-    config.sh main.py profile_run.sh resume_short_runtime.py
+    config.sh main.py profile_run.sh resume_short_runtime.py resume_after_semantic_fix.py
     topic_engine_runtime.py topic_engine.py topic_memory.py topic_reserve.py topic_index.py wiki_client.py source_identity.py
     roteiro.py used_topic.py hook_engine.py hook_runtime.py narrative_director.py cold_open_director.py
     scene_director.py scene_truth_refiner_6_7.py documentary_director.py visual_director.py
     visual_shot_bridge.py visual_shot_policy.py visual_editorial_policy.py
     visual_risk_guard.py editorial_continuity.py visual_continuity_engine.py scene_lossless_repair.py post_script_truth_lock.py
     semantic_integrity_gate.py wikimedia_source.py wikimedia_query_bridge.py source_router.py evidence_guard.py
-    midia.py media_runtime_adapter_v1.py media_runtime_adapter_v2.py media_must_verifier.py vg4x_bridge.py visual_engine_unified.py
+    midia.py media_runtime_adapter_v1.py media_runtime_adapter_v2.py media_must_verifier.py media_strict_must_guard.py media_acquisition_recovery.py vg4x_bridge.py visual_engine_unified.py
     visual_query_expansion_v4.py visual_query_planner_v4.py visual_pipeline_bridge_v42.py visual_selection_engine_v4.py visual_intelligence_6.py
     vi6_8_runtime_policy.py vi6_9_runtime_policy.py media_master_gate.py visual_score_engine.py
     motion_director.py rhythm_director.py professional_edit_director.py professional_edit_repair.py
@@ -41,14 +41,26 @@ ARQUIVOS=(
     audio_finalizer.py visual_qa.py quality_check.py publish_pack.py source_ledger.py publish_integrity_gate.py
     production_manifest.py final_quality.py professional_quality_gate.py release_gate.py register_topic.py storage_manager.py
     batch_report.py batch_queue.sh batch_recovery.sh control_center.sh
-    preflight_check.sh diagnostico.sh release_check.sh
+    preflight_check.sh diagnostico.sh release_check.sh health_check.sh
 )
 
 for arq in "${ARQUIVOS[@]}"; do
     checar_arquivo "$arq"
 done
 
-for legacy in gerar_short.sh video.py v6.py v6_runtime.py limpar_storage.sh; do
+LEGADOS=(
+    gerar_short.sh
+    gerar_short_professional.sh
+    professional_pipeline_runtime.py
+    resume_short_professional_runtime.py
+    v6_professional_runtime.py
+    v6_runtime.py
+    v6.py
+    video.py
+    limpar_storage.sh
+)
+
+for legacy in "${LEGADOS[@]}"; do
     if [ -e "$BASE/$legacy" ]; then
         echo "ERRO  legado proibido presente: $legacy"
         ERROS=$((ERROS + 1))
@@ -99,6 +111,8 @@ for name in (
     "wiki_client",
     "visual_selection_engine_v4",
     "media_must_verifier",
+    "media_strict_must_guard",
+    "media_acquisition_recovery",
     "visual_engine_unified",
     "visual_query_expansion_v4",
     "media_runtime_adapter_v1",
