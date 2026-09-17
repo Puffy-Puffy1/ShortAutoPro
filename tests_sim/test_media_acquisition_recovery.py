@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
+import os
 import unittest
+from unittest.mock import patch
 
 import media_acquisition_recovery as recovery
 
@@ -78,6 +80,38 @@ class MediaAcquisitionRecoveryTests(unittest.TestCase):
         self.assertEqual(wrapped("two", [], []), [])
         self.assertEqual(wrapped("three", [], []), [])
         self.assertEqual(len(calls), 2)
+
+    def test_identical_acquisition_calls_use_cache_and_return_isolated_copy(self):
+        calls = []
+
+        def fake_search(busca, must_have, avoid, segmento="", visual_mode=""):
+            calls.append(busca)
+            return [{
+                "title": "Generic prison exterior",
+                "url": "https://example.test/prison.jpg",
+                "score": 1,
+            }]
+
+        namespace = {"buscar_todos_candidatos": fake_search}
+        recovery.install(namespace)
+        wrapped = namespace["buscar_todos_candidatos"]
+
+        first = wrapped("prison exterior", [], [])
+        first[0]["score"] = 999
+        second = wrapped("prison exterior", [], [])
+
+        self.assertEqual(calls, ["prison exterior"])
+        self.assertEqual(second[0]["score"], 1)
+        self.assertEqual(wrapped._sap_acquisition_stats["hits"], 1)
+        self.assertEqual(wrapped._sap_acquisition_stats["misses"], 1)
+
+    def test_rescue_budget_is_bounded_and_configurable(self):
+        with patch.dict(os.environ, {"SAP_MUST_RESCUE_MAX_QUERIES": "2"}, clear=False):
+            self.assertEqual(recovery._rescue_budget(), 2)
+        with patch.dict(os.environ, {"SAP_MUST_RESCUE_MAX_QUERIES": "999"}, clear=False):
+            self.assertEqual(recovery._rescue_budget(), 8)
+        with patch.dict(os.environ, {"SAP_MUST_RESCUE_MAX_QUERIES": "invalid"}, clear=False):
+            self.assertEqual(recovery._rescue_budget(), 5)
 
 
 if __name__ == "__main__":

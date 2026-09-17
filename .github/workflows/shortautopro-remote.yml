@@ -43,7 +43,7 @@ jobs:
 
     steps:
       - name: Checkout ShortAutoPro
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Environment Check
         if: ${{ github.event_name == 'push' || inputs.mode == 'ENV_CHECK' || inputs.mode == 'FULL_CHECK' || inputs.mode == 'RELEASE_AUDIT' || inputs.mode == 'DIAGNOSTIC' || inputs.mode == 'SIM_TESTS' }}
@@ -136,12 +136,13 @@ jobs:
           echo ======================================
           set ERR=0
           if exist config.sh (echo OK  config.sh local) else echo AVISO  config.sh local nao versionado - esperado
-          for %%F in (gerar_short.sh finalize_short.sh roteiro.py scene_director.py documentary_director.py visual_director.py visual_risk_guard.py editorial_continuity.py wikimedia_source.py wikimedia_query_bridge.py source_router.py evidence_guard.py source_ledger.py motion_director.py rhythm_director.py production_supervisor.py editorial_gate.py midia.py visual_pipeline_bridge_v42.py visual_selection_engine_v4.py visual_intelligence_6.py vi6_8_runtime_policy.py vi6_9_runtime_policy.py media_master_gate.py audio.py legenda_dinamica.py subtitle_alignment.py video.py v6.py v6_runtime.py limpar_storage.sh quality_check.py hook_engine.py hook_runtime.py narrative_director.py cold_open_director.py topic_engine.py topic_memory.py topic_reserve.py topic_index.py wiki_client.py source_identity.py register_topic.py used_topic.py publish_pack.py publish_integrity_gate.py production_manifest.py final_quality.py batch_report.py batch_queue.sh batch_recovery.sh control_center.sh preflight_check.sh diagnostico.sh release_check.sh health_check.sh) do @if not exist "%%F" (echo ERRO  %%F & set ERR=1) else echo OK  %%F
+          for %%F in (main.py profile_run.sh resume_short_runtime.py resume_after_semantic_fix.py roteiro.py scene_director.py documentary_director.py visual_director.py visual_risk_guard.py editorial_continuity.py wikimedia_source.py wikimedia_query_bridge.py source_router.py evidence_guard.py source_ledger.py motion_director.py rhythm_director.py production_supervisor.py editorial_gate.py midia.py visual_pipeline_bridge_v42.py visual_selection_engine_v4.py visual_intelligence_6.py vi6_8_runtime_policy.py vi6_9_runtime_policy.py media_master_gate.py media_runtime_adapter_v1.py media_runtime_adapter_v2.py media_must_verifier.py media_strict_must_guard.py media_acquisition_recovery.py vg4x_bridge.py audio.py legenda_dinamica.py subtitle_alignment.py video_professional.py v6_professional.py quality_check.py hook_engine.py hook_runtime.py narrative_director.py cold_open_director.py topic_engine.py topic_memory.py topic_reserve.py topic_index.py wiki_client.py source_identity.py register_topic.py used_topic.py publish_pack.py publish_integrity_gate.py production_manifest.py final_quality.py release_gate.py batch_report.py batch_queue.sh batch_recovery.sh control_center.sh preflight_check.sh diagnostico.sh release_check.sh health_check.sh) do @if not exist "%%F" (echo ERRO  %%F & set ERR=1) else echo OK  %%F
+          for %%F in (gerar_short.sh gerar_short_professional.sh professional_pipeline_runtime.py resume_short_professional_runtime.py v6_professional_runtime.py v6_runtime.py v6.py video.py limpar_storage.sh) do @if exist "%%F" (echo ERRO  wrapper legado presente: %%F & set ERR=1)
           where git >nul 2>&1 || set ERR=1
           where python >nul 2>&1 || set ERR=1
           where ffmpeg >nul 2>&1 || set ERR=1
           where ffprobe >nul 2>&1 || set ERR=1
-          if not exist piper (echo ERRO  pasta piper & set ERR=1) else echo OK  pasta piper
+          if not exist piper (echo AVISO  pasta piper ausente neste runner) else echo OK  pasta piper
           if "%ERR%"=="1" exit /b 1
           echo HEALTH_CHECK=PASS
 
