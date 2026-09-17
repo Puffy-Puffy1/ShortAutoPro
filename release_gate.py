@@ -59,7 +59,7 @@ def main()->int:
  else:decision="BLOCK"
  actions=[]
  weak_scenes=vscore.get("weak_scenes",[]) if isinstance(vscore.get("weak_scenes"),list) else []
- if components["media_score"]<80 or components["visual_score"]<80:actions.append("replace_weak_or_generic_media" + (":"+","".join(map(str,weak_scenes)) if False else (":"+",".join(map(str,weak_scenes)) if weak_scenes else "")))
+ if components["media_score"]<80 or components["visual_score"]<80:actions.append("replace_weak_or_generic_media" + ((":"+",".join(map(str,weak_scenes))) if weak_scenes else ""))
  if components["retention_score"]<80:actions.append("repair_pacing")
  if components["audio_score"]<90:actions.append("remaster_audio")
  if components["subtitle_score"]<85:actions.append("repair_caption_layout")
