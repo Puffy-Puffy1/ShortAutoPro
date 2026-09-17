@@ -3,11 +3,13 @@ set -u
 set -o pipefail
 BASE="${SHORTAUTOPRO_BASE:-$HOME/ShortAutoPro}"
 MAIN="$BASE/main.py"
+BRAIN="$BASE/shortauto_brain.py"
 RESET="\033[0m";BOLD="\033[1m";GREEN="\033[32m";YELLOW="\033[33m";RED="\033[31m";CYAN="\033[36m"
 pausa(){ echo; read -r -p "Pressione Enter para voltar..." _ || true; }
-cabecalho(){ clear 2>/dev/null || printf '\033c'; echo -e "${BOLD}${CYAN}"; echo "======================================"; echo " SHORTAUTO PRO - CONTROL CENTER 3.0"; echo "       CANONICAL MAIN.PY"; echo "======================================"; echo -e "${RESET}"; }
+cabecalho(){ clear 2>/dev/null || printf '\033c'; echo -e "${BOLD}${CYAN}"; echo "======================================"; echo " SHORTAUTO PRO - CONTROL CENTER 4.0"; echo "   CANONICAL + SHORTAUTO BRAIN"; echo "======================================"; echo -e "${RESET}"; }
 rodar_shell(){ local arquivo="$1";shift;[ -f "$BASE/$arquivo" ]||{ echo "ERRO: $arquivo não encontrado.";return 1;};bash "$BASE/$arquivo" "$@"; }
 rodar_main(){ [ -f "$MAIN" ]||{ echo "ERRO: main.py não encontrado.";return 1;};python "$MAIN" "$@"; }
+rodar_brain(){ [ -f "$BRAIN" ]||{ echo "ERRO: shortauto_brain.py não encontrado.";return 1;};python "$BRAIN" "$@"; }
 ultimo_video(){ local video;video="$(find "$BASE/videos" -maxdepth 1 -type f -name 'short_v6_*.mp4' -print0 2>/dev/null|xargs -0 -r ls -1t 2>/dev/null|head -1)";[ -n "$video" ]||{ echo "Nenhum vídeo V6 encontrado.";return;};echo "Último vídeo: $video";ffprobe -v error -show_entries format=duration,size -show_entries stream=codec_type,codec_name,width,height,avg_frame_rate -of default=noprint_wrappers=1 "$video" 2>/dev/null||true; }
 mostrar_publish(){ local pack;pack="$(find "$BASE/roteiros" -maxdepth 1 -type f -name 'publish_*.txt' -print0 2>/dev/null|xargs -0 -r ls -1t 2>/dev/null|head -1)";[ -n "$pack" ]&&cat "$pack"||echo "Nenhum Publish Pack."; }
 ver_manifests(){ find "$BASE/manifests" -maxdepth 1 -type f -name '*_release.json' -print0 2>/dev/null|xargs -0 -r ls -1t 2>/dev/null|head -10|while read -r arq;do python - "$arq" <<'PY'
@@ -20,9 +22,13 @@ PY
 done; }
 storage_guard(){ echo "Simulação/status:";rodar_main storage status||return 1;echo;local r;read -r -p "Executar limpeza segura? [s/N]: " r||return 0;case "$r" in s|S|sim|SIM|Sim) rodar_main storage cleanup --execute;;*)echo "Cancelado.";;esac; }
 status_sistema(){ echo "ARMAZENAMENTO:";df -h "$HOME"|tail -1||true;echo;du -sh "$BASE" 2>/dev/null||true;echo;echo "VÍDEOS:";find "$BASE/videos" -maxdepth 1 -type f -name 'short_v6_*.mp4' 2>/dev/null|wc -l;echo;echo "GIT:";git -C "$BASE" status --short||true; }
+brain_status(){ local sid;read -r -p "SHORT_ID: " sid;[ -n "$sid" ]||{ echo "SHORT_ID vazio.";return 1;};rodar_brain status --short-id "$sid"; }
+brain_prepare(){ local sid;read -r -p "SHORT_ID: " sid;[ -n "$sid" ]||{ echo "SHORT_ID vazio.";return 1;};rodar_brain prepare --short-id "$sid"; }
+brain_quality(){ local sid;read -r -p "SHORT_ID: " sid;[ -n "$sid" ]||{ echo "SHORT_ID vazio.";return 1;};rodar_brain quality --short-id "$sid"; }
+brain_record(){ local sid hook views avd pct likes comments subs;read -r -p "SHORT_ID: " sid;read -r -p "Hook variant [A/B/C/unknown]: " hook;read -r -p "Views: " views;read -r -p "Avg view duration (s): " avd;read -r -p "Percent viewed: " pct;read -r -p "Likes: " likes;read -r -p "Comments: " comments;read -r -p "Subscribers: " subs;rodar_brain record --short-id "$sid" --hook-variant "${hook:-unknown}" --views "${views:-0}" --avg-view-duration "${avd:-0}" --percent-viewed "${pct:-0}" --likes "${likes:-0}" --comments "${comments:-0}" --subscribers "${subs:-0}"; }
 while true;do
  cabecalho
- echo "1) Gerar 1 Short (main.py)";echo "2) Gerar lote";echo "3) Retomar lote";echo "4) Status do lote";echo "5) Retomar Short";echo "6) Status da retomada";echo "7) Últimas releases";echo "8) Último Publish Pack";echo "9) Último vídeo";echo "10) Auditoria do repositório";echo "11) Storage Manager";echo "12) Status do sistema";echo "13) Preflight";echo "14) Health Check";echo "15) Diagnóstico";echo "16) Evolution Center";echo "17) Git status";echo "18) Últimos commits";echo "0) Sair";echo
+ echo "1) Gerar 1 Short (main.py)";echo "2) Gerar lote";echo "3) Retomar lote";echo "4) Status do lote";echo "5) Retomar Short";echo "6) Status da retomada";echo "7) Últimas releases";echo "8) Último Publish Pack";echo "9) Último vídeo";echo "10) Auditoria do repositório";echo "11) Storage Manager";echo "12) Status do sistema";echo "13) Preflight";echo "14) Health Check";echo "15) Diagnóstico";echo "16) Evolution Center";echo "17) Git status";echo "18) Últimos commits";echo "19) Brain - preparar Evidence/Story/A-B";echo "20) Brain - Quality Budget";echo "21) Brain - Status completo";echo "22) Brain - Registrar analytics";echo "0) Sair";echo
  read -r -p "Escolha: " OP||exit 0
  case "$OP" in
   1)cabecalho;unset SHORT_ID;rodar_main run||true;pausa;;
@@ -43,6 +49,10 @@ while true;do
   16)cabecalho;rodar_shell evolution_center.sh||true;;
   17)cabecalho;git -C "$BASE" status;pausa;;
   18)cabecalho;git -C "$BASE" --no-pager log --oneline --decorate -10||true;pausa;;
+  19)cabecalho;brain_prepare||true;pausa;;
+  20)cabecalho;brain_quality||true;pausa;;
+  21)cabecalho;brain_status||true;pausa;;
+  22)cabecalho;brain_record||true;pausa;;
   0)clear 2>/dev/null||true;exit 0;;
   *)echo "Opção inválida.";sleep 1;;
  esac
