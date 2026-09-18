@@ -272,7 +272,7 @@ def stages_before_render(p: Pipeline) -> None:
     p.run("5D2 - POST-SCRIPT TRUTH LOCK", "post_script_truth_lock.py")
     p.run("5E - SEMANTIC INTEGRITY GATE", "semantic_integrity_gate.py")
 
-    p.run("6 - SMART MEDIA SELECTOR", "midia.py", retries=1)
+    p.run("6 - SMART MEDIA SELECTOR", "midia.py")
     p.run("6A - MEDIA MASTER GATE", "media_master_gate.py")
     p.run("6A0 - ASSET LIBRARY + FIRST FRAME", "shortauto_asset_library.py", "index", "--short-id", p.sid)
     p.run("6A0A - INTELLIGENCE MEDIA: SOURCE/CACHE/AGING", "shortauto_intelligence_layer.py", "media", "--short-id", p.sid)
