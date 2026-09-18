@@ -253,6 +253,7 @@ def stages_before_render(p: Pipeline) -> None:
     p.run("STORAGE PREFLIGHT", "storage_manager.py", "preflight")
     p.run("1 - TOPIC ENGINE", "topic_engine_runtime.py", retries=1)
     p.run("2 - ROTEIRO + PESQUISA FACTUAL", "roteiro.py", retries=1)
+    p.run("2A - INTELLIGENCE PRE: STORY + CLAIM LOCK", "shortauto_intelligence_layer.py", "pre", "--short-id", p.sid)
     p.run("3 - CONFIRMANDO ASSUNTO", "used_topic.py")
     p.run("4 - HOOK ENGINE", "hook_runtime.py")
     p.run("4B - NARRATIVE DIRECTOR", "narrative_director.py", retries=1)
@@ -262,6 +263,7 @@ def stages_before_render(p: Pipeline) -> None:
     p.run("5A - DOCUMENTARY DIRECTOR", "documentary_director.py")
     p.run("5B - AI VISUAL DIRECTOR", "visual_director.py", retries=1)
     p.run("5B0 - DIRECTOR AI PROVENANCE + VISUAL INTENT", "shortauto_director_ai.py")
+    p.run("5B0A - INTELLIGENCE SCENE: ENTITY/TIME/GEO/VISUAL ROLES", "shortauto_intelligence_layer.py", "scene", "--short-id", p.sid)
     p.run("5B1 - HUMANIZED SHOT GRAMMAR", "visual_shot_bridge.py")
     p.run("5C - FACTUAL VISUAL RISK GUARD", "visual_risk_guard.py")
     p.run("5D - EDITORIAL CONTINUITY GUARD", "editorial_continuity.py")
@@ -273,6 +275,7 @@ def stages_before_render(p: Pipeline) -> None:
     p.run("6 - SMART MEDIA SELECTOR", "midia.py", retries=1)
     p.run("6A - MEDIA MASTER GATE", "media_master_gate.py")
     p.run("6A0 - ASSET LIBRARY + FIRST FRAME", "shortauto_asset_library.py", "index", "--short-id", p.sid)
+    p.run("6A0A - INTELLIGENCE MEDIA: SOURCE/CACHE/AGING", "shortauto_intelligence_layer.py", "media", "--short-id", p.sid)
     p.run("6A1 - MULTIDIMENSIONAL VISUAL SCORE", "visual_score_engine.py")
     p.run("6B - CINEMATIC MOTION DIRECTOR", "motion_director.py")
     p.run("6C - MONTAGE RHYTHM DIRECTOR", "rhythm_director.py")
@@ -314,6 +317,7 @@ def final_gates(p: Pipeline) -> int:
     evo_args = ["quality-score"] + (["--enforce"] if os.getenv("SAP_EVOLUTION_ENFORCE", "0") == "1" else [])
     p.run("12C - EVOLUTION QUALITY SCORE", "shortautopro_evolution.py", *evo_args)
     p.run("12D - PROFESSIONAL QUALITY GATE", "professional_quality_gate.py")
+    p.run("12D1 - INTELLIGENCE FINAL: EXPLAINABLE QA + CONFIDENCE", "shortauto_intelligence_layer.py", "final", "--short-id", p.sid)
     enforce = os.getenv("SAP_RELEASE_ENFORCE", "1") == "1"
     return p.run(
         "12E - SHORTAUTOPRO RELEASE GATE",
