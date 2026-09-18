@@ -18,6 +18,7 @@ import random
 import shutil
 import re
 import json
+import hashlib
 import requests
 from datetime import date
 
@@ -520,6 +521,12 @@ MISSING_REPORT = os.path.join(
     f"acquisition_missing_{SHORT_ID}.json"
 )
 
+QUALITY_REPORT = os.path.join(
+    BASE,
+    "roteiros",
+    f"media_quality_{SHORT_ID}.json"
+)
+
 resume_cached_media = {}
 
 
@@ -571,7 +578,155 @@ def _sap_probe_existing_media(path):
         return False
 
 
-if RESUME_MEDIA_ENABLED and os.path.isfile(MISSING_REPORT):
+def _sap_sha256_existing(path):
+    try:
+        digest = hashlib.sha256()
+        with open(path, "rb") as handle:
+            while True:
+                chunk = handle.read(1024 * 1024)
+                if not chunk:
+                    break
+                digest.update(chunk)
+        return digest.hexdigest()
+    except Exception:
+        return ""
+
+
+# Checkpoint forte: MEDIA MASTER GATE já aprovou o conjunto completo.
+if RESUME_MEDIA_ENABLED and os.path.isfile(QUALITY_REPORT):
+
+    try:
+        with open(
+            QUALITY_REPORT,
+            "r",
+            encoding="utf-8"
+        ) as f:
+            _previous_quality = json.load(f)
+
+        _quality_ok = (
+            str(
+                _previous_quality.get(
+                    "status",
+                    ""
+                )
+            ).upper() == "PASS"
+            and not _previous_quality.get(
+                "critical"
+            )
+            and int(
+                _previous_quality.get(
+                    "expected_media_count",
+                    0
+                )
+                or 0
+            ) == len(cenas)
+            and int(
+                _previous_quality.get(
+                    "media_count",
+                    0
+                )
+                or 0
+            ) == len(cenas)
+            and os.path.getmtime(
+                SCENE_MAP
+            )
+            <= os.path.getmtime(
+                QUALITY_REPORT
+            )
+        )
+
+        if _quality_ok:
+
+            for _asset in _previous_quality.get(
+                "assets",
+                []
+            ):
+
+                if not isinstance(
+                    _asset,
+                    dict
+                ):
+                    continue
+
+                _filename = str(
+                    _asset.get(
+                        "file",
+                        ""
+                    )
+                )
+
+                _match = re.fullmatch(
+                    r"scene_(\d+)\.(?:jpg|jpeg|png|webp|mp4)",
+                    _filename,
+                    flags=re.IGNORECASE,
+                )
+
+                if not _match:
+                    continue
+
+                _scene_number = int(
+                    _match.group(1)
+                )
+
+                _path = os.path.join(
+                    SAIDA_DIR,
+                    _filename
+                )
+
+                _expected_hash = str(
+                    _asset.get(
+                        "sha256",
+                        ""
+                    )
+                    or ""
+                )
+
+                if (
+                    _sap_probe_existing_media(
+                        _path
+                    )
+                    and _expected_hash
+                    and _sap_sha256_existing(
+                        _path
+                    ) == _expected_hash
+                ):
+                    resume_cached_media[
+                        _scene_number
+                    ] = _path
+
+            if len(
+                resume_cached_media
+            ) == len(cenas):
+
+                print(
+                    "SAP_MEDIA_INCREMENTAL=QUALITY_PASS_RESTORE "
+                    f"cached={len(resume_cached_media)}"
+                )
+
+            else:
+                resume_cached_media.clear()
+                print(
+                    "SAP_MEDIA_INCREMENTAL=QUALITY_CACHE_INVALID"
+                )
+
+    except Exception as _quality_cache_exc:
+
+        resume_cached_media.clear()
+
+        print(
+            "SAP_MEDIA_INCREMENTAL=QUALITY_FAIL_OPEN "
+            f"{type(_quality_cache_exc).__name__}:"
+            f"{str(_quality_cache_exc)[:160]}"
+        )
+
+
+if (
+    RESUME_MEDIA_ENABLED
+    and not resume_cached_media
+    and os.path.isfile(
+        MISSING_REPORT
+    )
+):
 
     try:
         with open(
