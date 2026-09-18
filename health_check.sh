@@ -114,38 +114,38 @@ else
     if (
         cd "$BASE" &&
         python - <<'PY' >/dev/null 2>&1
-    import importlib
-    for name in (
-        "subtitle_alignment",
-        "subtitle_style_policy",
-        "visual_shot_policy",
-        "visual_editorial_policy",
-        "visual_shot_bridge",
-        "topic_memory",
-        "topic_reserve",
-        "source_identity",
-        "wiki_client",
-        "visual_selection_engine_v4",
-        "media_must_verifier",
-        "media_strict_must_guard",
-        "media_acquisition_recovery",
-        "visual_engine_unified",
-        "visual_query_expansion_v4",
-        "media_runtime_adapter_v1",
-        "media_runtime_adapter_v2",
-        "vg4x_bridge",
-        "visual_continuity_engine",
-        "visual_score_engine",
-        "retention_engine",
-        "sound_design_engine",
-        "shortauto_brain",
-        "shortauto_director_ai",
-        "shortauto_asset_library",
-        "shortauto_repair_engine",
-        "shortauto_intelligence_layer",
-    ):
-        importlib.import_module(name)
-    PY
+import importlib
+for name in (
+    "subtitle_alignment",
+    "subtitle_style_policy",
+    "visual_shot_policy",
+    "visual_editorial_policy",
+    "visual_shot_bridge",
+    "topic_memory",
+    "topic_reserve",
+    "source_identity",
+    "wiki_client",
+    "visual_selection_engine_v4",
+    "media_must_verifier",
+    "media_strict_must_guard",
+    "media_acquisition_recovery",
+    "visual_engine_unified",
+    "visual_query_expansion_v4",
+    "media_runtime_adapter_v1",
+    "media_runtime_adapter_v2",
+    "vg4x_bridge",
+    "visual_continuity_engine",
+    "visual_score_engine",
+    "retention_engine",
+    "sound_design_engine",
+    "shortauto_brain",
+    "shortauto_director_ai",
+    "shortauto_asset_library",
+    "shortauto_repair_engine",
+    "shortauto_intelligence_layer",
+):
+    importlib.import_module(name)
+PY
     ); then
         echo "OK  imports runtime críticos 3.0.2"
     else
