@@ -180,31 +180,31 @@ else
     if (
         cd "$BASE" &&
         python - <<'PY' >/dev/null 2>&1
-    import importlib
-    for name in (
-        "subtitle_alignment",
-        "subtitle_style_policy",
-        "visual_shot_policy",
-        "visual_editorial_policy",
-        "visual_shot_bridge",
-        "visual_pipeline_bridge_v42",
-        "visual_selection_engine_v4",
-        "media_must_verifier",
-        "visual_engine_unified",
-        "visual_query_expansion_v4",
-        "media_runtime_adapter_v1",
-        "media_runtime_adapter_v2",
-        "vg4x_bridge",
-        "visual_intelligence_6",
-        "vi6_8_runtime_policy",
-        "vi6_9_runtime_policy",
-        "visual_continuity_engine",
-        "visual_score_engine",
-        "retention_engine",
-        "sound_design_engine",
-    ):
-        importlib.import_module(name)
-    PY
+import importlib
+for name in (
+    "subtitle_alignment",
+    "subtitle_style_policy",
+    "visual_shot_policy",
+    "visual_editorial_policy",
+    "visual_shot_bridge",
+    "visual_pipeline_bridge_v42",
+    "visual_selection_engine_v4",
+    "media_must_verifier",
+    "visual_engine_unified",
+    "visual_query_expansion_v4",
+    "media_runtime_adapter_v1",
+    "media_runtime_adapter_v2",
+    "vg4x_bridge",
+    "visual_intelligence_6",
+    "vi6_8_runtime_policy",
+    "vi6_9_runtime_policy",
+    "visual_continuity_engine",
+    "visual_score_engine",
+    "retention_engine",
+    "sound_design_engine",
+):
+    importlib.import_module(name)
+PY
     ); then
         ok "imports runtime críticos 3.0.2"
     else
