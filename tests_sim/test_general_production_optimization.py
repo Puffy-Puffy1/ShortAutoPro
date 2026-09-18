@@ -47,6 +47,13 @@ class GeneralProductionOptimizationTests(unittest.TestCase):
         self.assertIn("def measure_loudness(", text)
         self.assertIn("loudness = measure_loudness(target_lufs, target_tp)", text)
 
+    def test_audio_finalizer_reuses_measurement_when_file_is_unchanged(self):
+        text = (ROOT / "audio_finalizer.py").read_text(encoding="utf-8")
+        self.assertIn('measurement_source="unchanged_reuse"', text)
+        self.assertIn('after=before', text)
+        self.assertIn('after=measure(VIDEO)', text)
+        self.assertIn('"remastered":need', text)
+
     def test_no_certified_visual_selector_relaxation(self):
         midia = (ROOT / "midia.py").read_text(encoding="utf-8")
         strict = (ROOT / "media_strict_must_guard.py").read_text(encoding="utf-8")
