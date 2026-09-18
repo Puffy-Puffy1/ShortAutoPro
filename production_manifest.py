@@ -35,6 +35,7 @@ LEDGER = BASE / "credits" / f"ledger_{SHORT_ID}.json"
 VIDEO = BASE / "videos" / f"short_v6_{SHORT_ID}.mp4"
 LOG = BASE / "logs" / "producao" / f"short_{SHORT_ID}.log"
 MEDIA_DIR = BASE / "imagens" / f"short_{SHORT_ID}"
+INTELLIGENCE_DIR = BASE / "reports" / "intelligence"
 MEDIA_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".mp4"}
 
 
@@ -186,6 +187,10 @@ def build_manifest(probe_data=None):
     publish_integrity = read_json(PUBLISH_INTEGRITY)
     ledger = read_json(LEDGER)
     scene_map = read_json(SCENE_MAP)
+    intelligence = {
+        phase: read_json(INTELLIGENCE_DIR / f"{phase}_{SHORT_ID}.json")
+        for phase in ("pre", "scene", "media", "final")
+    }
 
     scenes = scene_map.get("scenes", []) if isinstance(scene_map, dict) else []
     if not isinstance(scenes, list):
@@ -289,6 +294,20 @@ def build_manifest(probe_data=None):
             "audio_codec": audio_codec,
         },
         "quality": quality,
+        "intelligence": {
+            "version": "INTELLIGENCE_1.0",
+            "reports": {
+                phase: str(INTELLIGENCE_DIR / f"{phase}_{SHORT_ID}.json")
+                for phase in ("pre", "scene", "media", "final")
+            },
+            "status": {
+                phase: (intelligence.get(phase, {}) or {}).get("status", "MISSING")
+                for phase in ("pre", "scene", "media", "final")
+            },
+            "module_versions": (intelligence.get("final", {}) or {}).get("module_versions", {}),
+            "explainable_qa": (intelligence.get("final", {}) or {}).get("explainable_qa", {}),
+            "confidence_automation": (intelligence.get("final", {}) or {}).get("confidence_automation", {}),
+        },
         "log": str(LOG),
     }
     return manifest, quality_pass
