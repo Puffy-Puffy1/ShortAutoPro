@@ -19,6 +19,7 @@ import shutil
 import re
 import json
 import hashlib
+from concurrent.futures import ThreadPoolExecutor
 import requests
 from datetime import date
 
@@ -2314,13 +2315,35 @@ def buscar_todos_candidatos(
         must_have
     )
 
+    parallel_enabled = (
+        os.getenv(
+            "SAP_MEDIA_PARALLEL_PROVIDERS",
+            "1"
+        ) == "1"
+    )
 
-    # Wikimedia primeiro para tentar
-    # obter mídia documental real.
     try:
+        max_workers = int(
+            os.getenv(
+                "SAP_MEDIA_PROVIDER_WORKERS",
+                "6"
+            )
+        )
+    except ValueError:
+        max_workers = 6
 
-        wiki_candidatos = (
-            buscar_wikimedia_fotos(
+    max_workers = max(
+        1,
+        min(
+            max_workers,
+            6
+        )
+    )
+
+    provider_jobs = [
+        (
+            "wikimedia",
+            lambda: buscar_wikimedia_fotos(
                 busca,
                 must_have,
                 avoid,
@@ -2329,119 +2352,247 @@ def buscar_todos_candidatos(
                 visual_mode=visual_mode
             )
         )
-
-        wiki_aprovados = []
-
-        for candidato in wiki_candidatos:
-
-            autenticidade = (
-                avaliar_evidencia(
-                    candidato,
-                    ASSUNTO,
-                    segmento,
-                    must_have,
-                    visual_mode
-                )
-            )
-
-            candidato[
-                "evidence_class"
-            ] = autenticidade[
-                "class"
-            ]
-
-            candidato[
-                "topic_overlap"
-            ] = autenticidade[
-                "topic_overlap"
-            ]
-
-            candidato[
-                "segment_overlap"
-            ] = autenticidade[
-                "segment_overlap"
-            ]
-
-            candidato[
-                "evidence_must_coverage"
-            ] = autenticidade[
-                "must_coverage"
-            ]
-
-
-            if not autenticidade[
-                "allowed"
-            ]:
-
-                continue
-
-
-            candidato[
-                "score"
-            ] += (
-                rota_fonte.get(
-                    "wikimedia_bonus",
-                    0.0
-                )
-                + autenticidade[
-                    "bonus"
-                ]
-            )
-
-
-            wiki_aprovados.append(
-                candidato
-            )
-
-
-        todos.extend(
-            wiki_aprovados
-        )
-
-    except Exception:
-        pass
+    ]
 
     if USAR_VIDEOS:
 
-        todos.extend(
-            pexels_video(
-                busca,
-                must_have,
-                avoid
-            )
+        provider_jobs.extend(
+            [
+                (
+                    "pexels_video",
+                    lambda: pexels_video(
+                        busca,
+                        must_have,
+                        avoid
+                    )
+                ),
+                (
+                    "pixabay_video",
+                    lambda: pixabay_video(
+                        busca,
+                        must_have,
+                        avoid
+                    )
+                ),
+                (
+                    "coverr_video",
+                    lambda: coverr_video(
+                        busca,
+                        must_have,
+                        avoid
+                    )
+                ),
+            ]
         )
 
-        todos.extend(
-            pixabay_video(
-                busca,
-                must_have,
-                avoid
-            )
+    provider_jobs.extend(
+        [
+            (
+                "pexels_foto",
+                lambda: pexels_foto(
+                    busca,
+                    must_have,
+                    avoid
+                )
+            ),
+            (
+                "pixabay_foto",
+                lambda: pixabay_foto(
+                    busca,
+                    must_have,
+                    avoid
+                )
+            ),
+        ]
+    )
+
+    provider_results = {}
+
+    if (
+        parallel_enabled
+        and len(provider_jobs) > 1
+    ):
+
+        print(
+            "SAP_MEDIA_PROVIDER_MODE=PARALLEL "
+            f"workers={min(max_workers, len(provider_jobs))} "
+            f"providers={len(provider_jobs)}"
         )
 
-        todos.extend(
-            coverr_video(
-                busca,
-                must_have,
-                avoid
+        try:
+
+            with ThreadPoolExecutor(
+                max_workers=min(
+                    max_workers,
+                    len(provider_jobs)
+                )
+            ) as executor:
+
+                futures = {
+                    name: executor.submit(
+                        job
+                    )
+                    for name, job
+                    in provider_jobs
+                }
+
+                # Coleta na ordem canônica dos providers.
+                # As chamadas executam em paralelo, mas a ordem final dos
+                # candidatos permanece determinística.
+                for name, _
+                in provider_jobs:
+
+                    try:
+                        provider_results[
+                            name
+                        ] = list(
+                            futures[
+                                name
+                            ].result()
+                            or []
+                        )
+
+                    except Exception as exc:
+
+                        provider_results[
+                            name
+                        ] = []
+
+                        print(
+                            "SAP_MEDIA_PROVIDER_FAIL_OPEN "
+                            f"provider={name} "
+                            f"{type(exc).__name__}:"
+                            f"{str(exc)[:140]}"
+                        )
+
+        except Exception as exc:
+
+            print(
+                "SAP_MEDIA_PROVIDER_PARALLEL=FAIL_OPEN "
+                f"{type(exc).__name__}:"
+                f"{str(exc)[:140]}"
             )
+
+            provider_results = {}
+
+    if not provider_results:
+
+        print(
+            "SAP_MEDIA_PROVIDER_MODE=SEQUENTIAL"
+        )
+
+        for name, job
+        in provider_jobs:
+
+            try:
+                provider_results[
+                    name
+                ] = list(
+                    job()
+                    or []
+                )
+
+            except Exception as exc:
+
+                provider_results[
+                    name
+                ] = []
+
+                print(
+                    "SAP_MEDIA_PROVIDER_FAIL_OPEN "
+                    f"provider={name} "
+                    f"{type(exc).__name__}:"
+                    f"{str(exc)[:140]}"
+                )
+
+    # Wikimedia continua sendo processado com Evidence Guard antes de entrar
+    # no pool. A paralelização altera apenas o tempo de rede.
+    wiki_aprovados = []
+
+    for candidato in provider_results.get(
+        "wikimedia",
+        []
+    ):
+
+        try:
+
+            autenticidade = avaliar_evidencia(
+                candidato,
+                ASSUNTO,
+                segmento,
+                must_have,
+                visual_mode
+            )
+
+        except Exception:
+            continue
+
+        candidato[
+            "evidence_class"
+        ] = autenticidade[
+            "class"
+        ]
+
+        candidato[
+            "topic_overlap"
+        ] = autenticidade[
+            "topic_overlap"
+        ]
+
+        candidato[
+            "segment_overlap"
+        ] = autenticidade[
+            "segment_overlap"
+        ]
+
+        candidato[
+            "evidence_must_coverage"
+        ] = autenticidade[
+            "must_coverage"
+        ]
+
+        if not autenticidade[
+            "allowed"
+        ]:
+            continue
+
+        candidato[
+            "score"
+        ] += (
+            rota_fonte.get(
+                "wikimedia_bonus",
+                0.0
+            )
+            + autenticidade[
+                "bonus"
+            ]
+        )
+
+        wiki_aprovados.append(
+            candidato
         )
 
     todos.extend(
-        pexels_foto(
-            busca,
-            must_have,
-            avoid
-        )
+        wiki_aprovados
     )
 
-    todos.extend(
-        pixabay_foto(
-            busca,
-            must_have,
-            avoid
+    # Preserva a ordem canônica anterior:
+    # Wikimedia -> Pexels video -> Pixabay video -> Coverr
+    # -> Pexels foto -> Pixabay foto.
+    for provider_name in (
+        "pexels_video",
+        "pixabay_video",
+        "coverr_video",
+        "pexels_foto",
+        "pixabay_foto",
+    ):
+
+        todos.extend(
+            provider_results.get(
+                provider_name,
+                []
+            )
         )
-    )
 
     return todos
 
@@ -5852,9 +6003,23 @@ for numero, cena in enumerate(
         )
 
 
-    time.sleep(
-        0.20
-    )
+    try:
+        _scene_delay = float(
+            os.getenv(
+                "SAP_MEDIA_SCENE_DELAY",
+                "0.05"
+            )
+        )
+    except ValueError:
+        _scene_delay = 0.05
+
+    if _scene_delay > 0:
+        time.sleep(
+            min(
+                _scene_delay,
+                1.0
+            )
+        )
 
 
 # ==================================================
