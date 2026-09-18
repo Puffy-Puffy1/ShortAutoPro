@@ -4561,65 +4561,23 @@ for numero, cena in enumerate(
     )
 
 
-    try:
-
-        todos.extend(
-            buscar_wikimedia_fotos(
-                busca,
-                must_have,
-                avoid,
-                assunto=ASSUNTO,
-                segmento=segmento,
-                visual_mode=visual_mode
-            )
-        )
-
-    except Exception:
-
-        pass
-
-
-    if USAR_VIDEOS:
-
-        todos.extend(
-            pexels_video(
-                busca,
-                must_have,
-                avoid
-            )
-        )
-
-        todos.extend(
-            pixabay_video(
-                busca,
-                must_have,
-                avoid
-            )
-        )
-
-        todos.extend(
-            coverr_video(
-                busca,
-                must_have,
-                avoid
-            )
-        )
-
-
-    todos.extend(
-        pexels_foto(
+    # Single canonical acquisition path.
+    # Provider calls run in parallel inside buscar_todos_candidatos(), while
+    # explicit-MUST recovery remains bounded/cached by the installed wrapper.
+    todos = list(
+        buscar_todos_candidatos(
             busca,
             must_have,
-            avoid
+            avoid,
+            segmento=segmento,
+            visual_mode=visual_mode,
         )
+        or []
     )
 
-    todos.extend(
-        pixabay_foto(
-            busca,
-            must_have,
-            avoid
-        )
+    print(
+        "SAP_MEDIA_INITIAL_ACQUISITION=CANONICAL_PARALLEL "
+        f"scene={numero} candidates={len(todos)}"
     )
 
     # =================================
@@ -5333,10 +5291,21 @@ for numero, cena in enumerate(
 
     if not sucesso:
 
-        alternativas = simplificar_busca(
-            busca,
-            must_have
-        )
+        # Explicit MUST already went through the canonical bounded recovery:
+        # original query + all-MUST + subject/segment/evidence variants.
+        # Retrying isolated MUST words repeats the same provider work and can
+        # explode latency without adding stronger evidence.
+        if must_have:
+            alternativas = []
+            print(
+                "SAP_MUST_SIMPLIFIED_RETRIES=SKIPPED "
+                f"scene={numero} reason=CANONICAL_RESCUE_ALREADY_EXHAUSTIVE"
+            )
+        else:
+            alternativas = simplificar_busca(
+                busca,
+                must_have
+            )
 
 
         for busca_alt in alternativas:
