@@ -16,7 +16,7 @@ from typing import Any
 
 import media_must_verifier as mustv
 
-VERSION = "1.2"
+VERSION = "1.3"
 
 
 def _must_list(value: Any) -> list[str]:
@@ -167,7 +167,8 @@ def _wrap_pool(namespace: dict[str, Any]) -> bool:
         return False
 
     cache: dict[tuple[Any, ...], list[Any]] = {}
-    stats = {"hits": 0, "misses": 0}
+    rescue_cache: dict[tuple[Any, ...], list[Any]] = {}
+    stats = {"hits": 0, "misses": 0, "rescue_hits": 0, "rescue_misses": 0}
 
     def call_original(busca, must_have, avoid, segmento="", visual_mode="") -> list[Any]:
         key = _cache_key(busca, must_have, avoid, segmento, visual_mode)
@@ -206,9 +207,34 @@ def _wrap_pool(namespace: dict[str, Any]) -> bool:
             str(segmento or ""),
             str(visual_mode or ""),
         )[:budget]
+
+        rescue_key = (
+            tuple(item.casefold() for item in must),
+            tuple(str(item or "").strip().casefold() for item in (avoid or []))
+            if isinstance(avoid, (list, tuple, set)) else (str(avoid or "").casefold(),),
+            " ".join(str(segmento or "").split()).casefold(),
+            " ".join(str(visual_mode or "").split()).casefold(),
+            tuple(query.casefold() for query in queries),
+        )
+
+        if rescue_key in rescue_cache:
+            stats["rescue_hits"] += 1
+            print(
+                "SAP_MUST_RESCUE_CACHE=HIT "
+                f"hits={stats['rescue_hits']} misses={stats['rescue_misses']} "
+                f"queries={len(queries)}"
+            )
+            combined.extend(copy.deepcopy(rescue_cache[rescue_key]))
+            combined = _dedupe(combined)
+            return combined
+
+        stats["rescue_misses"] += 1
+        rescue_only: list[Any] = []
+
         for query in queries:
             print(f"SAP_MUST_ACQUISITION_QUERY={query}")
             extra = call_original(query, must_have, avoid, segmento, visual_mode)
+            rescue_only.extend(extra)
             combined.extend(extra)
             combined = _dedupe(combined)
             if any(_complete(candidate, must) for candidate in combined):
@@ -222,10 +248,12 @@ def _wrap_pool(namespace: dict[str, Any]) -> bool:
                 f"queries={len(queries)}"
             )
 
+        rescue_cache[rescue_key] = copy.deepcopy(_dedupe(rescue_only))
         return combined
 
     wrapped._sap_acquisition_recovery = True
     wrapped._sap_acquisition_cache = cache
+    wrapped._sap_rescue_cache = rescue_cache
     wrapped._sap_acquisition_stats = stats
     namespace["buscar_todos_candidatos"] = wrapped
     return True
