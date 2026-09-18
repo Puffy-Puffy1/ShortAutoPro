@@ -496,9 +496,199 @@ if not cenas:
 
 
 # ==================================================
-# LIMPAR MÍDIA ANTIGA
+# PRODUÇÃO INCREMENTAL DE MÍDIA
 # ==================================================
+#
+# Regra de produção:
+# - se a execução anterior terminou parcial, preserve somente cenas que
+#   efetivamente foram concluídas naquela execução;
+# - valide o arquivo tecnicamente antes de reutilizar;
+# - busque novamente apenas as cenas faltantes;
+# - se o scene_map mudou depois do relatório parcial, invalide o cache.
+#
+# Isso evita jogar fora 10 cenas boas quando apenas 2 falharam.
 
+RESUME_MEDIA_ENABLED = os.getenv(
+    "SAP_MEDIA_INCREMENTAL",
+    "1"
+) == "1"
+
+MISSING_REPORT = os.path.join(
+    BASE,
+    "reports",
+    "media",
+    f"acquisition_missing_{SHORT_ID}.json"
+)
+
+resume_cached_media = {}
+
+
+def _sap_probe_existing_media(path):
+    try:
+        if (
+            not os.path.isfile(path)
+            or os.path.getsize(path) <= 1000
+        ):
+            return False
+
+        probe = subprocess.run(
+            [
+                "ffprobe",
+                "-v",
+                "error",
+                "-select_streams",
+                "v:0",
+                "-show_entries",
+                "stream=width,height",
+                "-of",
+                "json",
+                path,
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=20,
+        )
+
+        if probe.returncode != 0:
+            return False
+
+        data = json.loads(probe.stdout)
+        streams = data.get("streams", [])
+        if not streams:
+            return False
+
+        width = int(streams[0].get("width", 0) or 0)
+        height = int(streams[0].get("height", 0) or 0)
+
+        return (
+            width > 0
+            and height > 0
+            and width * height >= 320 * 180
+        )
+
+    except Exception:
+        return False
+
+
+if RESUME_MEDIA_ENABLED and os.path.isfile(MISSING_REPORT):
+
+    try:
+        with open(
+            MISSING_REPORT,
+            "r",
+            encoding="utf-8"
+        ) as f:
+            _previous_missing = json.load(f)
+
+        _missing_numbers = {
+            int(item.get("scene"))
+            for item
+            in _previous_missing.get(
+                "missing_scenes",
+                []
+            )
+            if isinstance(item, dict)
+            and str(item.get("scene", "")).isdigit()
+        }
+
+        _report_matches = (
+            str(
+                _previous_missing.get(
+                    "short_id",
+                    ""
+                )
+            ) == str(SHORT_ID)
+            and int(
+                _previous_missing.get(
+                    "expected",
+                    0
+                )
+                or 0
+            ) == len(cenas)
+        )
+
+        _scene_map_not_newer = (
+            os.path.getmtime(SCENE_MAP)
+            <= os.path.getmtime(MISSING_REPORT)
+        )
+
+        if (
+            _report_matches
+            and _scene_map_not_newer
+        ):
+
+            for _scene_number in range(
+                1,
+                len(cenas) + 1
+            ):
+
+                if _scene_number in _missing_numbers:
+                    continue
+
+                _prefix = (
+                    f"scene_{_scene_number:02d}"
+                )
+
+                _matches = [
+                    os.path.join(
+                        SAIDA_DIR,
+                        nome
+                    )
+                    for nome
+                    in os.listdir(
+                        SAIDA_DIR
+                    )
+                    if os.path.splitext(
+                        nome
+                    )[0] == _prefix
+                    and os.path.splitext(
+                        nome
+                    )[1].lower()
+                    in {
+                        ".jpg",
+                        ".jpeg",
+                        ".png",
+                        ".webp",
+                        ".mp4",
+                    }
+                ]
+
+                if (
+                    len(_matches) == 1
+                    and _sap_probe_existing_media(
+                        _matches[0]
+                    )
+                ):
+                    resume_cached_media[
+                        _scene_number
+                    ] = _matches[0]
+
+            if resume_cached_media:
+
+                print(
+                    "SAP_MEDIA_INCREMENTAL=RESTORE "
+                    f"cached={len(resume_cached_media)} "
+                    "scenes="
+                    + ",".join(
+                        str(x)
+                        for x
+                        in sorted(
+                            resume_cached_media
+                        )
+                    )
+                )
+
+    except Exception as _resume_media_exc:
+
+        print(
+            "SAP_MEDIA_INCREMENTAL=FAIL_OPEN "
+            f"{type(_resume_media_exc).__name__}:"
+            f"{str(_resume_media_exc)[:160]}"
+        )
+
+
+# Remove somente cenas não preservadas.
 for nome in os.listdir(
     SAIDA_DIR
 ):
@@ -508,7 +698,7 @@ for nome in os.listdir(
         nome
     )
 
-    if nome.lower().endswith(
+    if not nome.lower().endswith(
         (
             ".jpg",
             ".jpeg",
@@ -517,10 +707,39 @@ for nome in os.listdir(
             ".mp4"
         )
     ):
-        try:
-            os.remove(caminho)
-        except Exception:
-            pass
+        continue
+
+    _match = re.fullmatch(
+        r"scene_(\d+)\.(?:jpg|jpeg|png|webp|mp4)",
+        nome,
+        flags=re.IGNORECASE,
+    )
+
+    if _match:
+        _numero_existente = int(
+            _match.group(1)
+        )
+        if (
+            _numero_existente
+            in resume_cached_media
+            and os.path.abspath(
+                resume_cached_media[
+                    _numero_existente
+                ]
+            )
+            ==
+            os.path.abspath(
+                caminho
+            )
+        ):
+            continue
+
+    try:
+        os.remove(
+            caminho
+        )
+    except Exception:
+        pass
 
 
 # ==================================================
@@ -3918,7 +4137,8 @@ contagem = {
     "Pixabay": 0,
     "Coverr": 0,
     "Wikimedia": 0,
-    "Local": 0
+    "Local": 0,
+    "ResumeCache": 0
 }
 
 
@@ -3963,6 +4183,41 @@ for numero, cena in enumerate(
         f"  MUST: "
         f"{', '.join(must_have)}"
     )
+
+    if numero in resume_cached_media:
+
+        _cached_path = (
+            resume_cached_media[
+                numero
+            ]
+        )
+
+        _cached_ext = os.path.splitext(
+            _cached_path
+        )[1].lower()
+
+        _cached_type = (
+            "vídeo"
+            if _cached_ext == ".mp4"
+            else "foto"
+        )
+
+        if _cached_type == "vídeo":
+            videos_total += 1
+        else:
+            fotos_total += 1
+
+        contagem["ResumeCache"] += 1
+        total += 1
+
+        print(
+            "  SAP_MEDIA_INCREMENTAL=HIT "
+            f"scene={numero} "
+            f"type={_cached_type} "
+            f"file={os.path.basename(_cached_path)}"
+        )
+
+        continue
 
 
     # =================================
@@ -5478,6 +5733,11 @@ print(
 )
 
 print(
+    f"ResumeCache: "
+    f"{contagem['ResumeCache']}"
+)
+
+print(
     f"Vídeos: "
     f"{videos_total}"
 )
@@ -5521,6 +5781,24 @@ if missing_scenes:
             + type(_diag_exc).__name__
             + ":"
             + str(_diag_exc)[:160]
+        )
+
+if total == len(cenas):
+    try:
+        if os.path.isfile(
+            MISSING_REPORT
+        ):
+            os.remove(
+                MISSING_REPORT
+            )
+            print(
+                "SAP_MEDIA_INCREMENTAL=CLEAR_PARTIAL_REPORT"
+            )
+    except Exception as _clear_partial_exc:
+        print(
+            "SAP_MEDIA_INCREMENTAL=CLEAR_FAIL_OPEN "
+            f"{type(_clear_partial_exc).__name__}:"
+            f"{str(_clear_partial_exc)[:120]}"
         )
 
 if total != len(cenas):
