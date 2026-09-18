@@ -16,7 +16,7 @@ from typing import Any
 
 import media_must_verifier as mustv
 
-VERSION = "1.1"
+VERSION = "1.2"
 
 
 def _must_list(value: Any) -> list[str]:
@@ -64,12 +64,18 @@ def _dedupe(candidates: list[Any]) -> list[Any]:
     return out
 
 
-def _rescue_queries(busca: str, must: list[str], assunto: str = "") -> list[str]:
+def _rescue_queries(busca: str, must: list[str], assunto: str = "", segmento: str = "", visual_mode: str = "") -> list[str]:
     base = " ".join(must).strip()
     subject = str(assunto or "").strip()
+    segment_tokens = [x for x in str(segmento or "").split() if len(x) >= 4][:6]
+    segment_anchor = " ".join(segment_tokens).strip()
+    mode = str(visual_mode or "").replace("_", " ").strip()
     candidates = [
         base,
         f"{subject} {base}".strip(),
+        f"{base} {segment_anchor}".strip(),
+        f"{subject} {base} {segment_anchor}".strip(),
+        f"{base} {mode}".strip(),
         f"{base} archive photograph".strip(),
         f"{base} historical photograph".strip(),
         f"{base} documentary evidence".strip(),
@@ -193,7 +199,13 @@ def _wrap_pool(namespace: dict[str, Any]) -> bool:
 
         combined = list(initial)
         assunto = str(namespace.get("ASSUNTO", "") or "")
-        queries = _rescue_queries(str(busca or ""), must, assunto)[:budget]
+        queries = _rescue_queries(
+            str(busca or ""),
+            must,
+            assunto,
+            str(segmento or ""),
+            str(visual_mode or ""),
+        )[:budget]
         for query in queries:
             print(f"SAP_MUST_ACQUISITION_QUERY={query}")
             extra = call_original(query, must_have, avoid, segmento, visual_mode)
