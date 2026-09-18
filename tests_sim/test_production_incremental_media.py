@@ -24,9 +24,9 @@ class ProductionIncrementalMediaTests(unittest.TestCase):
         self.assertIn("QUALITY_REPORT", text)
         self.assertIn("SAP_MEDIA_INCREMENTAL=QUALITY_PASS_RESTORE", text)
         self.assertIn("_sap_sha256_existing", text)
-        self.assertIn('str(_previous_quality.get(', text)
+        self.assertIn("_previous_quality.get(", text)
         self.assertIn('"status"', text)
-        self.assertIn('"PASS"', text)
+        self.assertIn('.upper() == "PASS"', text)
         self.assertIn("resume_cached_media.clear()", text)
 
     def test_only_missing_scenes_are_reacquired(self):
