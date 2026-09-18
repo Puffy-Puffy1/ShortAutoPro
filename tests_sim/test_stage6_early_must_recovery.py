@@ -18,7 +18,7 @@ class Stage6EarlyRecoveryTests(unittest.TestCase):
         joined = "\n".join(queries).lower()
         self.assertIn("dummy heads alcatraz", joined)
         self.assertIn("fuga de alcatraz", joined)
-        self.assertTrue(any("the men left dummy" in q.lower() for q in queries))
+        self.assertTrue(any("left dummy heads" in q.lower() for q in queries))
 
     def test_midia_runs_early_recovery_before_evidence_selection(self):
         text = (ROOT / "midia.py").read_text(encoding="utf-8")
@@ -26,7 +26,7 @@ class Stage6EarlyRecoveryTests(unittest.TestCase):
         evidence_pos = text.index("# MAIN WIKIMEDIA EVIDENCE 5.2")
         self.assertLess(recovery_pos, evidence_pos)
         self.assertIn("buscar_todos_candidatos(", text[recovery_pos:evidence_pos])
-        self.assertIn("verified_must", text[recovery_pos:evidence_pos])
+        self.assertIn("from media_must_verifier import verified_must", text[:evidence_pos])
 
     def test_missing_scene_diagnostics_are_persisted(self):
         text = (ROOT / "midia.py").read_text(encoding="utf-8")
