@@ -16,7 +16,7 @@ from typing import Any
 
 import media_must_verifier as mustv
 
-VERSION = "1.3"
+VERSION = "1.4"
 
 
 def _must_list(value: Any) -> list[str]:
@@ -166,6 +166,18 @@ def _wrap_pool(namespace: dict[str, Any]) -> bool:
     if not callable(original) or getattr(original, "_sap_acquisition_recovery", False):
         return False
 
+    # VSE42 legacy search rescue may already wrap the base acquisition.
+    # Canonical recovery below is broader, bounded and cached. Calling the
+    # wrapped function here would multiply each rescue query into more rescue
+    # queries. Use the underlying acquisition function as the single provider
+    # call authority and keep VSE42 for ranking/final selection.
+    provider_search = original
+    if getattr(original, "_sap_vse42_wrapped", False):
+        unwrapped = getattr(original, "_sap_vse42_original", None)
+        if callable(unwrapped):
+            provider_search = unwrapped
+            print("SAP_MEDIA_RESCUE_NESTING=DISABLED source=VSE42")
+
     cache: dict[tuple[Any, ...], list[Any]] = {}
     rescue_cache: dict[tuple[Any, ...], list[Any]] = {}
     stats = {"hits": 0, "misses": 0, "rescue_hits": 0, "rescue_misses": 0}
@@ -181,7 +193,7 @@ def _wrap_pool(namespace: dict[str, Any]) -> bool:
             return copy.deepcopy(cache[key])
 
         stats["misses"] += 1
-        result = list(original(busca, must_have, avoid, segmento, visual_mode) or [])
+        result = list(provider_search(busca, must_have, avoid, segmento, visual_mode) or [])
         cache[key] = copy.deepcopy(result)
         return result
 
