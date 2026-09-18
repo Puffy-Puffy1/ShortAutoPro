@@ -26,6 +26,7 @@ CAPTION = BASE / "roteiros" / f"pro_caption_{SHORT_ID}.json"
 MEDIA = BASE / "roteiros" / f"media_quality_{SHORT_ID}.json"
 VIDEO = BASE / "videos" / f"short_v6_{SHORT_ID}.mp4"
 LEGACY = BASE / "manifests" / f"{SHORT_ID}_quality.json"
+AUDIO_REPORT = BASE / "reports" / "evolution" / f"final_audio_{SHORT_ID}.json"
 OUTPUT = BASE / "manifests" / f"{SHORT_ID}_professional.json"
 
 
@@ -159,6 +160,38 @@ def measure_loudness(target_lufs: float, target_tp: float) -> dict[str, Any]:
         return {"available": False, "error": str(exc)}
 
 
+def cached_loudness(target_lufs: float, target_tp: float) -> dict[str, Any]:
+    report = read_json(AUDIO_REPORT)
+    if not report or str(report.get("status", "")).upper() != "PASS":
+        return {}
+    try:
+        if not VIDEO.is_file() or not AUDIO_REPORT.is_file():
+            return {}
+        if VIDEO.stat().st_mtime > AUDIO_REPORT.stat().st_mtime:
+            return {}
+    except OSError:
+        return {}
+
+    target = report.get("target", {}) if isinstance(report.get("target"), dict) else {}
+    after = report.get("after", {}) if isinstance(report.get("after"), dict) else {}
+    report_lufs = safe_float(target.get("lufs"), 999.0)
+    report_tp = safe_float(target.get("true_peak_db"), 999.0)
+    if abs(report_lufs - target_lufs) > 0.01 or abs(report_tp - target_tp) > 0.01:
+        return {}
+
+    if not after:
+        return {}
+
+    return {
+        "available": True,
+        "input_i": safe_float(after.get("lufs"), 0.0),
+        "input_tp": safe_float(after.get("true_peak_db"), 0.0),
+        "input_lra": safe_float(after.get("lra"), 0.0),
+        "cached": True,
+        "source": str(AUDIO_REPORT),
+    }
+
+
 def main() -> int:
     if not SHORT_ID:
         print("ERRO PROFESSIONAL QUALITY: SHORT_ID vazio")
@@ -184,7 +217,12 @@ def main() -> int:
     audio_policy = plan.get("audio", {}) if isinstance(plan.get("audio"), dict) else {}
     target_lufs = safe_float(audio_policy.get("target_lufs"), -14.0)
     target_tp = safe_float(audio_policy.get("true_peak_db"), -1.5)
-    loudness = measure_loudness(target_lufs, target_tp)
+    loudness = cached_loudness(target_lufs, target_tp)
+    if loudness:
+        print("PRO_QUALITY_AUDIO_MEASURE=CACHE_HIT")
+    else:
+        print("PRO_QUALITY_AUDIO_MEASURE=FFMPEG")
+        loudness = measure_loudness(target_lufs, target_tp)
     if loudness.get("available"):
         lufs_error = abs(safe_float(loudness.get("input_i")) - target_lufs)
         tp = safe_float(loudness.get("input_tp"))
