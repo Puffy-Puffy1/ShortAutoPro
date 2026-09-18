@@ -146,24 +146,27 @@ def render_ok(sid: str) -> bool:
         return False
 
 
-def final_ok(sid: str) -> bool:
+def final_ok(sid: str, render_valid: bool | None = None) -> bool:
     quality = read_json(BASE / "manifests" / f"{sid}_quality.json")
     release = read_json(BASE / "manifests" / f"{sid}_release.json")
+    if render_valid is None:
+        render_valid = render_ok(sid)
     return (
-        render_ok(sid)
+        render_valid
         and quality.get("approved") is True
         and release.get("decision") in {"PUBLISH", "ACCEPTABLE"}
     )
 
 
 def boundary(sid: str) -> str:
-    if final_ok(sid):
+    render_valid = render_ok(sid)
+    if final_ok(sid, render_valid):
         return "complete"
     # Never partially resume an older architecture. This is intentionally
     # conservative because new 3.0 gates depend on these planning artifacts.
     if not consolidation_plan_ok(sid):
         return "full"
-    if render_ok(sid):
+    if render_valid:
         return "post_render"
     if assembly_ok(sid) and audio_ok(sid) and captions_ok(sid):
         return "post_assembly"
