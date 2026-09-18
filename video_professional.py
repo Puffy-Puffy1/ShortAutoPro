@@ -48,6 +48,7 @@ CRF = os.getenv("SHORT_CRF_CENAS", "22")
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp"}
 VIDEO_EXTS = {".mp4", ".mov", ".webm", ".mkv"}
 MEDIA_EXTS = IMAGE_EXTS | VIDEO_EXTS
+_DURATION_CACHE: dict[tuple[str, int, int], float] = {}
 
 
 def timeout_value(name: str, default: int, low: int, high: int) -> int:
@@ -98,6 +99,16 @@ def atomic_json(path: Path, payload: Any) -> None:
 
 def duration(path: Path) -> float:
     try:
+        stat = path.stat()
+        key = (str(path.resolve()), int(stat.st_mtime_ns), int(stat.st_size))
+    except OSError as exc:
+        fail(f"não foi possível acessar {path}: {exc}")
+
+    cached = _DURATION_CACHE.get(key)
+    if cached is not None:
+        return cached
+
+    try:
         raw = subprocess.check_output(
             [
                 "ffprobe", "-v", "error",
@@ -114,6 +125,13 @@ def duration(path: Path) -> float:
         fail(f"não foi possível ler duração de {path}: {exc}")
     if not math.isfinite(value) or value <= 0:
         fail(f"duração inválida: {path}")
+
+    # Keep only the current identity for this path; a changed file gets a new
+    # mtime/size key and therefore forces a real ffprobe.
+    stale = [item for item in _DURATION_CACHE if item[0] == key[0] and item != key]
+    for item in stale:
+        _DURATION_CACHE.pop(item, None)
+    _DURATION_CACHE[key] = value
     return value
 
 
