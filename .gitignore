@@ -211,3 +211,8 @@ reports/analytics/
 reports/director_ai/
 reports/assets/
 reports/repair/
+
+# =========================
+# INTELLIGENCE LAYER RUNTIME STATE
+# =========================
+reports/intelligence/
