@@ -54,6 +54,19 @@ class GeneralProductionOptimizationTests(unittest.TestCase):
         self.assertIn('after=measure(VIDEO)', text)
         self.assertIn('"remastered":need', text)
 
+    def test_assembler_duration_probe_is_cached_by_file_identity(self):
+        text = (ROOT / "video_professional.py").read_text(encoding="utf-8")
+        self.assertIn("_DURATION_CACHE", text)
+        self.assertIn("st_mtime_ns", text)
+        self.assertIn("st_size", text)
+        self.assertIn("_DURATION_CACHE.get(key)", text)
+
+    def test_resume_boundary_reuses_single_render_probe(self):
+        text = (ROOT / "resume_short_runtime.py").read_text(encoding="utf-8")
+        self.assertIn("render_valid = render_ok(sid)", text)
+        self.assertIn("final_ok(sid, render_valid)", text)
+        self.assertIn("if render_valid:", text)
+
     def test_no_certified_visual_selector_relaxation(self):
         midia = (ROOT / "midia.py").read_text(encoding="utf-8")
         strict = (ROOT / "media_strict_must_guard.py").read_text(encoding="utf-8")
