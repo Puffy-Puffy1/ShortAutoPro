@@ -5,7 +5,7 @@ import argparse,json,math,os,tempfile
 from datetime import date,datetime
 from pathlib import Path
 from typing import Any
-BASE=Path(os.getenv("SHORTAUTOPRO_BASE",os.path.expanduser("~/ShortAutoPro"))).resolve();SID=os.getenv("SHORT_ID",date.today().isoformat()).strip();R=BASE/"roteiros";M=BASE/"manifests";E=BASE/"reports"/"evolution";OUT=M/f"{SID}_release.json"
+BASE=Path(os.getenv("SHORTAUTOPRO_BASE",os.path.expanduser("~/ShortAutoPro"))).resolve();SID=os.getenv("SHORT_ID",date.today().isoformat()).strip();R=BASE/"roteiros";M=BASE/"manifests";E=BASE/"reports"/"evolution";I=BASE/"reports"/"intelligence";OUT=M/f"{SID}_release.json"
 def load(p:Path)->dict[str,Any]:
  try:
   x=json.loads(p.read_text(encoding="utf-8"));return x if isinstance(x,dict) else {}
@@ -48,10 +48,12 @@ def main()->int:
  ret=clamp(num(retention.get("retention_score"),75));technical=clamp(num(pro.get("components",{}).get("technical"),100 if factual_ok else 0))
  components={"script_score":script,"media_score":clamp(media_score),"visual_score":visual,"audio_score":audio_score,"subtitle_score":subtitle,"retention_score":ret,"technical_score":technical}
  weights={"script_score":0.14,"media_score":0.16,"visual_score":0.18,"audio_score":0.12,"subtitle_score":0.10,"retention_score":0.15,"technical_score":0.15};score=round(sum(components[k]*weights[k] for k in weights),1)
- brain=brain_snapshot();brain_enforce=os.getenv("SAP_BRAIN_ENFORCE","0")=="1";brain_quality=brain.get("quality",{}) if isinstance(brain.get("quality"),dict) else {};brain_budget=brain_quality.get("quality_budget",{}) if isinstance(brain_quality.get("quality_budget"),dict) else {}
+ brain=brain_snapshot();brain_enforce=os.getenv("SAP_BRAIN_ENFORCE","0")=="1";brain_quality=brain.get("quality",{}) if isinstance(brain.get("quality"),dict) else {};brain_budget=brain_quality.get("quality_budget",{}) if isinstance(brain_quality.get("quality_budget"),dict) else {};intelligence=load(I/f"final_{SID}.json");intelligence_enforce=os.getenv("SAP_INTELLIGENCE_ENFORCE","0")=="1";intelligence_qa=intelligence.get("explainable_qa",{}) if isinstance(intelligence.get("explainable_qa"),dict) else {};intelligence_conf=intelligence.get("confidence_automation",{}) if isinstance(intelligence.get("confidence_automation"),dict) else {}
  if brain_enforce and brain.get("status")!="PASS":critical.append("shortauto_brain_error")
  if brain_enforce and str(brain_budget.get("status","")).upper()=="BLOCK":critical.append("shortauto_brain_quality_budget_block")
  if brain_enforce and str(brain_quality.get("decision","")).upper()=="BLOCK":critical.append("shortauto_brain_autonomy_block")
+ if intelligence_enforce and not intelligence:critical.append("intelligence_report_missing")
+ if intelligence_enforce and str(intelligence_conf.get("decision","")).upper()=="BLOCK":critical.append("intelligence_confidence_block")
  if critical:decision="BLOCK"
  elif score>=90:decision="PUBLISH"
  elif score>=80:decision="ACCEPTABLE"
@@ -64,7 +66,8 @@ def main()->int:
  if components["audio_score"]<90:actions.append("remaster_audio")
  if components["subtitle_score"]<85:actions.append("repair_caption_layout")
  if str(brain_budget.get("status","")).upper()=="BLOCK":actions.append("review_shortauto_brain_quality_budget")
- payload={"short_id":SID,"version":"RELEASE_GATE_1.2_BRAIN","generated_at":datetime.now().astimezone().isoformat(timespec="seconds"),"shortautopro_score":score,"decision":decision,"components":components,"weights":weights,"critical":critical,"repair_actions":actions,"visual_multiscore":vscore,"shortauto_brain":brain,"brain_enforced":brain_enforce};atomic(OUT,payload);print(json.dumps(payload,ensure_ascii=False,indent=2))
+ if str(intelligence_conf.get("decision","")).upper()=="REPAIR":actions.append("review_intelligence_explainable_qa")
+ payload={"short_id":SID,"version":"RELEASE_GATE_1.3_INTELLIGENCE","generated_at":datetime.now().astimezone().isoformat(timespec="seconds"),"shortautopro_score":score,"decision":decision,"components":components,"weights":weights,"critical":critical,"repair_actions":actions,"visual_multiscore":vscore,"shortauto_brain":brain,"brain_enforced":brain_enforce,"shortauto_intelligence":intelligence,"intelligence_enforced":intelligence_enforce,"intelligence_qa_score":num(intelligence_qa.get("score"),0)};atomic(OUT,payload);print(json.dumps(payload,ensure_ascii=False,indent=2))
  if args.enforce and decision=="BLOCK":return 1
  if args.enforce and decision=="REPAIR":return 20
  return 0
