@@ -19,6 +19,16 @@ class ProductionIncrementalMediaTests(unittest.TestCase):
         self.assertIn("_sap_probe_existing_media", text)
         self.assertIn("width * height >= 320 * 180", text)
 
+    def test_complete_media_master_pass_is_reused_by_hash(self):
+        text = (ROOT / "midia.py").read_text(encoding="utf-8")
+        self.assertIn("QUALITY_REPORT", text)
+        self.assertIn("SAP_MEDIA_INCREMENTAL=QUALITY_PASS_RESTORE", text)
+        self.assertIn("_sap_sha256_existing", text)
+        self.assertIn('str(_previous_quality.get(', text)
+        self.assertIn('"status"', text)
+        self.assertIn('"PASS"', text)
+        self.assertIn("resume_cached_media.clear()", text)
+
     def test_only_missing_scenes_are_reacquired(self):
         text = (ROOT / "midia.py").read_text(encoding="utf-8")
         hit = text.index("SAP_MEDIA_INCREMENTAL=HIT")
