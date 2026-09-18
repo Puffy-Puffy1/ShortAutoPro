@@ -2439,8 +2439,7 @@ def buscar_todos_candidatos(
                 # Coleta na ordem canônica dos providers.
                 # As chamadas executam em paralelo, mas a ordem final dos
                 # candidatos permanece determinística.
-                for name, _
-                in provider_jobs:
+                for name, _ in provider_jobs:
 
                     try:
                         provider_results[
@@ -2481,8 +2480,7 @@ def buscar_todos_candidatos(
             "SAP_MEDIA_PROVIDER_MODE=SEQUENTIAL"
         )
 
-        for name, job
-        in provider_jobs:
+        for name, job in provider_jobs:
 
             try:
                 provider_results[
