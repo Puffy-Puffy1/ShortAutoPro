@@ -26,6 +26,8 @@ CAPTION = BASE / "roteiros" / f"pro_caption_{SHORT_ID}.json"
 MEDIA = BASE / "roteiros" / f"media_quality_{SHORT_ID}.json"
 VIDEO = BASE / "videos" / f"short_v6_{SHORT_ID}.mp4"
 LEGACY = BASE / "manifests" / f"{SHORT_ID}_quality.json"
+PRODUCTION_MANIFEST = BASE / "manifests" / f"{SHORT_ID}.json"
+AUDIO_REPORT = BASE / "reports" / "evolution" / f"final_audio_{SHORT_ID}.json"
 OUTPUT = BASE / "manifests" / f"{SHORT_ID}_professional.json"
 
 
@@ -102,6 +104,53 @@ def media_score(report: dict[str, Any]) -> tuple[float, list[str]]:
     return max(0.0, score), notes
 
 
+def cached_technical_score() -> tuple[float, list[str], dict[str, Any]] | None:
+    manifest = read_json(PRODUCTION_MANIFEST)
+    if not manifest:
+        return None
+    try:
+        if not VIDEO.is_file() or not PRODUCTION_MANIFEST.is_file():
+            return None
+        if VIDEO.stat().st_mtime > PRODUCTION_MANIFEST.stat().st_mtime:
+            return None
+    except OSError:
+        return None
+
+    video = manifest.get("video", {}) if isinstance(manifest.get("video"), dict) else {}
+    quality = manifest.get("quality", {}) if isinstance(manifest.get("quality"), dict) else {}
+    if not video or not quality:
+        return None
+
+    width = int(video.get("width", 0) or 0)
+    height = int(video.get("height", 0) or 0)
+    fps = safe_float(video.get("fps"), 0.0)
+    video_codec = str(video.get("video_codec", "") or "").strip().lower()
+    audio_codec = str(video.get("audio_codec", "") or "").strip().lower()
+
+    errors: list[str] = []
+    score = 100.0
+    if video_codec != "h264":
+        errors.append("video_codec")
+        score -= 35
+    if (width, height) != (1080, 1920):
+        errors.append(f"resolution={width}x{height}")
+        score -= 35
+    if not 29 <= fps <= 31:
+        errors.append(f"fps={fps:.2f}")
+        score -= 15
+    if audio_codec != "aac":
+        errors.append("audio_codec")
+        score -= 35
+
+    return max(0.0, score), errors, {
+        "width": width,
+        "height": height,
+        "fps": round(fps, 3),
+        "cached": True,
+        "source": str(PRODUCTION_MANIFEST),
+    }
+
+
 def technical_score() -> tuple[float, list[str], dict[str, Any]]:
     if not VIDEO.is_file():
         return 0.0, ["video_missing"], {}
@@ -159,6 +208,38 @@ def measure_loudness(target_lufs: float, target_tp: float) -> dict[str, Any]:
         return {"available": False, "error": str(exc)}
 
 
+def cached_loudness(target_lufs: float, target_tp: float) -> dict[str, Any]:
+    report = read_json(AUDIO_REPORT)
+    if not report or str(report.get("status", "")).upper() != "PASS":
+        return {}
+    try:
+        if not VIDEO.is_file() or not AUDIO_REPORT.is_file():
+            return {}
+        if VIDEO.stat().st_mtime > AUDIO_REPORT.stat().st_mtime:
+            return {}
+    except OSError:
+        return {}
+
+    target = report.get("target", {}) if isinstance(report.get("target"), dict) else {}
+    after = report.get("after", {}) if isinstance(report.get("after"), dict) else {}
+    report_lufs = safe_float(target.get("lufs"), 999.0)
+    report_tp = safe_float(target.get("true_peak_db"), 999.0)
+    if abs(report_lufs - target_lufs) > 0.01 or abs(report_tp - target_tp) > 0.01:
+        return {}
+
+    if not after:
+        return {}
+
+    return {
+        "available": True,
+        "input_i": safe_float(after.get("lufs"), 0.0),
+        "input_tp": safe_float(after.get("true_peak_db"), 0.0),
+        "input_lra": safe_float(after.get("lra"), 0.0),
+        "cached": True,
+        "source": str(AUDIO_REPORT),
+    }
+
+
 def main() -> int:
     if not SHORT_ID:
         print("ERRO PROFESSIONAL QUALITY: SHORT_ID vazio")
@@ -177,14 +258,25 @@ def main() -> int:
     if "media_master_blocked" in media_notes:
         critical.append("media_master_blocked")
 
-    tech_score, tech_errors, tech_details = technical_score()
+    cached_tech = cached_technical_score()
+    if cached_tech is not None:
+        print("PRO_QUALITY_TECHNICAL=MANIFEST_CACHE_HIT")
+        tech_score, tech_errors, tech_details = cached_tech
+    else:
+        print("PRO_QUALITY_TECHNICAL=FFPROBE")
+        tech_score, tech_errors, tech_details = technical_score()
     if tech_errors:
         critical.extend(x for x in tech_errors if x in {"video_missing", "video_codec", "audio_codec"} or x.startswith("resolution="))
 
     audio_policy = plan.get("audio", {}) if isinstance(plan.get("audio"), dict) else {}
     target_lufs = safe_float(audio_policy.get("target_lufs"), -14.0)
     target_tp = safe_float(audio_policy.get("true_peak_db"), -1.5)
-    loudness = measure_loudness(target_lufs, target_tp)
+    loudness = cached_loudness(target_lufs, target_tp)
+    if loudness:
+        print("PRO_QUALITY_AUDIO_MEASURE=CACHE_HIT")
+    else:
+        print("PRO_QUALITY_AUDIO_MEASURE=FFMPEG")
+        loudness = measure_loudness(target_lufs, target_tp)
     if loudness.get("available"):
         lufs_error = abs(safe_float(loudness.get("input_i")) - target_lufs)
         tp = safe_float(loudness.get("input_tp"))

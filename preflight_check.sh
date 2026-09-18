@@ -7,6 +7,20 @@ BASE="$HOME/ShortAutoPro"
 ERROS=0
 AVISOS=0
 
+mkdir -p "$BASE/.sap_state" 2>/dev/null || true
+CODE_CACHE="$BASE/.sap_state/preflight_code_cache.txt"
+CODE_HEAD=""
+CODE_CACHE_HIT=0
+
+if command -v git >/dev/null 2>&1 && [ -d "$BASE/.git" ]; then
+    CODE_HEAD="$(git -C "$BASE" rev-parse HEAD 2>/dev/null || true)"
+    if [ -n "$CODE_HEAD" ] && [ -z "$(git -C "$BASE" status --porcelain 2>/dev/null)" ]; then
+        if [ -f "$CODE_CACHE" ] && [ "$(cat "$CODE_CACHE" 2>/dev/null)" = "$CODE_HEAD" ]; then
+            CODE_CACHE_HIT=1
+        fi
+    fi
+fi
+
 ok() { echo "OK     $1"; }
 aviso() { echo "AVISO  $1"; AVISOS=$((AVISOS + 1)); }
 erro() { echo "ERRO   $1"; ERROS=$((ERROS + 1)); }
@@ -125,42 +139,47 @@ else
     aviso "histórico ainda não existe"
 fi
 
-SHELL_FILES=(
-    profile_run.sh finalize_short.sh health_check.sh batch_queue.sh batch_recovery.sh
-    control_center.sh preflight_check.sh diagnostico.sh release_check.sh
-)
-for arq in "${SHELL_FILES[@]}"; do
-    if [ -f "$BASE/$arq" ]; then
-        if bash -n "$BASE/$arq" >/dev/null 2>&1; then ok "sintaxe $arq"; else erro "erro de sintaxe em $arq"; fi
-    fi
-done
+if [ "$CODE_CACHE_HIT" -eq 1 ]; then
+    ok "validação de sintaxe/imports em cache para commit $CODE_HEAD"
+else
+    CODE_ERRORS_BEFORE="$ERROS"
 
-PY_FILES=(
-    main.py resume_short_runtime.py topic_engine_runtime.py topic_engine.py topic_memory.py topic_reserve.py topic_index.py wiki_client.py source_identity.py
-    roteiro.py used_topic.py hook_engine.py hook_runtime.py narrative_director.py cold_open_director.py
-    scene_director.py scene_truth_refiner_6_7.py documentary_director.py visual_director.py visual_shot_bridge.py
-    visual_shot_policy.py visual_editorial_policy.py visual_risk_guard.py editorial_continuity.py visual_continuity_engine.py
-    scene_lossless_repair.py post_script_truth_lock.py semantic_integrity_gate.py wikimedia_source.py wikimedia_query_bridge.py
-    source_router.py evidence_guard.py midia.py media_runtime_adapter_v1.py media_runtime_adapter_v2.py media_must_verifier.py vg4x_bridge.py visual_engine_unified.py
-    visual_query_expansion_v4.py visual_query_planner_v4.py visual_pipeline_bridge_v42.py visual_selection_engine_v4.py visual_intelligence_6.py
-    vi6_8_runtime_policy.py vi6_9_runtime_policy.py media_master_gate.py visual_score_engine.py motion_director.py rhythm_director.py
-    professional_edit_director.py professional_edit_repair.py multi_asset_director.py retention_engine.py sound_design_engine.py
-    production_supervisor.py editorial_gate.py speech_director.py audio.py legenda_dinamica.py subtitle_alignment.py subtitle_style_policy.py
-    professional_caption_director.py caption_layout_guard.py video_professional.py v6_professional.py audio_finalizer.py visual_qa.py
-    quality_check.py publish_pack.py source_ledger.py publish_integrity_gate.py production_manifest.py final_quality.py
-    professional_quality_gate.py release_gate.py register_topic.py storage_manager.py
-)
-
-for arq in "${PY_FILES[@]}"; do
-    if [ -f "$BASE/$arq" ]; then
-        if python -m py_compile "$BASE/$arq" >/dev/null 2>&1; then ok "Python $arq"; else erro "erro Python em $arq"; fi
-    fi
-done
-
-# Import-only checks: módulos sem efeitos de produção na importação.
-if (
-    cd "$BASE" &&
-    python - <<'PY' >/dev/null 2>&1
+    SHELL_FILES=(
+        profile_run.sh finalize_short.sh health_check.sh batch_queue.sh batch_recovery.sh
+        control_center.sh preflight_check.sh diagnostico.sh release_check.sh
+    )
+    for arq in "${SHELL_FILES[@]}"; do
+        if [ -f "$BASE/$arq" ]; then
+            if bash -n "$BASE/$arq" >/dev/null 2>&1; then ok "sintaxe $arq"; else erro "erro de sintaxe em $arq"; fi
+        fi
+    done
+    
+    PY_FILES=(
+        main.py resume_short_runtime.py topic_engine_runtime.py topic_engine.py topic_memory.py topic_reserve.py topic_index.py wiki_client.py source_identity.py
+        roteiro.py used_topic.py hook_engine.py hook_runtime.py narrative_director.py cold_open_director.py
+        scene_director.py scene_truth_refiner_6_7.py documentary_director.py visual_director.py visual_shot_bridge.py
+        visual_shot_policy.py visual_editorial_policy.py visual_risk_guard.py editorial_continuity.py visual_continuity_engine.py
+        scene_lossless_repair.py post_script_truth_lock.py semantic_integrity_gate.py wikimedia_source.py wikimedia_query_bridge.py
+        source_router.py evidence_guard.py midia.py media_runtime_adapter_v1.py media_runtime_adapter_v2.py media_must_verifier.py vg4x_bridge.py visual_engine_unified.py
+        visual_query_expansion_v4.py visual_query_planner_v4.py visual_pipeline_bridge_v42.py visual_selection_engine_v4.py visual_intelligence_6.py
+        vi6_8_runtime_policy.py vi6_9_runtime_policy.py media_master_gate.py visual_score_engine.py motion_director.py rhythm_director.py
+        professional_edit_director.py professional_edit_repair.py multi_asset_director.py retention_engine.py sound_design_engine.py
+        production_supervisor.py editorial_gate.py speech_director.py audio.py legenda_dinamica.py subtitle_alignment.py subtitle_style_policy.py
+        professional_caption_director.py caption_layout_guard.py video_professional.py v6_professional.py audio_finalizer.py visual_qa.py
+        quality_check.py publish_pack.py source_ledger.py publish_integrity_gate.py production_manifest.py final_quality.py
+        professional_quality_gate.py release_gate.py register_topic.py storage_manager.py
+    )
+    
+    for arq in "${PY_FILES[@]}"; do
+        if [ -f "$BASE/$arq" ]; then
+            if python -m py_compile "$BASE/$arq" >/dev/null 2>&1; then ok "Python $arq"; else erro "erro Python em $arq"; fi
+        fi
+    done
+    
+    # Import-only checks: módulos sem efeitos de produção na importação.
+    if (
+        cd "$BASE" &&
+        python - <<'PY' >/dev/null 2>&1
 import importlib
 for name in (
     "subtitle_alignment",
@@ -186,10 +205,18 @@ for name in (
 ):
     importlib.import_module(name)
 PY
-); then
-    ok "imports runtime críticos 3.0.2"
-else
-    erro "dependência/import runtime crítico 3.0.2 quebrado"
+    ); then
+        ok "imports runtime críticos 3.0.2"
+    else
+        erro "dependência/import runtime crítico 3.0.2 quebrado"
+    fi
+    
+    
+
+    if [ "$ERROS" -eq "$CODE_ERRORS_BEFORE" ] && [ -n "$CODE_HEAD" ] && [ -z "$(git -C "$BASE" status --porcelain 2>/dev/null)" ]; then
+        printf '%s\n' "$CODE_HEAD" > "$CODE_CACHE" 2>/dev/null || true
+        ok "cache de validação de código atualizado"
+    fi
 fi
 
 echo

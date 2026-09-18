@@ -24,6 +24,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+import shortautopro_evolution as evo
+
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
 EVOLUTION = BASE / "shortautopro_evolution.py"
 STATE_DIR = BASE / ".sap_state"
@@ -168,31 +170,19 @@ class Pipeline:
         self.state["stages"].append(entry)
         self.state["updated_at"] = now()
         atomic_json(self.state_path, self.state)
-        if EVOLUTION.is_file():
-            try:
-                subprocess.run(
-                    [sys.executable, str(EVOLUTION), "checkpoint", "--stage", name, "--status", status, "--title", title],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    timeout=20,
-                )
-            except Exception:
-                pass
+        try:
+            evo.checkpoint(name, status, title, self.sid)
+        except Exception:
+            pass
 
     def finish(self, status: str) -> None:
         self.state["status"] = status
         self.state["finished_at"] = now()
         atomic_json(self.state_path, self.state)
-        if EVOLUTION.is_file():
-            try:
-                subprocess.run(
-                    [sys.executable, str(EVOLUTION), "finish", "--status", status],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    timeout=20,
-                )
-            except Exception:
-                pass
+        try:
+            evo.finish_production(status, self.sid)
+        except Exception:
+            pass
 
     def run(
         self,
