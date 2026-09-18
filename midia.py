@@ -3893,6 +3893,7 @@ print()
 total = 0
 videos_total = 0
 fotos_total = 0
+missing_scenes = []
 
 descricao_anterior = ""
 
@@ -4056,6 +4057,63 @@ for numero, cena in enumerate(
             avoid
         )
     )
+
+    # =================================
+    # EXPLICIT-MUST EARLY RECOVERY 1.0
+    # =================================
+    # The canonical acquisition recovery is installed on
+    # buscar_todos_candidatos(). The legacy main path historically called
+    # providers directly and therefore only reached the recovery wrapper much
+    # later during simplified-query retries. For explicit-MUST scenes, detect
+    # the absence of a fully verified asset now and merge a targeted recovery
+    # pool before selection. Validation remains strict and fail-closed.
+    if must_have:
+        try:
+            from media_must_verifier import verified_must as _sap_verified_must
+
+            def _sap_full_must(_candidate):
+                _result = _sap_verified_must(
+                    _candidate,
+                    {"must_have": must_have},
+                )
+                return (
+                    int(_result.get("total", 0) or 0) > 0
+                    and int(_result.get("hits", 0) or 0)
+                    >= int(_result.get("total", 0) or 0)
+                )
+
+            if not any(_sap_full_must(_candidate) for _candidate in todos):
+                print(
+                    "SAP_MUST_EARLY_RECOVERY=START "
+                    f"scene={numero} initial={len(todos)} must_total={len(must_have)}"
+                )
+                _recovery_pool = buscar_todos_candidatos(
+                    busca,
+                    must_have,
+                    avoid,
+                    segmento=segmento,
+                    visual_mode=visual_mode,
+                )
+                _merged = {}
+                for _candidate in list(todos) + list(_recovery_pool or []):
+                    if not isinstance(_candidate, dict):
+                        continue
+                    _key = chave_candidato_5_2(_candidate)
+                    _old = _merged.get(_key)
+                    if _old is None or score_real_5_2(_candidate) > score_real_5_2(_old):
+                        _merged[_key] = _candidate
+                todos = list(_merged.values())
+                _full_count = sum(1 for _candidate in todos if _sap_full_must(_candidate))
+                print(
+                    "SAP_MUST_EARLY_RECOVERY=MERGED "
+                    f"scene={numero} pool={len(todos)} full_must={_full_count}"
+                )
+        except Exception as _sap_early_recovery_exc:
+            print(
+                "SAP_MUST_EARLY_RECOVERY=FAIL_OPEN "
+                f"scene={numero} {type(_sap_early_recovery_exc).__name__}:"
+                f"{str(_sap_early_recovery_exc)[:160]}"
+            )
 
 
 
@@ -5315,8 +5373,26 @@ for numero, cena in enumerate(
 
     else:
 
+        missing_scenes.append(
+            {
+                "scene": numero,
+                "query": busca,
+                "must_have": must_have,
+                "avoid": avoid,
+                "visual_mode": visual_mode,
+                "candidate_count": len(todos),
+                "failed_downloads": len(falhas_download),
+                "degraded_candidates": len(degradados),
+            }
+        )
+
         print(
             "  ERRO: nenhuma mídia disponível."
+        )
+        print(
+            "  SAP_MEDIA_SCENE_MISSING "
+            f"scene={numero} candidates={len(todos)} "
+            f"must={len(must_have)} downloads_failed={len(falhas_download)}"
         )
 
 
@@ -5372,6 +5448,39 @@ print(
 
 print()
 
+
+if missing_scenes:
+    try:
+        _diag_dir = os.path.join(BASE, "reports", "media")
+        os.makedirs(_diag_dir, exist_ok=True)
+        _diag_path = os.path.join(
+            _diag_dir,
+            f"acquisition_missing_{SHORT_ID}.json"
+        )
+        with open(_diag_path, "w", encoding="utf-8") as _diag:
+            json.dump(
+                {
+                    "short_id": SHORT_ID,
+                    "total": total,
+                    "expected": len(cenas),
+                    "missing_scenes": missing_scenes,
+                },
+                _diag,
+                ensure_ascii=False,
+                indent=2,
+            )
+        print(
+            "SAP_MEDIA_MISSING_SCENES="
+            + ",".join(str(item["scene"]) for item in missing_scenes)
+        )
+        print(f"SAP_MEDIA_MISSING_REPORT={_diag_path}")
+    except Exception as _diag_exc:
+        print(
+            "SAP_MEDIA_MISSING_REPORT=FAIL_OPEN "
+            + type(_diag_exc).__name__
+            + ":"
+            + str(_diag_exc)[:160]
+        )
 
 if total != len(cenas):
 
