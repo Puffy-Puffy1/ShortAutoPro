@@ -71,9 +71,43 @@ def asset_evidence_text(candidate: Any) -> str:
     return " ".join(parts)
 
 
+def _canonical_word(token: str) -> str:
+    """Normalize only conservative English inflection, never semantic meaning."""
+    word = _norm(token)
+    if not word or " " in word:
+        return word
+
+    irregular = {
+        "men": "man",
+        "women": "woman",
+        "children": "child",
+        "people": "person",
+    }
+    if word in irregular:
+        return irregular[word]
+
+    if len(word) > 4 and word.endswith("ies"):
+        return word[:-3] + "y"
+
+    # Conservative regular plural handling. Exclusions avoid corrupting words
+    # such as class/glass/analysis/status.
+    if (
+        len(word) > 4
+        and word.endswith("s")
+        and not word.endswith(("ss", "us", "is"))
+    ):
+        return word[:-1]
+
+    return word
+
+
+def _canonical_phrase(value: Any) -> str:
+    return " ".join(_canonical_word(token) for token in _norm(value).split())
+
+
 def _phrase_present(text: str, phrase: str) -> bool:
-    normalized_text = f" {_norm(text)} "
-    normalized_phrase = _norm(phrase)
+    normalized_text = f" {_canonical_phrase(text)} "
+    normalized_phrase = _canonical_phrase(phrase)
     return bool(normalized_phrase) and f" {normalized_phrase} " in normalized_text
 
 
@@ -115,8 +149,8 @@ def requirement_matches(requirement: str, candidate: Any) -> bool:
         cand_geo = set(vse.geo_hits(evidence))
         return bool(req_geo & cand_geo)
 
-    req_tokens = _tokens(requirement)
-    cand_tokens = _tokens(evidence)
+    req_tokens = {_canonical_word(token) for token in _tokens(requirement)}
+    cand_tokens = {_canonical_word(token) for token in _tokens(evidence)}
     if req_tokens and req_tokens.issubset(cand_tokens):
         return True
 
