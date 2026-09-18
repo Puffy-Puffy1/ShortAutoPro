@@ -4059,65 +4059,6 @@ for numero, cena in enumerate(
     )
 
     # =================================
-    # EXPLICIT-MUST EARLY RECOVERY 1.0
-    # =================================
-    # The canonical acquisition recovery is installed on
-    # buscar_todos_candidatos(). The legacy main path historically called
-    # providers directly and therefore only reached the recovery wrapper much
-    # later during simplified-query retries. For explicit-MUST scenes, detect
-    # the absence of a fully verified asset now and merge a targeted recovery
-    # pool before selection. Validation remains strict and fail-closed.
-    if must_have:
-        try:
-            from media_must_verifier import verified_must as _sap_verified_must
-
-            def _sap_full_must(_candidate):
-                _result = _sap_verified_must(
-                    _candidate,
-                    {"must_have": must_have},
-                )
-                return (
-                    int(_result.get("total", 0) or 0) > 0
-                    and int(_result.get("hits", 0) or 0)
-                    >= int(_result.get("total", 0) or 0)
-                )
-
-            if not any(_sap_full_must(_candidate) for _candidate in todos):
-                print(
-                    "SAP_MUST_EARLY_RECOVERY=START "
-                    f"scene={numero} initial={len(todos)} must_total={len(must_have)}"
-                )
-                _recovery_pool = buscar_todos_candidatos(
-                    busca,
-                    must_have,
-                    avoid,
-                    segmento=segmento,
-                    visual_mode=visual_mode,
-                )
-                _merged = {}
-                for _candidate in list(todos) + list(_recovery_pool or []):
-                    if not isinstance(_candidate, dict):
-                        continue
-                    _key = chave_candidato_5_2(_candidate)
-                    _old = _merged.get(_key)
-                    if _old is None or score_real_5_2(_candidate) > score_real_5_2(_old):
-                        _merged[_key] = _candidate
-                todos = list(_merged.values())
-                _full_count = sum(1 for _candidate in todos if _sap_full_must(_candidate))
-                print(
-                    "SAP_MUST_EARLY_RECOVERY=MERGED "
-                    f"scene={numero} pool={len(todos)} full_must={_full_count}"
-                )
-        except Exception as _sap_early_recovery_exc:
-            print(
-                "SAP_MUST_EARLY_RECOVERY=FAIL_OPEN "
-                f"scene={numero} {type(_sap_early_recovery_exc).__name__}:"
-                f"{str(_sap_early_recovery_exc)[:160]}"
-            )
-
-
-
-    # =================================
     # MAIN WIKIMEDIA EVIDENCE 5.2
     # =================================
 
@@ -5015,6 +4956,106 @@ for numero, cena in enumerate(
                         candidato
                     )
         _vse42_cleanup_scene_sibling(destino)
+
+
+    # =================================
+    # EXPLICIT-MUST LATE STRICT RECOVERY 1.0
+    # =================================
+    # Preserve the normal provider/selection path first. Only scenes that are
+    # still unresolved reach the contextual MUST recovery. This avoids
+    # multiplying provider calls for scenes that already had a viable asset.
+    if not sucesso and must_have:
+        try:
+            print(
+                "SAP_MUST_LATE_RECOVERY=START "
+                f"scene={numero} must_total={len(must_have)}"
+            )
+
+            candidatos_rescue = buscar_todos_candidatos(
+                busca,
+                must_have,
+                avoid,
+                segmento=segmento,
+                visual_mode=visual_mode,
+            )
+
+            candidatos_rescue = enriquecer_wikimedia_5_2(
+                candidatos_rescue,
+                rota_fonte,
+                segmento,
+                must_have,
+                visual_mode,
+            )
+
+            pool_rescue = ordenar_failover_5_2(
+                candidatos_rescue,
+                len(must_have),
+                rota_fonte,
+                descricao_anterior,
+            )
+
+            print(
+                "SAP_MUST_LATE_RECOVERY=POOL "
+                f"scene={numero} candidates={len(candidatos_rescue)} "
+                f"strict_pool={len(pool_rescue)}"
+            )
+
+            for candidato in pool_rescue:
+                chave = chave_candidato_5_2(candidato)
+
+                if chave in falhas_download:
+                    continue
+
+                ok, destino_teste = baixar_candidato_5_2(
+                    candidato,
+                    numero,
+                    "RESCUE MUST ESTRITO",
+                )
+
+                if ok:
+                    sucesso = True
+                    escolhido = candidato
+                    destino = destino_teste
+
+                    marcar_usado(
+                        escolhido["fonte"],
+                        escolhido["id"],
+                    )
+
+                    try:
+                        from visual_selection_bridge_v42 import commit_candidate as _vse42_commit_candidate
+                        _vse42_commit_candidate(escolhido)
+                    except Exception as _vse42_commit_exc:
+                        print(
+                            "  VSE42_COMMIT_WARNING="
+                            + type(_vse42_commit_exc).__name__
+                            + ":"
+                            + str(_vse42_commit_exc)
+                        )
+
+                    print(
+                        "SAP_MUST_LATE_RECOVERY=FOUND "
+                        f"scene={numero} source={escolhido.get('fonte','?')} "
+                        f"type={escolhido.get('tipo','?')}"
+                    )
+                    _vse42_cleanup_scene_sibling(destino)
+                    break
+
+                falhas_download.add(chave)
+
+            if not sucesso:
+                print(
+                    "SAP_MUST_LATE_RECOVERY=EXHAUSTED "
+                    f"scene={numero} strict_pool={len(pool_rescue)}"
+                )
+
+        except Exception as _sap_late_recovery_exc:
+            print(
+                "SAP_MUST_LATE_RECOVERY=FAIL_OPEN "
+                f"scene={numero} "
+                f"{type(_sap_late_recovery_exc).__name__}:"
+                f"{str(_sap_late_recovery_exc)[:160]}"
+            )
 
 
     # =================================
