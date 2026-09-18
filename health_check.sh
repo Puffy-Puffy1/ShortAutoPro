@@ -4,6 +4,18 @@ set -u
 set -o pipefail
 
 BASE="$HOME/ShortAutoPro"
+CODE_CACHE="$BASE/.sap_state/preflight_code_cache.txt"
+CODE_HEAD=""
+CODE_CACHE_HIT=0
+
+if command -v git >/dev/null 2>&1 && [ -d "$BASE/.git" ]; then
+    CODE_HEAD="$(git -C "$BASE" rev-parse HEAD 2>/dev/null || true)"
+    if [ -n "$CODE_HEAD" ] && [ -z "$(git -C "$BASE" status --porcelain 2>/dev/null)" ]; then
+        if [ -f "$CODE_CACHE" ] && [ "$(cat "$CODE_CACHE" 2>/dev/null)" = "$CODE_HEAD" ]; then
+            CODE_CACHE_HIT=1
+        fi
+    fi
+fi
 
 echo
 echo "======================================"
@@ -95,47 +107,52 @@ WHISPER_MODEL="${WHISPER_MODEL:-$HOME/whisper.cpp/models/ggml-base.bin}"
 if [ -x "$WHISPER_CLI" ]; then echo "OK  Whisper CLI"; else echo "ERRO  Whisper CLI ausente: $WHISPER_CLI"; ERROS=$((ERROS + 1)); fi
 if [ -f "$WHISPER_MODEL" ]; then echo "OK  Whisper model"; else echo "ERRO  Whisper model ausente: $WHISPER_MODEL"; ERROS=$((ERROS + 1)); fi
 
-# Import-only smoke test para dependências internas sem disparar produção.
-if (
-    cd "$BASE" &&
-    python - <<'PY' >/dev/null 2>&1
-import importlib
-for name in (
-    "subtitle_alignment",
-    "subtitle_style_policy",
-    "visual_shot_policy",
-    "visual_editorial_policy",
-    "visual_shot_bridge",
-    "topic_memory",
-    "topic_reserve",
-    "source_identity",
-    "wiki_client",
-    "visual_selection_engine_v4",
-    "media_must_verifier",
-    "media_strict_must_guard",
-    "media_acquisition_recovery",
-    "visual_engine_unified",
-    "visual_query_expansion_v4",
-    "media_runtime_adapter_v1",
-    "media_runtime_adapter_v2",
-    "vg4x_bridge",
-    "visual_continuity_engine",
-    "visual_score_engine",
-    "retention_engine",
-    "sound_design_engine",
-    "shortauto_brain",
-    "shortauto_director_ai",
-    "shortauto_asset_library",
-    "shortauto_repair_engine",
-    "shortauto_intelligence_layer",
-):
-    importlib.import_module(name)
-PY
-); then
-    echo "OK  imports runtime críticos 3.0.2"
+if [ "$CODE_CACHE_HIT" -eq 1 ]; then
+    echo "OK  imports runtime críticos 3.0.2 (cache commit $CODE_HEAD)"
 else
-    echo "ERRO  imports runtime críticos 3.0.2"
-    ERROS=$((ERROS + 1))
+    # Import-only smoke test para dependências internas sem disparar produção.
+    if (
+        cd "$BASE" &&
+        python - <<'PY' >/dev/null 2>&1
+    import importlib
+    for name in (
+        "subtitle_alignment",
+        "subtitle_style_policy",
+        "visual_shot_policy",
+        "visual_editorial_policy",
+        "visual_shot_bridge",
+        "topic_memory",
+        "topic_reserve",
+        "source_identity",
+        "wiki_client",
+        "visual_selection_engine_v4",
+        "media_must_verifier",
+        "media_strict_must_guard",
+        "media_acquisition_recovery",
+        "visual_engine_unified",
+        "visual_query_expansion_v4",
+        "media_runtime_adapter_v1",
+        "media_runtime_adapter_v2",
+        "vg4x_bridge",
+        "visual_continuity_engine",
+        "visual_score_engine",
+        "retention_engine",
+        "sound_design_engine",
+        "shortauto_brain",
+        "shortauto_director_ai",
+        "shortauto_asset_library",
+        "shortauto_repair_engine",
+        "shortauto_intelligence_layer",
+    ):
+        importlib.import_module(name)
+    PY
+    ); then
+        echo "OK  imports runtime críticos 3.0.2"
+    else
+        echo "ERRO  imports runtime críticos 3.0.2"
+        ERROS=$((ERROS + 1))
+    fi
+    
 fi
 
 echo
