@@ -36,7 +36,7 @@ def measure(path:Path)->dict[str,float]:
 
 def remaster(path:Path,m:dict[str,float])->None:
  tmp=path.with_name(f".{path.stem}.master.{os.getpid()}.mp4")
- filt=(f"loudnorm=I={TARGET}:TP={TP}:LRA={LRA}:measured_I={m['lufs']}:measured_TP={m['true_peak_db']}:measured_LRA={m['lra']}:measured_thresh={m['threshold']}:offset={m['offset']}:linear=true:print_format=summary,alimiter=limit={10**(TP/20):.6f}")
+ filt=(f"loudnorm=I={TARGET}:TP={TP}:LRA={LRA}:measured_I={m['lufs']}:measured_TP={m['true_peak_db']}:measured_LRA={m['lra']}:measured_thresh={m['threshold']}:offset={m['offset']}:linear=true:print_format=summary,alimiter=limit={10**(TP/20):.6f}:level=false")
  cmd=["ffmpeg","-y","-loglevel","error","-i",str(path),"-map","0:v:0","-map","0:a:0","-c:v","copy","-af",filt,"-c:a","aac","-b:a","192k","-ar","48000","-movflags","+faststart",str(tmp)]
  try:
   subprocess.run(cmd,check=True,timeout=180)
@@ -59,7 +59,7 @@ def main()->int:
    after=before
    measurement_source="unchanged_reuse"
   ok=abs(after["lufs"]-TARGET)<=max(1.0,tolerance_lufs) and after["true_peak_db"]<=TP+0.35
-  payload={"short_id":SID,"version":"1.1","generated_at":datetime.now().astimezone().isoformat(timespec="seconds"),"target":{"lufs":TARGET,"true_peak_db":TP,"lra":LRA},"before":before,"remastered":need,"after":after,"measurement_source":measurement_source,"status":"PASS" if ok else "BLOCK"}; atomic(REPORT,payload)
+  payload={"short_id":SID,"version":"1.2","generated_at":datetime.now().astimezone().isoformat(timespec="seconds"),"target":{"lufs":TARGET,"true_peak_db":TP,"lra":LRA},"before":before,"remastered":need,"after":after,"measurement_source":measurement_source,"status":"PASS" if ok else "BLOCK"}; atomic(REPORT,payload)
  except Exception as exc: print(f"ERRO AUDIO FINALIZER: {exc}"); return 1
  print(f"FINAL AUDIO: {payload['status']} | LUFS {after['lufs']:.2f} | TP {after['true_peak_db']:.2f} dB | remaster={'SIM' if need else 'NAO'}")
  return 0 if ok else 1
