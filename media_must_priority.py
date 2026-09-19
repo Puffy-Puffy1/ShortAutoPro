@@ -26,6 +26,33 @@ OBJECT_STRICT_ANCHORS = {
     "ornate golden frames": "picture frame",
 }
 
+STOCK_CONTEXT_MODIFIERS = {
+    "old", "antique", "vintage", "historic", "historical", "archive",
+    "archival", "dark", "empty", "ornate", "golden", "classic",
+    "dramatic", "mysterious", "traditional", "ancient",
+}
+
+
+def _conservative_stock_anchor(term: str, mode: str) -> str:
+    raw = str(term or "").strip().casefold()
+    if not raw:
+        return ""
+    if mode == "object" and raw in OBJECT_STRICT_ANCHORS:
+        return OBJECT_STRICT_ANCHORS[raw]
+
+    tokens = _tokens(raw)
+    if len(tokens) <= 1:
+        return raw
+
+    kept = [token for token in tokens if token not in STOCK_CONTEXT_MODIFIERS]
+    # Never reduce a multiword contract to nothing. A one-word central object
+    # is acceptable only when every removed token was a known visual modifier.
+    if not kept:
+        return raw
+    if len(kept) == len(tokens):
+        return raw
+    return " ".join(kept)
+
 
 def _tokens(value: Any) -> list[str]:
     return re.findall(r"[a-z0-9]+", str(value or "").casefold())
@@ -51,10 +78,10 @@ def prioritize(
     visual_mode: str = "",
 ) -> dict[str, list[str]]:
     original = [str(x).strip().lower() for x in must_have if str(x).strip()]
-    if len(original) <= 1:
-        return {"strict": original, "context": []}
-
     mode = str(visual_mode or "").strip().casefold()
+
+    if not original:
+        return {"strict": [], "context": []}
     if mode not in STOCK_MODES:
         return {"strict": original, "context": []}
 
@@ -63,19 +90,17 @@ def prioritize(
     if mode in {"human_context", "human context"} and len(original) >= 3:
         strict_count = 2
 
-    strict = ranked[:strict_count]
-    context = [item for item in original if item not in strict]
+    strict_original = ranked[:strict_count]
+    context = [item for item in original if item not in strict_original]
+    strict = []
 
-    if mode == "object":
-        rewritten = []
-        for item in strict:
-            anchor = OBJECT_STRICT_ANCHORS.get(item, item)
-            rewritten.append(anchor)
-            if anchor != item and item not in context:
-                context.append(item)
-        strict = rewritten
+    for item in strict_original:
+        anchor = _conservative_stock_anchor(item, mode)
+        strict.append(anchor)
+        if anchor != item and item not in context:
+            context.append(item)
 
     return {"strict": strict, "context": context}
 
 
-__all__ = ["prioritize"]
+__all__ = ["prioritize", "_conservative_stock_anchor"]
