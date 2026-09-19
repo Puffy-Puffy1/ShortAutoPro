@@ -84,9 +84,9 @@ def main() -> int:
         return 1
 
     try:
-        max_rounds = int(os.getenv("SAP_MEDIA_STAGE_ROUNDS", "3") or 3)
+        max_rounds = int(os.getenv("SAP_MEDIA_STAGE_ROUNDS", "4") or 4)
     except ValueError:
-        max_rounds = 3
+        max_rounds = 4
     max_rounds = max(1, min(max_rounds, 5))
 
     previous_missing: set[int] | None = None
