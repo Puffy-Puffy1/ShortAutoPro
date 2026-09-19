@@ -20,8 +20,12 @@ import re
 import json
 import hashlib
 from concurrent.futures import ThreadPoolExecutor
+import threading
 import requests
+from requests.adapters import HTTPAdapter
 from datetime import date
+
+from production_profiler import record as _sap_profile_record
 
 from wikimedia_source import (
     buscar_wikimedia_fotos,
@@ -127,6 +131,50 @@ try:
     )
 except ValueError:
     VIDEO_TOLERANCIA = 18.0
+
+
+# ==================================================
+# PRODUCTION NETWORK RUNTIME
+# ==================================================
+
+try:
+    _PROVIDER_WORKERS = int(
+        os.getenv("SAP_MEDIA_PROVIDER_WORKERS", "6") or 6
+    )
+except (TypeError, ValueError):
+    _PROVIDER_WORKERS = 6
+
+_PROVIDER_WORKERS = max(2, min(_PROVIDER_WORKERS, 6))
+
+_PROVIDER_EXECUTOR = ThreadPoolExecutor(
+    max_workers=_PROVIDER_WORKERS
+)
+
+_HTTP_SESSIONS = {}
+_HTTP_SESSIONS_LOCK = threading.Lock()
+
+
+def _sap_http_session(name):
+    key = str(name or "default").strip().lower()
+    with _HTTP_SESSIONS_LOCK:
+        session = _HTTP_SESSIONS.get(key)
+        if session is not None:
+            return session
+        session = requests.Session()
+        adapter = HTTPAdapter(
+            pool_connections=8,
+            pool_maxsize=8,
+            max_retries=0,
+        )
+        session.mount("https://", adapter)
+        session.mount("http://", adapter)
+        session.headers.update(
+            {
+                "User-Agent": "ShortAutoPro/5.2 ProductionClient/1.0"
+            }
+        )
+        _HTTP_SESSIONS[key] = session
+        return session
 
 
 # ==================================================
@@ -1116,7 +1164,7 @@ def baixar(
                 "application/octet-stream;q=0.9,*/*;q=0.5"
         }
 
-        r = requests.get(
+        r = _sap_http_session("download").get(
             url,
             timeout=timeout,
             stream=True,
@@ -1545,7 +1593,7 @@ def pexels_video(
 
     try:
 
-        r = requests.get(
+        r = _sap_http_session("pexels_video").get(
             "https://api.pexels.com/videos/search",
             headers={
                 "Authorization":
@@ -1600,6 +1648,8 @@ def pexels_video(
             )
         )
 
+        melhor_variante = None
+
         for arq in item.get(
             "video_files",
             []
@@ -1634,17 +1684,37 @@ def pexels_video(
                 ident
             )
 
+            candidato_variante = {
+                "score": score,
+                "must_hits": must_hits,
+                "avoid_hits": avoid_hits,
+                "id": ident,
+                "url": url,
+                "fonte": "Pexels",
+                "tipo": "vídeo",
+                "descricao": descricao,
+                "_variant_width": w,
+                "_variant_height": h,
+            }
+
+            if (
+                melhor_variante is None
+                or (
+                    candidato_variante["score"],
+                    w * h,
+                )
+                >
+                (
+                    melhor_variante["score"],
+                    int(melhor_variante.get("_variant_width", 0) or 0)
+                    * int(melhor_variante.get("_variant_height", 0) or 0),
+                )
+            ):
+                melhor_variante = candidato_variante
+
+        if melhor_variante is not None:
             saida.append(
-                {
-                    "score": score,
-                    "must_hits": must_hits,
-                    "avoid_hits": avoid_hits,
-                    "id": ident,
-                    "url": url,
-                    "fonte": "Pexels",
-                    "tipo": "vídeo",
-                    "descricao": descricao
-                }
+                melhor_variante
             )
 
     return saida
@@ -1666,7 +1736,7 @@ def pexels_foto(
 
     try:
 
-        r = requests.get(
+        r = _sap_http_session("pexels_foto").get(
             "https://api.pexels.com/v1/search",
             headers={
                 "Authorization":
@@ -1781,7 +1851,7 @@ def pixabay_video(
 
     try:
 
-        r = requests.get(
+        r = _sap_http_session("pixabay_video").get(
             "https://pixabay.com/api/videos/",
             params={
                 "key": PIXABAY_KEY,
@@ -1832,6 +1902,8 @@ def pixabay_video(
             {}
         )
 
+        melhor_variante = None
+
         for chave in [
             "large",
             "medium",
@@ -1873,17 +1945,37 @@ def pixabay_video(
                 ident
             )
 
+            candidato_variante = {
+                "score": score,
+                "must_hits": must_hits,
+                "avoid_hits": avoid_hits,
+                "id": ident,
+                "url": url,
+                "fonte": "Pixabay",
+                "tipo": "vídeo",
+                "descricao": descricao,
+                "_variant_width": w,
+                "_variant_height": h,
+            }
+
+            if (
+                melhor_variante is None
+                or (
+                    candidato_variante["score"],
+                    w * h,
+                )
+                >
+                (
+                    melhor_variante["score"],
+                    int(melhor_variante.get("_variant_width", 0) or 0)
+                    * int(melhor_variante.get("_variant_height", 0) or 0),
+                )
+            ):
+                melhor_variante = candidato_variante
+
+        if melhor_variante is not None:
             saida.append(
-                {
-                    "score": score,
-                    "must_hits": must_hits,
-                    "avoid_hits": avoid_hits,
-                    "id": ident,
-                    "url": url,
-                    "fonte": "Pixabay",
-                    "tipo": "vídeo",
-                    "descricao": descricao
-                }
+                melhor_variante
             )
 
     return saida
@@ -1905,7 +1997,7 @@ def pixabay_foto(
 
     try:
 
-        r = requests.get(
+        r = _sap_http_session("pixabay_foto").get(
             "https://pixabay.com/api/",
             params={
                 "key": PIXABAY_KEY,
@@ -2013,7 +2105,7 @@ def coverr_video(
 
     try:
 
-        r = requests.get(
+        r = _sap_http_session("coverr_video").get(
             "https://api.coverr.co/videos",
             headers={
                 "Authorization":
@@ -2421,48 +2513,41 @@ def buscar_todos_candidatos(
 
         try:
 
-            with ThreadPoolExecutor(
-                max_workers=min(
-                    max_workers,
-                    len(provider_jobs)
+            futures = {
+                name: _PROVIDER_EXECUTOR.submit(
+                    job
                 )
-            ) as executor:
+                for name, job
+                in provider_jobs
+            }
 
-                futures = {
-                    name: executor.submit(
-                        job
+            # Coleta na ordem canônica dos providers.
+            # As chamadas executam em paralelo, mas a ordem final dos
+            # candidatos permanece determinística.
+            for name, _ in provider_jobs:
+
+                try:
+                    provider_results[
+                        name
+                    ] = list(
+                        futures[
+                            name
+                        ].result()
+                        or []
                     )
-                    for name, job
-                    in provider_jobs
-                }
 
-                # Coleta na ordem canônica dos providers.
-                # As chamadas executam em paralelo, mas a ordem final dos
-                # candidatos permanece determinística.
-                for name, _ in provider_jobs:
+                except Exception as exc:
 
-                    try:
-                        provider_results[
-                            name
-                        ] = list(
-                            futures[
-                                name
-                            ].result()
-                            or []
-                        )
+                    provider_results[
+                        name
+                    ] = []
 
-                    except Exception as exc:
-
-                        provider_results[
-                            name
-                        ] = []
-
-                        print(
-                            "SAP_MEDIA_PROVIDER_FAIL_OPEN "
-                            f"provider={name} "
-                            f"{type(exc).__name__}:"
-                            f"{str(exc)[:140]}"
-                        )
+                    print(
+                        "SAP_MEDIA_PROVIDER_FAIL_OPEN "
+                        f"provider={name} "
+                        f"{type(exc).__name__}:"
+                        f"{str(exc)[:140]}"
+                    )
 
         except Exception as exc:
 
@@ -4418,6 +4503,8 @@ print(
 print()
 
 
+_media_stage_started = time.monotonic()
+
 total = 0
 videos_total = 0
 fotos_total = 0
@@ -4455,6 +4542,8 @@ for numero, cena in enumerate(
     cenas,
     start=1
 ):
+
+    _scene_started = time.monotonic()
 
     busca = str(
         cena.get(
@@ -4526,6 +4615,16 @@ for numero, cena in enumerate(
             f"file={os.path.basename(_cached_path)}"
         )
 
+        _sap_profile_record(
+            "media_scene",
+            time.monotonic() - _scene_started,
+            short_id=SHORT_ID,
+            category="media",
+            scene=numero,
+            status="cache_hit",
+            candidates=0,
+        )
+
         continue
 
 
@@ -4564,6 +4663,8 @@ for numero, cena in enumerate(
     # Single canonical acquisition path.
     # Provider calls run in parallel inside buscar_todos_candidatos(), while
     # explicit-MUST recovery remains bounded/cached by the installed wrapper.
+    _acquisition_started = time.monotonic()
+
     todos = list(
         buscar_todos_candidatos(
             busca,
@@ -4575,9 +4676,22 @@ for numero, cena in enumerate(
         or []
     )
 
+    _acquisition_elapsed = time.monotonic() - _acquisition_started
+
+    _sap_profile_record(
+        "media_acquisition",
+        _acquisition_elapsed,
+        short_id=SHORT_ID,
+        category="media",
+        scene=numero,
+        candidates=len(todos),
+        must=len(must_have),
+    )
+
     print(
         "SAP_MEDIA_INITIAL_ACQUISITION=CANONICAL_PARALLEL "
-        f"scene={numero} candidates={len(todos)}"
+        f"scene={numero} candidates={len(todos)} "
+        f"elapsed={_acquisition_elapsed:.2f}s"
     )
 
     # =================================
@@ -4730,17 +4844,27 @@ for numero, cena in enumerate(
                 vi6_history
             )
 
-            vi6_path, vi6_summary = (
-                vi6_salvar_report(
-                    SHORT_ID,
-                    vi6_scenes
-                )
+            _vi6_persist_now = (
+                numero == len(cenas)
+                or numero % 4 == 0
             )
 
-            print(
-                f"    STORYBOARD="
-                f"{vi6_summary.get('storyboard_score', 0)}/100"
-            )
+            if _vi6_persist_now:
+                vi6_path, vi6_summary = (
+                    vi6_salvar_report(
+                        SHORT_ID,
+                        vi6_scenes
+                    )
+                )
+
+                print(
+                    f"    STORYBOARD="
+                    f"{vi6_summary.get('storyboard_score', 0)}/100"
+                )
+            else:
+                print(
+                    "    STORYBOARD=PERSIST_DEFERRED"
+                )
 
         except Exception as e:
 
@@ -5970,6 +6094,17 @@ for numero, cena in enumerate(
         )
 
 
+    _sap_profile_record(
+        "media_scene",
+        time.monotonic() - _scene_started,
+        short_id=SHORT_ID,
+        category="media",
+        scene=numero,
+        status="pass" if sucesso else "missing",
+        candidates=len(todos),
+        must=len(must_have),
+    )
+
     try:
         _scene_delay = float(
             os.getenv(
@@ -5988,6 +6123,16 @@ for numero, cena in enumerate(
             )
         )
 
+
+_sap_profile_record(
+    "media_stage",
+    time.monotonic() - _media_stage_started,
+    short_id=SHORT_ID,
+    category="stage",
+    total=total,
+    expected=len(cenas),
+    missing=[item.get("scene") for item in missing_scenes],
+)
 
 # ==================================================
 # RESUMO
