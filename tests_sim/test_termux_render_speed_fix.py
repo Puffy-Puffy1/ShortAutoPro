@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 class TermuxRenderSpeedFixTests(unittest.TestCase):
     def test_termux_defaults_to_veryfast_but_keeps_override(self):
         text = (ROOT / "v6_professional.py").read_text(encoding="utf-8")
-        self.assertIn('return "veryfast" if termux_runtime() else "fast"', text)
+        self.assertIn('return "superfast" if termux_runtime() else "fast"', text)
         self.assertIn('os.getenv("SHORT_PRESET", "")', text)
 
     def test_output_contract_is_preserved(self):
@@ -38,7 +38,9 @@ class TermuxRenderSpeedFixTests(unittest.TestCase):
         text = (ROOT / "v6_professional.py").read_text(encoding="utf-8")
         self.assertIn('SAP_RENDER_MOBILE_FASTPATH', text)
         self.assertIn("and not mobile_fastpath", text)
-        self.assertIn("unsharp_size = 3 if mobile_fastpath else 5", text)
+        self.assertIn('if mobile_fastpath:', text)
+        self.assertIn('detail_filter = ""', text)
+        self.assertIn('unsharp_size = 5', text)
 
     def test_render_threads_and_timing_are_reported(self):
         text = (ROOT / "v6_professional.py").read_text(encoding="utf-8")

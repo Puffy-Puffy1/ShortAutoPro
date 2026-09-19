@@ -84,7 +84,7 @@ def render_preset() -> str:
     explicit = os.getenv("SHORT_PRESET", "").strip()
     if explicit:
         return explicit
-    return "veryfast" if termux_runtime() else "fast"
+    return "superfast" if termux_runtime() else "fast"
 
 
 def render_threads() -> int:
@@ -239,12 +239,20 @@ def main() -> int:
     else:
         zoom_filter = ""
 
-    unsharp_size = 3 if mobile_fastpath else 5
+    if mobile_fastpath:
+        detail_filter = ""
+    else:
+        unsharp_size = 5
+        detail_filter = (
+            f"unsharp={unsharp_size}:{unsharp_size}:{sharpness:.4f}:"
+            f"{unsharp_size}:{unsharp_size}:0.0,"
+        )
+
     video_filter = (
         base_filter
         + zoom_filter
         + f"eq=contrast={contrast:.4f}:saturation={saturation:.4f}:brightness={brightness:.4f},"
-        + f"unsharp={unsharp_size}:{unsharp_size}:{sharpness:.4f}:{unsharp_size}:{unsharp_size}:0.0,"
+        + detail_filter
         + f"ass='{ass}'[v]"
     )
 
@@ -293,7 +301,7 @@ def main() -> int:
         str(OUTPUT),
     ])
 
-    print("\n================================\nV6 PROFESSIONAL RENDERER 2.1\n================================")
+    print("\n================================\nV6 PROFESSIONAL RENDERER 2.2\n================================")
     print(f"Perfil: {plan.get('profile','default')} | estilo: {plan.get('style','premium_documentary')}")
     print(f"Music mood: {mood or 'generic'} | Music: {'ON' if music else 'OFF'} | timed SFX: {len(timed_events)}")
     print(f"Ducking: ratio={duck_ratio:.1f} attack={duck_attack}ms release={duck_release}ms")
@@ -301,6 +309,7 @@ def main() -> int:
     print(
         f"Render preset: {preset} | threads={threads} | "
         f"mobile_fastpath={'ON' if mobile_fastpath else 'OFF'} | "
+        f"mobile_unsharp={'OFF' if mobile_fastpath else 'ON'} | "
         f"base={base_w}x{base_h} range={base_range or 'unknown'}"
     )
     print()
@@ -311,7 +320,7 @@ def main() -> int:
     if not OUTPUT.is_file() or OUTPUT.stat().st_size < 500_000: print("ERRO V6 PROFESSIONAL: saída ausente ou pequena demais"); return 1
     render_elapsed = time.monotonic() - render_started
     runtime["sound_render"] = {
-        "version": "2.1",
+        "version": "2.2",
         "music_mood": mood,
         "music_file": Path(music).name if music else None,
         "duck_ratio": duck_ratio,
