@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import hashlib
 import json
 import math
 import os
@@ -36,6 +37,7 @@ VIDEO = BASE / "videos" / f"short_v6_{SHORT_ID}.mp4"
 LOG = BASE / "logs" / "producao" / f"short_{SHORT_ID}.log"
 MEDIA_DIR = BASE / "imagens" / f"short_{SHORT_ID}"
 INTELLIGENCE_DIR = BASE / "reports" / "intelligence"
+RENDER_IDENTITY = MANIFEST_DIR / f"{SHORT_ID}_render_identity.json"
 MEDIA_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".mp4"}
 
 
@@ -122,6 +124,10 @@ def ffprobe(path: Path):
     return data if isinstance(data, dict) else {}
 
 
+def text_sha256(value: str) -> str:
+    return hashlib.sha256(str(value or "").encode("utf-8")).hexdigest()
+
+
 def count_words(text: str) -> int:
     return len(re.findall(r"\b[\wÀ-ÿ'-]+\b", str(text), flags=re.UNICODE))
 
@@ -185,6 +191,7 @@ def build_manifest(probe_data=None):
     source = read_text(FONTE)
     publish = read_json(PUBLISH)
     publish_integrity = read_json(PUBLISH_INTEGRITY)
+    render_identity = read_json(RENDER_IDENTITY)
     ledger = read_json(LEDGER)
     scene_map = read_json(SCENE_MAP)
     intelligence = {
@@ -225,6 +232,15 @@ def build_manifest(probe_data=None):
     if not isinstance(hashtags, list):
         hashtags = []
 
+    topic_sha = text_sha256(topic) if topic else ""
+    render_topic_sha = str(render_identity.get("topic_sha256", "") or "")
+    render_identity_match = bool(
+        render_identity
+        and str(render_identity.get("short_id", "") or "") == SHORT_ID
+        and topic_sha
+        and render_topic_sha == topic_sha
+    )
+
     video_exists = False
     try:
         video_exists = VIDEO.is_file() and VIDEO.stat().st_size > 500_000
@@ -255,6 +271,7 @@ def build_manifest(probe_data=None):
         "publish_hashtags_ok": len(hashtags) == 5,
         "publish_integrity_pass": publish_integrity.get("status") == "PASS",
         "source_ledger_exists": bool(ledger) and ledger.get("short_id") == SHORT_ID,
+        "render_identity_match": render_identity_match,
     }
 
     quality_pass = all(quality.values())
@@ -276,6 +293,12 @@ def build_manifest(probe_data=None):
             "integrity_report": str(PUBLISH_INTEGRITY),
         },
         "source_ledger": str(LEDGER),
+        "artifact_identity": {
+            "canonical_topic_sha256": topic_sha,
+            "render_identity_path": str(RENDER_IDENTITY),
+            "render_identity": render_identity,
+            "match": render_identity_match,
+        },
         "scenes": {
             "map_path": str(SCENE_MAP),
             "expected_count": QTD_CENAS,
