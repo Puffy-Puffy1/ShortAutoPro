@@ -36,12 +36,23 @@ def choose_group_size(words, start_index=0):
     return min(3, len(remaining))
 
 
+DANGLING_END_WORDS = {
+    "a", "o", "as", "os", "de", "da", "do", "das", "dos", "e", "em",
+    "na", "no", "nas", "nos", "para", "por", "com", "que", "se",
+    "the", "a", "an", "of", "to", "for", "and", "or", "in", "on", "with",
+}
+
+
+def _word_norm(value):
+    return re.sub(r"[^a-zà-ÿ0-9]+", "", str(value or "").casefold())
+
+
 def group_timed_words(timed_words):
     """Split aligned words into compact editorial phrases without losing words."""
     result = []
     index = 0
+    raw_words = [item.get("text", "") for item in timed_words]
     while index < len(timed_words):
-        raw_words = [item.get("text", "") for item in timed_words]
         size = choose_group_size(raw_words, index)
         if size <= 0:
             break
@@ -49,7 +60,22 @@ def group_timed_words(timed_words):
         if group:
             result.append(group)
         index += size
-    return result
+
+    # Avoid captions ending in weak connectors such as "que ele seria o".
+    # Rebalance only adjacent groups and preserve every aligned word/timestamp.
+    for i in range(len(result) - 1):
+        current = result[i]
+        nxt = result[i + 1]
+        if not current or not nxt:
+            continue
+        last = _word_norm(current[-1].get("text", ""))
+        if last not in DANGLING_END_WORDS:
+            continue
+        if len(current) < 4 and len(nxt) >= 3:
+            current.append(nxt.pop(0))
+        elif len(current) > 2:
+            nxt.insert(0, current.pop())
+    return [group for group in result if group]
 
 
 def style_header(font_name=DEFAULT_FONT):
