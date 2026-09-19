@@ -111,8 +111,26 @@ def setup_env() -> None:
 
 def allocate_id() -> str:
     existing = os.getenv("SHORT_ID", "").strip()
+    allow_reuse = os.getenv("SAP_REUSE_SHORT_ID", "0").strip() == "1"
+
     if existing:
-        return existing
+        if allow_reuse:
+            return existing
+
+        artifact_candidates = (
+            STATE_DIR / f"pipeline_{existing}.json",
+            BASE / "videos" / f"short_v6_{existing}.mp4",
+            BASE / "roteiros" / f"scene_map_{existing}.json",
+            BASE / "roteiros" / f"short_{existing}.txt",
+        )
+        if not any(path.exists() for path in artifact_candidates):
+            return existing
+
+        print(
+            "SAP_SHORT_ID_STALE_ENV=IGNORED "
+            f"id={existing} reason=EXISTING_ARTIFACTS"
+        )
+
     return datetime.now().strftime("%Y%m%d_%H%M%S_%f") + "_" + secrets.token_hex(3)
 
 
