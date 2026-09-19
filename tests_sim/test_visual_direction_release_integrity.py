@@ -26,7 +26,8 @@ class VisualDirectionReleaseIntegrityTests(unittest.TestCase):
             "score": 100,
         }
         runtime_bridge.note_selected(candidate)
-        pool, _ = runtime_bridge.rerank_pool([
+        with mock.patch.dict(os.environ, {"SAP_VSE42_RUNTIME": "1", "SAP_VISUAL_QUALITY_V1": "1"}, clear=False):
+            pool, _ = runtime_bridge.rerank_pool([
             candidate,
             {
                 "provider": "Pixabay",
@@ -35,11 +36,11 @@ class VisualDirectionReleaseIntegrityTests(unittest.TestCase):
                 "description": "museum gallery artwork",
                 "score": 90,
             },
-        ], {
-            "segment": "museum gallery artwork",
-            "visual_query": "museum art",
-            "must_have": [],
-        })
+            ], {
+                "segment": "museum gallery artwork",
+                "visual_query": "museum art",
+                "must_have": [],
+            })
         self.assertNotEqual(pool[0].get("id"), "same")
 
     def test_video_gets_recovery_boost_after_photo_streak(self):
@@ -56,11 +57,12 @@ class VisualDirectionReleaseIntegrityTests(unittest.TestCase):
             "provider": "Pixabay", "tipo": "video", "id": "v",
             "description": "museum interior architecture", "score": 100,
         }
-        pool, _ = runtime_bridge.rerank_pool([photo, video], {
-            "segment": "museum interior architecture",
-            "visual_query": "museum interior architecture",
-            "must_have": [],
-        })
+        with mock.patch.dict(os.environ, {"SAP_VSE42_RUNTIME": "1", "SAP_VISUAL_QUALITY_V1": "1"}, clear=False):
+            pool, _ = runtime_bridge.rerank_pool([photo, video], {
+                "segment": "museum interior architecture",
+                "visual_query": "museum interior architecture",
+                "must_have": [],
+            })
         self.assertEqual(pool[0].get("id"), "v")
 
     def test_concrete_scene_penalizes_generic_investigation_asset(self):
