@@ -1,4 +1,5 @@
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -51,8 +52,8 @@ class ProductionCenterConsolidationTests(unittest.TestCase):
             b = state / "pipeline_new.json"
             a.write_text("{}", encoding="utf-8")
             b.write_text("{}", encoding="utf-8")
-            a.touch()
-            b.touch()
+            os.utime(a, (1000, 1000))
+            os.utime(b, (2000, 2000))
             with mock.patch.object(production_doctor, "BASE", base):
                 self.assertEqual(production_doctor.latest_short_id(), "new")
 
