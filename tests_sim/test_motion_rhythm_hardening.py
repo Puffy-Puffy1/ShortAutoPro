@@ -112,10 +112,13 @@ class MotionRhythmHardeningTests(unittest.TestCase):
         self.assertIn("largura * altura < 320 * 180", source)
         self.assertIn("def _sap_professional_media_accept_v1", source)
         pipeline = (REPO / "main.py").read_text(encoding="utf-8")
-        self.assertIn('p.run("6 - SMART MEDIA SELECTOR", "midia.py"', pipeline)
+        self.assertIn('p.run("6 - SMART MEDIA SELECTOR", "media_stage_runtime.py"', pipeline)
         self.assertNotIn("midia_runtime.py", pipeline)
         self.assertFalse((REPO / "gerar_short.sh").exists())
+        runtime = (REPO / "media_stage_runtime.py").read_text(encoding="utf-8")
+        self.assertIn('MIDIA = BASE / "midia.py"', runtime)
         compile(source, str(MIDIA), "exec")
+        compile(runtime, "media_stage_runtime.py", "exec")
 
 
 if __name__ == "__main__":
