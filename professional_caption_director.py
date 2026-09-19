@@ -26,39 +26,39 @@ REPORT = BASE / "roteiros" / f"pro_caption_{SHORT_ID}.json"
 
 PRESETS: dict[str, dict[str, Any]] = {
     "default": {
-        "font_size": 62,
+        "font_size": 69,
         "outline": 4,
         "shadow": 0,
         "margin_l": 120,
         "margin_r": 120,
-        "margin_v": 300,
+        "margin_v": 330,
         "break_chars": 29,
     },
     "true_crime": {
-        "font_size": 62,
+        "font_size": 69,
         "outline": 4,
         "shadow": 0,
         "margin_l": 125,
         "margin_r": 125,
-        "margin_v": 305,
+        "margin_v": 335,
         "break_chars": 28,
     },
     "cinepulsar": {
-        "font_size": 64,
+        "font_size": 70,
         "outline": 4,
         "shadow": 1,
         "margin_l": 110,
         "margin_r": 110,
-        "margin_v": 285,
+        "margin_v": 320,
         "break_chars": 30,
     },
     "psicotoon": {
-        "font_size": 63,
+        "font_size": 69,
         "outline": 4,
         "shadow": 1,
         "margin_l": 115,
         "margin_r": 115,
-        "margin_v": 292,
+        "margin_v": 325,
         "break_chars": 29,
     },
 }
@@ -256,7 +256,7 @@ def transform(content: str, profile: str) -> tuple[str, dict[str, Any]]:
 
     report = {
         "short_id": SHORT_ID,
-        "version": "PRO_CAPTION_1.0",
+        "version": "PRO_CAPTION_1.1",
         "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
         "profile": profile,
         "status": "PASS" if score >= 88.0 else "REVIEW",
@@ -288,7 +288,7 @@ def main() -> int:
         return 1
 
     print("\n================================")
-    print("PROFESSIONAL CAPTION DIRECTOR 1.0")
+    print("PROFESSIONAL CAPTION DIRECTOR 1.1")
     print("================================")
     print(f"Perfil: {PROFILE}")
     print(f"Score: {report['score']}/100 | status={report['status']}")
