@@ -13,6 +13,7 @@ import json
 import math
 import os
 import subprocess
+import time
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -48,6 +49,53 @@ def safe_float(value: Any, default: float, low: float, high: float) -> float:
     except (TypeError, ValueError, OverflowError): number = default
     if not math.isfinite(number): number = default
     return max(low, min(high, number))
+
+
+def video_stream_info(path: Path) -> dict[str, Any]:
+    try:
+        raw = subprocess.check_output(
+            [
+                "ffprobe", "-v", "error",
+                "-select_streams", "v:0",
+                "-show_entries", "stream=width,height,pix_fmt,color_range",
+                "-of", "json",
+                str(path),
+            ],
+            text=True,
+            timeout=45,
+        )
+        data = json.loads(raw)
+        streams = data.get("streams", []) if isinstance(data, dict) else []
+        return streams[0] if streams and isinstance(streams[0], dict) else {}
+    except Exception:
+        return {}
+
+
+def termux_runtime() -> bool:
+    prefix = os.getenv("PREFIX", "")
+    return (
+        "com.termux" in prefix
+        or "com.termux" in str(BASE)
+        or os.getenv("TERMUX_VERSION") is not None
+    )
+
+
+def render_preset() -> str:
+    explicit = os.getenv("SHORT_PRESET", "").strip()
+    if explicit:
+        return explicit
+    return "veryfast" if termux_runtime() else "fast"
+
+
+def render_threads() -> int:
+    try:
+        configured = int(os.getenv("SAP_RENDER_THREADS", "0") or 0)
+    except (TypeError, ValueError):
+        configured = 0
+    if configured > 0:
+        return max(1, min(configured, 8))
+    cpu = os.cpu_count() or 4
+    return max(2, min(cpu, 6))
 
 
 def duration(path: Path) -> float:
@@ -160,10 +208,45 @@ def main() -> int:
         if not picked: continue
         sfx_inputs.append((next_input, event, picked)); command.extend(["-i", picked]); next_input += 1
 
-    if use_retention and hook_scale > 1.0:
-        extra_w = round(1080 * (hook_scale - 1.0), 3); extra_h = round(1920 * (hook_scale - 1.0), 3); zoom_w = f"'if(lt(t,0.18),1080+{extra_w}*(1-t/0.18),1080)'"; zoom_h = f"'if(lt(t,0.18),1920+{extra_h}*(1-t/0.18),1920)'"
-    else: zoom_w = "1080"; zoom_h = "1920"
-    video_filter = "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920," + f"scale={zoom_w}:{zoom_h}:eval=frame,crop=1080:1920," + f"eq=contrast={contrast:.4f}:saturation={saturation:.4f}:brightness={brightness:.4f},unsharp=5:5:{sharpness:.4f}:5:5:0.0,ass='{ass}'[v]"
+    stream_info = video_stream_info(VIDEO_BASE)
+    base_w = int(stream_info.get("width", 0) or 0)
+    base_h = int(stream_info.get("height", 0) or 0)
+    base_range = str(stream_info.get("color_range", "") or "").lower()
+
+    if base_w == 1080 and base_h == 1920:
+        base_filter = "[0:v]"
+        if base_range in {"pc", "jpeg"}:
+            base_filter += "scale=1080:1920:in_range=pc:out_range=tv,"
+    else:
+        range_args = ":in_range=pc:out_range=tv" if base_range in {"pc", "jpeg"} else ""
+        base_filter = (
+            "[0:v]scale=1080:1920:force_original_aspect_ratio=increase"
+            + range_args
+            + ",crop=1080:1920,"
+        )
+
+    mobile_fastpath = (
+        termux_runtime()
+        and os.getenv("SAP_RENDER_MOBILE_FASTPATH", "1") == "1"
+    )
+
+    if use_retention and hook_scale > 1.0 and not mobile_fastpath:
+        extra_w = round(1080 * (hook_scale - 1.0), 3)
+        extra_h = round(1920 * (hook_scale - 1.0), 3)
+        zoom_w = f"'if(lt(t,0.18),1080+{extra_w}*(1-t/0.18),1080)'"
+        zoom_h = f"'if(lt(t,0.18),1920+{extra_h}*(1-t/0.18),1920)'"
+        zoom_filter = f"scale={zoom_w}:{zoom_h}:eval=frame,crop=1080:1920,"
+    else:
+        zoom_filter = ""
+
+    unsharp_size = 3 if mobile_fastpath else 5
+    video_filter = (
+        base_filter
+        + zoom_filter
+        + f"eq=contrast={contrast:.4f}:saturation={saturation:.4f}:brightness={brightness:.4f},"
+        + f"unsharp={unsharp_size}:{unsharp_size}:{sharpness:.4f}:{unsharp_size}:{unsharp_size}:0.0,"
+        + f"ass='{ass}'[v]"
+    )
 
     audio_filters: list[str] = []
     if music_input is not None:
@@ -186,20 +269,71 @@ def main() -> int:
     filter_complex = video_filter + ";" + ";".join(audio_filters)
     try: OUTPUT.unlink(missing_ok=True)
     except OSError: pass
-    command.extend(["-filter_complex", filter_complex, "-map", "[v]", "-map", "[a]", "-c:v", "libx264", "-preset", os.getenv("SHORT_PRESET", "fast"), "-crf", os.getenv("SHORT_CRF", "20"), "-profile:v", "high", "-level", "4.1", "-pix_fmt", "yuv420p", "-r", "30", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-t", f"{total:.6f}", "-movflags", "+faststart", str(OUTPUT)])
+    preset = render_preset()
+    threads = render_threads()
+    command.extend([
+        "-filter_threads", str(threads),
+        "-filter_complex_threads", str(threads),
+        "-filter_complex", filter_complex,
+        "-map", "[v]", "-map", "[a]",
+        "-c:v", "libx264",
+        "-preset", preset,
+        "-crf", os.getenv("SHORT_CRF", "20"),
+        "-threads", str(threads),
+        "-profile:v", "high",
+        "-level", "4.1",
+        "-pix_fmt", "yuv420p",
+        "-color_range", "tv",
+        "-r", "30",
+        "-c:a", "aac",
+        "-b:a", "192k",
+        "-ar", "48000",
+        "-t", f"{total:.6f}",
+        "-movflags", "+faststart",
+        str(OUTPUT),
+    ])
 
-    print("\n================================\nV6 PROFESSIONAL RENDERER 2.0\n================================")
+    print("\n================================\nV6 PROFESSIONAL RENDERER 2.1\n================================")
     print(f"Perfil: {plan.get('profile','default')} | estilo: {plan.get('style','premium_documentary')}")
     print(f"Music mood: {mood or 'generic'} | Music: {'ON' if music else 'OFF'} | timed SFX: {len(timed_events)}")
     print(f"Ducking: ratio={duck_ratio:.1f} attack={duck_attack}ms release={duck_release}ms")
-    print(f"Pre-codec target: {target_lufs:.1f} LUFS | {true_peak:.1f} dBTP (post-AAC verified next stage)\n")
+    print(f"Pre-codec target: {target_lufs:.1f} LUFS | {true_peak:.1f} dBTP (post-AAC verified next stage)")
+    print(
+        f"Render preset: {preset} | threads={threads} | "
+        f"mobile_fastpath={'ON' if mobile_fastpath else 'OFF'} | "
+        f"base={base_w}x{base_h} range={base_range or 'unknown'}"
+    )
+    print()
+
+    render_started = time.monotonic()
     try: subprocess.run(command, check=True)
     except subprocess.CalledProcessError as exc: print(f"ERRO V6 PROFESSIONAL: ffmpeg retornou {exc.returncode}"); return exc.returncode or 1
     if not OUTPUT.is_file() or OUTPUT.stat().st_size < 500_000: print("ERRO V6 PROFESSIONAL: saída ausente ou pequena demais"); return 1
-    runtime["sound_render"] = {"version": "2.0", "music_mood": mood, "music_file": Path(music).name if music else None, "duck_ratio": duck_ratio, "timed_sfx": timed_events}
+    render_elapsed = time.monotonic() - render_started
+    runtime["sound_render"] = {
+        "version": "2.1",
+        "music_mood": mood,
+        "music_file": Path(music).name if music else None,
+        "duck_ratio": duck_ratio,
+        "timed_sfx": timed_events,
+        "render_elapsed_seconds": round(render_elapsed, 3),
+        "render_preset": preset,
+        "render_threads": threads,
+        "mobile_fastpath": mobile_fastpath,
+        "base_video": {
+            "width": base_w,
+            "height": base_h,
+            "color_range": base_range or None,
+        },
+    }
     try: RUNTIME.write_text(json.dumps(runtime, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     except Exception: pass
-    print(f"V6 PROFESSIONAL: PASS\nArquivo: {OUTPUT}"); return 0
+    speed_ratio = (total / render_elapsed) if render_elapsed > 0 else 0.0
+    print(
+        f"V6 PROFESSIONAL: PASS | render={render_elapsed:.1f}s "
+        f"| speed={speed_ratio:.2f}x\nArquivo: {OUTPUT}"
+    )
+    return 0
 
 
 if __name__ == "__main__": raise SystemExit(main())
