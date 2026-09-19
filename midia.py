@@ -135,14 +135,17 @@ except ValueError:
 # PRODUCTION NETWORK RUNTIME
 # ==================================================
 
-_PROVIDER_EXECUTOR = ThreadPoolExecutor(
-    max_workers=max(
-        2,
-        min(
-            int(os.getenv("SAP_MEDIA_PROVIDER_WORKERS", "6") or 6),
-            6,
-        ),
+try:
+    _PROVIDER_WORKERS = int(
+        os.getenv("SAP_MEDIA_PROVIDER_WORKERS", "6") or 6
     )
+except (TypeError, ValueError):
+    _PROVIDER_WORKERS = 6
+
+_PROVIDER_WORKERS = max(2, min(_PROVIDER_WORKERS, 6))
+
+_PROVIDER_EXECUTOR = ThreadPoolExecutor(
+    max_workers=_PROVIDER_WORKERS
 )
 
 _HTTP_SESSIONS = {}
