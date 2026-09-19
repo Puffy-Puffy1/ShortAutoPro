@@ -25,6 +25,7 @@ MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 HISTORICO = os.path.join(BASE, "historico_assuntos.json")
 SAIDA = os.path.join(BASE, "roteiros", f"topic_{SHORT_ID}.txt")
 VERIFICACAO = os.path.join(BASE, "roteiros", f"topic_verified_{SHORT_ID}.json")
+REJEITADOS_RUNTIME = os.path.join(BASE, "roteiros", f"topic_rejected_{SHORT_ID}.json")
 os.makedirs(os.path.dirname(SAIDA), exist_ok=True)
 
 if not API_KEY:
@@ -98,6 +99,24 @@ def atomic_json(path, data):
 
 
 historico = carregar_historico()
+
+
+def carregar_rejeitados_runtime():
+    try:
+        with open(REJEITADOS_RUNTIME, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        return []
+    items = data.get("topics", []) if isinstance(data, dict) else []
+    return [
+        str(item.get("topic", "")).strip()
+        for item in items
+        if isinstance(item, dict) and str(item.get("topic", "")).strip()
+    ]
+
+
+rejeitados_runtime = carregar_rejeitados_runtime()
+rejeitados_runtime_norm = {normalizar_memoria(x) or x.casefold() for x in rejeitados_runtime}
 
 
 def wiki_search(query):
@@ -264,9 +283,37 @@ def chamar_gemini(prompt):
         if r.ok:
             try:
                 dados = r.json()
-                return dados["candidates"][0]["content"]["parts"][0]["text"].strip()
             except Exception as exc:
-                raise RuntimeError(f"Gemini retornou resposta inválida: {exc}")
+                if tentativa == 3:
+                    raise RuntimeError(f"Gemini retornou JSON inválido: {exc}")
+                time.sleep(3)
+                continue
+
+            candidates = dados.get("candidates", []) if isinstance(dados, dict) else []
+            for candidate in candidates if isinstance(candidates, list) else []:
+                if not isinstance(candidate, dict):
+                    continue
+                content = candidate.get("content", {})
+                parts = content.get("parts", []) if isinstance(content, dict) else []
+                chunks = [
+                    str(part.get("text", "") or "").strip()
+                    for part in parts
+                    if isinstance(part, dict) and str(part.get("text", "") or "").strip()
+                ]
+                if chunks:
+                    return "\n".join(chunks).strip()
+
+            feedback = dados.get("promptFeedback", {}) if isinstance(dados, dict) else {}
+            reason = (
+                str(feedback.get("blockReason", "") or "")
+                if isinstance(feedback, dict)
+                else ""
+            ) or "no_usable_candidates"
+            print(f"Topic Engine: Gemini sem texto ({reason}).")
+            if tentativa < 3:
+                time.sleep(4)
+                continue
+            raise RuntimeError(f"Gemini sem candidato utilizável: {reason}")
 
         if r.status_code in {429, 500, 502, 503, 504} and tentativa < 3:
             time.sleep(6)
@@ -297,7 +344,9 @@ IMPORTANTE:
 - prefira casos conhecidos com artigo provável na Wikipedia;
 - evite assuntos já utilizados;
 - varie países, épocas e tipos de mistério;
-- priorize histórias com começo forte e bons elementos visuais.
+- priorize histórias com começo forte e bons elementos visuais;
+- prefira casos que possam ser narrados de forma documental e não gráfica;
+- evite temas cujo núcleo dependa de violência sexual contra menores, tortura gráfica ou detalhes explícitos de sofrimento.
 
 ASSUNTOS JÁ UTILIZADOS:
 {usados_texto}
@@ -351,6 +400,13 @@ for item in topics:
         continue
 
     chave = normalizar_memoria(nome) or nome.casefold()
+    if chave in rejeitados_runtime_norm:
+        relatorio.append({
+            "topic": nome,
+            "approved": False,
+            "reason": "runtime_script_incompatible",
+        })
+        continue
     if chave in vistos:
         relatorio.append({"topic": nome, "approved": False, "reason": "duplicate_in_batch"})
         continue
@@ -511,6 +567,7 @@ atomic_json(VERIFICACAO, {
     "selected": escolhido,
     "ranking": aprovados,
     "verification": relatorio,
+    "runtime_rejected_topics": rejeitados_runtime,
 })
 
 print()

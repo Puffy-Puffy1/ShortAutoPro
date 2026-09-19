@@ -242,7 +242,7 @@ def stages_before_render(p: Pipeline) -> None:
     p.run("HEALTH CHECK", "health_check.sh", shell=True)
     p.run("STORAGE PREFLIGHT", "storage_manager.py", "preflight")
     p.run("1 - TOPIC ENGINE", "topic_engine_runtime.py", retries=1)
-    p.run("2 - ROTEIRO + PESQUISA FACTUAL", "roteiro.py", retries=1)
+    p.run("2 - ROTEIRO + PESQUISA FACTUAL", "script_runtime.py")
     p.run("2A - INTELLIGENCE PRE: STORY + CLAIM LOCK", "shortauto_intelligence_layer.py", "pre", "--short-id", p.sid)
     p.run("3 - CONFIRMANDO ASSUNTO", "used_topic.py")
     p.run("4 - HOOK ENGINE", "hook_runtime.py")

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import json
 import os
 import re
 import sys
@@ -42,6 +43,27 @@ HEADERS = {
 }
 
 
+class GeminiGenerationUnavailable(RuntimeError):
+    pass
+
+
+def _gemini_diag(dados):
+    if not isinstance(dados, dict):
+        return "invalid_json_shape"
+    feedback = dados.get("promptFeedback", {})
+    if isinstance(feedback, dict) and feedback.get("blockReason"):
+        return "prompt_block=" + str(feedback.get("blockReason"))
+    candidates = dados.get("candidates", [])
+    if isinstance(candidates, list) and candidates:
+        reasons = []
+        for candidate in candidates:
+            if isinstance(candidate, dict) and candidate.get("finishReason"):
+                reasons.append(str(candidate.get("finishReason")))
+        if reasons:
+            return "finish_reason=" + ",".join(reasons)
+    return "no_usable_candidates"
+
+
 def chamar_gemini(prompt, temperatura=0.5, tokens=1600):
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
@@ -69,13 +91,47 @@ def chamar_gemini(prompt, temperatura=0.5, tokens=1600):
         if r.ok:
             try:
                 dados = r.json()
-                texto = dados["candidates"][0]["content"]["parts"][0]["text"]
-                texto = str(texto).strip()
-                if not texto:
-                    raise ValueError("texto vazio")
-                return texto
             except Exception as exc:
-                raise RuntimeError(f"Gemini respondeu sem texto utilizável: {exc}")
+                if tentativa == 4:
+                    raise RuntimeError(f"Gemini retornou JSON inválido: {exc}")
+                print("Gemini HTTP 200 com JSON inválido. Tentando novamente...")
+                time.sleep(3)
+                continue
+
+            candidates = dados.get("candidates", []) if isinstance(dados, dict) else []
+            texto = ""
+            if isinstance(candidates, list):
+                for candidate in candidates:
+                    if not isinstance(candidate, dict):
+                        continue
+                    content = candidate.get("content", {})
+                    parts = content.get("parts", []) if isinstance(content, dict) else []
+                    if not isinstance(parts, list):
+                        continue
+                    chunks = [
+                        str(part.get("text", "") or "").strip()
+                        for part in parts
+                        if isinstance(part, dict) and str(part.get("text", "") or "").strip()
+                    ]
+                    if chunks:
+                        texto = "\n".join(chunks).strip()
+                        break
+
+            if texto:
+                return texto
+
+            diag = _gemini_diag(dados)
+            print(
+                "Gemini HTTP 200 sem texto utilizável "
+                f"({diag})."
+            )
+            if tentativa < 4:
+                print("Tentando novamente com o mesmo prompt...")
+                time.sleep(4)
+                continue
+            raise GeminiGenerationUnavailable(
+                "Gemini sem candidato utilizável após 4 tentativas: " + diag
+            )
 
         if r.status_code in {429, 500, 502, 503, 504} and tentativa < 4:
             print(f"Gemini HTTP {r.status_code}. Tentando novamente...")
@@ -325,6 +381,9 @@ FONTE FACTUAL:
 Use SOMENTE informações sustentadas pela fonte acima.
 Não invente datas, nomes, números, locais, ferimentos, causas ou acontecimentos.
 Não transforme teoria ou especulação em fato.
+Se o caso envolver violência, abuso ou morte, trate de forma documental e não gráfica.
+Não descreva violência sexual, tortura, ferimentos ou sofrimento em detalhes explícitos.
+Quando um detalhe sensível não for necessário para compreender o caso, omita-o.
 
 ROTEIRO:
 - português do Brasil;
@@ -363,6 +422,10 @@ for tentativa in range(1, 4):
             temperatura=0.50,
             tokens=1600,
         )
+    except GeminiGenerationUnavailable as exc:
+        print(f"SAP_SCRIPT_TOPIC_INCOMPATIBLE={assunto}")
+        print(f"SAP_SCRIPT_GEMINI_DIAGNOSTIC={exc}")
+        raise SystemExit(24)
     except Exception as exc:
         sys.exit(f"ERRO gerando roteiro: {exc}")
 
