@@ -39,7 +39,7 @@ class ProductionIncrementalMediaTests(unittest.TestCase):
     def test_full_media_stage_is_not_retried_externally(self):
         resume = (ROOT / "resume_after_semantic_fix.py").read_text(encoding="utf-8")
         main = (ROOT / "main.py").read_text(encoding="utf-8")
-        self.assertIn('("6 - SMART MEDIA SELECTOR", "midia.py", (), 0)', resume)
+        self.assertIn('("6 - SMART MEDIA SELECTOR", "media_stage_runtime.py", (), 0)', resume)
         self.assertIn('p.run("6 - SMART MEDIA SELECTOR", "midia.py")', main)
         self.assertNotIn('p.run("6 - SMART MEDIA SELECTOR", "midia.py", retries=1)', main)
 
