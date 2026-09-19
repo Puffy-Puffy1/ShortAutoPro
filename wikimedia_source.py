@@ -3,6 +3,7 @@
 import os
 import re
 import html
+import tempfile
 import requests
 
 from wikimedia_query_bridge import (
@@ -1640,16 +1641,54 @@ def salvar_credito(
 
 
     try:
+        existing = ""
+        if os.path.isfile(path):
+            with open(path, "r", encoding="utf-8") as f:
+                existing = f.read()
 
-        with open(
-            path,
-            "a",
-            encoding="utf-8"
-        ) as f:
+        # Keep exactly one credit block per scene. Retries/resumes may select
+        # a new Wikimedia asset for the same scene, so replace the old block
+        # instead of appending another one.
+        blocks = re.split(
+            r"\n(?=\s*SCENE\s+\d+)",
+            existing.strip(),
+            flags=re.IGNORECASE,
+        ) if existing.strip() else []
 
-            f.write(
-                bloco
+        kept = []
+        for item in blocks:
+            match = re.search(
+                r"^\s*SCENE\s+(\d+)\s*$",
+                item,
+                flags=re.MULTILINE | re.IGNORECASE,
             )
+            if match and int(match.group(1)) == int(scene_number):
+                continue
+            if item.strip():
+                kept.append(item.strip())
+
+        content = ""
+        if kept:
+            content = "\n\n".join(kept).rstrip() + "\n"
+        content += bloco.lstrip("\n")
+
+        directory = os.path.dirname(path) or "."
+        fd, temp_path = tempfile.mkstemp(
+            prefix=".wikimedia_credit_",
+            suffix=".tmp",
+            dir=directory,
+        )
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                f.write(content)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(temp_path, path)
+        finally:
+            try:
+                os.unlink(temp_path)
+            except FileNotFoundError:
+                pass
 
     except Exception:
 

@@ -58,6 +58,88 @@ def read_text(path: Path):
         raise RuntimeError(f"falha lendo {path}: {exc}") from exc
 
 
+def _credit_identity(item):
+    return (
+        str(item.get("page", "") or "").strip(),
+        str(item.get("license", "") or "").strip(),
+        str(item.get("author", "") or "").strip(),
+    )
+
+
+def _scene_from_local_path(value):
+    match = re.search(r"scene_(\d{1,2})", Path(str(value or "")).stem, flags=re.IGNORECASE)
+    return int(match.group(1)) if match else None
+
+
+def _provenance_for_scene(records, scene):
+    matches = []
+    for item in records:
+        if not isinstance(item, dict):
+            continue
+        if _scene_from_local_path(item.get("local_path")) != scene:
+            continue
+        provider = str(item.get("provider", "") or "").casefold()
+        source_url = str(item.get("source_url", "") or "")
+        if "wikimedia" in provider or "commons.wikimedia.org" in source_url.casefold():
+            matches.append(item)
+    return matches
+
+
+def reconciliar_creditos_duplicados(creditos, provenance_records):
+    grouped = {}
+    for item in creditos:
+        grouped.setdefault(int(item["scene"]), []).append(item)
+
+    resolved = []
+    reconciled = []
+
+    for scene in sorted(grouped):
+        items = grouped[scene]
+        identities = {}
+        for item in items:
+            identities.setdefault(_credit_identity(item), item)
+
+        # Exact repeated writes from retries are safe to collapse.
+        if len(identities) == 1:
+            resolved.append(next(iter(identities.values())))
+            if len(items) > 1:
+                reconciled.append({
+                    "scene": scene,
+                    "reason": "IDENTICAL_DUPLICATE_COLLAPSED",
+                    "count": len(items),
+                })
+            continue
+
+        provenance = _provenance_for_scene(provenance_records, scene)
+        source_urls = {
+            str(item.get("source_url", "") or "").strip()
+            for item in provenance
+            if str(item.get("source_url", "") or "").strip()
+        }
+
+        matched = [
+            item for item in identities.values()
+            if str(item.get("page", "") or "").strip() in source_urls
+        ]
+
+        if len(matched) == 1:
+            resolved.append(matched[0])
+            reconciled.append({
+                "scene": scene,
+                "reason": "PROVENANCE_MATCH",
+                "discarded": len(identities) - 1,
+            })
+            continue
+
+        raise RuntimeError(
+            f"crédito duplicado ambíguo para cena {scene}: "
+            f"{len(identities)} créditos distintos e "
+            f"{len(matched)} correspondências de proveniência"
+        )
+
+    return resolved, reconciled
+
+
 def carregar_creditos():
     texto = read_text(CREDIT_TXT)
     if not texto.strip():
@@ -65,7 +147,6 @@ def carregar_creditos():
 
     blocos = re.split(r"\n(?=\s*SCENE\s+\d+)", texto.strip(), flags=re.IGNORECASE)
     saida = []
-    cenas_vistas = set()
 
     for bloco in blocos:
         bloco = bloco.strip()
@@ -82,10 +163,6 @@ def carregar_creditos():
         numero = int(cena.group(1))
         if not 1 <= numero <= QTD_CENAS:
             raise RuntimeError(f"crédito referencia cena inválida: {numero}")
-        if numero in cenas_vistas:
-            raise RuntimeError(f"crédito duplicado para cena {numero}")
-        cenas_vistas.add(numero)
-
         page = pagina.group(1).strip()
         license_name = licenca.group(1).strip() if licenca else ""
         author = autor.group(1).strip() if autor else ""
@@ -212,8 +289,12 @@ def main():
     try:
         if not SHORT_ID:
             raise RuntimeError("SHORT_ID vazio")
-        creditos, arquivo_creditos_presente = carregar_creditos()
+        creditos_raw, arquivo_creditos_presente = carregar_creditos()
         provenance_records = carregar_proveniencia_atual()
+        creditos, reconciliados = reconciliar_creditos_duplicados(
+            creditos_raw,
+            provenance_records,
+        )
         provenance_wiki_scenes = validar_cobertura_wikimedia(
             creditos, provenance_records
         )
@@ -228,6 +309,8 @@ def main():
         "version": "3.9",
         "credits_file_present": arquivo_creditos_presente,
         "total_scene_credits": len(creditos),
+        "raw_scene_credit_blocks": len(creditos_raw),
+        "reconciled_duplicate_scenes": reconciliados,
         "unique_assets": len(unicos),
         "attribution_required": bool(bloco),
         "provenance_records_for_short": len(provenance_records),
@@ -291,6 +374,8 @@ def main():
     print("SOURCE & ATTRIBUTION MANAGER 3.9")
     print("================================")
     print(f"Cenas Wikimedia: {len(creditos)}")
+    print(f"Blocos brutos de crédito: {len(creditos_raw)}")
+    print(f"Duplicatas reconciliadas: {len(reconciliados)}")
     print(f"Arquivos únicos: {len(unicos)}")
     print(f"Proveniência desta execução: {len(provenance_records)}")
     print(f"Cenas Wikimedia confirmadas por proveniência: {len(provenance_wiki_scenes)}")
