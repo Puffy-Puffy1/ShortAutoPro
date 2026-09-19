@@ -14,11 +14,14 @@ class MediaResolutionGuardTests(unittest.TestCase):
         commit = source.index("os.replace(", guard)
         self.assertLess(guard, commit)
 
-    def test_runtime_rewrite_module_is_not_required(self):
+    def test_canonical_media_runtime_wraps_without_rewriting_selector(self):
         self.assertFalse((ROOT / "midia_runtime.py").exists())
         self.assertFalse((ROOT / "gerar_short.sh").exists())
+        self.assertTrue((ROOT / "media_stage_runtime.py").exists())
         pipeline = (ROOT / "main.py").read_text(encoding="utf-8")
-        self.assertIn('p.run("6 - SMART MEDIA SELECTOR", "midia.py"', pipeline)
+        self.assertIn('p.run("6 - SMART MEDIA SELECTOR", "media_stage_runtime.py"', pipeline)
+        runtime = (ROOT / "media_stage_runtime.py").read_text(encoding="utf-8")
+        self.assertIn('MIDIA = BASE / "midia.py"', runtime)
         self.assertNotIn("midia_runtime.py", pipeline)
 
 
