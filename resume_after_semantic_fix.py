@@ -18,6 +18,7 @@ import time
 from pathlib import Path
 
 import main as canonical
+from production_profiler import record as profile_record
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
 
@@ -89,6 +90,7 @@ def run_stage(
     last = 1
 
     print(f"\n{'-' * 52}\n{title}\n{'-' * 52}\n")
+    stage_started = time.monotonic()
     for attempt in range(retries + 1):
         proc = subprocess.run(
             [sys.executable, str(path), *args],
@@ -98,7 +100,16 @@ def run_stage(
         )
         last = proc.returncode
         if last == 0:
-            print(f"ETAPA OK: {title}")
+            elapsed = time.monotonic() - stage_started
+            profile_record(
+                script,
+                elapsed,
+                short_id=sid,
+                category="stage",
+                title=title,
+                status="pass",
+            )
+            print(f"ETAPA OK: {title} ({elapsed:.1f}s)")
             return
         if attempt < retries:
             delay = min(8, 2 * (attempt + 1))
@@ -108,6 +119,15 @@ def run_stage(
             )
             time.sleep(delay)
 
+    profile_record(
+        script,
+        time.monotonic() - stage_started,
+        short_id=sid,
+        category="stage",
+        title=title,
+        status="fail",
+        code=last,
+    )
     raise RuntimeError(f"{script} falhou com código {last}")
 
 
