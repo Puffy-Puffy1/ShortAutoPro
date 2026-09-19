@@ -405,6 +405,8 @@ def cli() -> int:
     resume.add_argument("--short-id", default=None)
     resume.add_argument("--status", action="store_true")
     sub.add_parser("audit")
+    production = sub.add_parser("production")
+    production.add_argument("production_args", nargs=argparse.REMAINDER)
     storage = sub.add_parser("storage")
     storage.add_argument("storage_command", choices=["status", "preflight", "cleanup"], default="status", nargs="?")
     storage.add_argument("--execute", action="store_true")
@@ -424,6 +426,13 @@ def cli() -> int:
         return subprocess.call(command, cwd=BASE, env=os.environ.copy())
     if command_name == "audit":
         return subprocess.call([sys.executable, str(BASE / "tools" / "repo_audit.py")], cwd=BASE, env=os.environ.copy())
+    if command_name == "production":
+        command = [
+            sys.executable,
+            str(BASE / "production_center.py"),
+            *list(args.production_args or []),
+        ]
+        return subprocess.call(command, cwd=BASE, env=os.environ.copy())
     if command_name == "storage":
         command = [sys.executable, str(BASE / "storage_manager.py"), args.storage_command]
         if args.execute:
