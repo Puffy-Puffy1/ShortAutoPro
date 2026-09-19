@@ -82,8 +82,16 @@ def prioritize(
 
     if not original:
         return {"strict": [], "context": []}
+
     if mode not in STOCK_MODES:
-        return {"strict": original, "context": []}
+        strict = []
+        context = []
+        for item in original:
+            anchor = _conservative_stock_anchor(item, mode)
+            strict.append(anchor)
+            if anchor != item:
+                context.append(item)
+        return {"strict": strict, "context": context}
 
     ranked = sorted(original, key=_score, reverse=True)
     strict_count = 1
