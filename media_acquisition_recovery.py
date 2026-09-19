@@ -118,8 +118,20 @@ def _rescue_queries(
         ]
 
     original = str(busca or "").strip()
-    if original and not stock_first:
-        candidates.append(f"{base} {original}".strip())
+
+    # Search individual MUST anchors too, while verification still requires
+    # the final candidate to prove the complete original MUST set. This is a
+    # retrieval expansion only, never an acceptance relaxation.
+    if len(must) > 1:
+        for anchor in must:
+            candidates.append(f"{anchor} {segment_anchor}".strip())
+            candidates.append(f"{anchor} {mode}".strip())
+
+    if original:
+        if stock_first:
+            candidates.append(f"{base} {original}".strip())
+        else:
+            candidates.append(f"{base} {original}".strip())
 
     out: list[str] = []
     seen: set[str] = set()
