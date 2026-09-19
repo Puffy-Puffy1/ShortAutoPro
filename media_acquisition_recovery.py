@@ -16,7 +16,7 @@ from typing import Any
 
 import media_must_verifier as mustv
 
-VERSION = "1.7"
+VERSION = "1.8"
 
 
 def _must_list(value: Any) -> list[str]:
@@ -98,6 +98,9 @@ def _rescue_queries(
             f"{base} {segment_anchor}".strip(),
             f"{base} close up".strip(),
             f"{base} documentary".strip(),
+            f"{base} isolated object".strip(),
+            f"{base} archive".strip(),
+            f"{base} vintage".strip(),
         ]
     else:
         candidates = [
@@ -109,11 +112,26 @@ def _rescue_queries(
             f"{base} archive photograph".strip(),
             f"{base} historical photograph".strip(),
             f"{base} documentary evidence".strip(),
+            f"{base} museum archive".strip(),
+            f"{base} newspaper archive".strip(),
+            f"{base} official document".strip(),
         ]
 
     original = str(busca or "").strip()
-    if original and not stock_first:
-        candidates.append(f"{base} {original}".strip())
+
+    # Search individual MUST anchors too, while verification still requires
+    # the final candidate to prove the complete original MUST set. This is a
+    # retrieval expansion only, never an acceptance relaxation.
+    if len(must) > 1:
+        for anchor in must:
+            candidates.append(f"{anchor} {segment_anchor}".strip())
+            candidates.append(f"{anchor} {mode}".strip())
+
+    if original:
+        if stock_first:
+            candidates.append(f"{base} {original}".strip())
+        else:
+            candidates.append(f"{base} {original}".strip())
 
     out: list[str] = []
     seen: set[str] = set()
@@ -124,7 +142,7 @@ def _rescue_queries(
             continue
         seen.add(key)
         out.append(query)
-    return out[:5]
+    return out[:8]
 
 
 def _rescue_budget() -> int:
@@ -269,7 +287,7 @@ def _wrap_pool(namespace: dict[str, Any]) -> bool:
                 _stock_budget = int(os.getenv("SAP_STOCK_RESCUE_MAX_QUERIES", "4") or 4)
             except (TypeError, ValueError):
                 _stock_budget = 4
-            budget = min(budget, max(1, min(_stock_budget, 4)))
+            budget = min(budget, max(1, min(_stock_budget, 8)))
             print(
                 "SAP_STOCK_RESCUE_BUDGET="
                 f"{budget} mode={_mode or 'unknown'}"

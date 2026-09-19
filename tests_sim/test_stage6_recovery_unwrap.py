@@ -16,7 +16,7 @@ class Stage6RecoveryUnwrapTests(unittest.TestCase):
 
     def test_recovery_collapses_wrapper_chain(self):
         text = (ROOT / "media_acquisition_recovery.py").read_text(encoding="utf-8")
-        self.assertIn('VERSION = "1.7"', text)
+        self.assertIn('VERSION = "1.8"', text)
         self.assertIn("_sap_query_expansion_original", text)
         self.assertIn("_sap_vse42_original", text)
         self.assertIn("__wrapped__", text)
@@ -33,7 +33,7 @@ class Stage6RecoveryUnwrapTests(unittest.TestCase):
         joined = " | ".join(queries)
         self.assertIn("hands wall spoon", joined)
         self.assertNotIn("A Fuga de Alcatraz de 1962", joined)
-        self.assertLessEqual(len(queries), 5)
+        self.assertLessEqual(len(queries), 8)
 
     def test_documentary_queries_keep_subject_context(self):
         queries = recovery._rescue_queries(
