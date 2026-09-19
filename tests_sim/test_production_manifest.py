@@ -51,7 +51,8 @@ class ProductionManifestTests(unittest.TestCase):
             media = base / "imagens" / "short_case"
             credits = base / "credits"
             videos = base / "videos"
-            for path in (r, media, credits, videos):
+            manifests = base / "manifests"
+            for path in (r, media, credits, videos, manifests):
                 path.mkdir(parents=True, exist_ok=True)
 
             (r / "used_topic_case.txt").write_text("Caso de Teste", encoding="utf-8")
@@ -98,6 +99,17 @@ class ProductionManifestTests(unittest.TestCase):
                 suffix = ".webp" if i == 1 else ".jpg"
                 (media / f"scene_{i:02d}{suffix}").write_bytes(b"asset")
             (videos / "short_v6_case.mp4").write_bytes(b"0" * 600_000)
+            import hashlib
+            topic = "Caso de Teste"
+            (manifests / "case_render_identity.json").write_text(
+                json.dumps({
+                    "schema": "SHORTAUTOPRO_RENDER_IDENTITY_V1",
+                    "short_id": "case",
+                    "topic": topic,
+                    "topic_sha256": hashlib.sha256(topic.encode("utf-8")).hexdigest(),
+                }),
+                encoding="utf-8",
+            )
 
             probe = {
                 "streams": [

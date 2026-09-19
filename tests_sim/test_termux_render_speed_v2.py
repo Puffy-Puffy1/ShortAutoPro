@@ -38,8 +38,8 @@ class TermuxRenderSpeedV2Tests(unittest.TestCase):
 
     def test_renderer_version_incremented(self):
         text = (ROOT / "v6_professional.py").read_text(encoding="utf-8")
-        self.assertIn("V6 PROFESSIONAL RENDERER 2.2", text)
-        self.assertIn('"version": "2.2"', text)
+        self.assertIn("V6 PROFESSIONAL RENDERER 2.3", text)
+        self.assertIn('"version": "2.3"', text)
 
 
 if __name__ == "__main__":

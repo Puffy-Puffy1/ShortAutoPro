@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Unified ShortAutoPro confidence score and final release decision."""
 from __future__ import annotations
-import argparse,json,math,os,tempfile
+import argparse,hashlib,json,math,os,tempfile
 from datetime import date,datetime
 from pathlib import Path
 from typing import Any
-BASE=Path(os.getenv("SHORTAUTOPRO_BASE",os.path.expanduser("~/ShortAutoPro"))).resolve();SID=os.getenv("SHORT_ID",date.today().isoformat()).strip();R=BASE/"roteiros";M=BASE/"manifests";E=BASE/"reports"/"evolution";I=BASE/"reports"/"intelligence";OUT=M/f"{SID}_release.json"
+BASE=Path(os.getenv("SHORTAUTOPRO_BASE",os.path.expanduser("~/ShortAutoPro"))).resolve();SID=os.getenv("SHORT_ID",date.today().isoformat()).strip();R=BASE/"roteiros";M=BASE/"manifests";E=BASE/"reports"/"evolution";I=BASE/"reports"/"intelligence";OUT=M/f"{SID}_release.json";RENDER_IDENTITY=M/f"{SID}_render_identity.json"
 def load(p:Path)->dict[str,Any]:
  try:
   x=json.loads(p.read_text(encoding="utf-8"));return x if isinstance(x,dict) else {}
@@ -23,6 +23,10 @@ def atomic(p:Path,x:Any)->None:
   except OSError:pass
   raise
 def clamp(x:float)->float:return round(max(0,min(100,x)),1)
+def read_text(p:Path)->str:
+ try:return p.read_text(encoding="utf-8").strip()
+ except Exception:return ""
+def text_sha(v:str)->str:return hashlib.sha256(str(v or "").encode("utf-8")).hexdigest()
 def brain_snapshot()->dict[str,Any]:
  try:
   import shortauto_brain as brain
@@ -35,6 +39,16 @@ def main()->int:
  ap=argparse.ArgumentParser();ap.add_argument("--enforce",action="store_true");args=ap.parse_args()
  retention=load(R/f"retention_{SID}.json");continuity=load(R/f"visual_continuity_{SID}.json");vscore=load(R/f"visual_score_{SID}.json");vqa=load(E/f"visual_qa_{SID}.json");audio=load(E/f"final_audio_{SID}.json");pro=load(M/f"{SID}_professional.json");legacy=load(M/f"{SID}_quality.json");media=load(R/f"media_quality_{SID}.json");caption=load(R/f"pro_caption_{SID}.json");caption_layout=load(R/f"caption_layout_{SID}.json");vd=load(R/f"visual_director_{SID}.json")
  factual_ok=bool(legacy.get("approved",False));critical=[]
+ render_identity=load(RENDER_IDENTITY);current_topic=read_text(R/f"used_topic_{SID}.txt") or read_text(R/f"topic_{SID}.txt");current_topic_sha=text_sha(current_topic) if current_topic else ""
+ identity_enforce=os.getenv("SAP_ARTIFACT_IDENTITY_ENFORCE","1")=="1"
+ if identity_enforce:
+  if not render_identity:critical.append("render_identity_missing")
+  else:
+   if str(render_identity.get("short_id",""))!=SID:critical.append("render_short_id_mismatch")
+   render_topic_sha=str(render_identity.get("topic_sha256","") or "")
+   if not current_topic_sha:critical.append("canonical_topic_identity_missing")
+   elif not render_topic_sha:critical.append("render_topic_identity_missing")
+   elif render_topic_sha!=current_topic_sha:critical.append("render_topic_identity_mismatch")
  if not factual_ok:critical.append("legacy_final_quality_not_approved")
  if str(vqa.get("status","PASS")).upper()=="BLOCK":critical.append("visual_qa_block")
  if str(audio.get("status","PASS")).upper()=="BLOCK":critical.append("audio_master_block")
@@ -67,7 +81,7 @@ def main()->int:
  if components["subtitle_score"]<85:actions.append("repair_caption_layout")
  if str(brain_budget.get("status","")).upper()=="BLOCK":actions.append("review_shortauto_brain_quality_budget")
  if str(intelligence_conf.get("decision","")).upper()=="REPAIR":actions.append("review_intelligence_explainable_qa")
- payload={"short_id":SID,"version":"RELEASE_GATE_1.3_INTELLIGENCE","generated_at":datetime.now().astimezone().isoformat(timespec="seconds"),"shortautopro_score":score,"decision":decision,"components":components,"weights":weights,"critical":critical,"repair_actions":actions,"visual_multiscore":vscore,"shortauto_brain":brain,"brain_enforced":brain_enforce,"shortauto_intelligence":intelligence,"intelligence_enforced":intelligence_enforce,"intelligence_qa_score":num(intelligence_qa.get("score"),0)};atomic(OUT,payload);print(json.dumps(payload,ensure_ascii=False,indent=2))
+ payload={"short_id":SID,"version":"RELEASE_GATE_1.4_ARTIFACT_IDENTITY","generated_at":datetime.now().astimezone().isoformat(timespec="seconds"),"shortautopro_score":score,"decision":decision,"components":components,"weights":weights,"critical":critical,"repair_actions":actions,"visual_multiscore":vscore,"shortauto_brain":brain,"brain_enforced":brain_enforce,"shortauto_intelligence":intelligence,"intelligence_enforced":intelligence_enforce,"intelligence_qa_score":num(intelligence_qa.get("score"),0),"artifact_identity":{"enforced":identity_enforce,"current_topic":current_topic,"current_topic_sha256":current_topic_sha,"render_identity":render_identity}};atomic(OUT,payload);print(json.dumps(payload,ensure_ascii=False,indent=2))
  if args.enforce and decision=="BLOCK":return 1
  if args.enforce and decision=="REPAIR":return 20
  return 0
