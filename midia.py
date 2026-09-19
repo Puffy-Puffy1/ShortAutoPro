@@ -27,6 +27,7 @@ from datetime import date
 
 from production_profiler import record as _sap_profile_record
 from media_must_priority import prioritize as _sap_prioritize_must
+from media_provenance_capture_v1 import write_provenance as _sap_write_provenance
 
 from wikimedia_source import (
     buscar_wikimedia_fotos,
@@ -6038,6 +6039,20 @@ for numero, cena in enumerate(
         else:
             fotos_total += 1
 
+
+        try:
+            _sap_write_provenance(
+                escolhido,
+                destino,
+                method="selected_scene_commit",
+            )
+        except Exception as _sap_prov_exc:
+            print(
+                "SAP_PROVENANCE_CAPTURE=FAIL_OPEN "
+                f"scene={numero} "
+                f"{type(_sap_prov_exc).__name__}:"
+                f"{str(_sap_prov_exc)[:140]}"
+            )
 
         if fonte == "Wikimedia":
 
