@@ -26,6 +26,7 @@ from requests.adapters import HTTPAdapter
 from datetime import date
 
 from production_profiler import record as _sap_profile_record
+from media_must_priority import prioritize as _sap_prioritize_must
 
 from wikimedia_source import (
     buscar_wikimedia_fotos,
@@ -4573,7 +4574,7 @@ for numero, cena in enumerate(
         )
     ).strip()
 
-    must_have = [
+    original_must_have = [
         str(x).strip().lower()
         for x in cena.get(
             "must_have",
@@ -4581,6 +4582,25 @@ for numero, cena in enumerate(
         )
         if str(x).strip()
     ]
+
+    _must_contract = _sap_prioritize_must(
+        original_must_have,
+        query=busca,
+        visual_mode=str(cena.get("visual_mode", "") or ""),
+    )
+
+    must_have = list(_must_contract.get("strict", []))
+    context_must = list(_must_contract.get("context", []))
+
+    if context_must:
+        print(
+            "SAP_MUST_CONTRACT=PRIORITIZED "
+            f"scene={numero} "
+            f"original={len(original_must_have)} "
+            f"strict={len(must_have)} "
+            f"context={len(context_must)} "
+            "strict_terms=" + ",".join(must_have)
+        )
 
     avoid = [
         str(x).strip().lower()
@@ -4602,6 +4622,12 @@ for numero, cena in enumerate(
         f"  MUST: "
         f"{', '.join(must_have)}"
     )
+
+    if context_must:
+        print(
+            "  CONTEXT MUST: "
+            + ", ".join(context_must)
+        )
 
     if numero in resume_cached_media:
 
@@ -6097,6 +6123,8 @@ for numero, cena in enumerate(
                 "scene": numero,
                 "query": busca,
                 "must_have": must_have,
+                "original_must_have": original_must_have,
+                "context_must": context_must,
                 "avoid": avoid,
                 "visual_mode": visual_mode,
                 "candidate_count": len(todos),
