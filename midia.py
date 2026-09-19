@@ -19,7 +19,7 @@ import shutil
 import re
 import json
 import hashlib
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 import threading
 import requests
 from requests.adapters import HTTPAdapter
@@ -156,6 +156,15 @@ except (TypeError, ValueError):
     _PROVIDER_WORKERS = 6
 
 _PROVIDER_WORKERS = max(2, min(_PROVIDER_WORKERS, 6))
+
+try:
+    _PROVIDER_RESULT_TIMEOUT = float(
+        os.getenv("SAP_MEDIA_PROVIDER_RESULT_TIMEOUT", "22") or 22
+    )
+except (TypeError, ValueError):
+    _PROVIDER_RESULT_TIMEOUT = 22.0
+
+_PROVIDER_RESULT_TIMEOUT = max(8.0, min(_PROVIDER_RESULT_TIMEOUT, 45.0))
 
 _PROVIDER_EXECUTOR = ThreadPoolExecutor(
     max_workers=_PROVIDER_WORKERS
@@ -2554,8 +2563,19 @@ def buscar_todos_candidatos(
                     ] = list(
                         futures[
                             name
-                        ].result()
+                        ].result(
+                            timeout=_PROVIDER_RESULT_TIMEOUT
+                        )
                         or []
+                    )
+
+                except FuturesTimeoutError:
+                    provider_results[name] = []
+                    futures[name].cancel()
+                    print(
+                        "SAP_MEDIA_PROVIDER_TIMEOUT "
+                        f"provider={name} "
+                        f"limit={_PROVIDER_RESULT_TIMEOUT:.1f}s"
                     )
 
                 except Exception as exc:
