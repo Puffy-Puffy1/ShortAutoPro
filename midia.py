@@ -25,6 +25,8 @@ import requests
 from requests.adapters import HTTPAdapter
 from datetime import date
 
+from production_profiler import record as _sap_profile_record
+
 from wikimedia_source import (
     buscar_wikimedia_fotos,
     salvar_credito
@@ -4501,6 +4503,8 @@ print(
 print()
 
 
+_media_stage_started = time.monotonic()
+
 total = 0
 videos_total = 0
 fotos_total = 0
@@ -4538,6 +4542,8 @@ for numero, cena in enumerate(
     cenas,
     start=1
 ):
+
+    _scene_started = time.monotonic()
 
     busca = str(
         cena.get(
@@ -4609,6 +4615,16 @@ for numero, cena in enumerate(
             f"file={os.path.basename(_cached_path)}"
         )
 
+        _sap_profile_record(
+            "media_scene",
+            time.monotonic() - _scene_started,
+            short_id=SHORT_ID,
+            category="media",
+            scene=numero,
+            status="cache_hit",
+            candidates=0,
+        )
+
         continue
 
 
@@ -4647,6 +4663,8 @@ for numero, cena in enumerate(
     # Single canonical acquisition path.
     # Provider calls run in parallel inside buscar_todos_candidatos(), while
     # explicit-MUST recovery remains bounded/cached by the installed wrapper.
+    _acquisition_started = time.monotonic()
+
     todos = list(
         buscar_todos_candidatos(
             busca,
@@ -4658,9 +4676,22 @@ for numero, cena in enumerate(
         or []
     )
 
+    _acquisition_elapsed = time.monotonic() - _acquisition_started
+
+    _sap_profile_record(
+        "media_acquisition",
+        _acquisition_elapsed,
+        short_id=SHORT_ID,
+        category="media",
+        scene=numero,
+        candidates=len(todos),
+        must=len(must_have),
+    )
+
     print(
         "SAP_MEDIA_INITIAL_ACQUISITION=CANONICAL_PARALLEL "
-        f"scene={numero} candidates={len(todos)}"
+        f"scene={numero} candidates={len(todos)} "
+        f"elapsed={_acquisition_elapsed:.2f}s"
     )
 
     # =================================
@@ -4813,17 +4844,27 @@ for numero, cena in enumerate(
                 vi6_history
             )
 
-            vi6_path, vi6_summary = (
-                vi6_salvar_report(
-                    SHORT_ID,
-                    vi6_scenes
-                )
+            _vi6_persist_now = (
+                numero == len(cenas)
+                or numero % 4 == 0
             )
 
-            print(
-                f"    STORYBOARD="
-                f"{vi6_summary.get('storyboard_score', 0)}/100"
-            )
+            if _vi6_persist_now:
+                vi6_path, vi6_summary = (
+                    vi6_salvar_report(
+                        SHORT_ID,
+                        vi6_scenes
+                    )
+                )
+
+                print(
+                    f"    STORYBOARD="
+                    f"{vi6_summary.get('storyboard_score', 0)}/100"
+                )
+            else:
+                print(
+                    "    STORYBOARD=PERSIST_DEFERRED"
+                )
 
         except Exception as e:
 
@@ -6053,6 +6094,17 @@ for numero, cena in enumerate(
         )
 
 
+    _sap_profile_record(
+        "media_scene",
+        time.monotonic() - _scene_started,
+        short_id=SHORT_ID,
+        category="media",
+        scene=numero,
+        status="pass" if sucesso else "missing",
+        candidates=len(todos),
+        must=len(must_have),
+    )
+
     try:
         _scene_delay = float(
             os.getenv(
@@ -6071,6 +6123,16 @@ for numero, cena in enumerate(
             )
         )
 
+
+_sap_profile_record(
+    "media_stage",
+    time.monotonic() - _media_stage_started,
+    short_id=SHORT_ID,
+    category="stage",
+    total=total,
+    expected=len(cenas),
+    missing=[item.get("scene") for item in missing_scenes],
+)
 
 # ==================================================
 # RESUMO
