@@ -38,6 +38,9 @@ secao() {
     secao "REPOSITORY AUDIT"
     if [ -f "$BASE/tools/repo_audit.py" ]; then python "$BASE/tools/repo_audit.py" 2>&1 || true; else echo "tools/repo_audit.py ausente"; fi
 
+    secao "PRODUCTION DOCTOR"
+    if [ -f "$BASE/production_doctor.py" ]; then python "$BASE/production_doctor.py" 2>&1 || true; else echo "production_doctor.py ausente"; fi
+
     secao "ARMAZENAMENTO"
     if [ -f "$BASE/storage_manager.py" ]; then python "$BASE/storage_manager.py" status 2>&1 || true; fi
     df -h "$HOME" 2>&1 || true
