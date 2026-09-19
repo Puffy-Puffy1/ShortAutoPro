@@ -2631,6 +2631,56 @@ def buscar_todos_candidatos(
                     f"{str(exc)[:140]}"
                 )
 
+    # Stock-first intentionally defers Wikimedia on the fast path. However,
+    # "deferred" must not mean "disabled": when stock returns no candidate that
+    # satisfies the strict MUST contract, do one bounded documentary rescue.
+    # This preserves speed for easy scenes and prevents avoidable missing scenes
+    # when only a narrow stock provider pool is available.
+    if rota_fonte.get("route") == "stock_first":
+        stock_candidates = []
+        for _stock_name in (
+            "pexels_video",
+            "pixabay_video",
+            "coverr_video",
+            "pexels_foto",
+            "pixabay_foto",
+        ):
+            stock_candidates.extend(provider_results.get(_stock_name, []) or [])
+
+        _strict_total = len(must_have or [])
+        _stock_strict_ok = any(
+            candidato_semanticamente_valido(
+                _candidate,
+                _strict_total,
+                relaxado=False,
+            )
+            for _candidate in stock_candidates
+        )
+
+        if not _stock_strict_ok:
+            print(
+                "SAP_SOURCE_ROUTE_RESCUE=WIKIMEDIA "
+                f"reason=NO_STRICT_STOCK_MATCH stock_candidates={len(stock_candidates)}"
+            )
+            try:
+                provider_results["wikimedia"] = list(
+                    buscar_wikimedia_fotos(
+                        busca,
+                        must_have,
+                        avoid,
+                        assunto=ASSUNTO,
+                        segmento=segmento,
+                        visual_mode=visual_mode,
+                    )
+                    or []
+                )
+            except Exception as exc:
+                provider_results["wikimedia"] = []
+                print(
+                    "SAP_SOURCE_ROUTE_RESCUE=FAIL_OPEN "
+                    f"{type(exc).__name__}:{str(exc)[:140]}"
+                )
+
     # Wikimedia continua sendo processado com Evidence Guard antes de entrar
     # no pool. A paralelização altera apenas o tempo de rede.
     wiki_aprovados = []
