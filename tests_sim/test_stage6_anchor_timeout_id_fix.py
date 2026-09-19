@@ -28,16 +28,16 @@ class Stage6AnchorTimeoutAndIdFixTests(unittest.TestCase):
             media_must_verifier.requirement_matches("picture frame", candidate)
         )
 
-    def test_non_object_mode_does_not_rewrite_contract(self):
+    def test_non_object_mode_keeps_count_but_normalizes_safe_modifiers(self):
         result = media_must_priority.prioritize(
             ["empty golden frames", "wall"],
             visual_mode="document",
         )
         self.assertEqual(
             result["strict"],
-            ["empty golden frames", "wall"],
+            ["frames", "wall"],
         )
-        self.assertEqual(result["context"], [])
+        self.assertEqual(result["context"], ["empty golden frames"])
 
     def test_stale_short_id_with_existing_artifact_is_not_reused(self):
         with tempfile.TemporaryDirectory() as tmp:
