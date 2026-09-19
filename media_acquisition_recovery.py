@@ -16,7 +16,7 @@ from typing import Any
 
 import media_must_verifier as mustv
 
-VERSION = "1.7"
+VERSION = "1.8"
 
 
 def _must_list(value: Any) -> list[str]:
@@ -98,6 +98,9 @@ def _rescue_queries(
             f"{base} {segment_anchor}".strip(),
             f"{base} close up".strip(),
             f"{base} documentary".strip(),
+            f"{base} isolated object".strip(),
+            f"{base} archive".strip(),
+            f"{base} vintage".strip(),
         ]
     else:
         candidates = [
@@ -109,6 +112,9 @@ def _rescue_queries(
             f"{base} archive photograph".strip(),
             f"{base} historical photograph".strip(),
             f"{base} documentary evidence".strip(),
+            f"{base} museum archive".strip(),
+            f"{base} newspaper archive".strip(),
+            f"{base} official document".strip(),
         ]
 
     original = str(busca or "").strip()
@@ -124,7 +130,7 @@ def _rescue_queries(
             continue
         seen.add(key)
         out.append(query)
-    return out[:5]
+    return out[:8]
 
 
 def _rescue_budget() -> int:
