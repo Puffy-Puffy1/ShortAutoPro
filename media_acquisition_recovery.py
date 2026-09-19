@@ -287,7 +287,7 @@ def _wrap_pool(namespace: dict[str, Any]) -> bool:
                 _stock_budget = int(os.getenv("SAP_STOCK_RESCUE_MAX_QUERIES", "4") or 4)
             except (TypeError, ValueError):
                 _stock_budget = 4
-            budget = min(budget, max(1, min(_stock_budget, 4)))
+            budget = min(budget, max(1, min(_stock_budget, 8)))
             print(
                 "SAP_STOCK_RESCUE_BUDGET="
                 f"{budget} mode={_mode or 'unknown'}"
