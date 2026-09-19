@@ -16,7 +16,7 @@ from typing import Any
 
 import media_must_verifier as mustv
 
-VERSION = "1.5"
+VERSION = "1.6"
 
 
 def _must_list(value: Any) -> list[str]:
@@ -263,6 +263,18 @@ def _wrap_pool(namespace: dict[str, Any]) -> bool:
             return initial
 
         budget = _rescue_budget()
+        _mode = str(visual_mode or "").replace("_", " ").strip().casefold()
+        if _mode in {"human context", "environment", "object", "abstract context"}:
+            try:
+                _stock_budget = int(os.getenv("SAP_STOCK_RESCUE_MAX_QUERIES", "2") or 2)
+            except (TypeError, ValueError):
+                _stock_budget = 2
+            budget = min(budget, max(1, min(_stock_budget, 4)))
+            print(
+                "SAP_STOCK_RESCUE_BUDGET="
+                f"{budget} mode={_mode or 'unknown'}"
+            )
+
         print(
             f"SAP_MUST_ACQUISITION_RESCUE=START initial={len(initial)} "
             f"must_total={len(must)} budget={budget}"
