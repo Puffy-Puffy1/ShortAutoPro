@@ -177,9 +177,24 @@ def main() -> int:
     if args.command == "profile":
         return profile(sid, args.history, args.top)
     if args.command == "resume":
-        command = [sys.executable, str(BASE / "resume_short_runtime.py"), "--short-id", sid]
+        report = production_doctor.diagnose(sid)
+        if report["boundary"] == "media" and (
+            BASE / "resume_after_semantic_fix.py"
+        ).is_file():
+            command = [
+                sys.executable,
+                str(BASE / "resume_after_semantic_fix.py"),
+                "--short-id",
+                sid,
+            ]
+        else:
+            command = [
+                sys.executable,
+                str(BASE / "resume_short_runtime.py"),
+                "--short-id",
+                sid,
+            ]
         if not args.execute:
-            report = production_doctor.diagnose(sid)
             print("PLAN:", " ".join(command))
             print(f"BOUNDARY: {report['boundary']}")
             print("Use --execute para executar.")
