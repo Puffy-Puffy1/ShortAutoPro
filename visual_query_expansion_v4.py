@@ -235,6 +235,8 @@ def wrap_search_function(
 
 
     wrapped._vse42_query_expanded = True
+    wrapped._sap_query_expansion_original = fn
+    wrapped.__wrapped__ = fn
     wrapped.__name__ = getattr(
         fn,
         "__name__",
