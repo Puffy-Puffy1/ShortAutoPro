@@ -18,6 +18,7 @@ import time
 from pathlib import Path
 
 import main as canonical
+from production_profiler import begin_run as profile_begin_run
 from production_profiler import record as profile_record
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
@@ -167,6 +168,8 @@ def main() -> int:
     print("==============================================")
     print(f"ID: {sid}")
     print("PIPELINE: PROFESSIONAL_CANONICAL")
+    run_id = profile_begin_run(sid)
+    print(f"PROFILE_RUN_ID={run_id}")
 
     try:
         with canonical.RunLock(sid):
