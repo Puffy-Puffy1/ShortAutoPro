@@ -201,9 +201,18 @@ def diagnose(sid: str) -> dict[str, Any]:
             "detail": release_decision or "release gate ainda não executado",
         })
 
+    semantic_checkpoint = (
+        (BASE / "roteiros" / f"scene_map_{sid}.json").is_file()
+        and (BASE / "roteiros" / f"post_script_truth_{sid}.json").is_file()
+        and (BASE / "roteiros" / f"visual_continuity_{sid}.json").is_file()
+    )
+
     if missing:
         boundary = "media"
-        action = f"python main.py resume --short-id {sid}"
+        if semantic_checkpoint:
+            action = f"python resume_after_semantic_fix.py --short-id {sid}"
+        else:
+            action = f"python main.py resume --short-id {sid}"
     elif not final_ok:
         boundary = "downstream"
         action = f"python main.py resume --short-id {sid}"
@@ -239,6 +248,13 @@ def diagnose(sid: str) -> dict[str, Any]:
             "release_score": release.get("shortautopro_score") if isinstance(release, dict) else None,
         },
         "last_failure": failure,
+        "runtime": {
+            "provider_workers": os.getenv("SAP_MEDIA_PROVIDER_WORKERS", "6"),
+            "api_timeout": os.getenv("SAP_MEDIA_API_TIMEOUT", "10"),
+            "wikimedia_timeout": os.getenv("SAP_WIKIMEDIA_TIMEOUT", "10"),
+            "must_rescue_max_queries": os.getenv("SAP_MUST_RESCUE_MAX_QUERIES", "5"),
+            "stock_rescue_max_queries": os.getenv("SAP_STOCK_RESCUE_MAX_QUERIES", "2"),
+        },
         "issues": issues,
         "next_action": action,
     }
