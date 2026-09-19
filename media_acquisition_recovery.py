@@ -16,7 +16,7 @@ from typing import Any
 
 import media_must_verifier as mustv
 
-VERSION = "1.6"
+VERSION = "1.7"
 
 
 def _must_list(value: Any) -> list[str]:
@@ -115,6 +115,40 @@ def _rescue_queries(
     if original and not stock_first:
         candidates.append(f"{base} {original}".strip())
 
+    if os.getenv("SAP_MEDIA_RECOVERY_PASS", "0") == "1":
+        # Second pass broadens retrieval only. Validation remains strict.
+        stop_words = {
+            "old","historic","historical","vintage","dark","empty","ornate",
+            "classic","ancient","close","up","documentary","photo","photograph",
+        }
+        alias_groups = []
+        for req in must:
+            key = str(req).casefold().strip()
+            aliases = list(getattr(mustv, "STRICT_VISUAL_ALIASES", {}).get(key, ()))
+            compact = " ".join(
+                token for token in key.split()
+                if token not in stop_words
+            ).strip()
+            group = [req, *aliases]
+            if compact and compact.casefold() != key:
+                group.append(compact)
+            alias_groups.append(group[:5])
+
+        for group in alias_groups:
+            for alias in group:
+                candidates.extend([
+                    str(alias),
+                    f"{alias} {mode}".strip(),
+                    f"{alias} {segment_anchor}".strip(),
+                ])
+
+        if len(alias_groups) >= 2:
+            left = alias_groups[0][:3]
+            right = alias_groups[1][:3]
+            for a in left:
+                for b in right:
+                    candidates.append(f"{a} {b}".strip())
+
     out: list[str] = []
     seen: set[str] = set()
     for query in candidates:
@@ -124,7 +158,8 @@ def _rescue_queries(
             continue
         seen.add(key)
         out.append(query)
-    return out[:5]
+    limit = 8 if os.getenv("SAP_MEDIA_RECOVERY_PASS", "0") == "1" else 5
+    return out[:limit]
 
 
 def _rescue_budget() -> int:
