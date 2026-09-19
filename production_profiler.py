@@ -28,6 +28,7 @@ def begin_run(short_id: str, run_id: str | None = None) -> str:
     sid = _sid(short_id)
     rid = str(run_id or f"{int(time.time())}-{os.getpid()}").strip()
     _ACTIVE_RUNS[sid] = rid
+    os.environ["SAP_PROFILE_RUN_ID"] = rid
     record(
         "__run_start__",
         0.0,
@@ -39,7 +40,10 @@ def begin_run(short_id: str, run_id: str | None = None) -> str:
 
 
 def current_run_id(short_id: str | None = None) -> str:
-    return _ACTIVE_RUNS.get(_sid(short_id), "")
+    return (
+        _ACTIVE_RUNS.get(_sid(short_id), "")
+        or str(os.getenv("SAP_PROFILE_RUN_ID", "") or "")
+    )
 
 
 def record(
