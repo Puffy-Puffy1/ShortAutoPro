@@ -33,14 +33,14 @@ Dialogue: 0,0:00:00.80,0:00:01.60,Dynamic,,0,0,0,,O caso mudou completamente
         self.assertTrue(report["content_preserved"])
         self.assertLessEqual(report["max_lines"], 2)
         self.assertGreaterEqual(report["balanced_breaks_added"], 1)
-        self.assertIn("Style: Dynamic,DejaVu Sans,62,", transformed)
-        self.assertIn(",125,125,305,1", transformed)
+        self.assertIn("Style: Dynamic,DejaVu Sans,69,", transformed)
+        self.assertIn(",125,125,335,1", transformed)
 
     def test_transform_is_profile_specific_without_rewriting_text(self):
         source = self.sample_ass()
         transformed, report = pcd.transform(source, "cinepulsar")
         self.assertEqual(report["profile"], "cinepulsar")
-        self.assertIn("Style: Dynamic,DejaVu Sans,64,", transformed)
+        self.assertIn("Style: Dynamic,DejaVu Sans,70,", transformed)
         self.assertIn("O caso mudou completamente", transformed)
 
 
