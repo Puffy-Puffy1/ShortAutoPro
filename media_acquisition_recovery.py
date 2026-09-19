@@ -64,24 +64,55 @@ def _dedupe(candidates: list[Any]) -> list[Any]:
     return out
 
 
-def _rescue_queries(busca: str, must: list[str], assunto: str = "", segmento: str = "", visual_mode: str = "") -> list[str]:
+def _rescue_queries(
+    busca: str,
+    must: list[str],
+    assunto: str = "",
+    segmento: str = "",
+    visual_mode: str = "",
+) -> list[str]:
     base = " ".join(must).strip()
     subject = str(assunto or "").strip()
-    segment_tokens = [x for x in str(segmento or "").split() if len(x) >= 4][:6]
+    segment_tokens = [
+        x
+        for x in str(segmento or "").split()
+        if len(x) >= 4
+    ][:4]
     segment_anchor = " ".join(segment_tokens).strip()
     mode = str(visual_mode or "").replace("_", " ").strip()
-    candidates = [
-        base,
-        f"{subject} {base}".strip(),
-        f"{base} {segment_anchor}".strip(),
-        f"{subject} {base} {segment_anchor}".strip(),
-        f"{base} {mode}".strip(),
-        f"{base} archive photograph".strip(),
-        f"{base} historical photograph".strip(),
-        f"{base} documentary evidence".strip(),
-    ]
+
+    stock_modes = {
+        "human context",
+        "environment",
+        "object",
+        "abstract context",
+    }
+    stock_first = mode.casefold() in stock_modes
+
+    if stock_first:
+        # Stock APIs work best with compact visual nouns. Topic names and long
+        # narration often reduce relevance and can exceed provider query limits.
+        candidates = [
+            base,
+            f"{base} {mode}".strip(),
+            f"{base} {segment_anchor}".strip(),
+            f"{base} close up".strip(),
+            f"{base} documentary".strip(),
+        ]
+    else:
+        candidates = [
+            base,
+            f"{subject} {base}".strip(),
+            f"{base} {segment_anchor}".strip(),
+            f"{subject} {base} {segment_anchor}".strip(),
+            f"{base} {mode}".strip(),
+            f"{base} archive photograph".strip(),
+            f"{base} historical photograph".strip(),
+            f"{base} documentary evidence".strip(),
+        ]
+
     original = str(busca or "").strip()
-    if original:
+    if original and not stock_first:
         candidates.append(f"{base} {original}".strip())
 
     out: list[str] = []
