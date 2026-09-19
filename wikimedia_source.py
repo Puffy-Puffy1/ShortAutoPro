@@ -24,7 +24,12 @@ HEADERS = {
         "(documentary-media-research; factual-shorts)"
 }
 
-TIMEOUT = 30
+try:
+    TIMEOUT = float(os.getenv("SAP_WIKIMEDIA_TIMEOUT", "10") or 10)
+except (TypeError, ValueError):
+    TIMEOUT = 10.0
+
+TIMEOUT = max(4.0, min(TIMEOUT, 30.0))
 
 BASE = os.path.expanduser(
     "~/ShortAutoPro"

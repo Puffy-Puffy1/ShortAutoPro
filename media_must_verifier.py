@@ -111,6 +111,36 @@ def _phrase_present(text: str, phrase: str) -> bool:
     return bool(normalized_phrase) and f" {normalized_phrase} " in normalized_text
 
 
+STRICT_VISUAL_ALIASES = {
+    "spoon": (
+        "spoon",
+        "teaspoon",
+        "tablespoon",
+        "wooden spoon",
+        "metal spoon",
+    ),
+    "ventilation duct": (
+        "ventilation duct",
+        "air duct",
+        "ductwork",
+        "ventilation shaft",
+        "air vent",
+    ),
+    "tunnel": (
+        "tunnel",
+        "service tunnel",
+        "underground passage",
+        "passageway",
+    ),
+}
+
+
+def _strict_alias_match(requirement: str, evidence: str) -> bool:
+    req = _canonical_phrase(requirement)
+    aliases = STRICT_VISUAL_ALIASES.get(req, ())
+    return any(_phrase_present(evidence, alias) for alias in aliases)
+
+
 def strict_concept_hits(text: Any) -> set[str]:
     """Phrase-aware concept matcher.
 
@@ -152,6 +182,9 @@ def requirement_matches(requirement: str, candidate: Any) -> bool:
     req_tokens = {_canonical_word(token) for token in _tokens(requirement)}
     cand_tokens = {_canonical_word(token) for token in _tokens(evidence)}
     if req_tokens and req_tokens.issubset(cand_tokens):
+        return True
+
+    if _strict_alias_match(requirement, evidence):
         return True
 
     # Synonym rescue is strict: every phrase-aware concept expressed by the

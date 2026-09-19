@@ -138,6 +138,16 @@ except ValueError:
 # ==================================================
 
 try:
+    _MEDIA_API_TIMEOUT = float(
+        os.getenv("SAP_MEDIA_API_TIMEOUT", "10") or 10
+    )
+except (TypeError, ValueError):
+    _MEDIA_API_TIMEOUT = 10.0
+
+_MEDIA_API_TIMEOUT = max(4.0, min(_MEDIA_API_TIMEOUT, 30.0))
+
+
+try:
     _PROVIDER_WORKERS = int(
         os.getenv("SAP_MEDIA_PROVIDER_WORKERS", "6") or 6
     )
@@ -1241,7 +1251,7 @@ def baixar(
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            timeout=30
+            timeout=_MEDIA_API_TIMEOUT
         )
 
         if probe.returncode != 0:
@@ -1604,7 +1614,7 @@ def pexels_video(
                 "orientation": "portrait",
                 "per_page": 20
             },
-            timeout=30
+            timeout=_MEDIA_API_TIMEOUT
         )
 
     except Exception as _sap_provider_exc_v1:
@@ -1747,7 +1757,7 @@ def pexels_foto(
                 "orientation": "portrait",
                 "per_page": 25
             },
-            timeout=30
+            timeout=_MEDIA_API_TIMEOUT
         )
 
     except Exception as _sap_provider_exc_v1:
@@ -1861,7 +1871,7 @@ def pixabay_video(
                 "order": "popular",
                 "per_page": 20
             },
-            timeout=30
+            timeout=_MEDIA_API_TIMEOUT
         )
 
     except Exception as _sap_provider_exc_v1:
@@ -2008,7 +2018,7 @@ def pixabay_foto(
                 "order": "popular",
                 "per_page": 25
             },
-            timeout=30
+            timeout=_MEDIA_API_TIMEOUT
         )
 
     except Exception as _sap_provider_exc_v1:
@@ -2117,7 +2127,7 @@ def coverr_video(
                 "page_size": 20,
                 "urls": "true"
             },
-            timeout=30
+            timeout=_MEDIA_API_TIMEOUT
         )
 
     except Exception as _sap_provider_exc_v1:
@@ -2432,19 +2442,30 @@ def buscar_todos_candidatos(
         )
     )
 
-    provider_jobs = [
-        (
-            "wikimedia",
-            lambda: buscar_wikimedia_fotos(
-                busca,
-                must_have,
-                avoid,
-                assunto=ASSUNTO,
-                segmento=segmento,
-                visual_mode=visual_mode
+    provider_jobs = []
+
+    # Respect the route chosen by source_router. Stock-first scenes should not
+    # pay Wikimedia's multi-query latency on every search. Documentary/mixed
+    # routes keep Wikimedia in the first pass.
+    if rota_fonte.get("route") != "stock_first":
+        provider_jobs.append(
+            (
+                "wikimedia",
+                lambda: buscar_wikimedia_fotos(
+                    busca,
+                    must_have,
+                    avoid,
+                    assunto=ASSUNTO,
+                    segmento=segmento,
+                    visual_mode=visual_mode
+                )
             )
         )
-    ]
+    else:
+        print(
+            "SAP_SOURCE_ROUTE_FASTPATH=STOCK_FIRST "
+            "wikimedia=DEFERRED"
+        )
 
     if USAR_VIDEOS:
 
