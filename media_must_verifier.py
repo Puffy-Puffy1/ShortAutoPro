@@ -132,6 +132,14 @@ STRICT_VISUAL_ALIASES = {
         "underground passage",
         "passageway",
     ),
+    "picture frame": (
+        "picture frame",
+        "photo frame",
+        "picture frames",
+        "photo frames",
+        "frame",
+        "frames",
+    ),
 }
 
 
