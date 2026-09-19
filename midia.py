@@ -20,7 +20,9 @@ import re
 import json
 import hashlib
 from concurrent.futures import ThreadPoolExecutor
+import threading
 import requests
+from requests.adapters import HTTPAdapter
 from datetime import date
 
 from wikimedia_source import (
@@ -127,6 +129,47 @@ try:
     )
 except ValueError:
     VIDEO_TOLERANCIA = 18.0
+
+
+# ==================================================
+# PRODUCTION NETWORK RUNTIME
+# ==================================================
+
+_PROVIDER_EXECUTOR = ThreadPoolExecutor(
+    max_workers=max(
+        2,
+        min(
+            int(os.getenv("SAP_MEDIA_PROVIDER_WORKERS", "6") or 6),
+            6,
+        ),
+    )
+)
+
+_HTTP_SESSIONS = {}
+_HTTP_SESSIONS_LOCK = threading.Lock()
+
+
+def _sap_http_session(name):
+    key = str(name or "default").strip().lower()
+    with _HTTP_SESSIONS_LOCK:
+        session = _HTTP_SESSIONS.get(key)
+        if session is not None:
+            return session
+        session = requests.Session()
+        adapter = HTTPAdapter(
+            pool_connections=8,
+            pool_maxsize=8,
+            max_retries=0,
+        )
+        session.mount("https://", adapter)
+        session.mount("http://", adapter)
+        session.headers.update(
+            {
+                "User-Agent": "ShortAutoPro/5.2 ProductionClient/1.0"
+            }
+        )
+        _HTTP_SESSIONS[key] = session
+        return session
 
 
 # ==================================================
@@ -1116,7 +1159,7 @@ def baixar(
                 "application/octet-stream;q=0.9,*/*;q=0.5"
         }
 
-        r = requests.get(
+        r = _sap_http_session("download").get(
             url,
             timeout=timeout,
             stream=True,
@@ -1545,7 +1588,7 @@ def pexels_video(
 
     try:
 
-        r = requests.get(
+        r = _sap_http_session("pexels_video").get(
             "https://api.pexels.com/videos/search",
             headers={
                 "Authorization":
@@ -1600,6 +1643,8 @@ def pexels_video(
             )
         )
 
+        melhor_variante = None
+
         for arq in item.get(
             "video_files",
             []
@@ -1634,17 +1679,37 @@ def pexels_video(
                 ident
             )
 
+            candidato_variante = {
+                "score": score,
+                "must_hits": must_hits,
+                "avoid_hits": avoid_hits,
+                "id": ident,
+                "url": url,
+                "fonte": "Pexels",
+                "tipo": "vídeo",
+                "descricao": descricao,
+                "_variant_width": w,
+                "_variant_height": h,
+            }
+
+            if (
+                melhor_variante is None
+                or (
+                    candidato_variante["score"],
+                    w * h,
+                )
+                >
+                (
+                    melhor_variante["score"],
+                    int(melhor_variante.get("_variant_width", 0) or 0)
+                    * int(melhor_variante.get("_variant_height", 0) or 0),
+                )
+            ):
+                melhor_variante = candidato_variante
+
+        if melhor_variante is not None:
             saida.append(
-                {
-                    "score": score,
-                    "must_hits": must_hits,
-                    "avoid_hits": avoid_hits,
-                    "id": ident,
-                    "url": url,
-                    "fonte": "Pexels",
-                    "tipo": "vídeo",
-                    "descricao": descricao
-                }
+                melhor_variante
             )
 
     return saida
@@ -1666,7 +1731,7 @@ def pexels_foto(
 
     try:
 
-        r = requests.get(
+        r = _sap_http_session("pexels_foto").get(
             "https://api.pexels.com/v1/search",
             headers={
                 "Authorization":
@@ -1781,7 +1846,7 @@ def pixabay_video(
 
     try:
 
-        r = requests.get(
+        r = _sap_http_session("pixabay_video").get(
             "https://pixabay.com/api/videos/",
             params={
                 "key": PIXABAY_KEY,
@@ -1832,6 +1897,8 @@ def pixabay_video(
             {}
         )
 
+        melhor_variante = None
+
         for chave in [
             "large",
             "medium",
@@ -1873,17 +1940,37 @@ def pixabay_video(
                 ident
             )
 
+            candidato_variante = {
+                "score": score,
+                "must_hits": must_hits,
+                "avoid_hits": avoid_hits,
+                "id": ident,
+                "url": url,
+                "fonte": "Pixabay",
+                "tipo": "vídeo",
+                "descricao": descricao,
+                "_variant_width": w,
+                "_variant_height": h,
+            }
+
+            if (
+                melhor_variante is None
+                or (
+                    candidato_variante["score"],
+                    w * h,
+                )
+                >
+                (
+                    melhor_variante["score"],
+                    int(melhor_variante.get("_variant_width", 0) or 0)
+                    * int(melhor_variante.get("_variant_height", 0) or 0),
+                )
+            ):
+                melhor_variante = candidato_variante
+
+        if melhor_variante is not None:
             saida.append(
-                {
-                    "score": score,
-                    "must_hits": must_hits,
-                    "avoid_hits": avoid_hits,
-                    "id": ident,
-                    "url": url,
-                    "fonte": "Pixabay",
-                    "tipo": "vídeo",
-                    "descricao": descricao
-                }
+                melhor_variante
             )
 
     return saida
@@ -1905,7 +1992,7 @@ def pixabay_foto(
 
     try:
 
-        r = requests.get(
+        r = _sap_http_session("pixabay_foto").get(
             "https://pixabay.com/api/",
             params={
                 "key": PIXABAY_KEY,
@@ -2013,7 +2100,7 @@ def coverr_video(
 
     try:
 
-        r = requests.get(
+        r = _sap_http_session("coverr_video").get(
             "https://api.coverr.co/videos",
             headers={
                 "Authorization":
@@ -2421,48 +2508,41 @@ def buscar_todos_candidatos(
 
         try:
 
-            with ThreadPoolExecutor(
-                max_workers=min(
-                    max_workers,
-                    len(provider_jobs)
+            futures = {
+                name: _PROVIDER_EXECUTOR.submit(
+                    job
                 )
-            ) as executor:
+                for name, job
+                in provider_jobs
+            }
 
-                futures = {
-                    name: executor.submit(
-                        job
+            # Coleta na ordem canônica dos providers.
+            # As chamadas executam em paralelo, mas a ordem final dos
+            # candidatos permanece determinística.
+            for name, _ in provider_jobs:
+
+                try:
+                    provider_results[
+                        name
+                    ] = list(
+                        futures[
+                            name
+                        ].result()
+                        or []
                     )
-                    for name, job
-                    in provider_jobs
-                }
 
-                # Coleta na ordem canônica dos providers.
-                # As chamadas executam em paralelo, mas a ordem final dos
-                # candidatos permanece determinística.
-                for name, _ in provider_jobs:
+                except Exception as exc:
 
-                    try:
-                        provider_results[
-                            name
-                        ] = list(
-                            futures[
-                                name
-                            ].result()
-                            or []
-                        )
+                    provider_results[
+                        name
+                    ] = []
 
-                    except Exception as exc:
-
-                        provider_results[
-                            name
-                        ] = []
-
-                        print(
-                            "SAP_MEDIA_PROVIDER_FAIL_OPEN "
-                            f"provider={name} "
-                            f"{type(exc).__name__}:"
-                            f"{str(exc)[:140]}"
-                        )
+                    print(
+                        "SAP_MEDIA_PROVIDER_FAIL_OPEN "
+                        f"provider={name} "
+                        f"{type(exc).__name__}:"
+                        f"{str(exc)[:140]}"
+                    )
 
         except Exception as exc:
 
