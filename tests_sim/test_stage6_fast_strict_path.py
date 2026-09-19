@@ -30,7 +30,7 @@ class Stage6FastStrictPathTests(unittest.TestCase):
 
     def test_canonical_recovery_unwraps_legacy_vse42_search_rescue(self):
         text = (ROOT / "media_acquisition_recovery.py").read_text(encoding="utf-8")
-        self.assertIn('VERSION = "1.4"', text)
+        self.assertIn('VERSION = "1.5"', text)
         self.assertIn("_sap_vse42_wrapped", text)
         self.assertIn("_sap_vse42_original", text)
         self.assertIn("SAP_MEDIA_RESCUE_NESTING=DISABLED", text)
