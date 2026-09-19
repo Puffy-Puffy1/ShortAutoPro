@@ -168,15 +168,22 @@ def rerank_pool(pool, context=None):
             adjusted -= group_counts[group] * 4.0
 
         if key_counts[key]:
-            adjusted -= 60.0 * key_counts[key]
+            adjusted -= 160.0 * key_counts[key]
 
-        # Evita longas sequências só foto ou só vídeo.
-        if (
-            len(_HISTORY["types"]) >= 3
-            and len(set(_HISTORY["types"][-3:])) == 1
-            and typ == _HISTORY["types"][-1]
+        # Evita longas sequências visualmente repetitivas e ajuda o pipeline
+        # a recuperar movimento quando já existem várias fotos seguidas.
+        recent_types = _HISTORY["types"][-4:]
+        if len(recent_types) >= 3 and all(x == "photo" for x in recent_types[-3:]):
+            if typ == "video":
+                adjusted += 28.0
+            elif typ == "photo":
+                adjusted -= 14.0
+        elif (
+            len(recent_types) >= 3
+            and len(set(recent_types[-3:])) == 1
+            and typ == recent_types[-1]
         ):
-            adjusted -= 7.0
+            adjusted -= 10.0
 
         # Visual Quality Policy V1.
         # Esta política tardia usa somente evidência descritiva do asset e não
