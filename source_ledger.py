@@ -6,6 +6,7 @@ import re
 import sys
 from datetime import date
 from pathlib import Path
+from urllib.parse import unquote, urlsplit
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro")))
 SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat()).strip()
@@ -71,6 +72,26 @@ def _scene_from_local_path(value):
     return int(match.group(1)) if match else None
 
 
+def _wikimedia_asset_key(value):
+    raw = unquote(str(value or "").strip())
+    if not raw:
+        return ""
+    try:
+        parsed = urlsplit(raw)
+        path = parsed.path or raw
+    except Exception:
+        path = raw
+
+    name = Path(path).name
+    if not name and "File:" in raw:
+        name = raw.rsplit("File:", 1)[-1]
+    if "File:" in raw:
+        name = raw.rsplit("File:", 1)[-1]
+    name = name.split("?", 1)[0].split("#", 1)[0]
+    name = name.replace("_", " ").strip().casefold()
+    return " ".join(name.split())
+
+
 def _provenance_for_scene(records, scene):
     matches = []
     for item in records:
@@ -80,7 +101,12 @@ def _provenance_for_scene(records, scene):
             continue
         provider = str(item.get("provider", "") or "").casefold()
         source_url = str(item.get("source_url", "") or "")
-        if "wikimedia" in provider or "commons.wikimedia.org" in source_url.casefold():
+        source_cf = source_url.casefold()
+        if (
+            "wikimedia" in provider
+            or "commons.wikimedia.org" in source_cf
+            or "upload.wikimedia.org" in source_cf
+        ):
             matches.append(item)
     return matches
 
@@ -116,17 +142,24 @@ def reconciliar_creditos_duplicados(creditos, provenance_records):
             for item in provenance
             if str(item.get("source_url", "") or "").strip()
         }
+        provenance_keys = {
+            _wikimedia_asset_key(url)
+            for url in source_urls
+            if _wikimedia_asset_key(url)
+        }
 
-        matched = [
-            item for item in identities.values()
-            if str(item.get("page", "") or "").strip() in source_urls
-        ]
+        matched = []
+        for item in identities.values():
+            page = str(item.get("page", "") or "").strip()
+            page_key = _wikimedia_asset_key(page)
+            if page in source_urls or (page_key and page_key in provenance_keys):
+                matched.append(item)
 
         if len(matched) == 1:
             resolved.append(matched[0])
             reconciled.append({
                 "scene": scene,
-                "reason": "PROVENANCE_MATCH",
+                "reason": "PROVENANCE_OR_WIKIMEDIA_FILE_MATCH",
                 "discarded": len(identities) - 1,
             })
             continue

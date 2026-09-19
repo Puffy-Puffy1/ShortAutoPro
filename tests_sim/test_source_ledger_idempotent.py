@@ -28,7 +28,7 @@ class SourceLedgerIdempotentTests(unittest.TestCase):
         resolved, notes = source_ledger.reconciliar_creditos_duplicados(credits, provenance)
         self.assertEqual(len(resolved), 1)
         self.assertEqual(resolved[0]["page"], "https://commons.wikimedia.org/wiki/File:B.jpg")
-        self.assertEqual(notes[0]["reason"], "PROVENANCE_MATCH")
+        self.assertEqual(notes[0]["reason"], "PROVENANCE_OR_WIKIMEDIA_FILE_MATCH")
 
     def test_ambiguous_distinct_duplicates_fail_closed(self):
         credits = [

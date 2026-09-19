@@ -90,6 +90,7 @@ def _source_url(
         _first(
             candidate,
             [
+                "credit_page",
                 "source_url",
                 "descriptionurl",
                 "page_url",
@@ -164,6 +165,9 @@ def _provider(
             "Coverr",
 
         "commons.wikimedia.org":
+            "Wikimedia Commons",
+
+        "upload.wikimedia.org":
             "Wikimedia Commons",
 
         "wikipedia.org":
