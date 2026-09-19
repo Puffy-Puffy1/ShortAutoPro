@@ -63,11 +63,12 @@ def round_env(round_index: int) -> dict[str, str]:
     env["SAP_MEDIA_INCREMENTAL"] = "1"
 
     # Increasing retrieval effort only. MUST acceptance rules are untouched.
-    rescue_budget = (2, 4, 6)[min(round_index, 2)]
-    provider_timeout = (22, 30, 38)[min(round_index, 2)]
-    wiki_deadline = (18, 26, 34)[min(round_index, 2)]
+    rescue_budget = (2, 4, 6, 8, 8)[min(round_index, 4)]
+    provider_timeout = (22, 30, 38, 42, 45)[min(round_index, 4)]
+    wiki_deadline = (18, 26, 34, 40, 45)[min(round_index, 4)]
 
     env["SAP_STOCK_RESCUE_MAX_QUERIES"] = str(rescue_budget)
+    env["SAP_MUST_RESCUE_MAX_QUERIES"] = str(rescue_budget)
     env["SAP_MEDIA_PROVIDER_RESULT_TIMEOUT"] = str(provider_timeout)
     env["SAP_WIKIMEDIA_SEARCH_DEADLINE"] = str(wiki_deadline)
     env["SAP_MEDIA_RECOVERY_ROUND"] = str(round_index + 1)
@@ -90,6 +91,7 @@ def main() -> int:
 
     previous_missing: set[int] | None = None
     previous_total = -1
+    no_progress_rounds = 0
 
     for round_index in range(max_rounds):
         print()
@@ -140,21 +142,27 @@ def main() -> int:
 
         if previous_missing is not None:
             made_progress = total > previous_total or missing < previous_missing
-            if not made_progress:
+            if made_progress:
+                no_progress_rounds = 0
+            else:
+                no_progress_rounds += 1
                 print(
                     "MEDIA_STAGE_RUNTIME=NO_PROGRESS "
                     f"round={round_index + 1} "
-                    f"missing={','.join(map(str, sorted(missing)))}"
+                    f"streak={no_progress_rounds} "
+                    f"missing={','.join(map(str, sorted(missing)))} "
+                    "action=ESCALATE_NEXT_ROUND"
                 )
-                return proc.returncode or 1
 
         previous_missing = missing
         previous_total = total
 
         if round_index + 1 < max_rounds:
+            next_budget = (2, 4, 6, 8, 8)[min(round_index + 1, 4)]
             print(
                 "MEDIA_STAGE_RUNTIME=RETRY_MISSING_ONLY "
                 f"next_round={round_index + 2} "
+                f"next_budget={next_budget} "
                 f"missing={','.join(map(str, sorted(missing)))}"
             )
 
