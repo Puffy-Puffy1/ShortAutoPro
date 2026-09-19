@@ -274,7 +274,8 @@ def print_report(report: dict[str, Any]) -> None:
         print("ISSUES: nenhum bloqueio detectado")
     print("NEXT:")
     print(f"  {report['next_action']}")
-    print(f"REPORT: {REPORT_DIR / f'doctor_{report['short_id']}.json'}")
+    report_path = REPORT_DIR / ("doctor_" + str(report["short_id"]) + ".json")
+    print(f"REPORT: {report_path}")
 
 
 def main() -> int:
