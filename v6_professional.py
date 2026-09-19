@@ -32,8 +32,11 @@ MUSIC_DIR = BASE / "musicas"
 SFX_DIR = BASE / "sfx"
 GENERATED_SFX = TEMP / "professional_hook_impact.wav"
 OUTPUT = BASE / "videos" / f"short_v6_{SHORT_ID}.mp4"
+USED_TOPIC = BASE / "roteiros" / f"used_topic_{SHORT_ID}.txt"
+TOPIC_FALLBACK = BASE / "roteiros" / f"topic_{SHORT_ID}.txt"
+RENDER_IDENTITY = BASE / "manifests" / f"{SHORT_ID}_render_identity.json"
 
-for directory in (TEMP, MUSIC_DIR, SFX_DIR): directory.mkdir(parents=True, exist_ok=True)
+for directory in (TEMP, MUSIC_DIR, SFX_DIR, RENDER_IDENTITY.parent): directory.mkdir(parents=True, exist_ok=True)
 
 
 def read_json(path: Path, optional: bool = False) -> dict[str, Any]:
@@ -42,6 +45,17 @@ def read_json(path: Path, optional: bool = False) -> dict[str, Any]:
     except Exception as exc: raise SystemExit(f"ERRO V6 PROFESSIONAL: plano inválido {path.name}: {exc}") from exc
     if not isinstance(data, dict): raise SystemExit(f"ERRO V6 PROFESSIONAL: {path.name} precisa ser objeto JSON")
     return data
+
+
+def read_text(path: Path) -> str:
+    try:
+        return path.read_text(encoding="utf-8").strip()
+    except Exception:
+        return ""
+
+
+def text_sha256(value: str) -> str:
+    return hashlib.sha256(str(value or "").encode("utf-8")).hexdigest()
 
 
 def safe_float(value: Any, default: float, low: float, high: float) -> float:
@@ -301,7 +315,7 @@ def main() -> int:
         str(OUTPUT),
     ])
 
-    print("\n================================\nV6 PROFESSIONAL RENDERER 2.2\n================================")
+    print("\n================================\nV6 PROFESSIONAL RENDERER 2.3\n================================")
     print(f"Perfil: {plan.get('profile','default')} | estilo: {plan.get('style','premium_documentary')}")
     print(f"Music mood: {mood or 'generic'} | Music: {'ON' if music else 'OFF'} | timed SFX: {len(timed_events)}")
     print(f"Ducking: ratio={duck_ratio:.1f} attack={duck_attack}ms release={duck_release}ms")
@@ -319,8 +333,10 @@ def main() -> int:
     except subprocess.CalledProcessError as exc: print(f"ERRO V6 PROFESSIONAL: ffmpeg retornou {exc.returncode}"); return exc.returncode or 1
     if not OUTPUT.is_file() or OUTPUT.stat().st_size < 500_000: print("ERRO V6 PROFESSIONAL: saída ausente ou pequena demais"); return 1
     render_elapsed = time.monotonic() - render_started
+    render_topic = read_text(USED_TOPIC) or read_text(TOPIC_FALLBACK)
+    topic_sha = text_sha256(render_topic) if render_topic else ""
     runtime["sound_render"] = {
-        "version": "2.2",
+        "version": "2.3",
         "music_mood": mood,
         "music_file": Path(music).name if music else None,
         "duck_ratio": duck_ratio,
@@ -334,9 +350,26 @@ def main() -> int:
             "height": base_h,
             "color_range": base_range or None,
         },
+        "artifact_identity": {
+            "short_id": SHORT_ID,
+            "topic": render_topic,
+            "topic_sha256": topic_sha,
+        },
     }
-    try: RUNTIME.write_text(json.dumps(runtime, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    except Exception: pass
+    identity = {
+        "schema": "SHORTAUTOPRO_RENDER_IDENTITY_V1",
+        "short_id": SHORT_ID,
+        "topic": render_topic,
+        "topic_sha256": topic_sha,
+        "video_path": str(OUTPUT),
+        "rendered_at_unix": time.time(),
+    }
+    try:
+        RUNTIME.write_text(json.dumps(runtime, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        RENDER_IDENTITY.write_text(json.dumps(identity, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    except Exception as exc:
+        print(f"ERRO V6 PROFESSIONAL: falha gravando identidade do render: {exc}")
+        return 1
     speed_ratio = (total / render_elapsed) if render_elapsed > 0 else 0.0
     print(
         f"V6 PROFESSIONAL: PASS | render={render_elapsed:.1f}s "
