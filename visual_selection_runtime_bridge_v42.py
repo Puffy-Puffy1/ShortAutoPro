@@ -218,6 +218,40 @@ def rerank_pool(pool, context=None):
         reverse=True,
     )
 
+    # Hard anti-repeat: an already-used exact asset must not win again when
+    # an unseen safe candidate exists at the same MUST tier.
+    if ranked and key_counts[ranked[0]["key"]]:
+        top_tier = ranked[0]["tier"]
+        replacement_index = next(
+            (
+                idx for idx, item in enumerate(ranked[1:], 1)
+                if not item["hard"]
+                and item["tier"] >= top_tier
+                and not key_counts[item["key"]]
+            ),
+            None,
+        )
+        if replacement_index is not None:
+            ranked.insert(0, ranked.pop(replacement_index))
+
+    # Motion recovery: after three photos, prefer a safe video at the same
+    # MUST tier unless it is clearly weaker semantically.
+    recent_types = _HISTORY["types"][-3:]
+    if ranked and len(recent_types) == 3 and all(x == "photo" for x in recent_types):
+        top = ranked[0]
+        video_index = next(
+            (
+                idx for idx, item in enumerate(ranked)
+                if item["type"] == "video"
+                and not item["hard"]
+                and item["tier"] >= top["tier"]
+                and item["adjusted"] >= top["adjusted"] - 45.0
+            ),
+            None,
+        )
+        if video_index not in (None, 0):
+            ranked.insert(0, ranked.pop(video_index))
+
     output = [item["candidate"] for item in ranked]
     top = ranked[0]
     max_tier = max(item["tier"] for item in ranked)
@@ -232,6 +266,7 @@ def rerank_pool(pool, context=None):
             "UNANCHORED_ASSET",
             "GENERIC_LIFESTYLE",
             "GENERIC_SCENERY_FOR_ACTION",
+            "NEAR_DUPLICATE_STRONG",
         }
         for reason in top_quality_reasons
     )
