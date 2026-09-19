@@ -30,7 +30,7 @@ class Stage6FastStrictPathTests(unittest.TestCase):
 
     def test_canonical_recovery_unwraps_legacy_vse42_search_rescue(self):
         text = (ROOT / "media_acquisition_recovery.py").read_text(encoding="utf-8")
-        self.assertIn('VERSION = "1.6"', text)
+        self.assertIn('VERSION = "1.7"', text)
         self.assertIn("_sap_query_expansion_original", text)
         self.assertIn("_sap_vse42_original", text)
         self.assertIn("__wrapped__", text)
@@ -40,7 +40,8 @@ class Stage6FastStrictPathTests(unittest.TestCase):
     def test_recovery_remains_bounded_and_cached(self):
         text = (ROOT / "media_acquisition_recovery.py").read_text(encoding="utf-8")
         self.assertIn("SAP_MUST_RESCUE_MAX_QUERIES", text)
-        self.assertIn("return out[:5]", text)
+        self.assertIn('limit = 8 if os.getenv("SAP_MEDIA_RECOVERY_PASS", "0") == "1" else 5', text)
+        self.assertIn("return out[:limit]", text)
         self.assertIn("SAP_MUST_RESCUE_CACHE=HIT", text)
         self.assertIn("SAP_MEDIA_ACQUISITION_CACHE=HIT", text)
 
