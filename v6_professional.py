@@ -258,9 +258,9 @@ def main() -> int:
 
     audio_filters: list[str] = []
     if music_input is not None:
-        audio_filters.append("[1:a]highpass=f=70,acompressor=threshold=0.18:ratio=2.3:attack=18:release=170:makeup=1.10," + f"alimiter=limit={limiter:.5f},asplit=2[voice][voice_sidechain]")
+        audio_filters.append("[1:a]highpass=f=70,acompressor=threshold=0.18:ratio=2.3:attack=18:release=170:makeup=1.10," + f"alimiter=limit={limiter:.5f}:level=false,asplit=2[voice][voice_sidechain]")
     else:
-        audio_filters.append("[1:a]highpass=f=70,acompressor=threshold=0.18:ratio=2.3:attack=18:release=170:makeup=1.10," + f"alimiter=limit={limiter:.5f}[voice]")
+        audio_filters.append("[1:a]highpass=f=70,acompressor=threshold=0.18:ratio=2.3:attack=18:release=170:makeup=1.10," + f"alimiter=limit={limiter:.5f}:level=false[voice]")
     mix_inputs = ["[voice]"]
 
     if music_input is not None:
@@ -271,9 +271,9 @@ def main() -> int:
         try: scene = int(event.get("scene", 1))
         except Exception: scene = 1
         start = starts.get(scene, 0.0); delay_ms = max(0, int(round(start * 1000))); label = f"sfx{local_index}"; volume = 0.085 if "riser" in str(event.get("type", "")) else 0.070
-        audio_filters.append(f"[{input_index}:a]atrim=start=0:end=0.8,asetpts=PTS-STARTPTS,volume={volume:.3f},afade=t=out:st=0.25:d=0.45,adelay={delay_ms}|{delay_ms},alimiter=limit={limiter:.5f}[{label}]"); mix_inputs.append(f"[{label}]"); timed_events.append({"scene": scene, "type": event.get("type"), "start_seconds": round(start, 3), "file": Path(picked).name})
+        audio_filters.append(f"[{input_index}:a]atrim=start=0:end=0.8,asetpts=PTS-STARTPTS,volume={volume:.3f},afade=t=out:st=0.25:d=0.45,adelay={delay_ms}|{delay_ms},alimiter=limit={limiter:.5f}:level=false[{label}]"); mix_inputs.append(f"[{label}]"); timed_events.append({"scene": scene, "type": event.get("type"), "start_seconds": round(start, 3), "file": Path(picked).name})
 
-    audio_filters.append("".join(mix_inputs) + f"amix=inputs={len(mix_inputs)}:duration=first:dropout_transition=2,loudnorm=I={target_lufs:.2f}:LRA=7:TP={true_peak:.2f},alimiter=limit={limiter:.5f}[a]")
+    audio_filters.append("".join(mix_inputs) + f"amix=inputs={len(mix_inputs)}:duration=first:dropout_transition=2,loudnorm=I={target_lufs:.2f}:LRA=7:TP={true_peak:.2f},alimiter=limit={limiter:.5f}:level=false[a]")
     filter_complex = video_filter + ";" + ";".join(audio_filters)
     try: OUTPUT.unlink(missing_ok=True)
     except OSError: pass
