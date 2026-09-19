@@ -16,7 +16,7 @@ from typing import Any
 
 import media_must_verifier as mustv
 
-VERSION = "1.4"
+VERSION = "1.5"
 
 
 def _must_list(value: Any) -> list[str]:
@@ -166,17 +166,44 @@ def _wrap_pool(namespace: dict[str, Any]) -> bool:
     if not callable(original) or getattr(original, "_sap_acquisition_recovery", False):
         return False
 
-    # VSE42 legacy search rescue may already wrap the base acquisition.
-    # Canonical recovery below is broader, bounded and cached. Calling the
-    # wrapped function here would multiply each rescue query into more rescue
-    # queries. Use the underlying acquisition function as the single provider
-    # call authority and keep VSE42 for ranking/final selection.
+    # Collapse the entire search-wrapper chain for recovery queries.
+    # Provider-level wrappers remain active because the base function resolves
+    # provider callables from the live module namespace at runtime.
     provider_search = original
-    if getattr(original, "_sap_vse42_wrapped", False):
-        unwrapped = getattr(original, "_sap_vse42_original", None)
-        if callable(unwrapped):
-            provider_search = unwrapped
-            print("SAP_MEDIA_RESCUE_NESTING=DISABLED source=VSE42")
+    seen_wrappers: set[int] = set()
+    unwrapped_layers: list[str] = []
+
+    for _ in range(12):
+        marker = id(provider_search)
+        if marker in seen_wrappers:
+            break
+        seen_wrappers.add(marker)
+
+        next_fn = None
+        next_label = ""
+
+        for attr, label in (
+            ("_sap_query_expansion_original", "QUERY_EXPANSION"),
+            ("_sap_vse42_original", "VSE42_RESCUE"),
+            ("__wrapped__", "FUNCTOOLS"),
+        ):
+            candidate = getattr(provider_search, attr, None)
+            if callable(candidate) and candidate is not provider_search:
+                next_fn = candidate
+                next_label = label
+                break
+
+        if next_fn is None:
+            break
+
+        provider_search = next_fn
+        unwrapped_layers.append(next_label)
+
+    if unwrapped_layers:
+        print(
+            "SAP_MEDIA_RESCUE_NESTING=DISABLED layers="
+            + ",".join(unwrapped_layers)
+        )
 
     cache: dict[tuple[Any, ...], list[Any]] = {}
     rescue_cache: dict[tuple[Any, ...], list[Any]] = {}
