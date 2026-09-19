@@ -67,11 +67,19 @@ CONCEPTS = {
     "mountain": {"mountain", "mountains", "hill", "hills", "montanha", "montanhas", "serra"},
     "city": {"city", "street", "urban", "cidade", "rua", "urbano", "urbana"},
     "smoking": {"smoking", "smoke", "hookah", "shisha", "tobacco", "fumando", "fumaca", "narguile"},
+    "book": {"book", "books", "novel", "poem", "poetry", "rubaiyat", "livro", "livros", "poema", "poesia"},
+    "laboratory": {"laboratory", "lab", "test tube", "vial", "forensic lab", "laboratorio", "tubo", "frasco", "pericia"},
+    "dna": {"dna", "genetic", "genetics", "gene", "genes", "genetica", "genetico"},
+    "portrait": {"portrait", "photograph", "photo portrait", "retrato", "fotografia"},
+    "museum": {"museum", "gallery", "art gallery", "museu", "galeria"},
+    "painting": {"painting", "paintings", "canvas", "artwork", "painted", "pintura", "pinturas", "quadro", "quadros", "obra de arte"},
+    "frame": {"frame", "frames", "picture frame", "empty frame", "moldura", "molduras"},
+    "newspaper": {"newspaper", "headline", "press", "journal", "jornal", "manchete", "imprensa"},
 }
 
 SPECIFIC_ACTION_CONCEPTS = {
     "phone", "airport", "hospital", "police", "camera", "document", "luggage",
-    "hotel", "running",
+    "hotel", "running", "book", "laboratory", "dna", "museum", "painting", "frame", "newspaper",
 }
 
 GENERIC_SCENERY_CONCEPTS = {"ocean", "forest", "mountain", "city", "building"}
@@ -307,8 +315,16 @@ def evaluate(candidate: Any, scene: Any, history: dict[str, Any] | None = None) 
         adjustment -= 78.0 if stock else 52.0
         reasons.append("UNANCHORED_ASSET")
     elif specific_scene and direct_overlap == 0:
-        adjustment -= 22.0
+        adjustment -= 28.0
         reasons.append("LOW_LITERAL_ANCHOR")
+
+    # When the narration names a concrete concept, generic investigative
+    # imagery is not enough. At least one of those concrete concepts should be
+    # supported by the asset metadata.
+    concrete_scene = scene_concepts & SPECIFIC_ACTION_CONCEPTS
+    if concrete_scene and not (concrete_scene & asset_concepts):
+        adjustment -= 38.0 if stock else 24.0
+        reasons.append("CONCRETE_CONCEPT_MISMATCH")
 
     generic_hits = asset_tokens & {normalize(x) for x in GENERIC_LIFESTYLE}
     if generic_hits:
