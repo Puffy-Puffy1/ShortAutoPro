@@ -8,6 +8,7 @@ DIRECTOR_AI="$BASE/shortauto_director_ai.py"
 ASSET_LIBRARY="$BASE/shortauto_asset_library.py"
 REPAIR_ENGINE="$BASE/shortauto_repair_engine.py"
 INTELLIGENCE="$BASE/shortauto_intelligence_layer.py"
+PRODUCTION_CENTER="$BASE/production_center.py"
 RESET="\033[0m";BOLD="\033[1m";GREEN="\033[32m";YELLOW="\033[33m";RED="\033[31m";CYAN="\033[36m"
 pausa(){ echo; read -r -p "Pressione Enter para voltar..." _ || true; }
 cabecalho(){ clear 2>/dev/null || printf '\033c'; echo -e "${BOLD}${CYAN}"; echo "======================================"; echo " SHORTAUTO PRO - CONTROL CENTER 4.0"; echo "   CANONICAL + SHORTAUTO BRAIN"; echo "======================================"; echo -e "${RESET}"; }
@@ -18,6 +19,7 @@ rodar_director(){ [ -f "$DIRECTOR_AI" ]||{ echo "ERRO: shortauto_director_ai.py 
 rodar_assets(){ [ -f "$ASSET_LIBRARY" ]||{ echo "ERRO: shortauto_asset_library.py não encontrado.";return 1;};python "$ASSET_LIBRARY" "$@"; }
 rodar_repair(){ [ -f "$REPAIR_ENGINE" ]||{ echo "ERRO: shortauto_repair_engine.py não encontrado.";return 1;};python "$REPAIR_ENGINE" "$@"; }
 rodar_intelligence(){ [ -f "$INTELLIGENCE" ]||{ echo "ERRO: shortauto_intelligence_layer.py não encontrado.";return 1;};python "$INTELLIGENCE" "$@"; }
+rodar_production_center(){ [ -f "$PRODUCTION_CENTER" ]||{ echo "ERRO: production_center.py não encontrado.";return 1;};python "$PRODUCTION_CENTER" "$@"; }
 ultimo_video(){ local video;video="$(find "$BASE/videos" -maxdepth 1 -type f -name 'short_v6_*.mp4' -print0 2>/dev/null|xargs -0 -r ls -1t 2>/dev/null|head -1)";[ -n "$video" ]||{ echo "Nenhum vídeo V6 encontrado.";return;};echo "Último vídeo: $video";ffprobe -v error -show_entries format=duration,size -show_entries stream=codec_type,codec_name,width,height,avg_frame_rate -of default=noprint_wrappers=1 "$video" 2>/dev/null||true; }
 mostrar_publish(){ local pack;pack="$(find "$BASE/roteiros" -maxdepth 1 -type f -name 'publish_*.txt' -print0 2>/dev/null|xargs -0 -r ls -1t 2>/dev/null|head -1)";[ -n "$pack" ]&&cat "$pack"||echo "Nenhum Publish Pack."; }
 ver_manifests(){ find "$BASE/manifests" -maxdepth 1 -type f -name '*_release.json' -print0 2>/dev/null|xargs -0 -r ls -1t 2>/dev/null|head -10|while read -r arq;do python - "$arq" <<'PY'
@@ -40,7 +42,7 @@ repair_plan(){ local sid r;read -r -p "SHORT_ID: " sid;[ -n "$sid" ]||{ echo "SH
 intelligence_phase(){ local phase="$1" sid;read -r -p "SHORT_ID: " sid;[ -n "$sid" ]||{ echo "SHORT_ID vazio.";return 1;};rodar_intelligence "$phase" --short-id "$sid"; }
 while true;do
  cabecalho
- echo "1) Gerar 1 Short (main.py)";echo "2) Gerar lote";echo "3) Retomar lote";echo "4) Status do lote";echo "5) Retomar Short";echo "6) Status da retomada";echo "7) Últimas releases";echo "8) Último Publish Pack";echo "9) Último vídeo";echo "10) Auditoria do repositório";echo "11) Storage Manager";echo "12) Status do sistema";echo "13) Preflight";echo "14) Health Check";echo "15) Diagnóstico";echo "16) Evolution Center";echo "17) Git status";echo "18) Últimos commits";echo "19) Brain - preparar Evidence/Story/A-B";echo "20) Brain - Quality Budget";echo "21) Brain - Status completo";echo "22) Brain - Registrar analytics";echo "23) Director AI - Provenance/Visual Intent";echo "24) Asset Library - Status";echo "25) Repair Engine - Plano/Executar";echo "26) Intelligence - PRE (Story/Claim Lock)";echo "27) Intelligence - SCENE (Entity/Time/Geo/Visual)";echo "28) Intelligence - MEDIA (Source/Cache/Aging)";echo "29) Intelligence - FINAL (Explainable QA/Confidence)";echo "30) Intelligence - Status completo";echo "0) Sair";echo
+ echo "1) Gerar 1 Short (main.py)";echo "2) Gerar lote";echo "3) Retomar lote";echo "4) Status do lote";echo "5) Retomar Short";echo "6) Status da retomada";echo "7) Últimas releases";echo "8) Último Publish Pack";echo "9) Último vídeo";echo "10) Auditoria do repositório";echo "11) Storage Manager";echo "12) Status do sistema";echo "13) Preflight";echo "14) Health Check";echo "15) Diagnóstico";echo "16) Evolution Center";echo "17) Git status";echo "18) Últimos commits";echo "19) Brain - preparar Evidence/Story/A-B";echo "20) Brain - Quality Budget";echo "21) Brain - Status completo";echo "22) Brain - Registrar analytics";echo "23) Director AI - Provenance/Visual Intent";echo "24) Asset Library - Status";echo "25) Repair Engine - Plano/Executar";echo "26) Intelligence - PRE (Story/Claim Lock)";echo "27) Intelligence - SCENE (Entity/Time/Geo/Visual)";echo "28) Intelligence - MEDIA (Source/Cache/Aging)";echo "29) Intelligence - FINAL (Explainable QA/Confidence)";echo "30) Intelligence - Status completo";echo "31) Production Center - Status";echo "32) Production Doctor";echo "33) Production Profiler";echo "34) Production Watch";echo "0) Sair";echo
  read -r -p "Escolha: " OP||exit 0
  case "$OP" in
   1)cabecalho;unset SHORT_ID;rodar_main run||true;pausa;;
@@ -73,6 +75,10 @@ while true;do
   28)cabecalho;intelligence_phase media||true;pausa;;
   29)cabecalho;intelligence_phase final||true;pausa;;
   30)cabecalho;intelligence_phase status||true;pausa;;
+  31)cabecalho;rodar_production_center status||true;pausa;;
+  32)cabecalho;rodar_production_center doctor||true;pausa;;
+  33)cabecalho;rodar_production_center profile||true;pausa;;
+  34)cabecalho;rodar_production_center watch||true;pausa;;
   0)clear 2>/dev/null||true;exit 0;;
   *)echo "Opção inválida.";sleep 1;;
  esac
