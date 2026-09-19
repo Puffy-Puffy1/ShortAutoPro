@@ -19,6 +19,13 @@ GENERIC_CONTEXT = {
     "corridor", "passage", "person", "people", "man", "men",
 }
 
+OBJECT_STRICT_ANCHORS = {
+    "empty golden frames": "picture frame",
+    "empty golden frame": "picture frame",
+    "golden picture frames": "picture frame",
+    "ornate golden frames": "picture frame",
+}
+
 
 def _tokens(value: Any) -> list[str]:
     return re.findall(r"[a-z0-9]+", str(value or "").casefold())
@@ -58,6 +65,16 @@ def prioritize(
 
     strict = ranked[:strict_count]
     context = [item for item in original if item not in strict]
+
+    if mode == "object":
+        rewritten = []
+        for item in strict:
+            anchor = OBJECT_STRICT_ANCHORS.get(item, item)
+            rewritten.append(anchor)
+            if anchor != item and item not in context:
+                context.append(item)
+        strict = rewritten
+
     return {"strict": strict, "context": context}
 
 

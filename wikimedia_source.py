@@ -4,6 +4,7 @@ import os
 import re
 import html
 import tempfile
+import time
 import requests
 
 from wikimedia_query_bridge import (
@@ -31,6 +32,15 @@ except (TypeError, ValueError):
     TIMEOUT = 10.0
 
 TIMEOUT = max(4.0, min(TIMEOUT, 30.0))
+
+try:
+    SEARCH_DEADLINE = float(
+        os.getenv("SAP_WIKIMEDIA_SEARCH_DEADLINE", "18") or 18
+    )
+except (TypeError, ValueError):
+    SEARCH_DEADLINE = 18.0
+
+SEARCH_DEADLINE = max(8.0, min(SEARCH_DEADLINE, 45.0))
 
 BASE = os.path.expanduser(
     "~/ShortAutoPro"
@@ -990,9 +1000,19 @@ def buscar_wikimedia_fotos(
 
 
     encontrados = {}
+    search_started = time.monotonic()
 
 
     for spec in query_specs:
+
+        if time.monotonic() - search_started >= SEARCH_DEADLINE:
+            print(
+                "SAP_WIKIMEDIA_DEADLINE=REACHED "
+                f"limit={SEARCH_DEADLINE:.1f}s "
+                f"queries_total={len(query_specs)} "
+                f"assets={len(encontrados)}"
+            )
+            break
 
         query = str(
             spec.get(
