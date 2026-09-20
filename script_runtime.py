@@ -75,11 +75,25 @@ def reject_topic(topic: str, reason: str) -> None:
 
 
 def run_python(filename: str) -> int:
-    return subprocess.call(
-        [sys.executable, str(BASE / filename)],
-        cwd=BASE,
-        env=os.environ.copy(),
-    )
+    try:
+        timeout = int(os.getenv("SAP_SCRIPT_SUBPROCESS_TIMEOUT", "420") or 420)
+    except (TypeError, ValueError):
+        timeout = 420
+    timeout = max(120, min(timeout, 900))
+    try:
+        return subprocess.run(
+            [sys.executable, str(BASE / filename)],
+            cwd=BASE,
+            env=os.environ.copy(),
+            check=False,
+            timeout=timeout,
+        ).returncode
+    except subprocess.TimeoutExpired:
+        print(
+            "SCRIPT_RUNTIME=SUBPROCESS_TIMEOUT "
+            f"file={filename} limit={timeout}s"
+        )
+        return 124
 
 
 def main() -> int:

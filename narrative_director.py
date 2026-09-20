@@ -15,7 +15,7 @@ from datetime import date
 # NARRATIVE DIRECTOR - STABLE 3.2
 # =====================================================
 
-BASE = os.path.expanduser("~/ShortAutoPro")
+BASE = os.path.abspath(os.path.expanduser(os.getenv("SHORTAUTOPRO_BASE", "~/ShortAutoPro")))
 
 SHORT_ID = os.getenv(
     "SHORT_ID",
@@ -31,6 +31,12 @@ MODEL = os.getenv(
     "GEMINI_MODEL",
     "gemini-3.5-flash-lite"
 )
+
+try:
+    GEMINI_TIMEOUT = float(os.getenv("SAP_GEMINI_TIMEOUT", "75") or 75)
+except (TypeError, ValueError):
+    GEMINI_TIMEOUT = 75.0
+GEMINI_TIMEOUT = max(20.0, min(GEMINI_TIMEOUT, 120.0))
 
 
 ROTEIRO = os.path.join(
@@ -79,6 +85,42 @@ REPORT = os.path.join(
 # =====================================================
 # HELPERS
 # =====================================================
+
+
+def atomic_text(path, text):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = f"{path}.{os.getpid()}.tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.write(str(text))
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+    finally:
+        if os.path.exists(tmp):
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+
+
+def atomic_json(path, payload):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = f"{path}.{os.getpid()}.tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+            f.write("\n")
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+    finally:
+        if os.path.exists(tmp):
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+
 
 def ler_txt(path):
 
@@ -496,7 +538,7 @@ for tentativa in range(
             URL,
             headers=HEADERS,
             json=payload,
-            timeout=120
+            timeout=GEMINI_TIMEOUT
         )
 
     except Exception as e:
@@ -798,34 +840,9 @@ report = {
 
 
 if aprovado:
+    atomic_text(ROTEIRO, novo_roteiro + "\n")
 
-    with open(
-        ROTEIRO,
-        "w",
-        encoding="utf-8"
-    ) as f:
-
-        f.write(
-            novo_roteiro
-        )
-
-        f.write(
-            "\n"
-        )
-
-
-with open(
-    REPORT,
-    "w",
-    encoding="utf-8"
-) as f:
-
-    json.dump(
-        report,
-        f,
-        ensure_ascii=False,
-        indent=2
-    )
+atomic_json(REPORT, report)
 
 
 # =====================================================

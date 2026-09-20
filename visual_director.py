@@ -25,6 +25,11 @@ BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))
 SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat()).strip()
 API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite").strip()
+try:
+    GEMINI_TIMEOUT = float(os.getenv("SAP_GEMINI_TIMEOUT", "75") or 75)
+except (TypeError, ValueError):
+    GEMINI_TIMEOUT = 75.0
+GEMINI_TIMEOUT = max(20.0, min(GEMINI_TIMEOUT, 120.0))
 R = BASE / "roteiros"
 MAPA = R / f"scene_map_{SHORT_ID}.json"
 BACKUP = R / f"scene_map_pre_visual_{SHORT_ID}.json"
@@ -178,7 +183,7 @@ def call_ai(scenes: list[dict[str, Any]]) -> dict[str, Any] | None:
                 url,
                 headers={"Content-Type": "application/json", "x-goog-api-key": API_KEY},
                 json=payload,
-                timeout=120,
+                timeout=GEMINI_TIMEOUT,
             )
             if response.ok:
                 text = response.json()["candidates"][0]["content"]["parts"][0]["text"]

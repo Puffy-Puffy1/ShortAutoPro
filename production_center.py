@@ -28,7 +28,24 @@ def resolve_sid(value: str | None) -> str:
 
 def run_command(command: list[str]) -> int:
     print("EXEC:", " ".join(command))
-    return subprocess.call(command, cwd=BASE, env=os.environ.copy())
+    try:
+        timeout = int(
+            os.getenv("SAP_CONTROL_COMMAND_TIMEOUT", "7200") or 7200
+        )
+    except (TypeError, ValueError):
+        timeout = 7200
+    timeout = max(300, min(timeout, 21600))
+    try:
+        return subprocess.run(
+            command,
+            cwd=BASE,
+            env=os.environ.copy(),
+            check=False,
+            timeout=timeout,
+        ).returncode
+    except subprocess.TimeoutExpired:
+        print(f"ERRO: comando excedeu {timeout}s")
+        return 124
 
 
 def status(sid: str, as_json: bool = False) -> int:
