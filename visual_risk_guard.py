@@ -7,10 +7,29 @@ import sys
 from datetime import date
 
 
-BASE = os.path.expanduser("~/ShortAutoPro")
+BASE = os.path.abspath(os.path.expanduser(os.getenv("SHORTAUTOPRO_BASE", "~/ShortAutoPro")))
 SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat())
 SCENE_MAP = os.path.join(BASE, "roteiros", f"scene_map_{SHORT_ID}.json")
 REPORT = os.path.join(BASE, "roteiros", f"visual_risk_{SHORT_ID}.json")
+
+
+
+def atomic_json(path, payload):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = f"{path}.{os.getpid()}.tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+            f.write("\n")
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+    finally:
+        if os.path.exists(tmp):
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
 
 
 RISCOS = {
@@ -164,11 +183,8 @@ def main():
     except Exception as exc:
         sys.exit(f"ERRO lendo/processando scene_map: {exc}")
 
-    with open(SCENE_MAP, "w", encoding="utf-8") as f:
-        json.dump(mapa, f, ensure_ascii=False, indent=2)
-
-    with open(REPORT, "w", encoding="utf-8") as f:
-        json.dump({"short_id": SHORT_ID, "changes": mudancas}, f, ensure_ascii=False, indent=2)
+    atomic_json(SCENE_MAP, mapa)
+    atomic_json(REPORT, {"short_id": SHORT_ID, "changes": mudancas})
 
     cenas = mapa.get("scenes", [])
     print()
