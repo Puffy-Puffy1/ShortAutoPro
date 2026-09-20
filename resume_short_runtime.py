@@ -198,7 +198,25 @@ def run_python(
         raise RuntimeError(f"arquivo ausente: {script}")
     print(f"\n--- {title} ---")
     checkpoint(script, "start", title, sid)
-    result = subprocess.run([sys.executable, str(path), *args], cwd=str(BASE), env=os.environ.copy())
+    try:
+        stage_timeout = int(
+            os.getenv("SAP_STAGE_TIMEOUT_SECONDS", "1800") or 1800
+        )
+    except (TypeError, ValueError):
+        stage_timeout = 1800
+    stage_timeout = max(60, min(stage_timeout, 7200))
+    try:
+        result = subprocess.run(
+            [sys.executable, str(path), *args],
+            cwd=str(BASE),
+            env=os.environ.copy(),
+            timeout=stage_timeout,
+        )
+    except subprocess.TimeoutExpired as exc:
+        checkpoint(script, "fail", title, sid)
+        raise RuntimeError(
+            f"{script} excedeu timeout de {stage_timeout}s"
+        ) from exc
     allowed = allow or {0}
     if result.returncode not in allowed:
         checkpoint(script, "fail", title, sid)
