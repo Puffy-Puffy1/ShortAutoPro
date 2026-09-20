@@ -13,6 +13,7 @@ import json
 import math
 import os
 import subprocess
+import tempfile
 import time
 from datetime import date
 from pathlib import Path
@@ -38,6 +39,23 @@ TOPIC_FALLBACK = BASE / "roteiros" / f"topic_{SHORT_ID}.txt"
 RENDER_IDENTITY = BASE / "manifests" / f"{SHORT_ID}_render_identity.json"
 
 for directory in (TEMP, MUSIC_DIR, SFX_DIR, RENDER_IDENTITY.parent): directory.mkdir(parents=True, exist_ok=True)
+
+
+def atomic_json(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle, ensure_ascii=False, indent=2)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp, path)
+    finally:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
 
 
 def read_json(path: Path, optional: bool = False) -> dict[str, Any]:
@@ -387,8 +405,8 @@ def main() -> int:
         "rendered_at_unix": time.time(),
     }
     try:
-        RUNTIME.write_text(json.dumps(runtime, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        RENDER_IDENTITY.write_text(json.dumps(identity, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        atomic_json(RUNTIME, runtime)
+        atomic_json(RENDER_IDENTITY, identity)
     except Exception as exc:
         print(f"ERRO V6 PROFESSIONAL: falha gravando identidade do render: {exc}")
         return 1
