@@ -9,13 +9,10 @@ import requests
 from wikimedia_source import buscar_wikimedia_fotos,salvar_credito
 from evidence_guard import avaliar_evidencia
 from subprocess_guard import run_group
+from runtime_config import env_float, env_int
 BASE=Path(os.getenv("SHORTAUTOPRO_BASE",os.path.expanduser("~/ShortAutoPro"))).resolve();SID=os.getenv("SHORT_ID",date.today().isoformat()).strip();R=BASE/"roteiros";MAP=R/f"scene_map_{SID}.json";PLAN=R/f"pro_edit_plan_{SID}.json";OUT=R/f"multi_asset_{SID}.json";DIR=BASE/"imagens"/f"short_{SID}_secondary"
-try:MAX_ASSET_BYTES=int(os.getenv("SAP_MULTI_ASSET_MAX_BYTES",str(40*1024*1024)) or 40*1024*1024)
-except (TypeError,ValueError):MAX_ASSET_BYTES=40*1024*1024
-MAX_ASSET_BYTES=max(2*1024*1024,min(MAX_ASSET_BYTES,100*1024*1024))
-try:MAX_DOWNLOAD_SECONDS=float(os.getenv("SAP_MULTI_ASSET_DOWNLOAD_SECONDS","45") or 45)
-except (TypeError,ValueError):MAX_DOWNLOAD_SECONDS=45.0
-MAX_DOWNLOAD_SECONDS=max(10.0,min(MAX_DOWNLOAD_SECONDS,120.0))
+MAX_ASSET_BYTES=env_int("SAP_MULTI_ASSET_MAX_BYTES",40*1024*1024,2*1024*1024,100*1024*1024)
+MAX_DOWNLOAD_SECONDS=env_float("SAP_MULTI_ASSET_DOWNLOAD_SECONDS",45.0,10.0,120.0)
 def load(p:Path)->dict[str,Any]:
  try:x=json.loads(p.read_text(encoding="utf-8"));return x if isinstance(x,dict) else {}
  except Exception:return {}
@@ -62,7 +59,7 @@ def main()->int:
  topic=""
  for p in (R/f"used_topic_{SID}.txt",R/f"topic_{SID}.txt"):
   if p.is_file():topic=p.read_text(encoding="utf-8").strip();break
- DIR.mkdir(parents=True,exist_ok=True);max_secondary=max(0,min(6,int(os.getenv("SAP_MULTI_ASSET_MAX","4"))));chosen=[]
+ DIR.mkdir(parents=True,exist_ok=True);max_secondary=env_int("SAP_MULTI_ASSET_MAX",4,0,6);chosen=[]
  priorities=[]
  for i,s in enumerate(scenes,1):
   role=str(s.get("narrative_role","")).lower();segment=str(s.get("segment",''));primary_photo=any((BASE/"imagens"/f"short_{SID}").glob(f"scene_{i:02d}.*"));importance=(3 if role in {"evidence","reveal","turn","climax","payoff"} else 0)+(1 if len(segment.split())>=16 else 0)
