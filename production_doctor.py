@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 import production_profiler
+import release_artifact_guard
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
 REPORT_DIR = BASE / "reports" / "production"
@@ -214,7 +215,17 @@ def diagnose(sid: str) -> dict[str, Any]:
         })
 
     release_decision = str(release.get("decision", "") or "").upper()
-    if final_ok and release_decision not in {"PUBLISH", "ACCEPTABLE", "PASS", "APPROVED", "RELEASE"}:
+    release_valid = False
+    release_reason = "release_not_checked"
+    if release_decision in {"PUBLISH", "ACCEPTABLE"}:
+        release_valid, release_reason = release_artifact_guard.validate(sid)
+        if not release_valid:
+            issues.append({
+                "code": "RELEASE_ARTIFACT_STALE",
+                "severity": "BLOCK",
+                "detail": release_reason,
+            })
+    elif final_ok:
         issues.append({
             "code": "FINAL_VIDEO_NOT_RELEASED",
             "severity": "WARN",
@@ -236,7 +247,7 @@ def diagnose(sid: str) -> dict[str, Any]:
     elif not final_ok:
         boundary = "downstream"
         action = f"python main.py resume --short-id {sid}"
-    elif release_decision in {"PUBLISH", "ACCEPTABLE", "PASS", "APPROVED", "RELEASE"}:
+    elif release_valid:
         boundary = "complete"
         action = f"python production_center.py status --short-id {sid}"
     else:
@@ -265,6 +276,8 @@ def diagnose(sid: str) -> dict[str, Any]:
             "approved": quality.get("approved") if isinstance(quality, dict) else None,
             "professional_score": professional.get("score") if isinstance(professional, dict) else None,
             "release_decision": release_decision or None,
+            "release_valid": release_valid,
+            "release_validation_reason": release_reason,
             "release_score": release.get("shortautopro_score") if isinstance(release, dict) else None,
         },
         "last_failure": failure,
