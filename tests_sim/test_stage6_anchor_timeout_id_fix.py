@@ -71,7 +71,9 @@ class Stage6AnchorTimeoutAndIdFixTests(unittest.TestCase):
         text = Path("midia.py").read_text(encoding="utf-8")
         self.assertIn("SAP_MEDIA_PROVIDER_RESULT_TIMEOUT", text)
         self.assertIn("SAP_MEDIA_PROVIDER_TIMEOUT", text)
-        self.assertIn("timeout=_PROVIDER_RESULT_TIMEOUT", text)
+        self.assertIn("_provider_deadline", text)
+        self.assertIn("timeout=_provider_remaining", text)
+        self.assertIn("round_deadline=", text)
 
     def test_wikimedia_multi_query_search_has_deadline(self):
         text = Path("wikimedia_source.py").read_text(encoding="utf-8")
