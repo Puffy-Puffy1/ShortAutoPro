@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+from subprocess_guard import run_group
 import sys
 import time
 from datetime import date
@@ -116,7 +117,7 @@ def main() -> int:
         round_timeout = max(60, min(round_timeout, 900))
 
         try:
-            proc = subprocess.run(
+            proc = run_group(
                 [sys.executable, str(MIDIA)],
                 cwd=str(BASE),
                 env=round_env(round_index),

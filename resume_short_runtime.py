@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 import main as canonical
+from subprocess_guard import run_group
 import shortautopro_evolution as evo
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
@@ -206,7 +207,7 @@ def run_python(
         stage_timeout = 1800
     stage_timeout = max(60, min(stage_timeout, 7200))
     try:
-        result = subprocess.run(
+        result = run_group(
             [sys.executable, str(path), *args],
             cwd=str(BASE),
             env=os.environ.copy(),
@@ -232,7 +233,22 @@ def full_rerun(sid: str) -> int:
     print("Checkpoint parcial incompatível ou insuficiente. Reexecutando o pipeline oficial com o mesmo ID.")
     env = os.environ.copy()
     env["SHORT_ID"] = sid
-    return subprocess.run([sys.executable, str(main_path), "run"], cwd=str(BASE), env=env).returncode
+    try:
+        rerun_timeout = int(os.getenv("SAP_RESUME_FULL_RERUN_TIMEOUT", "7200") or 7200)
+    except (TypeError, ValueError):
+        rerun_timeout = 7200
+    rerun_timeout = max(600, min(rerun_timeout, 21600))
+    try:
+        return run_group(
+            [sys.executable, str(main_path), "run"],
+            cwd=str(BASE),
+            env=env,
+            timeout=rerun_timeout,
+        ).returncode
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(
+            f"full rerun excedeu timeout de {rerun_timeout}s"
+        ) from exc
 
 
 def copy_download(sid: str) -> str:
