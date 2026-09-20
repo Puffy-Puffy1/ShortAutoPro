@@ -6,6 +6,7 @@ import re
 import shutil
 import subprocess
 import sys
+from subprocess_guard import run_group
 from datetime import date
 
 from subtitle_alignment import align_word_timings
@@ -149,7 +150,7 @@ print()
 
 print("1/4 Preparando áudio...")
 try:
-    subprocess.run(
+    run_group(
         [
             "ffmpeg", "-y", "-loglevel", "error", "-i", AUDIO,
             "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", WAV,
@@ -164,7 +165,7 @@ except subprocess.CalledProcessError as exc:
 
 print("2/4 Analisando fala com Whisper...")
 try:
-    subprocess.run(
+    run_group(
         [
             WHISPER, "-m", MODEL, "-f", WAV, "-l", "pt",
             "-ojf", "-of", JSON_BASE, "-dtw", "base", "-t", "4", "-np",

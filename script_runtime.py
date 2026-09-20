@@ -12,6 +12,7 @@ import json
 import os
 import subprocess
 import sys
+from subprocess_guard import run_group
 import tempfile
 from datetime import date, datetime
 from pathlib import Path
@@ -81,7 +82,7 @@ def run_python(filename: str) -> int:
         timeout = 420
     timeout = max(120, min(timeout, 900))
     try:
-        return subprocess.run(
+        return run_group(
             [sys.executable, str(BASE / filename)],
             cwd=BASE,
             env=os.environ.copy(),

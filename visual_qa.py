@@ -5,6 +5,7 @@ import collections,hashlib,json,os,re,subprocess,tempfile
 from datetime import date
 from pathlib import Path
 from typing import Any
+from subprocess_guard import run_group
 BASE=Path(os.getenv("SHORTAUTOPRO_BASE",os.path.expanduser("~/ShortAutoPro"))).resolve();SID=os.getenv("SHORT_ID",date.today().isoformat()).strip();MEDIA=BASE/"imagens"/f"short_{SID}";VIDEO=BASE/"videos"/f"short_v6_{SID}.mp4";MAP=BASE/"roteiros"/f"scene_map_{SID}.json";VSCORE=BASE/"roteiros"/f"visual_score_{SID}.json";OUT=BASE/"reports"/"evolution"/f"visual_qa_{SID}.json"
 def atomic(p:Path,x:Any)->None:
  p.parent.mkdir(parents=True,exist_ok=True);fd,t=tempfile.mkstemp(prefix=f".{p.name}.",suffix=".tmp",dir=str(p.parent))
@@ -19,7 +20,7 @@ def load(p:Path)->dict[str,Any]:
  try:x=json.loads(p.read_text(encoding="utf-8"));return x if isinstance(x,dict) else {}
  except Exception:return {}
 def probe(p:Path)->dict[str,Any]:
- r=subprocess.run(["ffprobe","-v","error","-select_streams","v:0","-show_entries","stream=width,height,codec_name,avg_frame_rate","-of","json",str(p)],capture_output=True,text=True,timeout=30)
+ r=run_group(["ffprobe","-v","error","-select_streams","v:0","-show_entries","stream=width,height,codec_name,avg_frame_rate","-of","json",str(p)],capture_output=True,text=True,timeout=30)
  if r.returncode:return {}
  try:s=json.loads(r.stdout).get("streams",[]);return s[0] if s else {}
  except Exception:return {}
@@ -33,17 +34,17 @@ def filter_exists(name:str)->bool:
  except Exception:return False
 def black_seconds(path:Path)->float:
  if not path.is_file():return 0.0
- r=subprocess.run(["ffmpeg","-hide_banner","-nostats","-i",str(path),"-vf","blackdetect=d=0.12:pix_th=0.02","-an","-f","null","-"],stdout=subprocess.DEVNULL,stderr=subprocess.PIPE,text=True,timeout=120)
+ r=run_group(["ffmpeg","-hide_banner","-nostats","-i",str(path),"-vf","blackdetect=d=0.12:pix_th=0.02","-an","-f","null","-"],stdout=subprocess.DEVNULL,stderr=subprocess.PIPE,text=True,timeout=120)
  return sum(float(x) for x in re.findall(r"black_duration:([0-9.]+)",r.stderr or ""))
 def crop_detect(path:Path)->dict[str,int]|None:
  if not path.is_file() or not filter_exists("cropdetect"):return None
- r=subprocess.run(["ffmpeg","-hide_banner","-nostats","-i",str(path),"-t","12","-vf","fps=1,cropdetect=24:16:0","-an","-f","null","-"],stdout=subprocess.DEVNULL,stderr=subprocess.PIPE,text=True,timeout=120)
+ r=run_group(["ffmpeg","-hide_banner","-nostats","-i",str(path),"-t","12","-vf","fps=1,cropdetect=24:16:0","-an","-f","null","-"],stdout=subprocess.DEVNULL,stderr=subprocess.PIPE,text=True,timeout=120)
  crops=re.findall(r"crop=(\d+):(\d+):(\d+):(\d+)",r.stderr or "")
  if not crops:return None
  common=collections.Counter(crops).most_common(1)[0][0];w,h,x,y=map(int,common);return {"width":w,"height":h,"x":x,"y":y}
 def blur_risk(path:Path)->float|None:
  if not filter_exists("blurdetect"):return None
- r=subprocess.run(["ffmpeg","-hide_banner","-nostats","-i",str(path),"-vf","fps=1,scale=360:-2,blurdetect=block_width=32:block_height=32:block_pct=80","-frames:v","12","-an","-f","null","-"],stdout=subprocess.DEVNULL,stderr=subprocess.PIPE,text=True,timeout=90)
+ r=run_group(["ffmpeg","-hide_banner","-nostats","-i",str(path),"-vf","fps=1,scale=360:-2,blurdetect=block_width=32:block_height=32:block_pct=80","-frames:v","12","-an","-f","null","-"],stdout=subprocess.DEVNULL,stderr=subprocess.PIPE,text=True,timeout=90)
  vals=[float(x) for x in re.findall(r"blur(?:mean)?:\s*([0-9.]+)",r.stderr or "",re.I)];return round(sum(vals)/len(vals),3) if vals else None
 def main()->int:
  issues=[];warnings=[];assets=[];hashes={};scene_map=load(MAP);scenes=scene_map.get("scenes",[]) if isinstance(scene_map.get("scenes"),list) else [];vscore=load(VSCORE);score_rows=vscore.get("scenes",[]) if isinstance(vscore.get("scenes"),list) else []

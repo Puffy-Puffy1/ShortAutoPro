@@ -17,6 +17,7 @@ import time
 from datetime import date
 from pathlib import Path
 from typing import Any
+from subprocess_guard import run_group
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
 SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat()).strip()
@@ -168,7 +169,7 @@ def prepare_caption_ass(pop_scale: int) -> Path:
 def generate_optional_sfx() -> str | None:
     if os.getenv("SAP_PRO_ALLOW_GENERATED_SFX", "0") != "1": return None
     try:
-        subprocess.run(["ffmpeg", "-y", "-f", "lavfi", "-i", "sine=frequency=62:sample_rate=48000:duration=0.55", "-af", "volume=0.40,lowpass=f=180,afade=t=in:st=0:d=0.01,afade=t=out:st=0.12:d=0.40", "-c:a", "pcm_s16le", str(GENERATED_SFX)], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=45)
+        run_group(["ffmpeg", "-y", "-f", "lavfi", "-i", "sine=frequency=62:sample_rate=48000:duration=0.55", "-af", "volume=0.40,lowpass=f=180,afade=t=in:st=0:d=0.01,afade=t=out:st=0.12:d=0.40", "-c:a", "pcm_s16le", str(GENERATED_SFX)], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=45)
     except Exception: return None
     return str(GENERATED_SFX) if GENERATED_SFX.is_file() else None
 
@@ -338,7 +339,7 @@ def main() -> int:
     render_timeout = max(120, min(render_timeout, 2400))
 
     try:
-        subprocess.run(
+        run_group(
             command,
             check=True,
             timeout=render_timeout,

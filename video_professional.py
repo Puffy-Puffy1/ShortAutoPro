@@ -17,6 +17,7 @@ import tempfile
 from datetime import date
 from pathlib import Path
 from typing import Any
+from subprocess_guard import run_group
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
 SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat()).strip()
@@ -354,7 +355,7 @@ def render_beat(
         fail(f"extensão não suportada: {ext}")
 
     try:
-        subprocess.run(
+        run_group(
             command,
             check=True,
             stdout=subprocess.DEVNULL,
@@ -395,7 +396,7 @@ def join_two_beats(
         "-pix_fmt", "yuv420p", str(output),
     ]
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=SCENE_TIMEOUT)
+        proc = run_group(cmd, capture_output=True, text=True, timeout=SCENE_TIMEOUT)
     except subprocess.TimeoutExpired:
         fail(f"montagem multi-beat excedeu {SCENE_TIMEOUT}s")
     if proc.returncode != 0:
@@ -496,7 +497,7 @@ def validate_rendered_scenes(
 
 def run_ffmpeg(command: list[str], label: str) -> tuple[bool, str]:
     try:
-        proc = subprocess.run(
+        proc = run_group(
             command,
             capture_output=True,
             text=True,
