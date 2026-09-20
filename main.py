@@ -86,7 +86,7 @@ def source_config() -> None:
     cfg = BASE / "config.sh"
     if not cfg.is_file():
         raise RuntimeError("config.sh não encontrado")
-    proc = subprocess.run(
+    proc = run_group(
         ["bash", "-c", 'set -a; source "$1"; env -0', "bash", str(cfg)],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -297,7 +297,7 @@ class Pipeline:
 
 def probe_video(path: Path) -> dict[str, Any]:
     try:
-        proc = subprocess.run(
+        proc = run_group(
             [
                 "ffprobe", "-v", "error",
                 "-show_entries", "format=duration,size",
