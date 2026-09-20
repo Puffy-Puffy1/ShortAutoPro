@@ -6,6 +6,7 @@ import math
 import os
 import re
 import subprocess
+from subprocess_guard import run_group
 import tempfile
 from datetime import date, datetime
 from pathlib import Path
@@ -108,7 +109,7 @@ def ffprobe(path: Path):
     if not path.is_file():
         return {}
     try:
-        result = subprocess.run(
+        result = run_group(
             [
                 "ffprobe", "-v", "error", "-show_streams", "-show_format",
                 "-of", "json", str(path),
