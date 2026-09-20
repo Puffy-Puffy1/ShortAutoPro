@@ -222,8 +222,29 @@ class Pipeline:
         cmd: list[str] = []
         for attempt in range(retries + 1):
             cmd = ["bash", str(path), *args] if shell else [sys.executable, str(path), *args]
-            proc = subprocess.run(cmd, cwd=BASE, env=os.environ.copy(), check=False)
-            last = proc.returncode
+            try:
+                stage_timeout = int(
+                    os.getenv("SAP_STAGE_TIMEOUT_SECONDS", "1800") or 1800
+                )
+            except (TypeError, ValueError):
+                stage_timeout = 1800
+            stage_timeout = max(60, min(stage_timeout, 7200))
+
+            try:
+                proc = subprocess.run(
+                    cmd,
+                    cwd=BASE,
+                    env=os.environ.copy(),
+                    check=False,
+                    timeout=stage_timeout,
+                )
+                last = proc.returncode
+            except subprocess.TimeoutExpired as exc:
+                elapsed = time.monotonic() - start
+                self.checkpoint(file, "fail", title, elapsed)
+                raise RuntimeError(
+                    f"{file} excedeu timeout de {stage_timeout}s"
+                ) from exc
             if last in allow_codes:
                 elapsed = time.monotonic() - start
                 self.checkpoint(file, "pass", title, elapsed)
