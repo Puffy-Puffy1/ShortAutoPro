@@ -9,21 +9,14 @@ from datetime import date
 
 import requests
 
+from runtime_config import env_float, env_int
+
 BASE = os.path.abspath(os.path.expanduser(os.getenv("SHORTAUTOPRO_BASE", "~/ShortAutoPro")))
 SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat())
 API_KEY = os.getenv("GEMINI_API_KEY", "")
 MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
-try:
-    GEMINI_TIMEOUT = float(os.getenv("SAP_GEMINI_TIMEOUT", "75") or 75)
-except (TypeError, ValueError):
-    GEMINI_TIMEOUT = 75.0
-GEMINI_TIMEOUT = max(20.0, min(GEMINI_TIMEOUT, 120.0))
-
-try:
-    QTD_CENAS = int(os.getenv("SHORT_QTD_CENAS", "12"))
-except ValueError:
-    QTD_CENAS = 12
-QTD_CENAS = max(6, min(QTD_CENAS, 20))
+GEMINI_TIMEOUT = env_float("SAP_GEMINI_TIMEOUT", 75.0, 20.0, 120.0)
+QTD_CENAS = env_int("SHORT_QTD_CENAS", 12, 6, 20)
 
 R = os.path.join(BASE, "roteiros")
 SCENE_MAP = os.path.join(R, f"scene_map_{SHORT_ID}.json")
@@ -82,6 +75,104 @@ def limpar_lista(valor, maximo=10):
             vistos.add(key)
             saida.append(item)
     return saida[:maximo]
+
+
+def extrair_objeto_json(texto):
+    texto = str(texto or "").strip()
+    if not texto:
+        raise ValueError("resposta vazia")
+    fence = chr(96) * 3
+    limpo = texto.replace(fence + "json", "").replace(fence + "JSON", "").replace(fence, "").strip()
+    try:
+        valor = json.loads(limpo)
+        if isinstance(valor, dict):
+            return valor
+        raise ValueError("JSON raiz não é objeto")
+    except json.JSONDecodeError:
+        pass
+
+    inicio = -1
+    profundidade = 0
+    em_string = False
+    escape = False
+    for indice, caractere in enumerate(limpo):
+        if em_string:
+            if escape:
+                escape = False
+            elif caractere == "\\":
+                escape = True
+            elif caractere == '"':
+                em_string = False
+            continue
+        if caractere == '"':
+            em_string = True
+            continue
+        if caractere == "{":
+            if profundidade == 0:
+                inicio = indice
+            profundidade += 1
+        elif caractere == "}" and profundidade:
+            profundidade -= 1
+            if profundidade == 0 and inicio >= 0:
+                trecho = limpo[inicio:indice + 1]
+                try:
+                    valor = json.loads(trecho)
+                except json.JSONDecodeError:
+                    inicio = -1
+                    continue
+                if isinstance(valor, dict):
+                    return valor
+                inicio = -1
+    raise ValueError("nenhum objeto JSON válido encontrado")
+
+
+def validar_resposta_documental(resposta):
+    if not isinstance(resposta, dict):
+        raise ValueError("raiz não é objeto JSON")
+    novas = resposta.get("scenes")
+    if not isinstance(novas, list):
+        raise ValueError("campo scenes não é lista")
+    if len(novas) != QTD_CENAS:
+        raise ValueError(f"retornou {len(novas)} cenas; esperado {QTD_CENAS}")
+
+    numeros = []
+    for indice, item in enumerate(novas, start=1):
+        if not isinstance(item, dict):
+            raise ValueError(f"cena {indice} não é objeto")
+        try:
+            numero = int(item.get("scene"))
+        except (TypeError, ValueError):
+            raise ValueError(f"cena {indice} sem numeração válida")
+        numeros.append(numero)
+        if not limpar(item.get("query", "")):
+            raise ValueError(f"cena {numero} sem query")
+        if not limpar_lista(item.get("must_have", []), 3):
+            raise ValueError(f"cena {numero} sem must_have")
+    esperado_local = list(range(1, QTD_CENAS + 1))
+    if numeros != esperado_local:
+        raise ValueError(f"numeração inválida: {numeros}; esperado {esperado_local}")
+    return resposta
+
+
+def texto_resposta_gemini(response):
+    try:
+        dados = response.json()
+    except Exception as exc:
+        raise ValueError(f"HTTP 200 sem JSON de envelope: {exc}") from exc
+    try:
+        partes = dados["candidates"][0]["content"]["parts"]
+    except (KeyError, IndexError, TypeError) as exc:
+        raise ValueError("resposta sem candidates/content/parts") from exc
+    textos = []
+    for parte in partes:
+        if isinstance(parte, dict):
+            texto = parte.get("text")
+            if texto:
+                textos.append(str(texto))
+    bruto = "\n".join(textos).strip()
+    if not bruto:
+        raise ValueError("candidate sem texto")
+    return bruto
 
 
 try:
@@ -191,65 +282,88 @@ URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generate
 HEADERS = {"Content-Type": "application/json", "x-goog-api-key": API_KEY}
 payload = {
     "contents": [{"parts": [{"text": prompt}]}],
-    "generationConfig": {"temperature": 0.20, "maxOutputTokens": 5000},
+    "generationConfig": {"temperature": 0.20, "maxOutputTokens": 5000, "responseMimeType": "application/json"},
 }
 
-bruto = None
+resposta = None
+ultimo_erro = ""
+ultimo_bruto = ""
 print()
 print("================================")
-print("DOCUMENTARY DIRECTOR - STABLE 3.2")
+print("DOCUMENTARY DIRECTOR - STABLE 3.3")
 print("================================")
 print()
 
 for tentativa in range(1, 4):
     print(f"Documentary Director tentativa {tentativa}/3...")
+    payload_tentativa = dict(payload)
+    if tentativa > 1:
+        correcao = (
+            "\n\nA resposta anterior foi inválida para o contrato JSON. "
+            f"Motivo: {ultimo_erro}. "
+            "Corrija e responda SOMENTE um objeto JSON válido, sem markdown, "
+            f"com exatamente {QTD_CENAS} cenas numeradas de 1 a {QTD_CENAS}."
+        )
+        payload_tentativa["contents"] = [{"parts": [{"text": prompt + correcao}]}]
+
     try:
         response = requests.post(
             URL,
             headers=HEADERS,
-            json=payload,
+            json=payload_tentativa,
             timeout=GEMINI_TIMEOUT,
         )
     except Exception as exc:
-        if tentativa == 3:
-            sys.exit(f"ERRO Documentary Director: {exc}")
-        time.sleep(4)
-        continue
+        ultimo_erro = f"rede: {type(exc).__name__}: {exc}"
+        if tentativa < 3:
+            time.sleep(3)
+            continue
+        break
 
     if response.ok:
         try:
-            bruto = response.json()["candidates"][0]["content"]["parts"][0]["text"]
-            bruto = str(bruto).strip()
-            if bruto:
-                break
-        except Exception:
-            bruto = None
+            bruto = texto_resposta_gemini(response)
+            ultimo_bruto = bruto[:1200]
+            resposta = validar_resposta_documental(extrair_objeto_json(bruto))
+            break
+        except ValueError as exc:
+            ultimo_erro = str(exc)
+            print(
+                "AVISO: resposta Gemini inválida para o contrato documental: "
+                f"{ultimo_erro}"
+            )
+            if tentativa < 3:
+                time.sleep(2)
+                continue
+            break
 
+    ultimo_erro = f"HTTP {response.status_code}"
     if response.status_code in {429, 500, 502, 503, 504} and tentativa < 3:
-        time.sleep(6)
+        espera = 6
+        if response.status_code == 429:
+            try:
+                espera = int(response.headers.get("Retry-After") or espera)
+            except (TypeError, ValueError):
+                espera = 6
+            espera = max(2, min(espera, 30))
+        time.sleep(espera)
         continue
+    break
 
-    sys.exit(f"ERRO Documentary Director HTTP {response.status_code}")
-
-if not bruto:
-    sys.exit("ERRO: Documentary Director sem resposta.")
-
-bruto = bruto.replace("```json", "").replace("```", "").strip()
-try:
-    resposta = json.loads(bruto)
-except Exception:
-    sys.exit("ERRO: Documentary Director retornou JSON inválido.")
-
-if not isinstance(resposta, dict):
-    sys.exit("ERRO: resposta do Documentary Director não é objeto JSON.")
-
-novas = resposta.get("scenes", [])
-if not isinstance(novas, list):
-    sys.exit("ERRO: campo scenes do Documentary Director não é lista.")
-if len(novas) != QTD_CENAS:
+if resposta is None:
+    atomic_json(REPORT, {
+        "short_id": SHORT_ID,
+        "version": "3.3",
+        "status": "BLOCK",
+        "error": ultimo_erro or "resposta inválida",
+        "raw_preview": ultimo_bruto,
+    })
     sys.exit(
-        f"ERRO: Documentary Director retornou {len(novas)} cenas; esperado {QTD_CENAS}."
+        "ERRO: Documentary Director falhou após 3 tentativas. "
+        f"Último motivo: {ultimo_erro or 'desconhecido'}"
     )
+
+novas = resposta["scenes"]
 
 por_numero = {}
 for item in novas:
@@ -336,7 +450,7 @@ for i in range(2, len(resultado)):
 mapa_final = dict(mapa)
 mapa_final["scenes"] = resultado
 mapa_final["documentary_director"] = {
-    "version": "3.2",
+    "version": "3.3",
     "applied": True,
     "expected_scenes": QTD_CENAS,
     "visual_mode_triple_repetitions": repeticoes_mode,
@@ -346,7 +460,8 @@ mapa_final["documentary_director"] = {
 atomic_json(SCENE_MAP, mapa_final)
 atomic_json(REPORT, {
     "short_id": SHORT_ID,
-    "version": "3.2",
+    "version": "3.3",
+    "status": "PASS",
     "topic": assunto,
     "backup": BACKUP,
     "visual_mode_triple_repetitions": repeticoes_mode,
