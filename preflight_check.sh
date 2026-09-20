@@ -79,7 +79,7 @@ ARQUIVOS=(
     speech_director.py audio.py legenda_dinamica.py subtitle_alignment.py subtitle_style_policy.py
     professional_caption_director.py caption_layout_guard.py video_professional.py v6_professional.py
     audio_finalizer.py visual_qa.py quality_check.py publish_pack.py source_ledger.py publish_integrity_gate.py
-    production_manifest.py final_quality.py professional_quality_gate.py release_gate.py register_topic.py storage_manager.py
+    production_manifest.py final_quality.py professional_quality_gate.py release_gate.py release_artifact_guard.py register_topic.py storage_manager.py
     health_check.sh batch_queue.sh batch_recovery.sh control_center.sh
 )
 
@@ -192,7 +192,7 @@ else
         production_supervisor.py editorial_gate.py speech_director.py audio.py legenda_dinamica.py subtitle_alignment.py subtitle_style_policy.py
         professional_caption_director.py caption_layout_guard.py video_professional.py v6_professional.py audio_finalizer.py visual_qa.py
         quality_check.py publish_pack.py source_ledger.py publish_integrity_gate.py production_manifest.py final_quality.py
-        professional_quality_gate.py release_gate.py register_topic.py storage_manager.py
+        professional_quality_gate.py release_gate.py release_artifact_guard.py register_topic.py storage_manager.py
     )
     
     for arq in "${PY_FILES[@]}"; do
