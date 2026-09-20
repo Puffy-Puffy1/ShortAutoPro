@@ -18,6 +18,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 from subprocess_guard import run_group
+from runtime_config import env_float
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
 SHORT_ID = os.getenv("SHORT_ID", "").strip()
@@ -318,7 +319,7 @@ def main() -> int:
         "editorial": 0.20,
     }
     total = round(sum(components[key] * weights[key] for key in weights), 1)
-    threshold = safe_float(os.getenv("SAP_PROFESSIONAL_MIN_SCORE", "88"), 88.0)
+    threshold = env_float("SAP_PROFESSIONAL_MIN_SCORE", 88.0, 50.0, 100.0)
     status = "PASS" if total >= threshold and not critical else ("REVIEW" if not critical else "BLOCK")
     remediation: list[str] = []
     if components["edit_plan"] < 88:
