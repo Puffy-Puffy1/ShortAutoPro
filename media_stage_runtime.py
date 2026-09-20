@@ -12,7 +12,7 @@ import json
 import os
 import subprocess
 from subprocess_guard import run_group
-from runtime_config import env_int
+from runtime_config import env_float, env_int
 import sys
 import time
 from datetime import date
@@ -42,6 +42,11 @@ def missing_numbers(report: dict[str, Any]) -> list[int]:
             out.append(int(item.get("scene")))
         except Exception:
             pass
+    for item in report.get("pending_scenes", []) if isinstance(report.get("pending_scenes"), list) else []:
+        try:
+            out.append(int(item))
+        except Exception:
+            pass
     return sorted(set(out))
 
 
@@ -65,7 +70,7 @@ def round_env(round_index: int) -> dict[str, str]:
     env["SAP_MEDIA_INCREMENTAL"] = "1"
 
     # Increasing retrieval effort only. MUST acceptance rules are untouched.
-    rescue_budget = (2, 4, 6, 8, 8)[min(round_index, 4)]
+    rescue_budget = (1, 2, 3, 4, 4)[min(round_index, 4)]
     # Keep recovery bounded on mobile. The provider layer already runs
     # concurrently, so escalating to 30-45s makes hard scenes dominate the
     # entire Short production without improving acceptance rules.
@@ -76,8 +81,58 @@ def round_env(round_index: int) -> dict[str, str]:
     env["SAP_MUST_RESCUE_MAX_QUERIES"] = str(rescue_budget)
     env["SAP_MEDIA_PROVIDER_RESULT_TIMEOUT"] = str(provider_timeout)
     env["SAP_WIKIMEDIA_SEARCH_DEADLINE"] = str(wiki_deadline)
+    env["SAP_MEDIA_SIMPLIFIED_RETRY_MAX"] = str((1, 2, 2, 3, 3)[min(round_index, 4)])
     env["SAP_MEDIA_RECOVERY_ROUND"] = str(round_index + 1)
     return env
+
+
+def scene_count_hint() -> int:
+    scene_map = BASE / "roteiros" / f"scene_map_{SID}.json"
+    try:
+        data = json.loads(scene_map.read_text(encoding="utf-8"))
+        if isinstance(data, list):
+            return len(data)
+        if isinstance(data, dict):
+            for key in ("scenes", "cenas", "items"):
+                value = data.get(key)
+                if isinstance(value, list):
+                    return len(value)
+    except Exception:
+        pass
+    return env_int("SHORT_QTD_CENAS", 12, 6, 20)
+
+
+def current_completed_hint() -> int:
+    media_dir = BASE / "imagens" / f"short_{SID}"
+    if not media_dir.is_dir():
+        return 0
+    seen: set[int] = set()
+    for path in media_dir.iterdir():
+        if not path.is_file():
+            continue
+        stem = path.stem
+        if not stem.startswith("scene_"):
+            continue
+        try:
+            seen.add(int(stem.split("_", 1)[1]))
+        except Exception:
+            continue
+    return len(seen)
+
+
+def round_timeout_seconds() -> tuple[int, int]:
+    expected = scene_count_hint()
+    report = read_report()
+    pending = missing_numbers(report)
+    if pending:
+        remaining = len(pending)
+    else:
+        remaining = max(1, expected - current_completed_hint())
+    base = env_int("SAP_MEDIA_ROUND_TIMEOUT", 240, 60, 900)
+    scene_budget = env_float("SAP_MEDIA_SCENE_BUDGET_SECONDS", 75.0, 30.0, 180.0)
+    grace = env_int("SAP_MEDIA_ROUND_GRACE_SECONDS", 45, 15, 180)
+    dynamic = int(remaining * scene_budget + grace)
+    return max(base, min(dynamic, 900)), remaining
 
 
 def main() -> int:
@@ -105,7 +160,13 @@ def main() -> int:
         )
 
         started = time.monotonic()
-        round_timeout = env_int("SAP_MEDIA_ROUND_TIMEOUT", 240, 60, 900)
+        round_timeout, remaining_hint = round_timeout_seconds()
+        print(
+            "MEDIA_STAGE_RUNTIME=BUDGET "
+            f"round={round_index + 1} remaining={remaining_hint} "
+            f"timeout={round_timeout}s "
+            f"scene_budget={env_float('SAP_MEDIA_SCENE_BUDGET_SECONDS', 75.0, 30.0, 180.0):.0f}s"
+        )
 
         try:
             proc = run_group(
@@ -182,7 +243,7 @@ def main() -> int:
         previous_total = total
 
         if round_index + 1 < max_rounds:
-            next_budget = (2, 4, 6, 8, 8)[min(round_index + 1, 4)]
+            next_budget = (1, 2, 3, 4, 4)[min(round_index + 1, 4)]
             print(
                 "MEDIA_STAGE_RUNTIME=RETRY_MISSING_ONLY "
                 f"next_round={round_index + 2} "
