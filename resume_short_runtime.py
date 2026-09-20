@@ -18,6 +18,7 @@ from typing import Any
 
 import main as canonical
 from subprocess_guard import check_output_group, run_group
+from runtime_config import env_int
 import shortautopro_evolution as evo
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
@@ -233,11 +234,7 @@ def full_rerun(sid: str) -> int:
     print("Checkpoint parcial incompatível ou insuficiente. Reexecutando o pipeline oficial com o mesmo ID.")
     env = os.environ.copy()
     env["SHORT_ID"] = sid
-    try:
-        rerun_timeout = int(os.getenv("SAP_RESUME_FULL_RERUN_TIMEOUT", "7200") or 7200)
-    except (TypeError, ValueError):
-        rerun_timeout = 7200
-    rerun_timeout = max(600, min(rerun_timeout, 21600))
+    rerun_timeout = env_int("SAP_RESUME_FULL_RERUN_TIMEOUT", 7200, 600, 21600)
     try:
         return run_group(
             [sys.executable, str(main_path), "run"],
