@@ -126,14 +126,19 @@ if [ -x "$WHISPER_CLI" ]; then ok "Whisper CLI"; else erro "Whisper CLI ausente:
 if [ -f "$WHISPER_MODEL" ]; then ok "Whisper model"; else erro "Whisper model ausente: $WHISPER_MODEL"; fi
 
 LIVRE_KB="$(df -Pk "$BASE" 2>/dev/null | awk 'NR==2 {print $4}')"
-if [[ "${LIVRE_KB:-}" =~ ^[0-9]+$ ]]; then
+MIN_FREE_GB="${SAP_MIN_FREE_GB:-1.2}"
+MIN_FREE_MB="$(awk -v gb="$MIN_FREE_GB" 'BEGIN {
+    if (gb !~ /^[0-9]+([.][0-9]+)?$/) gb=1.2
+    if (gb < 0.5) gb=0.5
+    if (gb > 20) gb=20
+    printf "%d", gb*1024
+}')"
+if [[ "${LIVRE_KB:-}" =~ ^[0-9]+$ ]] && [[ "${MIN_FREE_MB:-}" =~ ^[0-9]+$ ]]; then
     LIVRE_MB=$((LIVRE_KB / 1024))
-    if [ "$LIVRE_MB" -ge 2000 ]; then
-        ok "espaço livre: ${LIVRE_MB} MB"
-    elif [ "$LIVRE_MB" -ge 800 ]; then
-        aviso "espaço livre baixo: ${LIVRE_MB} MB"
+    if [ "$LIVRE_MB" -ge "$MIN_FREE_MB" ]; then
+        ok "espaço livre: ${LIVRE_MB} MB (mínimo ${MIN_FREE_MB} MB)"
     else
-        erro "espaço insuficiente: ${LIVRE_MB} MB"
+        erro "espaço insuficiente: ${LIVRE_MB} MB (mínimo ${MIN_FREE_MB} MB)"
     fi
 else
     aviso "não consegui medir espaço livre"

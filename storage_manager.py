@@ -15,16 +15,41 @@ def atomic(p:Path,x:Any)->None:
   try:os.unlink(t)
   except OSError:pass
   raise
+def bounded_int(name:str,default:int,low:int,high:int)->int:
+ try:value=int(os.getenv(name,str(default)) or default)
+ except (TypeError,ValueError):value=default
+ return max(low,min(high,value))
+def min_free_bytes()->int:
+ try:value=float(os.getenv("SAP_MIN_FREE_GB","1.2") or 1.2)
+ except (TypeError,ValueError):value=1.2
+ value=max(0.5,min(value,20.0))
+ return int(value*1024**3)
+def safe_mtime(p:Path)->float:
+ try:return p.stat().st_mtime
+ except OSError:return 0.0
 def size(p:Path)->int:
- try:
-  if p.is_file():return p.stat().st_size
-  return sum(x.stat().st_size for x in p.rglob("*") if x.is_file())
- except Exception:return 0
+ if p.is_file():
+  try:return p.stat().st_size
+  except OSError:return 0
+ total=0
+ try:iterator=p.rglob("*")
+ except OSError:return 0
+ for x in iterator:
+  try:
+   if x.is_file():total+=x.stat().st_size
+  except OSError:continue
+ return total
 def candidates()->list[Path]:
  out=[]
  for root,pat in ((BASE/"imagens","short_*"),(BASE/"temp","*")):
   if root.is_dir():out.extend(x for x in root.glob(pat) if x.is_dir())
  return out
+def candidate_groups()->list[list[Path]]:
+ groups=[]
+ for root,pat in ((BASE/"imagens","short_*"),(BASE/"temp","*")):
+  items=[x for x in root.glob(pat) if x.is_dir()] if root.is_dir() else []
+  groups.append(sorted(items,key=safe_mtime,reverse=True))
+ return groups
 def _held_lock(lock:Path)->bool:
  try:
   with lock.open("a+") as handle:
@@ -58,11 +83,14 @@ def protected(p:Path)->bool:
   if name==sid or name==f"short_{sid}" or sid in name:return True
  return False
 def cleanup(execute:bool)->dict[str,Any]:
- keep=max(1,min(20,int(os.getenv("SHORT_STORAGE_KEEP_PROJECTS","3"))));days=max(1,min(90,int(os.getenv("SHORT_STORAGE_KEEP_DAYS","7"))));cutoff=time.time()-days*86400;items=sorted(candidates(),key=lambda p:p.stat().st_mtime if p.exists() else 0,reverse=True);remove=[]
- for i,p in enumerate(items):
-  if protected(p):continue
-  old=(p.stat().st_mtime<cutoff) if p.exists() else False
-  if i>=keep or old:remove.append(p)
+ keep=bounded_int("SHORT_STORAGE_KEEP_PROJECTS",3,1,20);days=bounded_int("SHORT_STORAGE_KEEP_DAYS",7,1,90);cutoff=time.time()-days*86400;remove=[]
+ # Apply retention independently to media projects and temp projects so
+ # transient temp directories cannot consume the retention slots of media.
+ for items in candidate_groups():
+  for i,p in enumerate(items):
+   if protected(p):continue
+   old=safe_mtime(p)<cutoff
+   if i>=keep or old:remove.append(p)
  freed=sum(size(p) for p in remove)
  removed=[]
  skipped_active=[]
@@ -88,7 +116,7 @@ def cleanup(execute:bool)->dict[str,Any]:
     except OSError:pass
  return {"execute":execute,"keep_projects":keep,"keep_days":days,"planned":[str(p.relative_to(BASE)) for p in remove],"removed":[str(p.relative_to(BASE)) for p in removed],"skipped_active":[str(p.relative_to(BASE)) for p in skipped_active],"estimated_freed_bytes":freed}
 def main()->int:
- ap=argparse.ArgumentParser();ap.add_argument("command",choices=["preflight","cleanup","status"],nargs="?",default="status");ap.add_argument("--execute",action="store_true");args=ap.parse_args();usage=shutil.disk_usage(BASE);min_free=int(float(os.getenv("SAP_MIN_FREE_GB","1.2"))*1024**3);payload={"short_id":SID,"version":"1.0","disk":{"total":usage.total,"used":usage.used,"free":usage.free,"free_gb":round(usage.free/1024**3,2),"min_free_gb":round(min_free/1024**3,2)}}
+ ap=argparse.ArgumentParser();ap.add_argument("command",choices=["preflight","cleanup","status"],nargs="?",default="status");ap.add_argument("--execute",action="store_true");args=ap.parse_args();usage=shutil.disk_usage(BASE);min_free=min_free_bytes();payload={"short_id":SID,"version":"1.1","disk":{"total":usage.total,"used":usage.used,"free":usage.free,"free_gb":round(usage.free/1024**3,2),"min_free_gb":round(min_free/1024**3,2)}}
  if args.command=="preflight":payload["status"]="PASS" if usage.free>=min_free else "BLOCK";atomic(OUT,payload);print(json.dumps(payload,indent=2));return 0 if payload["status"]=="PASS" else 1
  if args.command=="cleanup":payload["cleanup"]=cleanup(args.execute);payload["status"]="PASS"
  else:payload["status"]="PASS"
