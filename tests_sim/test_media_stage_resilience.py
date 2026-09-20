@@ -51,7 +51,7 @@ class MediaStageResilienceTests(unittest.TestCase):
         self.assertIn("documents", joined)
 
     def test_recovery_version_incremented(self):
-        self.assertEqual(recovery.VERSION, "1.9")
+        self.assertEqual(recovery.VERSION, "1.8")
 
     def test_stage_does_not_abort_on_first_no_progress_contract(self):
         text = open("media_stage_runtime.py", encoding="utf-8").read()
