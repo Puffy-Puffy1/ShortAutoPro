@@ -57,11 +57,20 @@ def validate(short_id: str) -> tuple[bool, str]:
         return False, "manifest_not_quality_pass"
     if quality.get("approved") is not True:
         return False, "quality_not_approved"
+
+    manifest_path = MANIFESTS / f"{sid}.json"
+    quality_input = quality.get("input_identity", {}) if isinstance(quality.get("input_identity"), dict) else {}
+    manifest_sha_for_quality = file_sha256(manifest_path)
+    if (
+        not manifest_sha_for_quality
+        or quality_input.get("production_manifest_sha256") != manifest_sha_for_quality
+    ):
+        return False, "quality_manifest_identity_mismatch"
+
     if str(release.get("decision", "")).upper() not in {"PUBLISH", "ACCEPTABLE"}:
         return False, "release_not_approved"
 
     input_identity = release.get("input_identity", {}) if isinstance(release.get("input_identity"), dict) else {}
-    manifest_path = MANIFESTS / f"{sid}.json"
     quality_path = MANIFESTS / f"{sid}_quality.json"
     manifest_sha = file_sha256(manifest_path)
     quality_sha = file_sha256(quality_path)
