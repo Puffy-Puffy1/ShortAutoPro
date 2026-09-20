@@ -1,17 +1,21 @@
 #!/usr/bin/env python3
 """Fetch a bounded secondary documentary asset for visually long/important scenes."""
 from __future__ import annotations
-import json,os,subprocess,tempfile
+import json,os,subprocess,tempfile,time
 from datetime import date
 from pathlib import Path
 from typing import Any
 import requests
 from wikimedia_source import buscar_wikimedia_fotos,salvar_credito
 from evidence_guard import avaliar_evidencia
+from subprocess_guard import run_group
 BASE=Path(os.getenv("SHORTAUTOPRO_BASE",os.path.expanduser("~/ShortAutoPro"))).resolve();SID=os.getenv("SHORT_ID",date.today().isoformat()).strip();R=BASE/"roteiros";MAP=R/f"scene_map_{SID}.json";PLAN=R/f"pro_edit_plan_{SID}.json";OUT=R/f"multi_asset_{SID}.json";DIR=BASE/"imagens"/f"short_{SID}_secondary"
 try:MAX_ASSET_BYTES=int(os.getenv("SAP_MULTI_ASSET_MAX_BYTES",str(40*1024*1024)) or 40*1024*1024)
 except (TypeError,ValueError):MAX_ASSET_BYTES=40*1024*1024
 MAX_ASSET_BYTES=max(2*1024*1024,min(MAX_ASSET_BYTES,100*1024*1024))
+try:MAX_DOWNLOAD_SECONDS=float(os.getenv("SAP_MULTI_ASSET_DOWNLOAD_SECONDS","45") or 45)
+except (TypeError,ValueError):MAX_DOWNLOAD_SECONDS=45.0
+MAX_DOWNLOAD_SECONDS=max(10.0,min(MAX_DOWNLOAD_SECONDS,120.0))
 def load(p:Path)->dict[str,Any]:
  try:x=json.loads(p.read_text(encoding="utf-8"));return x if isinstance(x,dict) else {}
  except Exception:return {}
@@ -27,7 +31,9 @@ def atomic(p:Path,x:Any)->None:
 def download(url:str,dest:Path)->bool:
  tmp=dest.with_name(f".{dest.name}.{os.getpid()}.tmp")
  try:
-  with requests.get(url,stream=True,timeout=35,headers={"User-Agent":"ShortAutoPro/3.0"}) as r:
+  started=time.monotonic()
+  read_timeout=max(5.0,min(20.0,MAX_DOWNLOAD_SECONDS))
+  with requests.get(url,stream=True,timeout=(10,read_timeout),headers={"User-Agent":"ShortAutoPro/3.0"}) as r:
    if not r.ok:return False
    try:declared=int(r.headers.get("Content-Length") or 0)
    except (TypeError,ValueError):declared=0
@@ -36,11 +42,12 @@ def download(url:str,dest:Path)->bool:
    with tmp.open("wb") as f:
     for chunk in r.iter_content(128*1024):
      if not chunk:continue
+     if time.monotonic()-started>MAX_DOWNLOAD_SECONDS:return False
      total+=len(chunk)
      if total>MAX_ASSET_BYTES:return False
      f.write(chunk)
   if tmp.stat().st_size<20000:return False
-  probe=subprocess.run(["ffprobe","-v","error","-select_streams","v:0","-show_entries","stream=width,height","-of","json",str(tmp)],capture_output=True,text=True,timeout=30)
+  probe=run_group(["ffprobe","-v","error","-select_streams","v:0","-show_entries","stream=width,height","-of","json",str(tmp)],capture_output=True,text=True,timeout=30)
   if probe.returncode:return False
   s=json.loads(probe.stdout).get("streams",[]);w=int(s[0].get("width",0)) if s else 0;h=int(s[0].get("height",0)) if s else 0
   if w*h<640*360:return False

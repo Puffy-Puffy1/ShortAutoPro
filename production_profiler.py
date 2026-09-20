@@ -5,6 +5,7 @@ import argparse
 import json
 import os
 import time
+import threading
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
@@ -13,6 +14,7 @@ from typing import Any
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
 REPORT_DIR = BASE / "reports" / "performance"
 _ACTIVE_RUNS: dict[str, str] = {}
+_WRITE_LOCK = threading.Lock()
 
 
 def _sid(value: str | None = None) -> str:
@@ -66,8 +68,10 @@ def record(
             "run_id": str(run_id or current_run_id(short_id) or ""),
             "meta": meta,
         }
-        with _path(short_id).open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(payload, ensure_ascii=False) + "\n")
+        line = json.dumps(payload, ensure_ascii=False) + "\n"
+        with _WRITE_LOCK:
+            with _path(short_id).open("a", encoding="utf-8") as handle:
+                handle.write(line)
     except Exception:
         pass
 
@@ -96,11 +100,10 @@ class Timer:
         return False
 
 
-def read(short_id: str) -> list[dict[str, Any]]:
+def iter_rows(short_id: str):
     path = _path(short_id)
     if not path.is_file():
-        return []
-    rows: list[dict[str, Any]] = []
+        return
     try:
         with path.open("r", encoding="utf-8", errors="ignore") as handle:
             for line in handle:
@@ -109,24 +112,29 @@ def read(short_id: str) -> list[dict[str, Any]]:
                 except Exception:
                     continue
                 if isinstance(item, dict):
-                    rows.append(item)
+                    yield item
     except OSError:
-        return []
-    return rows
+        return
+
+
+def read(short_id: str) -> list[dict[str, Any]]:
+    return list(iter_rows(short_id) or [])
 
 
 def latest_run_id(short_id: str) -> str:
-    rows = read(short_id)
-    for row in reversed(rows):
+    latest = ""
+    for row in iter_rows(short_id) or ():
         rid = str(row.get("run_id", "") or "")
         if rid:
-            return rid
-    return ""
+            latest = rid
+    return latest
 
 
 def summarize(short_id: str, *, run_id: str | None = None) -> list[dict[str, Any]]:
-    groups: dict[tuple[str, str], list[float]] = defaultdict(list)
-    for row in read(short_id):
+    groups: dict[tuple[str, str], dict[str, float]] = defaultdict(
+        lambda: {"count": 0.0, "total": 0.0, "max": 0.0}
+    )
+    for row in iter_rows(short_id) or ():
         if run_id and str(row.get("run_id", "") or "") != run_id:
             continue
         if str(row.get("name", "")) == "__run_start__":
@@ -136,19 +144,25 @@ def summarize(short_id: str, *, run_id: str | None = None) -> list[dict[str, Any
         except (TypeError, ValueError):
             continue
         key = (str(row.get("category", "runtime")), str(row.get("name", "?")))
-        groups[key].append(elapsed)
+        stats = groups[key]
+        stats["count"] += 1
+        stats["total"] += elapsed
+        stats["max"] = max(stats["max"], elapsed)
 
     out = []
-    for (category, name), values in groups.items():
-        total = sum(values)
+    for (category, name), stats in groups.items():
+        count = int(stats["count"])
+        total = stats["total"]
+        if count <= 0:
+            continue
         out.append(
             {
                 "category": category,
                 "name": name,
-                "count": len(values),
+                "count": count,
                 "total_seconds": round(total, 3),
-                "avg_seconds": round(total / len(values), 3),
-                "max_seconds": round(max(values), 3),
+                "avg_seconds": round(total / count, 3),
+                "max_seconds": round(stats["max"], 3),
             }
         )
     out.sort(key=lambda item: item["total_seconds"], reverse=True)
