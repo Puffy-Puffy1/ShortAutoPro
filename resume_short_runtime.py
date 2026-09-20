@@ -19,7 +19,7 @@ from typing import Any
 
 import main as canonical
 from subprocess_guard import check_output_group, run_group
-from runtime_config import env_float, env_int
+from runtime_config import env_int, env_float
 import shortautopro_evolution as evo
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()

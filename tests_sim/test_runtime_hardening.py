@@ -1,4 +1,7 @@
 import unittest
+import fcntl
+import tempfile
+import storage_manager as storage
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -30,7 +33,16 @@ class RuntimeHardeningTests(unittest.TestCase):
     def test_storage_probes_kernel_lock_and_reports_actual_removals(self):
         text = (ROOT / "storage_manager.py").read_text(encoding="utf-8")
         self.assertIn("LOCK_EX|fcntl.LOCK_NB", text)
-        self.assertIn("lock.unlink(missing_ok=True)", text)
+        with tempfile.TemporaryDirectory() as folder:
+            lock = Path(folder) / "production.lock"
+            lock.touch()
+            inode = lock.stat().st_ino
+            self.assertFalse(storage._held_lock(lock))
+            self.assertEqual(lock.stat().st_ino, inode)
+            with lock.open("a+") as owner:
+                fcntl.flock(owner, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                self.assertTrue(storage._held_lock(lock))
+            self.assertFalse(storage._held_lock(lock))
         self.assertIn('"planned"', text)
         self.assertIn('"skipped_active"', text)
 
@@ -56,3 +68,4 @@ class RuntimeHardeningTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
