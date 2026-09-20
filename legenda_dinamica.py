@@ -253,7 +253,21 @@ try:
     os.replace(tmp_ass, ASS_FINAL)
     # O espelho torna a legenda mensurável pela camada Evolution sem mudar
     # o caminho consumido pelo renderer existente.
-    shutil.copyfile(ASS_FINAL, ASS_AUDIT)
+    audit_tmp = f"{ASS_AUDIT}.{os.getpid()}.tmp"
+    try:
+        with open(ASS_FINAL, "rb") as src, open(audit_tmp, "wb") as dst:
+            shutil.copyfileobj(src, dst, length=256 * 1024)
+            dst.flush()
+            os.fsync(dst.fileno())
+        if os.path.getsize(audit_tmp) != os.path.getsize(ASS_FINAL):
+            raise RuntimeError("espelho ASS incompleto")
+        os.replace(audit_tmp, ASS_AUDIT)
+    finally:
+        try:
+            if os.path.exists(audit_tmp):
+                os.remove(audit_tmp)
+        except OSError:
+            pass
 except Exception as exc:
     fail(f"não foi possível gravar legenda ASS: {exc}")
 finally:
