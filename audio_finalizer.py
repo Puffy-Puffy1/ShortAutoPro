@@ -9,6 +9,7 @@ import json, math, os, re, subprocess, tempfile
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
+from subprocess_guard import run_group
 
 BASE=Path(os.getenv("SHORTAUTOPRO_BASE",os.path.expanduser("~/ShortAutoPro"))).resolve(); SID=os.getenv("SHORT_ID",date.today().isoformat()).strip(); VIDEO=BASE/"videos"/f"short_v6_{SID}.mp4"; REPORT=BASE/"reports"/"evolution"/f"final_audio_{SID}.json"
 TARGET=float(os.getenv("SAP_AUDIO_TARGET_LUFS","-14")); TP=float(os.getenv("SAP_AUDIO_TRUE_PEAK_DB","-1.5")); LRA=float(os.getenv("SAP_AUDIO_LRA","7"))
@@ -25,7 +26,7 @@ def atomic(p:Path,x:Any)->None:
 
 def measure(path:Path)->dict[str,float]:
  cmd=["ffmpeg","-hide_banner","-nostats","-i",str(path),"-map","0:a:0","-af",f"loudnorm=I={TARGET}:TP={TP}:LRA={LRA}:print_format=json","-f","null","-"]
- p=subprocess.run(cmd,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE,text=True,timeout=120,check=False)
+ p=run_group(cmd,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE,text=True,timeout=120,check=False)
  text=p.stderr or ""; blocks=re.findall(r"\{[\s\S]*?\}",text)
  for block in reversed(blocks):
   try:
@@ -39,7 +40,7 @@ def remaster(path:Path,m:dict[str,float])->None:
  filt=(f"loudnorm=I={TARGET}:TP={TP}:LRA={LRA}:measured_I={m['lufs']}:measured_TP={m['true_peak_db']}:measured_LRA={m['lra']}:measured_thresh={m['threshold']}:offset={m['offset']}:linear=true:print_format=summary,alimiter=limit={10**(TP/20):.6f}:level=false")
  cmd=["ffmpeg","-y","-loglevel","error","-i",str(path),"-map","0:v:0","-map","0:a:0","-c:v","copy","-af",filt,"-c:a","aac","-b:a","192k","-ar","48000","-movflags","+faststart",str(tmp)]
  try:
-  subprocess.run(cmd,check=True,timeout=180)
+  run_group(cmd,check=True,timeout=180)
   if not tmp.is_file() or tmp.stat().st_size<500000: raise RuntimeError("remaster inválido")
   os.replace(tmp,path)
  finally:
