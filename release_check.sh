@@ -3,7 +3,7 @@
 set -u
 set -o pipefail
 
-BASE="$HOME/ShortAutoPro"
+BASE="${SHORTAUTOPRO_BASE:-$HOME/ShortAutoPro}"
 ERROS=0
 
 ok() { echo "OK   $1"; }
@@ -72,7 +72,7 @@ fi
 
 if [ -n "${GEMINI_API_KEY:-}" ]; then ok "Gemini key carregada"; else erro "Gemini key ausente"; fi
 
-LIVRE_KB="$(df -Pk "$HOME" 2>/dev/null | awk 'NR==2 {print $4}')"
+LIVRE_KB="$(df -Pk "$BASE" 2>/dev/null | awk 'NR==2 {print $4}')"
 if [[ "${LIVRE_KB:-}" =~ ^[0-9]+$ ]]; then
     LIVRE_MB=$((LIVRE_KB / 1024))
     if [ "$LIVRE_MB" -ge 1500 ]; then ok "Storage ${LIVRE_MB} MB livres"; else erro "Storage baixo: ${LIVRE_MB} MB"; fi

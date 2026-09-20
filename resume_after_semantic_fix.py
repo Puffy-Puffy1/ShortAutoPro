@@ -93,13 +93,38 @@ def run_stage(
     print(f"\n{'-' * 52}\n{title}\n{'-' * 52}\n")
     stage_started = time.monotonic()
     for attempt in range(retries + 1):
-        proc = subprocess.run(
-            [sys.executable, str(path), *args],
-            cwd=str(BASE),
-            env=env,
-            check=False,
-        )
-        last = proc.returncode
+        try:
+            stage_timeout = int(
+                os.getenv("SAP_STAGE_TIMEOUT_SECONDS", "1800") or 1800
+            )
+        except (TypeError, ValueError):
+            stage_timeout = 1800
+        stage_timeout = max(60, min(stage_timeout, 7200))
+
+        try:
+            proc = subprocess.run(
+                [sys.executable, str(path), *args],
+                cwd=str(BASE),
+                env=env,
+                check=False,
+                timeout=stage_timeout,
+            )
+            last = proc.returncode
+        except subprocess.TimeoutExpired:
+            last = 124
+            elapsed = time.monotonic() - stage_started
+            profile_record(
+                script,
+                elapsed,
+                short_id=sid,
+                category="stage",
+                title=title,
+                status="timeout",
+                timeout_seconds=stage_timeout,
+            )
+            raise RuntimeError(
+                f"{script} excedeu timeout de {stage_timeout}s"
+            )
         if last == 0:
             elapsed = time.monotonic() - stage_started
             profile_record(
@@ -186,13 +211,29 @@ def main() -> int:
         print("RESUME_AFTER_SEMANTIC_ERROR=resume_short_runtime.py ausente", file=sys.stderr)
         return 1
 
-    proc = subprocess.run(
-        [sys.executable, str(resume), "--short-id", sid],
-        cwd=str(BASE),
-        env=os.environ.copy(),
-        check=False,
-    )
-    return proc.returncode
+    try:
+        handoff_timeout = int(
+            os.getenv("SAP_RESUME_HANDOFF_TIMEOUT", "7200") or 7200
+        )
+    except (TypeError, ValueError):
+        handoff_timeout = 7200
+    handoff_timeout = max(600, min(handoff_timeout, 21600))
+    try:
+        proc = subprocess.run(
+            [sys.executable, str(resume), "--short-id", sid],
+            cwd=str(BASE),
+            env=os.environ.copy(),
+            check=False,
+            timeout=handoff_timeout,
+        )
+        return proc.returncode
+    except subprocess.TimeoutExpired:
+        print(
+            "RESUME_AFTER_SEMANTIC_ERROR="
+            f"resume handoff excedeu {handoff_timeout}s",
+            file=sys.stderr,
+        )
+        return 124
 
 
 if __name__ == "__main__":

@@ -3,7 +3,7 @@
 set -u
 set -o pipefail
 
-BASE="$HOME/ShortAutoPro"
+BASE="${SHORTAUTOPRO_BASE:-$HOME/ShortAutoPro}"
 
 ERROS=0
 AVISOS=0
@@ -163,7 +163,7 @@ fi
 # ======================================
 
 LIVRE_KB="$(
-    df -Pk "$HOME" 2>/dev/null |
+    df -Pk "$BASE" 2>/dev/null |
     awk 'NR==2 {print $4}'
 )"
 
@@ -227,19 +227,26 @@ done
 # ======================================
 
 CRITICOS=(
-    gerar_short.sh
-    topic_engine.py
+    main.py
+    profile_run.sh
+    resume_short_runtime.py
+    topic_engine_runtime.py
     roteiro.py
-    hook_engine.py
+    hook_runtime.py
     scene_director.py
+    semantic_integrity_gate.py
+    media_stage_runtime.py
     midia.py
+    media_master_gate.py
     audio.py
     legenda_dinamica.py
-    v6.py
+    video_professional.py
+    v6_professional.py
     quality_check.py
     publish_pack.py
     production_manifest.py
     final_quality.py
+    release_gate.py
 )
 
 for arq in "${CRITICOS[@]}"; do
