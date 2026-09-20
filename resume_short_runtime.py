@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 import main as canonical
-from subprocess_guard import run_group
+from subprocess_guard import check_output_group, run_group
 import shortautopro_evolution as evo
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
@@ -125,7 +125,7 @@ def render_ok(sid: str) -> bool:
     if not nonempty(video, 100_000) or shutil.which("ffprobe") is None:
         return False
     try:
-        raw = subprocess.check_output(
+        raw = check_output_group(
             [
                 "ffprobe", "-v", "error",
                 "-show_entries", "stream=codec_name,codec_type,width,height",
@@ -256,12 +256,24 @@ def copy_download(sid: str) -> str:
     downloads = Path(os.path.expanduser("~/storage/shared/Download"))
     if downloads.is_dir() and final.is_file():
         target = downloads / f"ShortAutoPro_{sid}.mp4"
+        tmp = downloads / f".{target.name}.{os.getpid()}.tmp"
         try:
-            shutil.copy2(final, target)
-            if target.stat().st_size > 0:
-                return str(target)
+            source_size = final.stat().st_size
+            if source_size < 500_000:
+                return str(final)
+            with final.open("rb") as src, tmp.open("wb") as dst:
+                shutil.copyfileobj(src, dst, length=1024 * 1024)
+                dst.flush()
+                os.fsync(dst.fileno())
+            if tmp.stat().st_size != source_size:
+                raise RuntimeError("exportação resume incompleta")
+            os.replace(tmp, target)
+            return str(target)
         except Exception:
-            pass
+            try:
+                tmp.unlink(missing_ok=True)
+            except OSError:
+                pass
     return str(final)
 
 
@@ -367,12 +379,18 @@ def resume(sid: str) -> int:
 def latest_incomplete() -> str | None:
     if not evo.STATE_DIR.is_dir():
         return None
-    states = sorted(evo.STATE_DIR.glob("*.json"), key=lambda path: path.stat().st_mtime, reverse=True)
-    for path in states:
+    states = []
+    for path in evo.STATE_DIR.glob("*.json"):
+        try:
+            states.append((path.stat().st_mtime, path))
+        except OSError:
+            continue
+    ordered = [path for _, path in sorted(states, key=lambda item: item[0], reverse=True)]
+    for path in ordered:
         data = read_json(path)
         if str(data.get("production_status", "")).upper() != "SUCCESS":
             return path.stem
-    return states[0].stem if states else None
+    return ordered[0].stem if ordered else None
 
 
 def main() -> int:
