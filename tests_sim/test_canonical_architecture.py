@@ -32,6 +32,24 @@ class ConsolidationArchitectureTests(unittest.TestCase):
             self.assertFalse((ROOT / relative).exists(), relative)
         self.assertFalse((ROOT / "_arquivo_historico").exists())
 
+    def test_canonical_pipeline_purges_forbidden_local_legacy_files(self):
+        main = (ROOT / "main.py").read_text(encoding="utf-8")
+        purge = (ROOT / "tools" / "purge_legacy_runtime.py").read_text(encoding="utf-8")
+        self.assertIn('p.run("0 - LEGACY RUNTIME PURGE", "tools/purge_legacy_runtime.py")', main)
+        for legacy in (
+            "gerar_short.sh",
+            "gerar_short_professional.sh",
+            "professional_pipeline_runtime.py",
+            "resume_short_professional_runtime.py",
+            "v6_professional_runtime.py",
+            "v6_runtime.py",
+            "v6.py",
+            "video.py",
+            "limpar_storage.sh",
+            "_arquivo_historico",
+        ):
+            self.assertIn(legacy, purge)
+
     def test_single_canonical_pipeline_and_resume(self):
         main = (ROOT / "main.py").read_text(encoding="utf-8")
         profile = (ROOT / "profile_run.sh").read_text(encoding="utf-8")
