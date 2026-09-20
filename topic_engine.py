@@ -17,11 +17,16 @@ from wiki_client import WikiRateLimit
 from wiki_client import extract as wiki_extract_client
 from wiki_client import search as wiki_search_client
 
-BASE = os.path.expanduser("~/ShortAutoPro")
+BASE = os.path.abspath(os.path.expanduser(os.getenv("SHORTAUTOPRO_BASE", "~/ShortAutoPro")))
 SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat())
 TEMA = os.getenv("SHORT_TEMA", "mistérios, casos inexplicáveis e true crime")
 API_KEY = os.getenv("GEMINI_API_KEY")
 MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
+try:
+    GEMINI_TIMEOUT = float(os.getenv("SAP_GEMINI_TIMEOUT", "75") or 75)
+except (TypeError, ValueError):
+    GEMINI_TIMEOUT = 75.0
+GEMINI_TIMEOUT = max(20.0, min(GEMINI_TIMEOUT, 120.0))
 HISTORICO = os.path.join(BASE, "historico_assuntos.json")
 SAIDA = os.path.join(BASE, "roteiros", f"topic_{SHORT_ID}.txt")
 VERIFICACAO = os.path.join(BASE, "roteiros", f"topic_verified_{SHORT_ID}.json")
@@ -273,7 +278,7 @@ def chamar_gemini(prompt):
     for tentativa in range(1, 4):
         print(f"Topic Engine tentativa {tentativa}/3...")
         try:
-            r = requests.post(URL, headers=HEADERS, json=payload, timeout=100)
+            r = requests.post(URL, headers=HEADERS, json=payload, timeout=GEMINI_TIMEOUT)
         except Exception as exc:
             if tentativa == 3:
                 raise RuntimeError(str(exc))

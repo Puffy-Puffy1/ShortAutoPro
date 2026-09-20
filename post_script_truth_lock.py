@@ -12,7 +12,7 @@ from source_identity import (
     validar_identidade,
 )
 
-BASE = os.path.expanduser("~/ShortAutoPro")
+BASE = os.path.abspath(os.path.expanduser(os.getenv("SHORTAUTOPRO_BASE", "~/ShortAutoPro")))
 SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat())
 
 try:
@@ -28,6 +28,25 @@ SOURCE = os.path.join(R, f"fonte_{SHORT_ID}.txt")
 SCRIPT = os.path.join(R, f"short_{SHORT_ID}.txt")
 SCENE_MAP = os.path.join(R, f"scene_map_{SHORT_ID}.json")
 REPORT = os.path.join(R, f"post_script_truth_{SHORT_ID}.json")
+
+
+
+def atomic_json(path, payload):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = f"{path}.{os.getpid()}.tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+            f.write("\n")
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+    finally:
+        if os.path.exists(tmp):
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
 
 
 def read(path):
@@ -237,8 +256,7 @@ report = {
 }
 
 os.makedirs(R, exist_ok=True)
-with open(REPORT, "w", encoding="utf-8") as f:
-    json.dump(report, f, ensure_ascii=False, indent=2)
+atomic_json(REPORT, report)
 
 print()
 print("CRITICAL:", len(critical))
