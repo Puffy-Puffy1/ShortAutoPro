@@ -48,7 +48,7 @@ def run_group(
         except subprocess.TimeoutExpired:
             try:
                 os.killpg(proc.pid, signal.SIGKILL)
-            except ProcessLookupError:
+            except OSError:
                 pass
             out, err = proc.communicate()
         raise subprocess.TimeoutExpired(command, timeout, output=out, stderr=err) from exc
