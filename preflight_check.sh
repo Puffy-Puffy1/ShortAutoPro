@@ -31,6 +31,16 @@ echo " SHORTAUTO PRO - PREFLIGHT CHECK 3.0.2"
 echo "======================================"
 echo
 
+if [ -f "$BASE/tools/purge_legacy_runtime.py" ]; then
+    if python "$BASE/tools/purge_legacy_runtime.py"; then
+        ok "legacy runtime purge"
+    else
+        erro "falha removendo arquitetura legada proibida"
+    fi
+else
+    erro "tools/purge_legacy_runtime.py ausente"
+fi
+
 if [ -f "$BASE/config.sh" ]; then
     # shellcheck disable=SC1091
     source "$BASE/config.sh"
