@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import fcntl
 import json
 import os
 import time
@@ -71,7 +72,12 @@ def record(
         line = json.dumps(payload, ensure_ascii=False) + "\n"
         with _WRITE_LOCK:
             with _path(short_id).open("a", encoding="utf-8") as handle:
-                handle.write(line)
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+                try:
+                    handle.write(line)
+                    handle.flush()
+                finally:
+                    fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
     except Exception:
         pass
 
