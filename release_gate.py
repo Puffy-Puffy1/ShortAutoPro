@@ -5,7 +5,7 @@ import argparse,hashlib,json,math,os,tempfile
 from datetime import date,datetime
 from pathlib import Path
 from typing import Any
-BASE=Path(os.getenv("SHORTAUTOPRO_BASE",os.path.expanduser("~/ShortAutoPro"))).resolve();SID=os.getenv("SHORT_ID",date.today().isoformat()).strip();R=BASE/"roteiros";M=BASE/"manifests";E=BASE/"reports"/"evolution";I=BASE/"reports"/"intelligence";OUT=M/f"{SID}_release.json";RENDER_IDENTITY=M/f"{SID}_render_identity.json"
+BASE=Path(os.getenv("SHORTAUTOPRO_BASE",os.path.expanduser("~/ShortAutoPro"))).resolve();SID=os.getenv("SHORT_ID",date.today().isoformat()).strip();R=BASE/"roteiros";M=BASE/"manifests";E=BASE/"reports"/"evolution";I=BASE/"reports"/"intelligence";OUT=M/f"{SID}_release.json";RENDER_IDENTITY=M/f"{SID}_render_identity.json";PRODUCTION_MANIFEST=M/f"{SID}.json";FINAL_QUALITY=M/f"{SID}_quality.json"
 def load(p:Path)->dict[str,Any]:
  try:
   x=json.loads(p.read_text(encoding="utf-8"));return x if isinstance(x,dict) else {}
@@ -27,6 +27,13 @@ def read_text(p:Path)->str:
  try:return p.read_text(encoding="utf-8").strip()
  except Exception:return ""
 def text_sha(v:str)->str:return hashlib.sha256(str(v or "").encode("utf-8")).hexdigest()
+def file_sha(p:Path)->str:
+ try:
+  h=hashlib.sha256()
+  with p.open("rb") as f:
+   for chunk in iter(lambda:f.read(1024*1024),b""):h.update(chunk)
+  return h.hexdigest()
+ except OSError:return ""
 def brain_snapshot()->dict[str,Any]:
  try:
   import shortauto_brain as brain
@@ -81,7 +88,11 @@ def main()->int:
  if components["subtitle_score"]<85:actions.append("repair_caption_layout")
  if str(brain_budget.get("status","")).upper()=="BLOCK":actions.append("review_shortauto_brain_quality_budget")
  if str(intelligence_conf.get("decision","")).upper()=="REPAIR":actions.append("review_intelligence_explainable_qa")
- payload={"short_id":SID,"version":"RELEASE_GATE_1.4_ARTIFACT_IDENTITY","generated_at":datetime.now().astimezone().isoformat(timespec="seconds"),"shortautopro_score":score,"decision":decision,"components":components,"weights":weights,"critical":critical,"repair_actions":actions,"visual_multiscore":vscore,"shortauto_brain":brain,"brain_enforced":brain_enforce,"shortauto_intelligence":intelligence,"intelligence_enforced":intelligence_enforce,"intelligence_qa_score":num(intelligence_qa.get("score"),0),"artifact_identity":{"enforced":identity_enforce,"current_topic":current_topic,"current_topic_sha256":current_topic_sha,"render_identity":render_identity}};atomic(OUT,payload);print(json.dumps(payload,ensure_ascii=False,indent=2))
+ input_identity={"production_manifest_sha256":file_sha(PRODUCTION_MANIFEST),"final_quality_sha256":file_sha(FINAL_QUALITY)}
+ if not input_identity["production_manifest_sha256"]:critical.append("production_manifest_identity_missing")
+ if not input_identity["final_quality_sha256"]:critical.append("final_quality_identity_missing")
+ if critical:decision="BLOCK"
+ payload={"short_id":SID,"version":"RELEASE_GATE_1.5_INPUT_CHAIN","generated_at":datetime.now().astimezone().isoformat(timespec="seconds"),"shortautopro_score":score,"decision":decision,"components":components,"weights":weights,"critical":critical,"repair_actions":actions,"visual_multiscore":vscore,"shortauto_brain":brain,"brain_enforced":brain_enforce,"shortauto_intelligence":intelligence,"intelligence_enforced":intelligence_enforce,"intelligence_qa_score":num(intelligence_qa.get("score"),0),"artifact_identity":{"enforced":identity_enforce,"current_topic":current_topic,"current_topic_sha256":current_topic_sha,"render_identity":render_identity},"input_identity":input_identity};atomic(OUT,payload);print(json.dumps(payload,ensure_ascii=False,indent=2))
  if args.enforce and decision=="BLOCK":return 1
  if args.enforce and decision=="REPAIR":return 20
  return 0
