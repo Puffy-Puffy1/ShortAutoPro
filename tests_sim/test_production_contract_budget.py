@@ -45,9 +45,9 @@ class ProductionContractBudgetTests(unittest.TestCase):
 
     def test_recovery_version_and_stock_budget_contract(self):
         text = open("media_acquisition_recovery.py", encoding="utf-8").read()
-        self.assertIn('VERSION = "1.8"', text)
+        self.assertIn('VERSION = "1.9"', text)
         self.assertIn("SAP_STOCK_RESCUE_MAX_QUERIES", text)
-        self.assertIn('"4"', text)
+        self.assertIn('"2"', text)
         self.assertIn("SAP_STOCK_RESCUE_BUDGET=", text)
 
     def test_midia_reports_prioritized_contract(self):
