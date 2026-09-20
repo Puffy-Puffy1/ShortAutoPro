@@ -12,6 +12,7 @@ import argparse
 import json
 import os
 import subprocess
+from subprocess_guard import run_group
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -185,7 +186,7 @@ def run_job(path: Path, job: dict[str, Any], execute: bool) -> int:
         job_timeout = max(600, min(job_timeout, 21600))
 
         try:
-            result = subprocess.run(
+            result = run_group(
                 ["bash", str(PROFILE_RUN), profile],
                 cwd=str(BASE),
                 env=env,
