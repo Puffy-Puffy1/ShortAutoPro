@@ -46,6 +46,10 @@ def main()->int:
  ap=argparse.ArgumentParser();ap.add_argument("--enforce",action="store_true");args=ap.parse_args()
  retention=load(R/f"retention_{SID}.json");continuity=load(R/f"visual_continuity_{SID}.json");vscore=load(R/f"visual_score_{SID}.json");vqa=load(E/f"visual_qa_{SID}.json");audio=load(E/f"final_audio_{SID}.json");pro=load(M/f"{SID}_professional.json");legacy=load(M/f"{SID}_quality.json");media=load(R/f"media_quality_{SID}.json");caption=load(R/f"pro_caption_{SID}.json");caption_layout=load(R/f"caption_layout_{SID}.json");vd=load(R/f"visual_director_{SID}.json")
  factual_ok=bool(legacy.get("approved",False));critical=[]
+ manifest_sha_now=file_sha(PRODUCTION_MANIFEST);quality_input=legacy.get("input_identity",{}) if isinstance(legacy.get("input_identity"),dict) else {};quality_manifest_sha=str(quality_input.get("production_manifest_sha256","") or "")
+ if not manifest_sha_now:critical.append("production_manifest_identity_missing")
+ elif not quality_manifest_sha:critical.append("final_quality_manifest_identity_missing")
+ elif quality_manifest_sha!=manifest_sha_now:critical.append("final_quality_manifest_identity_mismatch")
  render_identity=load(RENDER_IDENTITY);current_topic=read_text(R/f"used_topic_{SID}.txt") or read_text(R/f"topic_{SID}.txt");current_topic_sha=text_sha(current_topic) if current_topic else ""
  identity_enforce=os.getenv("SAP_ARTIFACT_IDENTITY_ENFORCE","1")=="1"
  if identity_enforce:
