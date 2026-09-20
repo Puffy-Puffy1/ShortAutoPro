@@ -30,7 +30,18 @@ class LocalChecksConsolidation3Tests(unittest.TestCase):
             "PRONTO PARA PRODUÇÃO 3.0",
         ):
             self.assertIn(token, text)
-        self.assertIn("LEGADOS=(gerar_short.sh video.py v6.py v6_runtime.py limpar_storage.sh)", text)
+        for legacy in (
+            "gerar_short.sh",
+            "gerar_short_professional.sh",
+            "professional_pipeline_runtime.py",
+            "resume_short_professional_runtime.py",
+            "v6_professional_runtime.py",
+            "v6_runtime.py",
+            "v6.py",
+            "video.py",
+            "limpar_storage.sh",
+        ):
+            self.assertIn(legacy, text)
         self.assertNotIn('"v6_runtime",\n', text)
 
     def test_health_targets_canonical_pipeline(self):

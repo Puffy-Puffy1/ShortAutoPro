@@ -1,9 +1,0 @@
-{
-  "short_id": "2026-08-31_1529",
-  "changed": false,
-  "reason": "already_strong",
-  "before": "Ele entrou em um bar monitorado, mas as câmeras nunca o registraram saindo.",
-  "before_score": 85.0,
-  "after": "Ele entrou em um bar monitorado, mas as câmeras nunca o registraram saindo.",
-  "after_score": 85.0
-}

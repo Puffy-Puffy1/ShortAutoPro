@@ -23,6 +23,16 @@ FORBIDDEN_EXACT = {
     "video.py",
     "limpar_storage.sh",
     "tools/apply_consolidation_1_0.py",
+    "docs/CONSOLIDATION_1_0.md",
+    "docs/CONSOLIDATION_1_0_ACTIVE_GRAPH.json",
+    "docs/CONSOLIDATION_1_0_VALIDATION.md",
+    "docs/CONSOLIDATION_2_0.md",
+    "manifests/visual_selection_engine_v2_certification.json",
+    "tests_sim/test_consolidation_2_0.py",
+    "tests_sim/test_professional_polish_v2.py",
+    "tests_sim/test_termux_render_speed_v2.py",
+    "tests_sim/test_v6_runtime.py",
+    "tests_sim/test_v6_runtime_codecs.py",
 }
 
 REQUIRED = {
@@ -174,6 +184,16 @@ def main() -> int:
             issues.append(f"historical_archive_tracked:{path}")
         if path.startswith("imagens/short_"):
             issues.append(f"generated_media_tracked:{path}")
+        if path.startswith("roteiros/"):
+            issues.append(f"generated_runtime_tracked:{path}")
+        if path.startswith("manifests/20") and path.endswith(".json"):
+            issues.append(f"generated_manifest_tracked:{path}")
+        if (
+            path.startswith("credits/attribution_20")
+            or path.startswith("credits/ledger_20")
+            or path.startswith("credits/short_20")
+        ):
+            issues.append(f"generated_credit_tracked:{path}")
     for path in sorted(REQUIRED - files):
         issues.append(f"required_file_missing:{path}")
 
@@ -258,7 +278,7 @@ def main() -> int:
         issues.append(f"inactive_code:{path}")
 
     payload = {
-        "version": "CONSOLIDATION_3_0_2_AUDIT",
+        "version": "CONSOLIDATION_3_0_3_AUDIT",
         "scope": "tracked_git_files",
         "status": "PASS" if not issues else "FAIL",
         "files": len(files),

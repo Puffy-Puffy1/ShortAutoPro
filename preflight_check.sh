@@ -78,7 +78,17 @@ for arq in "${ARQUIVOS[@]}"; do
 done
 
 # Legados da arquitetura 2.x não podem reaparecer silenciosamente.
-LEGADOS=(gerar_short.sh video.py v6.py v6_runtime.py limpar_storage.sh)
+LEGADOS=(
+    gerar_short.sh
+    gerar_short_professional.sh
+    professional_pipeline_runtime.py
+    resume_short_professional_runtime.py
+    v6_professional_runtime.py
+    v6_runtime.py
+    v6.py
+    video.py
+    limpar_storage.sh
+)
 for arq in "${LEGADOS[@]}"; do
     if [ -e "$BASE/$arq" ]; then erro "legado proibido presente: $arq"; else ok "legado ausente: $arq"; fi
 done

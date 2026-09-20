@@ -40,6 +40,35 @@ class RepositorySafetyTests(unittest.TestCase):
         offenders = [path for path in tracked if path.lower().endswith(heavy_suffixes)]
         self.assertEqual(offenders, [], f"Heavy model files tracked: {offenders}")
 
+    def test_generated_runtime_artifacts_are_not_tracked(self):
+        tracked = self.tracked_files()
+        offenders = [
+            path for path in tracked
+            if path.startswith("roteiros/")
+            or (path.startswith("manifests/20") and path.endswith(".json"))
+            or path.startswith("credits/attribution_20")
+            or path.startswith("credits/ledger_20")
+            or path.startswith("credits/short_20")
+        ]
+        self.assertEqual(offenders, [], f"Generated runtime artifacts tracked: {offenders}")
+
+    def test_legacy_architecture_artifacts_are_not_tracked(self):
+        tracked = set(self.tracked_files())
+        forbidden = {
+            "docs/CONSOLIDATION_1_0.md",
+            "docs/CONSOLIDATION_1_0_ACTIVE_GRAPH.json",
+            "docs/CONSOLIDATION_1_0_VALIDATION.md",
+            "docs/CONSOLIDATION_2_0.md",
+            "manifests/visual_selection_engine_v2_certification.json",
+            "tests_sim/test_consolidation_2_0.py",
+            "tests_sim/test_professional_polish_v2.py",
+            "tests_sim/test_termux_render_speed_v2.py",
+            "tests_sim/test_v6_runtime.py",
+            "tests_sim/test_v6_runtime_codecs.py",
+        }
+        offenders = sorted(tracked & forbidden)
+        self.assertEqual(offenders, [], f"Legacy architecture artifacts tracked: {offenders}")
+
     def test_self_hosted_workflow_is_not_triggered_by_pull_requests(self):
         workflow = ROOT / ".github" / "workflows" / "shortautopro-remote.yml"
         text = workflow.read_text(encoding="utf-8").lower()
