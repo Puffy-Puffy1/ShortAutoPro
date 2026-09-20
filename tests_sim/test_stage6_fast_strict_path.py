@@ -28,13 +28,15 @@ class Stage6FastStrictPathTests(unittest.TestCase):
         self.assertIn("_alt_seen", block)
         self.assertIn("_alt_clean", block)
         self.assertNotIn("alternativas = []", block)
-        self.assertIn("buscar_todos_candidatos(", block)
+        self.assertIn("_sap_call_original", block)
+        self.assertIn("SAP_MEDIA_SIMPLIFIED_RETRY_MAX", block)
         self.assertIn("busca_alt,", block)
         self.assertIn("must_have,", block)
+        self.assertIn("one_shot=", block)
 
     def test_canonical_recovery_unwraps_legacy_vse42_search_rescue(self):
         text = (ROOT / "media_acquisition_recovery.py").read_text(encoding="utf-8")
-        self.assertIn('VERSION = "1.8"', text)
+        self.assertIn('VERSION = "1.9"', text)
         self.assertIn("_sap_query_expansion_original", text)
         self.assertIn("_sap_vse42_original", text)
         self.assertIn("__wrapped__", text)
@@ -47,6 +49,19 @@ class Stage6FastStrictPathTests(unittest.TestCase):
         self.assertIn("return out[:8]", text)
         self.assertIn("SAP_MUST_RESCUE_CACHE=HIT", text)
         self.assertIn("SAP_MEDIA_ACQUISITION_CACHE=HIT", text)
+
+    def test_provider_round_uses_shared_deadline(self):
+        text = (ROOT / "midia.py").read_text(encoding="utf-8")
+        self.assertIn("_provider_deadline", text)
+        self.assertIn("_provider_remaining", text)
+        self.assertIn("round_deadline=", text)
+        self.assertIn('SAP_MEDIA_PROVIDER_RESULT_TIMEOUT", "12"', text)
+
+    def test_recovery_exposes_one_shot_and_mobile_budget(self):
+        text = (ROOT / "media_acquisition_recovery.py").read_text(encoding="utf-8")
+        self.assertIn("_sap_call_original = call_original", text)
+        self.assertIn('SAP_MUST_RESCUE_MAX_QUERIES", "3"', text)
+        self.assertIn('SAP_STOCK_RESCUE_MAX_QUERIES", "2"', text)
 
     def test_strict_must_still_fail_closed(self):
         strict = (ROOT / "media_strict_must_guard.py").read_text(encoding="utf-8")
