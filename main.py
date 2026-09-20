@@ -416,11 +416,27 @@ def export(p: Pipeline) -> Path:
     destination = final
     if downloads.is_dir():
         candidate = downloads / f"ShortAutoPro_{p.sid}.mp4"
+        tmp = downloads / f".{candidate.name}.{os.getpid()}.tmp"
         try:
-            shutil.copy2(final, candidate)
-            if candidate.stat().st_size > 0:
-                destination = candidate
+            source_size = final.stat().st_size
+            if source_size < 500_000:
+                raise RuntimeError(f"vídeo final inválido para exportação: {source_size} bytes")
+            with final.open("rb") as src, tmp.open("wb") as dst:
+                shutil.copyfileobj(src, dst, length=1024 * 1024)
+                dst.flush()
+                os.fsync(dst.fileno())
+            copied_size = tmp.stat().st_size
+            if copied_size != source_size:
+                raise RuntimeError(
+                    f"exportação incompleta: origem={source_size} destino={copied_size}"
+                )
+            os.replace(tmp, candidate)
+            destination = candidate
         except Exception as exc:
+            try:
+                tmp.unlink(missing_ok=True)
+            except OSError:
+                pass
             print(f"AVISO: cópia para Downloads falhou: {exc}")
     p.run("REGISTRANDO ASSUNTO", "register_topic.py")
     return destination
