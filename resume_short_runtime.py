@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import shutil
 import subprocess
@@ -18,7 +19,7 @@ from typing import Any
 
 import main as canonical
 from subprocess_guard import check_output_group, run_group
-from runtime_config import env_int
+from runtime_config import env_float, env_int
 import shortautopro_evolution as evo
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
@@ -60,14 +61,23 @@ def media_ok(sid: str) -> bool:
     folder = BASE / "imagens" / f"short_{sid}"
     if not folder.is_dir():
         return False
-    valid = [
-        path
-        for path in folder.iterdir()
-        if path.is_file()
-        and path.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".webm", ".mkv"}
-        and path.stat().st_size > 1000
-    ]
-    return len(valid) >= expected_scenes()
+    expected = expected_scenes()
+    valid: set[int] = set()
+    try:
+        for path in folder.iterdir():
+            if path.suffix.lower() not in {".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".webm", ".mkv"}:
+                continue
+            if not path.stem.startswith("scene_"):
+                continue
+            try:
+                number = int(path.stem.split("_", 1)[1])
+                if 1 <= number <= expected and nonempty(path, 1001):
+                    valid.add(number)
+            except ValueError:
+                continue
+    except OSError:
+        return False
+    return valid == set(range(1, expected + 1))
 
 
 def supervisor_ok(sid: str) -> bool:
@@ -95,12 +105,14 @@ def consolidation_plan_ok(sid: str) -> bool:
         BASE / "roteiros" / f"visual_score_{sid}.json",
         BASE / "roteiros" / f"visual_continuity_{sid}.json",
     ]
-    if not all(nonempty(path, 20) for path in required):
+    if not all(nonempty(path, 20) and read_json(path) for path in required):
         return False
     retention = read_json(required[0])
-    return float(retention.get("retention_score", retention.get("score", 0)) or 0) >= float(
-        os.getenv("SAP_RETENTION_MIN_SCORE", "78")
-    )
+    try:
+        score = float(retention.get("retention_score", retention.get("score", 0)) or 0)
+    except (TypeError, ValueError, OverflowError):
+        return False
+    return math.isfinite(score) and score >= env_float("SAP_RETENTION_MIN_SCORE", 78.0, 0.0, 100.0)
 
 
 def audio_ok(sid: str) -> bool:
@@ -172,13 +184,15 @@ def boundary(sid: str) -> str:
         return "post_render"
     if assembly_ok(sid) and audio_ok(sid) and captions_ok(sid):
         return "post_assembly"
+    # Audio/captions alone cannot rebuild an assembly if its inputs were
+    # deleted by storage cleanup. Validate planning inputs before skipping.
+    if not (supervisor_ok(sid) and media_ok(sid) and scene_count(sid) == expected_scenes()):
+        return "full"
     if captions_ok(sid) and audio_ok(sid):
         return "post_captions"
     if audio_ok(sid):
         return "post_audio"
-    if supervisor_ok(sid) and media_ok(sid) and scene_count(sid) == expected_scenes():
-        return "post_planning"
-    return "full"
+    return "post_planning"
 
 
 def checkpoint(stage: str, status: str, title: str, sid: str) -> None:
@@ -234,6 +248,7 @@ def full_rerun(sid: str) -> int:
     print("Checkpoint parcial incompatível ou insuficiente. Reexecutando o pipeline oficial com o mesmo ID.")
     env = os.environ.copy()
     env["SHORT_ID"] = sid
+    env["SAP_REUSE_SHORT_ID"] = "1"
     rerun_timeout = env_int("SAP_RESUME_FULL_RERUN_TIMEOUT", 7200, 600, 21600)
     try:
         return run_group(
@@ -301,74 +316,79 @@ def render_tail(sid: str) -> None:
     run_python(sid, "VISUAL QA", "visual_qa.py")
 
 
-def resume(sid: str) -> int:
-    os.environ["SHORT_ID"] = sid
-    point = boundary(sid)
-    print("========================================")
-    print(" SHORTAUTOPRO 3.0 - SAFE RESUME")
-    print("========================================")
-    print(f"ID: {sid}")
-    print("Pipeline: PROFESSIONAL_CANONICAL")
-    print(f"Boundary: {point}\n")
-
-    if point == "complete":
-        print("Produção já aprovada pelo Release Gate.")
-        return 0
-    if point == "full":
-        return full_rerun(sid)
-
+def _resume_locked(sid: str, point: str) -> int:
+    """Only the process owning the production lock may modify its state."""
     try:
-        with canonical.RunLock(sid):
-            order = {
-                "post_planning": 1,
-                "post_audio": 2,
-                "post_captions": 3,
-                "post_assembly": 4,
-                "post_render": 5,
-            }
-            rank = order[point]
+        order = {
+            "post_planning": 1,
+            "post_audio": 2,
+            "post_captions": 3,
+            "post_assembly": 4,
+            "post_render": 5,
+        }
+        rank = order[point]
 
-            if rank <= 1:
-                run_python(sid, "FINAL EDITORIAL GATE", "editorial_gate.py")
-                run_python(sid, "SPEECH DIRECTOR", "speech_director.py")
-                run_python(sid, "GERANDO VOZ PIPER", "audio.py")
-            if rank <= 2:
-                run_python(sid, "WHISPER + LEGENDA", "legenda_dinamica.py")
-                run_python(sid, "PROFESSIONAL CAPTION DIRECTOR", "professional_caption_director.py")
-                run_python(sid, "CAPTION SAFE-ZONE GUARD", "caption_layout_guard.py")
-                run_python(sid, "CAPTION AUDIT", "shortautopro_evolution.py", "caption-audit")
-            if rank <= 3:
-                render_tail(sid)
-            elif rank <= 4:
-                run_python(sid, "FINAL RENDER V6 PROFESSIONAL", "v6_professional.py")
-                if not render_ok(sid):
-                    raise RuntimeError("renderer terminou sem artefato técnico válido")
-                run_python(sid, "FINAL AUDIO MASTER", "audio_finalizer.py")
-                run_python(sid, "VISUAL QA", "visual_qa.py")
-            else:
-                run_python(sid, "FINAL AUDIO MASTER", "audio_finalizer.py")
-                run_python(sid, "VISUAL QA", "visual_qa.py")
+        if rank <= 1:
+            run_python(sid, "FINAL EDITORIAL GATE", "editorial_gate.py")
+            run_python(sid, "SPEECH DIRECTOR", "speech_director.py")
+            run_python(sid, "GERANDO VOZ PIPER", "audio.py")
+        if rank <= 2:
+            run_python(sid, "WHISPER + LEGENDA", "legenda_dinamica.py")
+            run_python(sid, "PROFESSIONAL CAPTION DIRECTOR", "professional_caption_director.py")
+            run_python(sid, "CAPTION SAFE-ZONE GUARD", "caption_layout_guard.py")
+            run_python(sid, "CAPTION AUDIT", "shortautopro_evolution.py", "caption-audit")
+        if rank <= 3:
+            render_tail(sid)
+        elif rank <= 4:
+            run_python(sid, "FINAL RENDER V6 PROFESSIONAL", "v6_professional.py")
+            if not render_ok(sid):
+                raise RuntimeError("renderer terminou sem artefato técnico válido")
+            run_python(sid, "FINAL AUDIO MASTER", "audio_finalizer.py")
+            run_python(sid, "VISUAL QA", "visual_qa.py")
+        else:
+            run_python(sid, "FINAL AUDIO MASTER", "audio_finalizer.py")
+            run_python(sid, "VISUAL QA", "visual_qa.py")
 
+        code = final_gates(sid)
+        if code == 20:
+            run_python(sid, "REPAIR EDIT", "professional_edit_repair.py")
+            run_python(sid, "REPAIR MULTI-ASSET", "multi_asset_director.py")
+            run_python(sid, "REPAIR RETENTION", "retention_engine.py", "--repair")
+            run_python(sid, "REPAIR SOUND", "sound_design_engine.py")
+            render_tail(sid)
             code = final_gates(sid)
-            if code == 20:
-                run_python(sid, "REPAIR EDIT", "professional_edit_repair.py")
-                run_python(sid, "REPAIR MULTI-ASSET", "multi_asset_director.py")
-                run_python(sid, "REPAIR RETENTION", "retention_engine.py", "--repair")
-                run_python(sid, "REPAIR SOUND", "sound_design_engine.py")
-                render_tail(sid)
-                code = final_gates(sid)
-            if code == 20 or not final_ok(sid):
-                raise RuntimeError("retomada terminou sem Release Gate aprovado")
+        if code == 20 or not final_ok(sid):
+            raise RuntimeError("retomada terminou sem Release Gate aprovado")
 
-            run_python(sid, "REGISTRANDO ASSUNTO", "register_topic.py")
-            destination = copy_download(sid)
-            evo.finish_production("SUCCESS", sid)
-            print("\nRESUME_STATUS=PASS")
-            print("PIPELINE=PROFESSIONAL_CANONICAL")
-            print(f"Vídeo: {destination}")
-            return 0
+        run_python(sid, "REGISTRANDO ASSUNTO", "register_topic.py")
+        destination = copy_download(sid)
+        evo.finish_production("SUCCESS", sid)
+        print("\nRESUME_STATUS=PASS")
+        print("PIPELINE=PROFESSIONAL_CANONICAL")
+        print(f"Vídeo: {destination}")
+        return 0
     except Exception as exc:
         evo.finish_production("FAILED", sid)
+        print(f"RESUME_ERROR={type(exc).__name__}: {exc}", file=sys.stderr)
+        return 1
+
+
+def resume(sid: str) -> int:
+    os.environ["SHORT_ID"] = sid
+    try:
+        with canonical.RunLock(sid):
+            point = boundary(sid)
+            print("SHORTAUTOPRO 3.0 - SAFE RESUME")
+            print(f"ID: {sid}\nPipeline: PROFESSIONAL_CANONICAL\nBoundary: {point}")
+            if point == "complete":
+                print("Produção já aprovada pelo Release Gate.")
+                return 0
+            if point != "full":
+                return _resume_locked(sid, point)
+        # main.py acquires the same lock; release ours before launching it.
+        return full_rerun(sid)
+    except Exception as exc:
+        # Lock contention must not mark another process's production FAILED.
         print(f"RESUME_ERROR={type(exc).__name__}: {exc}", file=sys.stderr)
         return 1
 

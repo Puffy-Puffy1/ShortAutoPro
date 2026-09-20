@@ -54,9 +54,9 @@ def _held_lock(lock:Path)->bool:
     return True
    fcntl.flock(handle.fileno(),fcntl.LOCK_UN)
  except OSError:
-  return False
- try:lock.unlink(missing_ok=True)
- except OSError:pass
+  # An unreadable lock is not evidence that the production is inactive.
+  return True
+ # Never unlink a flock file: a waiting process may already own its inode.
  return False
 def active_ids()->set[str]:
  out:set[str]=set()

@@ -9,6 +9,26 @@ import subprocess
 from typing import Any
 
 
+def _stop_group(proc: subprocess.Popen) -> tuple[Any, Any]:
+    """Reap the leader and stop descendants even when the leader exits first."""
+    try:
+        os.killpg(proc.pid, signal.SIGTERM)
+    except OSError:
+        pass
+    try:
+        output = proc.communicate(timeout=3)
+    except subprocess.TimeoutExpired:
+        output = None
+    finally:
+        # communicate may return as soon as the leader exits when output is
+        # inherited. A descendant ignoring TERM must still receive KILL.
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except OSError:
+            pass
+    return proc.communicate() if output is None else output
+
+
 def run_group(
     command: list[str],
     *,
@@ -39,19 +59,12 @@ def run_group(
     try:
         out, err = proc.communicate(timeout=timeout)
     except subprocess.TimeoutExpired as exc:
-        try:
-            os.killpg(proc.pid, signal.SIGTERM)
-        except OSError:
-            pass
-        try:
-            out, err = proc.communicate(timeout=3)
-        except subprocess.TimeoutExpired:
-            try:
-                os.killpg(proc.pid, signal.SIGKILL)
-            except OSError:
-                pass
-            out, err = proc.communicate()
+        out, err = _stop_group(proc)
         raise subprocess.TimeoutExpired(command, timeout, output=out, stderr=err) from exc
+    except BaseException:
+        # Ctrl+C and unexpected communication errors must not orphan FFmpeg.
+        _stop_group(proc)
+        raise
 
     result = subprocess.CompletedProcess(command, proc.returncode, out, err)
     if check and result.returncode:
