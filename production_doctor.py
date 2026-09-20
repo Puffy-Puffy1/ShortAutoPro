@@ -174,6 +174,26 @@ def diagnose(sid: str) -> dict[str, Any]:
         })
 
     profile_rows = profile.get("top", [])
+    pipeline_rows = [
+        row for row in profile_rows
+        if row.get("category") == "pipeline_stage"
+    ]
+    if pipeline_rows:
+        slowest = max(
+            pipeline_rows,
+            key=lambda row: float(row.get("total_seconds", 0) or 0),
+        )
+        slow_total = float(slowest.get("total_seconds", 0) or 0)
+        if slow_total >= 120:
+            issues.append({
+                "code": "PIPELINE_STAGE_SLOW",
+                "severity": "WARN",
+                "detail": (
+                    f"{slowest.get('name') or 'etapa'} consumiu "
+                    f"{round(slow_total, 1)}s no run atual"
+                ),
+            })
+
     acquisition = [
         row for row in profile_rows
         if row.get("category") == "media" and row.get("name") == "media_acquisition"
