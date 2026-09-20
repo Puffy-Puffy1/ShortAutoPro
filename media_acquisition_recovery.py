@@ -355,6 +355,9 @@ def _wrap_pool(namespace: dict[str, Any]) -> bool:
     wrapped._sap_acquisition_cache = cache
     wrapped._sap_rescue_cache = rescue_cache
     wrapped._sap_acquisition_stats = stats
+    # Expose a cached single-round provider search for midia.py retries.
+    # It bypasses only recursive rescue expansion; validation remains intact.
+    wrapped._sap_call_original = call_original
     namespace["buscar_todos_candidatos"] = wrapped
     return True
 

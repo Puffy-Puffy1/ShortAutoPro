@@ -160,12 +160,12 @@ _PROVIDER_WORKERS = max(2, min(_PROVIDER_WORKERS, 6))
 
 try:
     _PROVIDER_RESULT_TIMEOUT = float(
-        os.getenv("SAP_MEDIA_PROVIDER_RESULT_TIMEOUT", "22") or 22
+        os.getenv("SAP_MEDIA_PROVIDER_RESULT_TIMEOUT", "12") or 12
     )
 except (TypeError, ValueError):
-    _PROVIDER_RESULT_TIMEOUT = 22.0
+    _PROVIDER_RESULT_TIMEOUT = 12.0
 
-_PROVIDER_RESULT_TIMEOUT = max(8.0, min(_PROVIDER_RESULT_TIMEOUT, 45.0))
+_PROVIDER_RESULT_TIMEOUT = max(6.0, min(_PROVIDER_RESULT_TIMEOUT, 25.0))
 
 _PROVIDER_EXECUTOR = ThreadPoolExecutor(
     max_workers=_PROVIDER_WORKERS
@@ -2553,19 +2553,34 @@ def buscar_todos_candidatos(
                 in provider_jobs
             }
 
-            # Coleta na ordem canônica dos providers.
-            # As chamadas executam em paralelo, mas a ordem final dos
-            # candidatos permanece determinística.
+            # Coleta na ordem canônica dos providers, mas com UM
+            # deadline compartilhado por rodada. Sem isso, cada Future podia
+            # consumir o timeout inteiro e transformar uma rodada paralela em
+            # vários timeouts somados.
+            _provider_deadline = (
+                time.monotonic()
+                + _PROVIDER_RESULT_TIMEOUT
+            )
+
             for name, _ in provider_jobs:
 
                 try:
+                    _provider_remaining = max(
+                        0.0,
+                        _provider_deadline
+                        - time.monotonic()
+                    )
+
+                    if _provider_remaining <= 0:
+                        raise FuturesTimeoutError()
+
                     provider_results[
                         name
                     ] = list(
                         futures[
                             name
                         ].result(
-                            timeout=_PROVIDER_RESULT_TIMEOUT
+                            timeout=_provider_remaining
                         )
                         or []
                     )
@@ -2576,7 +2591,7 @@ def buscar_todos_candidatos(
                     print(
                         "SAP_MEDIA_PROVIDER_TIMEOUT "
                         f"provider={name} "
-                        f"limit={_PROVIDER_RESULT_TIMEOUT:.1f}s"
+                        f"round_deadline={_PROVIDER_RESULT_TIMEOUT:.1f}s"
                     )
 
                 except Exception as exc:
@@ -5563,12 +5578,39 @@ for numero, cena in enumerate(
             _alt_seen.add(_alt_key)
             _alt_clean.append(_alt)
 
-        alternativas = _alt_clean
+        try:
+            _retry_budget = int(
+                os.getenv(
+                    "SAP_MEDIA_SIMPLIFIED_RETRY_MAX",
+                    "3"
+                )
+                or 3
+            )
+        except (TypeError, ValueError):
+            _retry_budget = 3
+
+        _retry_budget = max(
+            1,
+            min(_retry_budget, 5)
+        )
+
+        alternativas = _alt_clean[
+            :_retry_budget
+        ]
+
+        # Busca one-shot fornecida pelo acquisition recovery. Evita que cada
+        # retry manual dispare outro pacote inteiro de MUST rescues.
+        _sap_search_once = getattr(
+            buscar_todos_candidatos,
+            "_sap_call_original",
+            None,
+        )
 
         print(
             "SAP_MUST_SIMPLIFIED_RETRIES=ENABLED "
             f"scene={numero} alternatives={len(alternativas)} "
-            f"must_total={len(must_have)}"
+            f"must_total={len(must_have)} "
+            f"one_shot={bool(callable(_sap_search_once))}"
         )
 
 
@@ -5579,15 +5621,22 @@ for numero, cena in enumerate(
             )
 
 
-            candidatos_alt = (
-                buscar_todos_candidatos(
+            if callable(_sap_search_once):
+                candidatos_alt = _sap_search_once(
+                    busca_alt,
+                    must_have,
+                    avoid,
+                    segmento,
+                    visual_mode,
+                )
+            else:
+                candidatos_alt = buscar_todos_candidatos(
                     busca_alt,
                     must_have,
                     avoid,
                     segmento=segmento,
-                    visual_mode=visual_mode
+                    visual_mode=visual_mode,
                 )
-            )
 
 
             escolhido_alt = (
@@ -5768,13 +5817,22 @@ for numero, cena in enumerate(
                 f"scene={numero} must_total={len(must_have)}"
             )
 
-            candidatos_rescue = buscar_todos_candidatos(
-                busca,
-                must_have,
-                avoid,
-                segmento=segmento,
-                visual_mode=visual_mode,
-            )
+            if callable(_sap_search_once):
+                candidatos_rescue = _sap_search_once(
+                    busca,
+                    must_have,
+                    avoid,
+                    segmento,
+                    visual_mode,
+                )
+            else:
+                candidatos_rescue = buscar_todos_candidatos(
+                    busca,
+                    must_have,
+                    avoid,
+                    segmento=segmento,
+                    visual_mode=visual_mode,
+                )
 
             candidatos_rescue = enriquecer_wikimedia_5_2(
                 candidatos_rescue,
