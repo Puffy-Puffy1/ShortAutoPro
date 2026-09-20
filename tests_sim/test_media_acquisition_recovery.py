@@ -111,7 +111,7 @@ class MediaAcquisitionRecoveryTests(unittest.TestCase):
         with patch.dict(os.environ, {"SAP_MUST_RESCUE_MAX_QUERIES": "999"}, clear=False):
             self.assertEqual(recovery._rescue_budget(), 8)
         with patch.dict(os.environ, {"SAP_MUST_RESCUE_MAX_QUERIES": "invalid"}, clear=False):
-            self.assertEqual(recovery._rescue_budget(), 5)
+            self.assertEqual(recovery._rescue_budget(), 3)
 
 
 if __name__ == "__main__":
