@@ -9,6 +9,9 @@ import requests
 from wikimedia_source import buscar_wikimedia_fotos,salvar_credito
 from evidence_guard import avaliar_evidencia
 BASE=Path(os.getenv("SHORTAUTOPRO_BASE",os.path.expanduser("~/ShortAutoPro"))).resolve();SID=os.getenv("SHORT_ID",date.today().isoformat()).strip();R=BASE/"roteiros";MAP=R/f"scene_map_{SID}.json";PLAN=R/f"pro_edit_plan_{SID}.json";OUT=R/f"multi_asset_{SID}.json";DIR=BASE/"imagens"/f"short_{SID}_secondary"
+try:MAX_ASSET_BYTES=int(os.getenv("SAP_MULTI_ASSET_MAX_BYTES",str(40*1024*1024)) or 40*1024*1024)
+except (TypeError,ValueError):MAX_ASSET_BYTES=40*1024*1024
+MAX_ASSET_BYTES=max(2*1024*1024,min(MAX_ASSET_BYTES,100*1024*1024))
 def load(p:Path)->dict[str,Any]:
  try:x=json.loads(p.read_text(encoding="utf-8"));return x if isinstance(x,dict) else {}
  except Exception:return {}
@@ -26,9 +29,16 @@ def download(url:str,dest:Path)->bool:
  try:
   with requests.get(url,stream=True,timeout=35,headers={"User-Agent":"ShortAutoPro/3.0"}) as r:
    if not r.ok:return False
+   try:declared=int(r.headers.get("Content-Length") or 0)
+   except (TypeError,ValueError):declared=0
+   if declared>MAX_ASSET_BYTES:return False
+   total=0
    with tmp.open("wb") as f:
     for chunk in r.iter_content(128*1024):
-     if chunk:f.write(chunk)
+     if not chunk:continue
+     total+=len(chunk)
+     if total>MAX_ASSET_BYTES:return False
+     f.write(chunk)
   if tmp.stat().st_size<20000:return False
   probe=subprocess.run(["ffprobe","-v","error","-select_streams","v:0","-show_entries","stream=width,height","-of","json",str(tmp)],capture_output=True,text=True,timeout=30)
   if probe.returncode:return False

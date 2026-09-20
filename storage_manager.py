@@ -67,16 +67,18 @@ def cleanup(execute:bool)->dict[str,Any]:
  removed=[]
  skipped_active=[]
  if execute:
-  active=active_ids()
   for p in remove:
    # Re-check immediately before deletion because another production may have
    # started after the cleanup plan was built.
    if protected(p):
     skipped_active.append(p);continue
-   # Generic temp directories cannot be safely attributed while another Short
-   # is active, so preserve them until no concurrent run exists.
-   if p.parent==BASE/"temp" and len(active)>1:
-    skipped_active.append(p);continue
+   # Generic temp directories cannot be safely attributed to one Short.
+   # Re-snapshot active runs immediately before every deletion so a production
+   # that started after the cleanup plan was built cannot lose its temp data.
+   if p.parent==BASE/"temp":
+    current_active=active_ids()
+    if len(current_active)>1:
+     skipped_active.append(p);continue
    try:
     shutil.rmtree(p);removed.append(p)
    except OSError:pass

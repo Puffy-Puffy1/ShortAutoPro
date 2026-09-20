@@ -249,22 +249,28 @@ def chamar_gemini(prompt):
 
 
         if r.ok:
-
-            dados = r.json()
-
             try:
-
-                return (
+                dados = r.json()
+                texto = (
                     dados["candidates"][0]
                     ["content"]["parts"][0]["text"]
                     .strip()
                 )
-
-            except Exception:
-
-                raise RuntimeError(
-                    "Gemini retornou resposta inválida."
+                if texto:
+                    return texto
+                raise ValueError("texto vazio")
+            except Exception as exc:
+                if tentativa == 4:
+                    raise RuntimeError(
+                        "Gemini retornou resposta inválida."
+                    ) from exc
+                espera = min(3 * tentativa, 8)
+                print(
+                    "Hook Engine: resposta Gemini incompleta; "
+                    f"nova tentativa em {espera}s"
                 )
+                time.sleep(espera)
+                continue
 
 
         if (
@@ -272,8 +278,14 @@ def chamar_gemini(prompt):
             in [429, 500, 502, 503, 504]
             and tentativa < 4
         ):
-
-            time.sleep(8)
+            espera = 8
+            if r.status_code == 429:
+                try:
+                    espera = int(r.headers.get("Retry-After") or espera)
+                except (TypeError, ValueError):
+                    espera = 8
+                espera = max(2, min(espera, 30))
+            time.sleep(espera)
             continue
 
 
