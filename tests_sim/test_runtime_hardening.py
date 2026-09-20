@@ -41,5 +41,18 @@ class RuntimeHardeningTests(unittest.TestCase):
         self.assertNotIn("active=active_ids()\n  for p in remove:", text)
 
 
+    def test_hook_retries_incomplete_successful_gemini_response(self):
+        text = (ROOT / "hook_engine.py").read_text(encoding="utf-8")
+        self.assertIn("resposta Gemini incompleta", text)
+        self.assertIn('r.headers.get("Retry-After")', text)
+        self.assertIn("if tentativa == 4:", text)
+
+    def test_secondary_asset_download_has_total_size_cap(self):
+        text = (ROOT / "multi_asset_director.py").read_text(encoding="utf-8")
+        self.assertIn("SAP_MULTI_ASSET_MAX_BYTES", text)
+        self.assertIn("if declared>MAX_ASSET_BYTES:return False", text)
+        self.assertIn("if total>MAX_ASSET_BYTES:return False", text)
+
+
 if __name__ == "__main__":
     unittest.main()
