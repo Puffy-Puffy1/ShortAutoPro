@@ -7,6 +7,8 @@ import os
 import sys
 from datetime import datetime
 
+import release_artifact_guard
+
 BASE = os.path.abspath(
     os.path.expanduser(
         os.getenv("SHORTAUTOPRO_BASE", "~/ShortAutoPro")
@@ -67,11 +69,21 @@ def atomic_write(path, text):
 
 
 all_files = glob.glob(os.path.join(MANIFEST_DIR, "*.json"))
+AUXILIARY_SUFFIXES = (
+    "_quality.json",
+    "_release.json",
+    "_professional.json",
+    "_render_identity.json",
+)
 files = [
     path for path in all_files
-    if not os.path.basename(path).endswith("_quality.json")
+    if not os.path.basename(path).endswith(AUXILIARY_SUFFIXES)
 ]
-files = sorted(files, key=os.path.getmtime, reverse=True)[:QTD]
+files = sorted(
+    files,
+    key=lambda path: os.path.getmtime(path) if os.path.exists(path) else 0,
+    reverse=True,
+)[:QTD]
 
 if not files:
     sys.exit("ERRO: nenhum manifest de produção encontrado.")
@@ -109,8 +121,11 @@ for path in reversed(files):
         maximum=100,
     )
 
+    short_id = str(data.get("short_id", ""))
+    release_valid, release_reason = release_artifact_guard.validate(short_id)
+
     productions.append({
-        "short_id": str(data.get("short_id", "")),
+        "short_id": short_id,
         "status": str(data.get("status", "")),
         "topic": str(data.get("topic", "")),
         "hook": str(data.get("hook", "")),
@@ -122,12 +137,15 @@ for path in reversed(files):
         "audio_ok": bool(quality.get("audio_exists", False)),
         "scenes": scenes,
         "expected_scenes": expected_scenes,
+        "release_valid": release_valid,
+        "release_validation_reason": release_reason,
     })
 
 if not productions:
     sys.exit("ERRO: nenhum dos manifests selecionados é válido.")
 
 passes = sum(1 for p in productions if p["status"] == "QUALITY_PASS")
+release_ready = sum(1 for p in productions if p["release_valid"])
 failures = len(productions) - passes + len(invalid)
 durations = [p["duration"] for p in productions if p["duration"] is not None]
 average_duration = sum(durations) / len(durations) if durations else 0.0
@@ -143,6 +161,7 @@ report = {
     "valid_productions": len(productions),
     "invalid_manifests": invalid,
     "quality_pass": passes,
+    "release_ready": release_ready,
     "failures": failures,
     "average_duration": round(average_duration, 2),
     "productions": productions,
@@ -157,6 +176,7 @@ lines = [
     f"Manifests selecionados: {len(files)}",
     f"Produções válidas: {len(productions)}",
     f"Quality Pass: {passes}",
+    f"Release exata válida: {release_ready}",
     f"Falhas/incompletos/inválidos: {failures}",
     f"Duração média: {average_duration:.2f}s",
     "",
@@ -171,6 +191,7 @@ for number, p in enumerate(productions, start=1):
         f"   Duração: {p['duration']:.2f}s" if p["duration"] is not None else "   Duração: ?",
         f"   Cenas: {p['scenes']}/{p['expected_scenes']}",
         f"   Vídeo: {p['video'] or '?'}",
+        f"   Release válida: {'SIM' if p['release_valid'] else 'NÃO'} ({p['release_validation_reason']})",
         "",
     ])
 
@@ -187,6 +208,7 @@ print("BATCH REPORT - STABLE 2.4")
 print("================================")
 print(f"Produções válidas: {len(productions)}")
 print(f"Quality Pass: {passes}")
+print(f"Release exata válida: {release_ready}")
 print(f"Falhas/incompletos/inválidos: {failures}")
 print(f"Duração média: {average_duration:.2f}s")
 print(f"TXT: {txt_path}")
