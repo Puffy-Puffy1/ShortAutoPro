@@ -58,6 +58,22 @@ def atomic_json(path: Path, payload: dict[str, Any]) -> None:
             pass
 
 
+def atomic_text(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp, path)
+    finally:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+
+
 def read_json(path: Path, optional: bool = False) -> dict[str, Any]:
     if optional and not path.is_file(): return {}
     try: data = json.loads(path.read_text(encoding="utf-8"))
@@ -181,7 +197,7 @@ def prepare_caption_ass(pop_scale: int) -> Path:
             if len(parts) == 10:
                 parts[9] = r"{\fscx106\fscy106\bord3\shad2}" + parts[9] + r"{\fscx100\fscy100}"; line = ",".join(parts); first = False
         output_lines.append(line)
-    ASS_RETENTION.write_text("\n".join(output_lines) + "\n", encoding="utf-8"); return ASS_RETENTION
+    atomic_text(ASS_RETENTION, "\n".join(output_lines) + "\n"); return ASS_RETENTION
 
 
 def generate_optional_sfx() -> str | None:
