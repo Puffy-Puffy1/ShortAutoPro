@@ -499,27 +499,46 @@ def cli() -> int:
         return run_pipeline()
 
     setup_env()
+    try:
+        control_timeout = int(os.getenv("SAP_CONTROL_COMMAND_TIMEOUT", "7200") or 7200)
+    except (TypeError, ValueError):
+        control_timeout = 7200
+    control_timeout = max(300, min(control_timeout, 21600))
+
+    def run_control(command: list[str]) -> int:
+        try:
+            return run_group(
+                command,
+                cwd=BASE,
+                env=os.environ.copy(),
+                check=False,
+                timeout=control_timeout,
+            ).returncode
+        except subprocess.TimeoutExpired:
+            print(f"ERRO: comando auxiliar excedeu {control_timeout}s")
+            return 124
+
     if command_name == "resume":
         command = [sys.executable, str(BASE / "resume_short_runtime.py")]
         if args.short_id:
             command.extend(["--short-id", args.short_id])
         if args.status:
             command.append("--status")
-        return subprocess.call(command, cwd=BASE, env=os.environ.copy())
+        return run_control(command)
     if command_name == "audit":
-        return subprocess.call([sys.executable, str(BASE / "tools" / "repo_audit.py")], cwd=BASE, env=os.environ.copy())
+        return run_control([sys.executable, str(BASE / "tools" / "repo_audit.py")])
     if command_name == "production":
         command = [
             sys.executable,
             str(BASE / "production_center.py"),
             *list(args.production_args or []),
         ]
-        return subprocess.call(command, cwd=BASE, env=os.environ.copy())
+        return run_control(command)
     if command_name == "storage":
         command = [sys.executable, str(BASE / "storage_manager.py"), args.storage_command]
         if args.execute:
             command.append("--execute")
-        return subprocess.call(command, cwd=BASE, env=os.environ.copy())
+        return run_control(command)
     return 2
 
 
