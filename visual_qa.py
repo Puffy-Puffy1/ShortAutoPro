@@ -6,6 +6,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 from subprocess_guard import check_output_group, run_group
+from runtime_config import env_int
 BASE=Path(os.getenv("SHORTAUTOPRO_BASE",os.path.expanduser("~/ShortAutoPro"))).resolve();SID=os.getenv("SHORT_ID",date.today().isoformat()).strip();MEDIA=BASE/"imagens"/f"short_{SID}";VIDEO=BASE/"videos"/f"short_v6_{SID}.mp4";MAP=BASE/"roteiros"/f"scene_map_{SID}.json";VSCORE=BASE/"roteiros"/f"visual_score_{SID}.json";OUT=BASE/"reports"/"evolution"/f"visual_qa_{SID}.json"
 def atomic(p:Path,x:Any)->None:
  p.parent.mkdir(parents=True,exist_ok=True);fd,t=tempfile.mkstemp(prefix=f".{p.name}.",suffix=".tmp",dir=str(p.parent))
@@ -58,7 +59,7 @@ def main()->int:
  issues=[];warnings=[];assets=[];hashes={};scene_map=load(MAP);scenes=scene_map.get("scenes",[]) if isinstance(scene_map.get("scenes"),list) else [];vscore=load(VSCORE);score_rows=vscore.get("scenes",[]) if isinstance(vscore.get("scenes"),list) else []
  if not MEDIA.is_dir():issues.append("media_directory_missing")
  else:
-  files=sorted(p for p in MEDIA.iterdir() if p.is_file() and p.suffix.lower() in {".jpg",".jpeg",".png",".webp",".mp4",".mov",".webm"});expected=int(os.getenv("SHORT_QTD_CENAS","12"));primary=[p for p in files if re.fullmatch(r"scene_\d{2}\.(?:jpg|jpeg|png|webp|mp4|mov|webm)",p.name,re.I)]
+  files=sorted(p for p in MEDIA.iterdir() if p.is_file() and p.suffix.lower() in {".jpg",".jpeg",".png",".webp",".mp4",".mov",".webm"});expected=env_int("SHORT_QTD_CENAS",12,6,20);primary=[p for p in files if re.fullmatch(r"scene_\d{2}\.(?:jpg|jpeg|png|webp|mp4|mov|webm)",p.name,re.I)]
   if len(primary)!=expected:issues.append(f"primary_scene_count:{len(primary)}/{expected}")
   for p in primary:
    meta=probe(p);w=int(meta.get("width",0) or 0);h=int(meta.get("height",0) or 0);digest=sha(p);dup=hashes.get(digest);hashes[digest]=p.name;scene_no=int(re.search(r"(\d{2})",p.name).group(1));scene=scenes[scene_no-1] if scene_no<=len(scenes) and isinstance(scenes[scene_no-1],dict) else {};score_row=score_rows[scene_no-1] if scene_no<=len(score_rows) and isinstance(score_rows[scene_no-1],dict) else {};provider=str(score_row.get("provider","") or "")
