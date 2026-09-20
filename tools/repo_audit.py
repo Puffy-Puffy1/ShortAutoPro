@@ -69,6 +69,7 @@ REQUIRED = {
     "storage_manager.py",
     "shortautopro_evolution.py",
     "shortautopro_evolution_core.py",
+    "tools/purge_legacy_runtime.py",
 }
 
 REQUIRED_IGNORE_RULES = {
@@ -208,6 +209,7 @@ def main() -> int:
     vg4x_bridge_text = read_text("vg4x_bridge.py")
     preflight_text = read_text("preflight_check.sh")
     health_text = read_text("health_check.sh")
+    purge_text = read_text("tools/purge_legacy_runtime.py")
 
     for token in sorted(MAIN_REQUIRED_TOKENS):
         if token not in main_text:
@@ -246,6 +248,25 @@ def main() -> int:
         issues.append("vg4x_bridge_not_routed_to_media_adapter_v2")
     if 'os.getenv("SAP_VG4X_LEGACY", "0") == "1"' not in vg4x_bridge_text:
         issues.append("vg4x_legacy_not_opt_in")
+
+    for token in (
+        "gerar_short.sh",
+        "gerar_short_professional.sh",
+        "professional_pipeline_runtime.py",
+        "resume_short_professional_runtime.py",
+        "v6_professional_runtime.py",
+        "v6_runtime.py",
+        "v6.py",
+        "video.py",
+        "limpar_storage.sh",
+        "_arquivo_historico",
+    ):
+        if token not in purge_text:
+            issues.append(f"legacy_purge_contract_missing:{token}")
+    if 'p.run("0 - LEGACY RUNTIME PURGE", "tools/purge_legacy_runtime.py")' not in main_text:
+        issues.append("canonical_pipeline_missing_legacy_purge")
+    if 'python "$BASE/tools/purge_legacy_runtime.py"' not in preflight_text:
+        issues.append("preflight_missing_legacy_purge")
 
     for text_name, text in (("preflight", preflight_text), ("health", health_text)):
         for token in (
