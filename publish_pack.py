@@ -353,7 +353,14 @@ def chamar_gemini(prompt: str, api_key: str) -> str:
             continue
 
         if response.status_code in {429, 500, 502, 503, 504} and attempt < 3:
-            time.sleep(wait)
+            retry_wait = wait
+            if response.status_code == 429:
+                try:
+                    retry_wait = int(response.headers.get("Retry-After") or retry_wait)
+                except (TypeError, ValueError):
+                    retry_wait = wait
+                retry_wait = max(2, min(retry_wait, 30))
+            time.sleep(retry_wait)
             wait = min(wait * 2, 20)
             continue
 

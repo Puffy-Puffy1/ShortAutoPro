@@ -17,7 +17,7 @@ import time
 from datetime import date
 from pathlib import Path
 from typing import Any
-from subprocess_guard import run_group
+from subprocess_guard import check_output_group, run_group
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
 SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat()).strip()
@@ -68,7 +68,7 @@ def safe_float(value: Any, default: float, low: float, high: float) -> float:
 
 def video_stream_info(path: Path) -> dict[str, Any]:
     try:
-        raw = subprocess.check_output(
+        raw = check_output_group(
             [
                 "ffprobe", "-v", "error",
                 "-select_streams", "v:0",
@@ -115,7 +115,7 @@ def render_threads() -> int:
 
 def duration(path: Path) -> float:
     try:
-        raw = subprocess.check_output(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", str(path)], text=True, timeout=45).strip(); value = float(raw)
+        raw = check_output_group(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", str(path)], text=True, timeout=45).strip(); value = float(raw)
     except Exception as exc: raise SystemExit(f"ERRO V6 PROFESSIONAL: duração inválida de {path}: {exc}") from exc
     if not math.isfinite(value) or value <= 0: raise SystemExit(f"ERRO V6 PROFESSIONAL: duração não positiva: {path}")
     return value

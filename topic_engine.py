@@ -321,7 +321,14 @@ def chamar_gemini(prompt):
             raise RuntimeError(f"Gemini sem candidato utilizável: {reason}")
 
         if r.status_code in {429, 500, 502, 503, 504} and tentativa < 3:
-            time.sleep(6)
+            espera = 6
+            if r.status_code == 429:
+                try:
+                    espera = int(r.headers.get("Retry-After") or espera)
+                except (TypeError, ValueError):
+                    espera = 6
+                espera = max(2, min(espera, 30))
+            time.sleep(espera)
             continue
         raise RuntimeError(f"HTTP {r.status_code}: {r.text[:1000]}")
     raise RuntimeError("Gemini não respondeu.")

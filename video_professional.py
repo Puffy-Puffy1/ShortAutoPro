@@ -17,7 +17,7 @@ import tempfile
 from datetime import date
 from pathlib import Path
 from typing import Any
-from subprocess_guard import run_group
+from subprocess_guard import check_output_group, run_group
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
 SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat()).strip()
@@ -110,7 +110,7 @@ def duration(path: Path) -> float:
         return cached
 
     try:
-        raw = subprocess.check_output(
+        raw = check_output_group(
             [
                 "ffprobe", "-v", "error",
                 "-show_entries", "format=duration",

@@ -18,7 +18,7 @@ class RuntimeHarmonyTests(unittest.TestCase):
         )
         for name in modules:
             text = (ROOT / name).read_text(encoding="utf-8")
-            self.assertIn("from subprocess_guard import run_group", text, name)
+            self.assertIn("run_group", text, name)
             self.assertIn("run_group(", text, name)
             self.assertNotIn("subprocess.run(", text, name)
 
