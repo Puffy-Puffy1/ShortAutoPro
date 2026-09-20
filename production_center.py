@@ -17,6 +17,7 @@ from typing import Any
 
 import production_doctor
 import production_profiler
+from subprocess_guard import run_group
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
 
@@ -36,7 +37,7 @@ def run_command(command: list[str]) -> int:
         timeout = 7200
     timeout = max(300, min(timeout, 21600))
     try:
-        return subprocess.run(
+        return run_group(
             command,
             cwd=BASE,
             env=os.environ.copy(),
