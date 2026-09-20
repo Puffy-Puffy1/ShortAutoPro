@@ -37,6 +37,10 @@ FORBIDDEN_EXACT = {
 
 REQUIRED = {
     "main.py",
+    "runtime_config.py",
+    "subprocess_guard.py",
+    "production_profiler.py",
+    "production_doctor.py",
     "profile_run.sh",
     "resume_short.sh",
     "resume_short_runtime.py",

@@ -225,13 +225,7 @@ class Pipeline:
         cmd: list[str] = []
         for attempt in range(retries + 1):
             cmd = ["bash", str(path), *args] if shell else [sys.executable, str(path), *args]
-            try:
-                stage_timeout = int(
-                    os.getenv("SAP_STAGE_TIMEOUT_SECONDS", "1800") or 1800
-                )
-            except (TypeError, ValueError):
-                stage_timeout = 1800
-            stage_timeout = max(60, min(stage_timeout, 7200))
+            stage_timeout = env_int("SAP_STAGE_TIMEOUT_SECONDS", 1800, 60, 7200)
 
             try:
                 proc = run_group(

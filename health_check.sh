@@ -7,6 +7,7 @@ BASE="${SHORTAUTOPRO_BASE:-$HOME/ShortAutoPro}"
 CODE_CACHE="$BASE/.sap_state/preflight_code_cache.txt"
 CODE_HEAD=""
 CODE_CACHE_HIT=0
+ERROS=0
 
 if command -v git >/dev/null 2>&1 && [ -d "$BASE/.git" ]; then
     CODE_HEAD="$(git -C "$BASE" rev-parse HEAD 2>/dev/null || true)"
@@ -35,8 +36,6 @@ else
     ERROS=$((ERROS + 1))
 fi
 
-ERROS=0
-
 checar_arquivo() {
     local arq="$1"
     if [ -f "$BASE/$arq" ]; then
@@ -48,7 +47,7 @@ checar_arquivo() {
 }
 
 ARQUIVOS=(
-    config.sh main.py profile_run.sh resume_short_runtime.py resume_after_semantic_fix.py
+    config.sh main.py runtime_config.py subprocess_guard.py production_profiler.py production_doctor.py profile_run.sh resume_short_runtime.py resume_after_semantic_fix.py
     topic_engine_runtime.py topic_engine.py topic_memory.py topic_reserve.py topic_index.py wiki_client.py source_identity.py
     script_runtime.py roteiro.py used_topic.py hook_engine.py hook_runtime.py narrative_director.py cold_open_director.py
     scene_director.py scene_truth_refiner_6_7.py documentary_director.py visual_director.py
