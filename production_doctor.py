@@ -253,7 +253,7 @@ def diagnose(sid: str) -> dict[str, Any]:
             "api_timeout": os.getenv("SAP_MEDIA_API_TIMEOUT", "10"),
             "wikimedia_timeout": os.getenv("SAP_WIKIMEDIA_TIMEOUT", "10"),
             "must_rescue_max_queries": os.getenv("SAP_MUST_RESCUE_MAX_QUERIES", "5"),
-            "stock_rescue_max_queries": os.getenv("SAP_STOCK_RESCUE_MAX_QUERIES", "2"),
+            "stock_rescue_max_queries": os.getenv("SAP_STOCK_RESCUE_MAX_QUERIES", "4"),
         },
         "issues": issues,
         "next_action": action,

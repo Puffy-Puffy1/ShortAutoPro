@@ -55,7 +55,10 @@ class MediaStageResilienceTests(unittest.TestCase):
 
     def test_stage_does_not_abort_on_first_no_progress_contract(self):
         text = open("media_stage_runtime.py", encoding="utf-8").read()
-        self.assertIn("action=ESCALATE_NEXT_ROUND", text)
+        self.assertIn("ESCALATE_NEXT_ROUND", text)
+        self.assertIn("STOP_BOUNDED_RECOVERY", text)
+        self.assertIn("no_progress_rounds >= 2", text)
+        self.assertIn("TWO_CONSECUTIVE_NO_PROGRESS_ROUNDS", text)
         self.assertNotIn("reason=NO_PROGRESS", text)
         self.assertIn('"SAP_MEDIA_STAGE_ROUNDS", "4"', text)
 

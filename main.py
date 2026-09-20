@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any
 
 import shortautopro_evolution as evo
+import production_profiler
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
 EVOLUTION = BASE / "shortautopro_evolution.py"
@@ -222,17 +223,74 @@ class Pipeline:
         cmd: list[str] = []
         for attempt in range(retries + 1):
             cmd = ["bash", str(path), *args] if shell else [sys.executable, str(path), *args]
-            proc = subprocess.run(cmd, cwd=BASE, env=os.environ.copy(), check=False)
-            last = proc.returncode
+            try:
+                stage_timeout = int(
+                    os.getenv("SAP_STAGE_TIMEOUT_SECONDS", "1800") or 1800
+                )
+            except (TypeError, ValueError):
+                stage_timeout = 1800
+            stage_timeout = max(60, min(stage_timeout, 7200))
+
+            try:
+                proc = subprocess.run(
+                    cmd,
+                    cwd=BASE,
+                    env=os.environ.copy(),
+                    check=False,
+                    timeout=stage_timeout,
+                )
+                last = proc.returncode
+            except subprocess.TimeoutExpired as exc:
+                elapsed = time.monotonic() - start
+                self.checkpoint(file, "fail", title, elapsed)
+                try:
+                    production_profiler.record(
+                        file,
+                        elapsed,
+                        short_id=self.sid,
+                        category="pipeline_stage",
+                        status="timeout",
+                        title=title,
+                        timeout_seconds=stage_timeout,
+                    )
+                except Exception:
+                    pass
+                raise RuntimeError(
+                    f"{file} excedeu timeout de {stage_timeout}s"
+                ) from exc
             if last in allow_codes:
                 elapsed = time.monotonic() - start
                 self.checkpoint(file, "pass", title, elapsed)
+                try:
+                    production_profiler.record(
+                        file,
+                        elapsed,
+                        short_id=self.sid,
+                        category="pipeline_stage",
+                        status="pass",
+                        title=title,
+                    )
+                except Exception:
+                    pass
                 print(f"ETAPA OK: {elapsed:.1f}s")
                 return last
             if attempt < retries:
                 print(f"AUTO-RECOVERY {attempt + 1}/{retries}: {file} retornou {last}")
                 time.sleep(min(8, 2 * (attempt + 1)))
-        self.checkpoint(file, "fail", title, time.monotonic() - start)
+        elapsed = time.monotonic() - start
+        self.checkpoint(file, "fail", title, elapsed)
+        try:
+            production_profiler.record(
+                file,
+                elapsed,
+                short_id=self.sid,
+                category="pipeline_stage",
+                status="fail",
+                title=title,
+                returncode=last,
+            )
+        except Exception:
+            pass
         raise subprocess.CalledProcessError(last, cmd)
 
 
@@ -372,6 +430,10 @@ def run_pipeline() -> int:
     sid = allocate_id()
     os.environ["SHORT_ID"] = sid
     STATE_DIR.mkdir(parents=True, exist_ok=True)
+    try:
+        production_profiler.begin_run(sid)
+    except Exception:
+        pass
 
     with RunLock(sid):
         p = Pipeline(sid)

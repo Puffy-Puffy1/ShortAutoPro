@@ -25,10 +25,25 @@ def candidates()->list[Path]:
  for root,pat in ((BASE/"imagens","short_*"),(BASE/"temp","*")):
   if root.is_dir():out.extend(x for x in root.glob(pat) if x.is_dir())
  return out
+def active_ids()->set[str]:
+ out:set[str]=set()
+ runs=BASE/".locks"/"runs"
+ if runs.is_dir():
+  for lock in runs.glob("*.lock"):
+   sid=lock.stem.strip()
+   if sid:out.add(sid)
+ legacy=BASE/".locks"/"active_ids"
+ if legacy.is_dir():
+  for item in legacy.iterdir():
+   sid=item.name.strip()
+   if sid:out.add(sid)
+ if SID:out.add(SID)
+ return out
 def protected(p:Path)->bool:
- if SID and (p.name==SID or p.name==f"short_{SID}"):return True
- lock=BASE/".locks"/"active_ids"/SID
- return bool(SID and lock.exists() and (SID in p.name))
+ name=p.name
+ for sid in active_ids():
+  if name==sid or name==f"short_{sid}" or sid in name:return True
+ return False
 def cleanup(execute:bool)->dict[str,Any]:
  keep=max(1,min(20,int(os.getenv("SHORT_STORAGE_KEEP_PROJECTS","3"))));days=max(1,min(90,int(os.getenv("SHORT_STORAGE_KEEP_DAYS","7"))));cutoff=time.time()-days*86400;items=sorted(candidates(),key=lambda p:p.stat().st_mtime if p.exists() else 0,reverse=True);remove=[]
  for i,p in enumerate(items):
@@ -37,7 +52,14 @@ def cleanup(execute:bool)->dict[str,Any]:
   if i>=keep or old:remove.append(p)
  freed=sum(size(p) for p in remove)
  if execute:
+  active=active_ids()
   for p in remove:
+   # Re-check immediately before deletion because another production may have
+   # started after the cleanup plan was built.
+   if protected(p):continue
+   # Generic temp directories cannot be safely attributed while another Short
+   # is active, so preserve them until no concurrent run exists.
+   if p.parent==BASE/"temp" and len(active)>1:continue
    try:shutil.rmtree(p)
    except OSError:pass
   for p in BASE.rglob("__pycache__"):

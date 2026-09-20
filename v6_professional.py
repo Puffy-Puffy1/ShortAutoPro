@@ -329,8 +329,29 @@ def main() -> int:
     print()
 
     render_started = time.monotonic()
-    try: subprocess.run(command, check=True)
-    except subprocess.CalledProcessError as exc: print(f"ERRO V6 PROFESSIONAL: ffmpeg retornou {exc.returncode}"); return exc.returncode or 1
+    try:
+        render_timeout = int(
+            os.getenv("SHORT_FINAL_RENDER_TIMEOUT", "900") or 900
+        )
+    except (TypeError, ValueError):
+        render_timeout = 900
+    render_timeout = max(120, min(render_timeout, 2400))
+
+    try:
+        subprocess.run(
+            command,
+            check=True,
+            timeout=render_timeout,
+        )
+    except subprocess.TimeoutExpired:
+        print(
+            "ERRO V6 PROFESSIONAL: "
+            f"render excedeu {render_timeout}s"
+        )
+        return 124
+    except subprocess.CalledProcessError as exc:
+        print(f"ERRO V6 PROFESSIONAL: ffmpeg retornou {exc.returncode}")
+        return exc.returncode or 1
     if not OUTPUT.is_file() or OUTPUT.stat().st_size < 500_000: print("ERRO V6 PROFESSIONAL: saída ausente ou pequena demais"); return 1
     render_elapsed = time.monotonic() - render_started
     render_topic = read_text(USED_TOPIC) or read_text(TOPIC_FALLBACK)

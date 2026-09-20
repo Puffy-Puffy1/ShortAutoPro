@@ -3,7 +3,7 @@
 set -u
 set -o pipefail
 
-BASE="$HOME/ShortAutoPro"
+BASE="${SHORTAUTOPRO_BASE:-$HOME/ShortAutoPro}"
 CODE_CACHE="$BASE/.sap_state/preflight_code_cache.txt"
 CODE_HEAD=""
 CODE_CACHE_HIT=0
