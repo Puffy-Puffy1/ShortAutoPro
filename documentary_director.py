@@ -9,10 +9,15 @@ from datetime import date
 
 import requests
 
-BASE = os.path.expanduser("~/ShortAutoPro")
+BASE = os.path.abspath(os.path.expanduser(os.getenv("SHORTAUTOPRO_BASE", "~/ShortAutoPro")))
 SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat())
 API_KEY = os.getenv("GEMINI_API_KEY", "")
 MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
+try:
+    GEMINI_TIMEOUT = float(os.getenv("SAP_GEMINI_TIMEOUT", "75") or 75)
+except (TypeError, ValueError):
+    GEMINI_TIMEOUT = 75.0
+GEMINI_TIMEOUT = max(20.0, min(GEMINI_TIMEOUT, 120.0))
 
 try:
     QTD_CENAS = int(os.getenv("SHORT_QTD_CENAS", "12"))
@@ -203,7 +208,7 @@ for tentativa in range(1, 4):
             URL,
             headers=HEADERS,
             json=payload,
-            timeout=120,
+            timeout=GEMINI_TIMEOUT,
         )
     except Exception as exc:
         if tentativa == 3:
