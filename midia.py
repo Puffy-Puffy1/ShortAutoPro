@@ -28,6 +28,7 @@ from datetime import date
 
 from production_profiler import record as _sap_profile_record
 from subprocess_guard import run_group
+from runtime_config import env_float, env_int
 from media_must_priority import prioritize as _sap_prioritize_must
 from media_provenance_capture_v1 import write_provenance as _sap_write_provenance
 
@@ -65,7 +66,7 @@ import vi6_9_runtime_policy
 # CONFIG
 # ==================================================
 
-BASE = os.path.expanduser("~/ShortAutoPro")
+BASE = os.path.abspath(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro")))
 
 SHORT_ID = os.getenv(
     "SHORT_ID",
@@ -607,6 +608,39 @@ QUALITY_REPORT = os.path.join(
 resume_cached_media = {}
 
 
+def _sap_atomic_media_checkpoint(total, missing_scenes, pending_scenes, *, phase):
+    os.makedirs(os.path.dirname(MISSING_REPORT), exist_ok=True)
+    payload = {
+        "short_id": SHORT_ID,
+        "total": int(total),
+        "expected": len(cenas),
+        "missing_scenes": list(missing_scenes or []),
+        "pending_scenes": sorted({int(x) for x in (pending_scenes or [])}),
+        "phase": str(phase or "checkpoint"),
+        "pid": os.getpid(),
+        "updated_at_epoch": time.time(),
+    }
+    fd, tmp = tempfile.mkstemp(
+        prefix=f".{os.path.basename(MISSING_REPORT)}.",
+        suffix=".tmp",
+        dir=os.path.dirname(MISSING_REPORT),
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle, ensure_ascii=False, indent=2)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp, MISSING_REPORT)
+        tmp = ""
+    finally:
+        if tmp:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+
+
 def _sap_probe_existing_media(path):
     try:
         if (
@@ -823,6 +857,11 @@ if (
             if isinstance(item, dict)
             and str(item.get("scene", "")).isdigit()
         }
+        for _pending_scene in _previous_missing.get("pending_scenes", []):
+            try:
+                _missing_numbers.add(int(_pending_scene))
+            except (TypeError, ValueError):
+                pass
 
         _report_matches = (
             str(
@@ -4619,6 +4658,9 @@ total = 0
 videos_total = 0
 fotos_total = 0
 missing_scenes = []
+resolved_scene_numbers = set(resume_cached_media)
+_scene_budget_seconds = env_float("SAP_MEDIA_SCENE_BUDGET_SECONDS", 75.0, 30.0, 180.0)
+_scene_retry_min_seconds = env_float("SAP_MEDIA_SCENE_MIN_RETRY_SECONDS", 14.0, 5.0, 30.0)
 
 descricao_anterior = ""
 
@@ -4654,6 +4696,32 @@ for numero, cena in enumerate(
 ):
 
     _scene_started = time.monotonic()
+
+    def _scene_time_left():
+        return _scene_budget_seconds - (time.monotonic() - _scene_started)
+
+    def _scene_retry_allowed(label):
+        left = _scene_time_left()
+        if left >= _scene_retry_min_seconds:
+            return True
+        print(
+            "SAP_MEDIA_SCENE_BUDGET=EXHAUSTED "
+            f"scene={numero} phase={label} "
+            f"elapsed={time.monotonic() - _scene_started:.1f}s "
+            f"budget={_scene_budget_seconds:.1f}s left={max(0.0, left):.1f}s"
+        )
+        return False
+
+    _pending_now = [
+        n for n in range(numero, len(cenas) + 1)
+        if n not in resolved_scene_numbers
+    ]
+    _sap_atomic_media_checkpoint(
+        len(resolved_scene_numbers),
+        missing_scenes,
+        _pending_now,
+        phase=f"before_scene_{numero}",
+    )
 
     busca = str(
         cena.get(
@@ -4742,6 +4810,16 @@ for numero, cena in enumerate(
 
         contagem["ResumeCache"] += 1
         total += 1
+        resolved_scene_numbers.add(numero)
+        _sap_atomic_media_checkpoint(
+            len(resolved_scene_numbers),
+            missing_scenes,
+            [
+                n for n in range(numero + 1, len(cenas) + 1)
+                if n not in resolved_scene_numbers
+            ],
+            phase=f"cache_hit_{numero}",
+        )
 
         print(
             "  SAP_MEDIA_INCREMENTAL=HIT "
@@ -5580,21 +5658,7 @@ for numero, cena in enumerate(
             _alt_seen.add(_alt_key)
             _alt_clean.append(_alt)
 
-        try:
-            _retry_budget = int(
-                os.getenv(
-                    "SAP_MEDIA_SIMPLIFIED_RETRY_MAX",
-                    "3"
-                )
-                or 3
-            )
-        except (TypeError, ValueError):
-            _retry_budget = 3
-
-        _retry_budget = max(
-            1,
-            min(_retry_budget, 5)
-        )
+        _retry_budget = env_int("SAP_MEDIA_SIMPLIFIED_RETRY_MAX", 3, 1, 5)
 
         alternativas = _alt_clean[
             :_retry_budget
@@ -5617,6 +5681,9 @@ for numero, cena in enumerate(
 
 
         for busca_alt in alternativas:
+
+            if not _scene_retry_allowed("simplified_retry"):
+                break
 
             print(
                 f"  RETRY: {busca_alt}"
@@ -5812,7 +5879,7 @@ for numero, cena in enumerate(
     # Preserve the normal provider/selection path first. Only scenes that are
     # still unresolved reach the contextual MUST recovery. This avoids
     # multiplying provider calls for scenes that already had a viable asset.
-    if not sucesso and must_have:
+    if not sucesso and must_have and _scene_retry_allowed("late_strict_recovery"):
         try:
             print(
                 "SAP_MUST_LATE_RECOVERY=START "
@@ -6207,6 +6274,7 @@ for numero, cena in enumerate(
         ] += 1
 
         total += 1
+        resolved_scene_numbers.add(numero)
 
 
         print(
@@ -6300,6 +6368,8 @@ for numero, cena in enumerate(
             }
         )
 
+        resolved_scene_numbers.discard(numero)
+
         print(
             "  ERRO: nenhuma mídia disponível."
         )
@@ -6309,6 +6379,16 @@ for numero, cena in enumerate(
             f"must={len(must_have)} downloads_failed={len(falhas_download)}"
         )
 
+
+    _sap_atomic_media_checkpoint(
+        len(resolved_scene_numbers),
+        missing_scenes,
+        [
+            n for n in range(numero + 1, len(cenas) + 1)
+            if n not in resolved_scene_numbers
+        ],
+        phase=f"after_scene_{numero}",
+    )
 
     _sap_profile_record(
         "media_scene",
@@ -6405,41 +6485,13 @@ print()
 
 if missing_scenes:
     try:
-        _diag_dir = os.path.join(BASE, "reports", "media")
-        os.makedirs(_diag_dir, exist_ok=True)
-        _diag_path = os.path.join(
-            _diag_dir,
-            f"acquisition_missing_{SHORT_ID}.json"
+        _diag_path = MISSING_REPORT
+        _sap_atomic_media_checkpoint(
+            len(resolved_scene_numbers),
+            missing_scenes,
+            [],
+            phase="final_missing",
         )
-        _diag_fd, _diag_tmp = tempfile.mkstemp(
-            prefix=f".{os.path.basename(_diag_path)}.",
-            suffix=".tmp",
-            dir=_diag_dir,
-        )
-        try:
-            with os.fdopen(_diag_fd, "w", encoding="utf-8") as _diag:
-                json.dump(
-                    {
-                        "short_id": SHORT_ID,
-                        "total": total,
-                        "expected": len(cenas),
-                        "missing_scenes": missing_scenes,
-                    },
-                    _diag,
-                    ensure_ascii=False,
-                    indent=2,
-                )
-                _diag.write("\n")
-                _diag.flush()
-                os.fsync(_diag.fileno())
-            os.replace(_diag_tmp, _diag_path)
-            _diag_tmp = ""
-        finally:
-            if _diag_tmp:
-                try:
-                    os.unlink(_diag_tmp)
-                except OSError:
-                    pass
         print(
             "SAP_MEDIA_MISSING_SCENES="
             + ",".join(str(item["scene"]) for item in missing_scenes)
