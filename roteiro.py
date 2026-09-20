@@ -14,7 +14,7 @@ from wiki_client import WikiRateLimit
 from wiki_client import extract as wiki_extract_client
 from wiki_client import search as wiki_search_client
 
-BASE = os.path.expanduser("~/ShortAutoPro")
+BASE = os.path.abspath(os.path.expanduser(os.getenv("SHORTAUTOPRO_BASE", "~/ShortAutoPro")))
 ROTEIRO_DIR = os.path.join(BASE, "roteiros")
 os.makedirs(ROTEIRO_DIR, exist_ok=True)
 
@@ -23,6 +23,12 @@ GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 TEMA = os.getenv("SHORT_TEMA", "mistérios, casos inexplicáveis e true crime")
 TOPIC_FILE = os.path.join(ROTEIRO_DIR, f"topic_{SHORT_ID}.txt")
+
+try:
+    GEMINI_TIMEOUT = float(os.getenv("SAP_GEMINI_TIMEOUT", "75") or 75)
+except (TypeError, ValueError):
+    GEMINI_TIMEOUT = 75.0
+GEMINI_TIMEOUT = max(20.0, min(GEMINI_TIMEOUT, 120.0))
 
 try:
     QTD_CENAS = int(os.getenv("SHORT_QTD_CENAS", "12"))
@@ -80,7 +86,7 @@ def chamar_gemini(prompt, temperatura=0.5, tokens=1600):
                 GEMINI_URL,
                 headers=HEADERS,
                 json=payload,
-                timeout=120,
+                timeout=GEMINI_TIMEOUT,
             )
         except Exception as exc:
             if tentativa == 4:
