@@ -62,7 +62,7 @@ ARQUIVOS=(
     speech_director.py audio.py legenda_dinamica.py subtitle_alignment.py subtitle_style_policy.py
     professional_caption_director.py caption_layout_guard.py video_professional.py v6_professional.py
     audio_finalizer.py visual_qa.py quality_check.py publish_pack.py source_ledger.py publish_integrity_gate.py
-    production_manifest.py final_quality.py professional_quality_gate.py release_gate.py register_topic.py storage_manager.py
+    production_manifest.py final_quality.py professional_quality_gate.py release_gate.py release_artifact_guard.py register_topic.py storage_manager.py
     shortauto_brain.py shortauto_director_ai.py shortauto_asset_library.py shortauto_repair_engine.py shortauto_intelligence_layer.py
     batch_report.py batch_queue.sh batch_recovery.sh control_center.sh
     preflight_check.sh diagnostico.sh release_check.sh health_check.sh
