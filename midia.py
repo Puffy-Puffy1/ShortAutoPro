@@ -5533,21 +5533,43 @@ for numero, cena in enumerate(
 
     if not sucesso:
 
-        # Explicit MUST already went through the canonical bounded recovery:
-        # original query + all-MUST + subject/segment/evidence variants.
-        # Retrying isolated MUST words repeats the same provider work and can
-        # explode latency without adding stronger evidence.
-        if must_have:
-            alternativas = []
-            print(
-                "SAP_MUST_SIMPLIFIED_RETRIES=SKIPPED "
-                f"scene={numero} reason=CANONICAL_RESCUE_ALREADY_EXHAUSTIVE"
-            )
-        else:
-            alternativas = simplificar_busca(
-                busca,
-                must_have
-            )
+        # QUERY RESCUE 6.5.4
+        #
+        # O rescue canonico nem sempre produz candidatos utilizaveis.
+        # Se a cena continua sem sucesso, permitir queries simplificadas
+        # MESMO quando existem MUSTs. Os MUSTs continuam sendo enviados
+        # para buscar_todos_candidatos(), portanto a exigencia visual
+        # permanece ativa.
+        alternativas = simplificar_busca(
+            busca,
+            must_have
+        )
+
+        # Normaliza, remove duplicatas e evita repetir a consulta original.
+        _alt_seen = {str(busca).strip().lower()}
+        _alt_clean = []
+
+        for _alt in alternativas or []:
+            _alt = str(_alt or "").strip()
+
+            if not _alt:
+                continue
+
+            _alt_key = _alt.lower()
+
+            if _alt_key in _alt_seen:
+                continue
+
+            _alt_seen.add(_alt_key)
+            _alt_clean.append(_alt)
+
+        alternativas = _alt_clean
+
+        print(
+            "SAP_MUST_SIMPLIFIED_RETRIES=ENABLED "
+            f"scene={numero} alternatives={len(alternativas)} "
+            f"must_total={len(must_have)}"
+        )
 
 
         for busca_alt in alternativas:

@@ -18,15 +18,19 @@ class Stage6FastStrictPathTests(unittest.TestCase):
         self.assertNotIn("pexels_foto(", block)
         self.assertNotIn("pixabay_foto(", block)
 
-    def test_explicit_must_skips_redundant_simplified_retries(self):
+    def test_explicit_must_uses_bounded_simplified_retries(self):
         text = (ROOT / "midia.py").read_text(encoding="utf-8")
-        self.assertIn("SAP_MUST_SIMPLIFIED_RETRIES=SKIPPED", text)
+        self.assertIn("SAP_MUST_SIMPLIFIED_RETRIES=ENABLED", text)
         retry_start = text.index("# RETRY COM QUERY SIMPLIFICADA")
         late_start = text.index("# EXPLICIT-MUST LATE STRICT RECOVERY", retry_start)
         block = text[retry_start:late_start]
-        self.assertIn("if must_have:", block)
-        self.assertIn("alternativas = []", block)
-        self.assertIn("simplificar_busca(", block)
+        self.assertIn("alternativas = simplificar_busca(", block)
+        self.assertIn("_alt_seen", block)
+        self.assertIn("_alt_clean", block)
+        self.assertNotIn("alternativas = []", block)
+        self.assertIn("buscar_todos_candidatos(", block)
+        self.assertIn("busca_alt,", block)
+        self.assertIn("must_have,", block)
 
     def test_canonical_recovery_unwraps_legacy_vse42_search_rescue(self):
         text = (ROOT / "media_acquisition_recovery.py").read_text(encoding="utf-8")
