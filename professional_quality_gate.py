@@ -112,12 +112,16 @@ def cached_technical_score() -> tuple[float, list[str], dict[str, Any]] | None:
     try:
         if not VIDEO.is_file() or not PRODUCTION_MANIFEST.is_file():
             return None
-        if VIDEO.stat().st_mtime > PRODUCTION_MANIFEST.stat().st_mtime:
-            return None
+        stat = VIDEO.stat()
     except OSError:
         return None
 
     video = manifest.get("video", {}) if isinstance(manifest.get("video"), dict) else {}
+    if (
+        int(video.get("size_bytes", 0) or 0) != int(stat.st_size)
+        or int(video.get("mtime_ns", 0) or 0) != int(stat.st_mtime_ns)
+    ):
+        return None
     quality = manifest.get("quality", {}) if isinstance(manifest.get("quality"), dict) else {}
     if not video or not quality:
         return None
@@ -216,9 +220,15 @@ def cached_loudness(target_lufs: float, target_tp: float) -> dict[str, Any]:
     try:
         if not VIDEO.is_file() or not AUDIO_REPORT.is_file():
             return {}
-        if VIDEO.stat().st_mtime > AUDIO_REPORT.stat().st_mtime:
-            return {}
+        stat = VIDEO.stat()
     except OSError:
+        return {}
+
+    identity = report.get("video_identity", {}) if isinstance(report.get("video_identity"), dict) else {}
+    if (
+        int(identity.get("size_bytes", 0) or 0) != int(stat.st_size)
+        or int(identity.get("mtime_ns", 0) or 0) != int(stat.st_mtime_ns)
+    ):
         return {}
 
     target = report.get("target", {}) if isinstance(report.get("target"), dict) else {}
