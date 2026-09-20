@@ -12,6 +12,7 @@ import json
 import os
 import subprocess
 from subprocess_guard import run_group
+from runtime_config import env_int
 import sys
 import time
 from datetime import date
@@ -87,11 +88,7 @@ def main() -> int:
         print(f"ERRO MEDIA STAGE: ausente {MIDIA}")
         return 1
 
-    try:
-        max_rounds = int(os.getenv("SAP_MEDIA_STAGE_ROUNDS", "4") or 4)
-    except ValueError:
-        max_rounds = 4
-    max_rounds = max(1, min(max_rounds, 5))
+    max_rounds = env_int("SAP_MEDIA_STAGE_ROUNDS", 4, 1, 5)
 
     previous_missing: set[int] | None = None
     previous_total = -1
@@ -108,13 +105,7 @@ def main() -> int:
         )
 
         started = time.monotonic()
-        try:
-            round_timeout = int(
-                os.getenv("SAP_MEDIA_ROUND_TIMEOUT", "240") or 240
-            )
-        except ValueError:
-            round_timeout = 240
-        round_timeout = max(60, min(round_timeout, 900))
+        round_timeout = env_int("SAP_MEDIA_ROUND_TIMEOUT", 240, 60, 900)
 
         try:
             proc = run_group(
