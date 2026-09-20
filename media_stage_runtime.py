@@ -64,8 +64,11 @@ def round_env(round_index: int) -> dict[str, str]:
 
     # Increasing retrieval effort only. MUST acceptance rules are untouched.
     rescue_budget = (2, 4, 6, 8, 8)[min(round_index, 4)]
-    provider_timeout = (22, 30, 38, 42, 45)[min(round_index, 4)]
-    wiki_deadline = (18, 26, 34, 40, 45)[min(round_index, 4)]
+    # Keep recovery bounded on mobile. The provider layer already runs
+    # concurrently, so escalating to 30-45s makes hard scenes dominate the
+    # entire Short production without improving acceptance rules.
+    provider_timeout = (12, 14, 16, 18, 20)[min(round_index, 4)]
+    wiki_deadline = (12, 16, 20, 24, 28)[min(round_index, 4)]
 
     env["SAP_STOCK_RESCUE_MAX_QUERIES"] = str(rescue_budget)
     env["SAP_MUST_RESCUE_MAX_QUERIES"] = str(rescue_budget)
@@ -104,15 +107,33 @@ def main() -> int:
         )
 
         started = time.monotonic()
-        proc = subprocess.run(
-            [sys.executable, str(MIDIA)],
-            cwd=str(BASE),
-            env=round_env(round_index),
-            check=False,
-        )
+        try:
+            round_timeout = int(
+                os.getenv("SAP_MEDIA_ROUND_TIMEOUT", "240") or 240
+            )
+        except ValueError:
+            round_timeout = 240
+        round_timeout = max(60, min(round_timeout, 900))
+
+        try:
+            proc = subprocess.run(
+                [sys.executable, str(MIDIA)],
+                cwd=str(BASE),
+                env=round_env(round_index),
+                check=False,
+                timeout=round_timeout,
+            )
+            returncode = proc.returncode
+        except subprocess.TimeoutExpired:
+            returncode = 124
+            print(
+                "MEDIA_STAGE_RUNTIME=ROUND_TIMEOUT "
+                f"round={round_index + 1} limit={round_timeout}s"
+            )
+
         elapsed = time.monotonic() - started
 
-        if proc.returncode == 0:
+        if returncode == 0:
             print(
                 f"MEDIA_STAGE_RUNTIME=PASS round={round_index + 1} "
                 f"elapsed={elapsed:.1f}s"
@@ -135,10 +156,10 @@ def main() -> int:
         # preserve that real failure instead of masking it with retries.
         if not report or not missing:
             print(
-                f"MEDIA_STAGE_RUNTIME=HARD_FAIL code={proc.returncode} "
+                f"MEDIA_STAGE_RUNTIME=HARD_FAIL code={returncode} "
                 "reason=NO_VALID_MISSING_REPORT"
             )
-            return proc.returncode or 1
+            return returncode or 1
 
         if previous_missing is not None:
             made_progress = total > previous_total or missing < previous_missing
@@ -146,13 +167,24 @@ def main() -> int:
                 no_progress_rounds = 0
             else:
                 no_progress_rounds += 1
+                action = (
+                    "STOP_BOUNDED_RECOVERY"
+                    if no_progress_rounds >= 2
+                    else "ESCALATE_NEXT_ROUND"
+                )
                 print(
                     "MEDIA_STAGE_RUNTIME=NO_PROGRESS "
                     f"round={round_index + 1} "
                     f"streak={no_progress_rounds} "
                     f"missing={','.join(map(str, sorted(missing)))} "
-                    "action=ESCALATE_NEXT_ROUND"
+                    f"action={action}"
                 )
+                if no_progress_rounds >= 2:
+                    print(
+                        "MEDIA_STAGE_RUNTIME=EARLY_STOP "
+                        "reason=TWO_CONSECUTIVE_NO_PROGRESS_ROUNDS"
+                    )
+                    break
 
         previous_missing = missing
         previous_total = total
