@@ -7,7 +7,7 @@ import os
 import subprocess
 from datetime import date
 
-BASE = os.path.expanduser("~/ShortAutoPro")
+BASE = os.path.abspath(os.path.expanduser(os.getenv("SHORTAUTOPRO_BASE", "~/ShortAutoPro")))
 SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat())
 
 try:
@@ -19,6 +19,25 @@ QTD_CENAS = max(6, min(QTD_CENAS, 20))
 MEDIA_DIR = os.path.join(BASE, "imagens", f"short_{SHORT_ID}")
 REPORT = os.path.join(BASE, "roteiros", f"media_quality_{SHORT_ID}.json")
 EXTS = {".jpg", ".jpeg", ".png", ".webp", ".mp4"}
+
+
+
+def atomic_json(path, payload):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = f"{path}.{os.getpid()}.tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+            f.write("\n")
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+    finally:
+        if os.path.exists(tmp):
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
 
 
 def probe(path):
@@ -195,8 +214,7 @@ report = {
 }
 
 os.makedirs(os.path.dirname(REPORT), exist_ok=True)
-with open(REPORT, "w", encoding="utf-8") as f:
-    json.dump(report, f, ensure_ascii=False, indent=2)
+atomic_json(REPORT, report)
 
 print()
 print("================================")
