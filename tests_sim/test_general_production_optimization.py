@@ -31,7 +31,9 @@ class GeneralProductionOptimizationTests(unittest.TestCase):
         self.assertIn("def cached_loudness(", text)
         self.assertIn("PRO_QUALITY_AUDIO_MEASURE=CACHE_HIT", text)
         self.assertIn("PRO_QUALITY_AUDIO_MEASURE=FFMPEG", text)
-        self.assertIn("VIDEO.stat().st_mtime > AUDIO_REPORT.stat().st_mtime", text)
+        self.assertIn('report.get("video_identity"', text)
+        self.assertIn('int(identity.get("size_bytes", 0) or 0) != int(stat.st_size)', text)
+        self.assertIn('int(identity.get("mtime_ns", 0) or 0) != int(stat.st_mtime_ns)', text)
 
     def test_professional_quality_reuses_fresh_manifest_probe(self):
         text = (ROOT / "professional_quality_gate.py").read_text(encoding="utf-8")
@@ -39,7 +41,8 @@ class GeneralProductionOptimizationTests(unittest.TestCase):
         self.assertIn("def cached_technical_score(", text)
         self.assertIn("PRO_QUALITY_TECHNICAL=MANIFEST_CACHE_HIT", text)
         self.assertIn("PRO_QUALITY_TECHNICAL=FFPROBE", text)
-        self.assertIn("VIDEO.stat().st_mtime > PRODUCTION_MANIFEST.stat().st_mtime", text)
+        self.assertIn('int(video.get("size_bytes", 0) or 0) != int(stat.st_size)', text)
+        self.assertIn('int(video.get("mtime_ns", 0) or 0) != int(stat.st_mtime_ns)', text)
 
     def test_quality_fallbacks_remain_available(self):
         text = (ROOT / "professional_quality_gate.py").read_text(encoding="utf-8")
