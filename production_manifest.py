@@ -243,8 +243,13 @@ def build_manifest(probe_data=None):
     )
 
     video_exists = False
+    video_size = 0
+    video_mtime_ns = 0
     try:
-        video_exists = VIDEO.is_file() and VIDEO.stat().st_size > 500_000
+        video_stat = VIDEO.stat()
+        video_size = int(video_stat.st_size)
+        video_mtime_ns = int(video_stat.st_mtime_ns)
+        video_exists = VIDEO.is_file() and video_size > 500_000
     except OSError:
         video_exists = False
 
@@ -316,6 +321,8 @@ def build_manifest(probe_data=None):
             "fps": fps,
             "video_codec": video_codec,
             "audio_codec": audio_codec,
+            "size_bytes": video_size,
+            "mtime_ns": video_mtime_ns,
         },
         "quality": quality,
         "intelligence": {

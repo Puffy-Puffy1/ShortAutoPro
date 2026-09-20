@@ -24,6 +24,13 @@ def atomic(p:Path,x:Any)->None:
   except OSError:pass
   raise
 
+def file_identity(path:Path)->dict[str,int]:
+ try:
+  stat=path.stat()
+  return {"size_bytes":int(stat.st_size),"mtime_ns":int(stat.st_mtime_ns)}
+ except OSError:
+  return {"size_bytes":0,"mtime_ns":0}
+
 def measure(path:Path)->dict[str,float]:
  cmd=["ffmpeg","-hide_banner","-nostats","-i",str(path),"-map","0:a:0","-af",f"loudnorm=I={TARGET}:TP={TP}:LRA={LRA}:print_format=json","-f","null","-"]
  p=run_group(cmd,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE,text=True,timeout=120,check=False)
@@ -60,7 +67,7 @@ def main()->int:
    after=before
    measurement_source="unchanged_reuse"
   ok=abs(after["lufs"]-TARGET)<=max(1.0,tolerance_lufs) and after["true_peak_db"]<=TP+0.35
-  payload={"short_id":SID,"version":"1.2","generated_at":datetime.now().astimezone().isoformat(timespec="seconds"),"target":{"lufs":TARGET,"true_peak_db":TP,"lra":LRA},"before":before,"remastered":need,"after":after,"measurement_source":measurement_source,"status":"PASS" if ok else "BLOCK"}; atomic(REPORT,payload)
+  payload={"short_id":SID,"version":"1.3","generated_at":datetime.now().astimezone().isoformat(timespec="seconds"),"target":{"lufs":TARGET,"true_peak_db":TP,"lra":LRA},"before":before,"remastered":need,"after":after,"measurement_source":measurement_source,"video_identity":file_identity(VIDEO),"status":"PASS" if ok else "BLOCK"}; atomic(REPORT,payload)
  except Exception as exc: print(f"ERRO AUDIO FINALIZER: {exc}"); return 1
  print(f"FINAL AUDIO: {payload['status']} | LUFS {after['lufs']:.2f} | TP {after['true_peak_db']:.2f} dB | remaster={'SIM' if need else 'NAO'}")
  return 0 if ok else 1

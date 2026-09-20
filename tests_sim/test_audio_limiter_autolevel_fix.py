@@ -9,7 +9,7 @@ class AudioLimiterAutoLevelFixTests(unittest.TestCase):
         text = (ROOT / "audio_finalizer.py").read_text(encoding="utf-8")
         self.assertIn("alimiter=limit=", text)
         self.assertIn(":level=false", text)
-        self.assertIn('"version":"1.2"', text)
+        self.assertIn('"version":"1.3"', text)
 
     def test_v6_disables_auto_level_on_all_limiters(self):
         text = (ROOT / "v6_professional.py").read_text(encoding="utf-8")
