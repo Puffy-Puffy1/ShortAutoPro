@@ -19,6 +19,7 @@ import shutil
 import re
 import json
 import hashlib
+import tempfile
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 import threading
 import requests
@@ -6410,18 +6411,35 @@ if missing_scenes:
             _diag_dir,
             f"acquisition_missing_{SHORT_ID}.json"
         )
-        with open(_diag_path, "w", encoding="utf-8") as _diag:
-            json.dump(
-                {
-                    "short_id": SHORT_ID,
-                    "total": total,
-                    "expected": len(cenas),
-                    "missing_scenes": missing_scenes,
-                },
-                _diag,
-                ensure_ascii=False,
-                indent=2,
-            )
+        _diag_fd, _diag_tmp = tempfile.mkstemp(
+            prefix=f".{os.path.basename(_diag_path)}.",
+            suffix=".tmp",
+            dir=_diag_dir,
+        )
+        try:
+            with os.fdopen(_diag_fd, "w", encoding="utf-8") as _diag:
+                json.dump(
+                    {
+                        "short_id": SHORT_ID,
+                        "total": total,
+                        "expected": len(cenas),
+                        "missing_scenes": missing_scenes,
+                    },
+                    _diag,
+                    ensure_ascii=False,
+                    indent=2,
+                )
+                _diag.write("\n")
+                _diag.flush()
+                os.fsync(_diag.fileno())
+            os.replace(_diag_tmp, _diag_path)
+            _diag_tmp = ""
+        finally:
+            if _diag_tmp:
+                try:
+                    os.unlink(_diag_tmp)
+                except OSError:
+                    pass
         print(
             "SAP_MEDIA_MISSING_SCENES="
             + ",".join(str(item["scene"]) for item in missing_scenes)
