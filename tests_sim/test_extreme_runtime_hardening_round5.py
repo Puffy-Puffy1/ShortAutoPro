@@ -15,8 +15,9 @@ class ExtremeRuntimeHardeningRound5Tests(unittest.TestCase):
     def test_missing_media_report_is_atomic(self):
         text = (ROOT / "midia.py").read_text(encoding="utf-8")
         self.assertIn("tempfile.mkstemp(", text)
-        self.assertIn("os.replace(_diag_tmp, _diag_path)", text)
-        self.assertIn("os.fsync(_diag.fileno())", text)
+        self.assertIn("def _sap_atomic_media_checkpoint(", text)
+        self.assertIn("os.replace(tmp, MISSING_REPORT)", text)
+        self.assertIn("os.fsync(handle.fileno())", text)
 
     def test_timeout_cleanup_tolerates_os_signal_errors(self):
         text = (ROOT / "subprocess_guard.py").read_text(encoding="utf-8")
