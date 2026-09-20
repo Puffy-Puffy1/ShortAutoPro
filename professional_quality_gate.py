@@ -17,6 +17,7 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+from subprocess_guard import run_group
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
 SHORT_ID = os.getenv("SHORT_ID", "").strip()
@@ -155,7 +156,7 @@ def technical_score() -> tuple[float, list[str], dict[str, Any]]:
     if not VIDEO.is_file():
         return 0.0, ["video_missing"], {}
     try:
-        proc = subprocess.run([
+        proc = run_group([
             "ffprobe", "-v", "error", "-show_streams", "-show_format", "-of", "json", str(VIDEO),
         ], capture_output=True, text=True, check=True, timeout=45)
         data = json.loads(proc.stdout)
@@ -188,7 +189,7 @@ def measure_loudness(target_lufs: float, target_tp: float) -> dict[str, Any]:
     if not VIDEO.is_file():
         return {"available": False}
     try:
-        proc = subprocess.run([
+        proc = run_group([
             "ffmpeg", "-hide_banner", "-nostdin", "-i", str(VIDEO),
             "-vn", "-af", f"loudnorm=I={target_lufs}:TP={target_tp}:LRA=7:print_format=json",
             "-f", "null", "-",
