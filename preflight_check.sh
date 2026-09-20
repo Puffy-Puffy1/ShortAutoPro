@@ -3,7 +3,7 @@
 set -u
 set -o pipefail
 
-BASE="$HOME/ShortAutoPro"
+BASE="${SHORTAUTOPRO_BASE:-$HOME/ShortAutoPro}"
 ERROS=0
 AVISOS=0
 
