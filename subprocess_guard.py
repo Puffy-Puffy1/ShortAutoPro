@@ -62,3 +62,25 @@ def run_group(
             stderr=result.stderr,
         )
     return result
+
+
+def check_output_group(
+    command: list[str],
+    *,
+    cwd: str | os.PathLike[str] | None = None,
+    env: dict[str, str] | None = None,
+    timeout: float | None = None,
+    text: bool = False,
+    stderr: Any = None,
+) -> str | bytes:
+    result = run_group(
+        command,
+        cwd=cwd,
+        env=env,
+        timeout=timeout,
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=stderr,
+        text=text,
+    )
+    return result.stdout
