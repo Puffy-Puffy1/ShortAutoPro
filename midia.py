@@ -4717,7 +4717,7 @@ for numero, cena in enumerate(
         if n not in resolved_scene_numbers
     ]
     _sap_atomic_media_checkpoint(
-        total,
+        len(resolved_scene_numbers),
         missing_scenes,
         _pending_now,
         phase=f"before_scene_{numero}",
@@ -4812,7 +4812,7 @@ for numero, cena in enumerate(
         total += 1
         resolved_scene_numbers.add(numero)
         _sap_atomic_media_checkpoint(
-            total,
+            len(resolved_scene_numbers),
             missing_scenes,
             [
                 n for n in range(numero + 1, len(cenas) + 1)
@@ -6381,7 +6381,7 @@ for numero, cena in enumerate(
 
 
     _sap_atomic_media_checkpoint(
-        total,
+        len(resolved_scene_numbers),
         missing_scenes,
         [
             n for n in range(numero + 1, len(cenas) + 1)
@@ -6487,7 +6487,7 @@ if missing_scenes:
     try:
         _diag_path = MISSING_REPORT
         _sap_atomic_media_checkpoint(
-            total,
+            len(resolved_scene_numbers),
             missing_scenes,
             [],
             phase="final_missing",
