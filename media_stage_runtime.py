@@ -104,20 +104,31 @@ def scene_count_hint() -> int:
 
 def current_completed_hint() -> int:
     media_dir = BASE / "imagens" / f"short_{SID}"
-    if not media_dir.is_dir():
-        return 0
+    expected = scene_count_hint()
     seen: set[int] = set()
-    for path in media_dir.iterdir():
-        if not path.is_file():
-            continue
-        stem = path.stem
-        if not stem.startswith("scene_"):
-            continue
-        try:
-            seen.add(int(stem.split("_", 1)[1]))
-        except Exception:
-            continue
+    try:
+        for path in media_dir.iterdir():
+            if path.suffix.lower() not in {".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".webm", ".mkv"}:
+                continue
+            if not path.stem.startswith("scene_"):
+                continue
+            try:
+                number = int(path.stem.split("_", 1)[1])
+                if 1 <= number <= expected and path.is_file() and path.stat().st_size > 1000:
+                    seen.add(number)
+            except (OSError, ValueError):
+                continue
+    except OSError:
+        return 0
     return len(seen)
+
+
+def report_signature() -> tuple[int, int, int] | None:
+    try:
+        stat = REPORT.stat()
+        return stat.st_ino, stat.st_mtime_ns, stat.st_size
+    except OSError:
+        return None
 
 
 def round_timeout_seconds() -> tuple[int, int]:
@@ -168,6 +179,7 @@ def main() -> int:
             f"scene_budget={env_float('SAP_MEDIA_SCENE_BUDGET_SECONDS', 75.0, 30.0, 180.0):.0f}s"
         )
 
+        previous_report = report_signature()
         try:
             proc = run_group(
                 [sys.executable, str(MIDIA)],
@@ -193,6 +205,9 @@ def main() -> int:
             )
             return 0
 
+        if report_signature() == previous_report:
+            print(f"MEDIA_STAGE_RUNTIME=HARD_FAIL code={returncode} reason=STALE_MISSING_REPORT")
+            return returncode or 1
         report = read_report()
         missing = set(missing_numbers(report))
         total = total_from(report)

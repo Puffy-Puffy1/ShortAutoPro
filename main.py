@@ -149,12 +149,21 @@ class RunLock:
         self.handle = self.path.open("a+")
         try:
             fcntl.flock(self.handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError as exc:
-            raise RuntimeError(f"produção {self.path.stem} já está em andamento") from exc
-        self.handle.seek(0)
-        self.handle.truncate()
-        self.handle.write(str(os.getpid()))
-        self.handle.flush()
+        except OSError as exc:
+            self.handle.close()
+            self.handle = None
+            if isinstance(exc, BlockingIOError):
+                raise RuntimeError(f"produção {self.path.stem} já está em andamento") from exc
+            raise
+        try:
+            self.handle.seek(0)
+            self.handle.truncate()
+            self.handle.write(str(os.getpid()))
+            self.handle.flush()
+        except BaseException:
+            self.handle.close()
+            self.handle = None
+            raise
         return self
 
     def __exit__(self, *_):
@@ -164,10 +173,9 @@ class RunLock:
             except OSError:
                 pass
             self.handle.close()
-        try:
-            self.path.unlink(missing_ok=True)
-        except OSError:
-            pass
+            self.handle = None
+        # Keep the inode stable: another process may already have this file
+        # open while waiting to acquire the lock. Unlinking splits ownership.
 
 
 class Pipeline:
@@ -443,12 +451,11 @@ def run_pipeline() -> int:
     sid = allocate_id()
     os.environ["SHORT_ID"] = sid
     STATE_DIR.mkdir(parents=True, exist_ok=True)
-    try:
-        production_profiler.begin_run(sid)
-    except Exception:
-        pass
-
     with RunLock(sid):
+        try:
+            production_profiler.begin_run(sid)
+        except Exception:
+            pass
         p = Pipeline(sid)
         print("\n==============================================")
         print(" SHORTAUTOPRO CONSOLIDATION 3.0 - MAIN.PY")
