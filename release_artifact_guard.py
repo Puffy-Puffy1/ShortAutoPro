@@ -13,6 +13,8 @@ from typing import Any
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
 MANIFESTS = BASE / "manifests"
 VIDEOS = BASE / "videos"
+ROTEIROS = BASE / "roteiros"
+CREDITS = BASE / "credits"
 
 
 def file_sha256(path: Path) -> str:
@@ -67,6 +69,35 @@ def validate(short_id: str) -> tuple[bool, str]:
         return False, "release_manifest_identity_mismatch"
     if not quality_sha or input_identity.get("final_quality_sha256") != quality_sha:
         return False, "release_quality_identity_mismatch"
+
+    artifact_identity = manifest.get("artifact_identity", {}) if isinstance(manifest.get("artifact_identity"), dict) else {}
+    inputs = artifact_identity.get("input_artifacts", {}) if isinstance(artifact_identity.get("input_artifacts"), dict) else {}
+    topic_path_raw = str(inputs.get("topic_path", "") or "")
+    try:
+        topic_path = Path(topic_path_raw).expanduser().resolve()
+    except Exception:
+        return False, "manifest_topic_path_invalid"
+    allowed_topics = {
+        (ROTEIROS / f"used_topic_{sid}.txt").resolve(),
+        (ROTEIROS / f"topic_{sid}.txt").resolve(),
+    }
+    if topic_path not in allowed_topics:
+        return False, "manifest_topic_path_mismatch"
+
+    critical_inputs = {
+        "topic_sha256": topic_path,
+        "hook_sha256": ROTEIROS / f"hook_{sid}.txt",
+        "script_sha256": ROTEIROS / f"short_{sid}.txt",
+        "source_sha256": ROTEIROS / f"fonte_{sid}.txt",
+        "publish_sha256": ROTEIROS / f"publish_{sid}.json",
+        "publish_integrity_sha256": ROTEIROS / f"publish_integrity_{sid}.json",
+        "source_ledger_sha256": CREDITS / f"ledger_{sid}.json",
+    }
+    for key, path in critical_inputs.items():
+        current_sha = file_sha256(path)
+        expected_sha = str(inputs.get(key, "") or "")
+        if not current_sha or current_sha != expected_sha:
+            return False, f"manifest_input_identity_mismatch:{key}"
 
     video = manifest.get("video", {}) if isinstance(manifest.get("video"), dict) else {}
     expected = (VIDEOS / f"short_v6_{sid}.mp4").resolve()

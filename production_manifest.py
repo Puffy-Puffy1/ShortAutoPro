@@ -129,6 +129,17 @@ def text_sha256(value: str) -> str:
     return hashlib.sha256(str(value or "").encode("utf-8")).hexdigest()
 
 
+def file_sha256(path: Path) -> str:
+    try:
+        digest = hashlib.sha256()
+        with path.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
+    except OSError:
+        return ""
+
+
 def count_words(text: str) -> int:
     return len(re.findall(r"\b[\wÀ-ÿ'-]+\b", str(text), flags=re.UNICODE))
 
@@ -281,6 +292,18 @@ def build_manifest(probe_data=None):
     }
 
     quality_pass = all(quality.values())
+    topic_path = TOPIC if TOPIC.is_file() else TOPIC_FALLBACK
+    input_artifacts = {
+        "topic_path": str(topic_path),
+        "topic_sha256": file_sha256(topic_path),
+        "hook_sha256": file_sha256(HOOK),
+        "script_sha256": file_sha256(ROTEIRO),
+        "source_sha256": file_sha256(FONTE),
+        "publish_sha256": file_sha256(PUBLISH),
+        "publish_integrity_sha256": file_sha256(PUBLISH_INTEGRITY),
+        "source_ledger_sha256": file_sha256(LEDGER),
+    }
+
     manifest = {
         "short_id": SHORT_ID,
         "created_at": datetime.now().isoformat(),
@@ -301,6 +324,7 @@ def build_manifest(probe_data=None):
         "source_ledger": str(LEDGER),
         "artifact_identity": {
             "canonical_topic_sha256": topic_sha,
+            "input_artifacts": input_artifacts,
             "render_identity_path": str(RENDER_IDENTITY),
             "render_identity": render_identity,
             "match": render_identity_match,
