@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -12,6 +13,17 @@ from typing import Any
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
 MANIFESTS = BASE / "manifests"
 VIDEOS = BASE / "videos"
+
+
+def file_sha256(path: Path) -> str:
+    try:
+        digest = hashlib.sha256()
+        with path.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
+    except OSError:
+        return ""
 
 
 def load_dict(path: Path) -> dict[str, Any]:
@@ -45,6 +57,16 @@ def validate(short_id: str) -> tuple[bool, str]:
         return False, "quality_not_approved"
     if str(release.get("decision", "")).upper() not in {"PUBLISH", "ACCEPTABLE"}:
         return False, "release_not_approved"
+
+    input_identity = release.get("input_identity", {}) if isinstance(release.get("input_identity"), dict) else {}
+    manifest_path = MANIFESTS / f"{sid}.json"
+    quality_path = MANIFESTS / f"{sid}_quality.json"
+    manifest_sha = file_sha256(manifest_path)
+    quality_sha = file_sha256(quality_path)
+    if not manifest_sha or input_identity.get("production_manifest_sha256") != manifest_sha:
+        return False, "release_manifest_identity_mismatch"
+    if not quality_sha or input_identity.get("final_quality_sha256") != quality_sha:
+        return False, "release_quality_identity_mismatch"
 
     video = manifest.get("video", {}) if isinstance(manifest.get("video"), dict) else {}
     expected = (VIDEOS / f"short_v6_{sid}.mp4").resolve()
