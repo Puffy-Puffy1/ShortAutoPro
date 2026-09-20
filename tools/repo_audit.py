@@ -70,6 +70,7 @@ REQUIRED = {
     "audio_finalizer.py",
     "visual_qa.py",
     "release_gate.py",
+    "release_artifact_guard.py",
     "storage_manager.py",
     "shortautopro_evolution.py",
     "shortautopro_evolution_core.py",
