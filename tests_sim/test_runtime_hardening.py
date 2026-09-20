@@ -34,6 +34,12 @@ class RuntimeHardeningTests(unittest.TestCase):
         self.assertIn('"planned"', text)
         self.assertIn('"skipped_active"', text)
 
+    def test_generic_temp_cleanup_resnapshots_active_runs_before_delete(self):
+        text = (ROOT / "storage_manager.py").read_text(encoding="utf-8")
+        self.assertIn("current_active=active_ids()", text)
+        self.assertIn('if p.parent==BASE/"temp":', text)
+        self.assertNotIn("active=active_ids()\n  for p in remove:", text)
+
 
 if __name__ == "__main__":
     unittest.main()
