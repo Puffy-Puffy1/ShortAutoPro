@@ -26,6 +26,7 @@ from requests.adapters import HTTPAdapter
 from datetime import date
 
 from production_profiler import record as _sap_profile_record
+from subprocess_guard import run_group
 from media_must_priority import prioritize as _sap_prioritize_must
 from media_provenance_capture_v1 import write_provenance as _sap_write_provenance
 
@@ -613,7 +614,7 @@ def _sap_probe_existing_media(path):
         ):
             return False
 
-        probe = subprocess.run(
+        probe = run_group(
             [
                 "ffprobe",
                 "-v",
@@ -1246,7 +1247,7 @@ def baixar(
                 "arquivo vazio ou muito pequeno"
             )
 
-        probe = subprocess.run(
+        probe = run_group(
             [
                 "ffprobe",
                 "-v",
@@ -4111,7 +4112,7 @@ def _sap_professional_media_accept_v1(candidato, destino):
     floor = max(320 * 180, min(floor, 3840 * 2160))
 
     try:
-        probe = subprocess.run(
+        probe = run_group(
             [
                 "ffprobe", "-v", "error", "-select_streams", "v:0",
                 "-show_entries", "stream=width,height", "-of", "json", destino,

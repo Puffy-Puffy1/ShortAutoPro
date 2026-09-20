@@ -100,14 +100,18 @@ def read(short_id: str) -> list[dict[str, Any]]:
     path = _path(short_id)
     if not path.is_file():
         return []
-    rows = []
-    for line in path.read_text(encoding="utf-8", errors="ignore").splitlines():
-        try:
-            item = json.loads(line)
-        except Exception:
-            continue
-        if isinstance(item, dict):
-            rows.append(item)
+    rows: list[dict[str, Any]] = []
+    try:
+        with path.open("r", encoding="utf-8", errors="ignore") as handle:
+            for line in handle:
+                try:
+                    item = json.loads(line)
+                except Exception:
+                    continue
+                if isinstance(item, dict):
+                    rows.append(item)
+    except OSError:
+        return []
     return rows
 
 
