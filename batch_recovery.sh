@@ -33,16 +33,7 @@ try:d=json.loads(p.read_text(encoding="utf-8"));print(d.get(os.environ["CAMPO_PY
 except Exception:print("")
 PY
 }
-resultado_final_ok(){ RUN_ID_PY="$1" BASE_PY="$BASE" python - <<'PY'
-import json,os
-from pathlib import Path
-b=Path(os.environ["BASE_PY"]);sid=os.environ["RUN_ID_PY"]
-try:m=json.loads((b/"manifests"/f"{sid}.json").read_text());q=json.loads((b/"manifests"/f"{sid}_quality.json").read_text());r=json.loads((b/"manifests"/f"{sid}_release.json").read_text())
-except Exception:raise SystemExit(1)
-if m.get("short_id")!=sid or str(m.get("status","")).upper()!="QUALITY_PASS" or q.get("approved") is not True or r.get("decision") not in {"PUBLISH","ACCEPTABLE"}:raise SystemExit(1)
-raise SystemExit(0)
-PY
-}
+resultado_final_ok(){ python "$BASE/release_artifact_guard.py" --short-id "$1" >/dev/null 2>&1; }
 MODO="${1:-}"
 if [ "$MODO" = "--status" ]; then [ -f "$STATE_FILE" ] || { echo "Nenhum lote salvo."; exit 0; }; echo; echo "======================================"; echo " BATCH RECOVERY - STATUS"; echo "======================================"; cat "$STATE_FILE"; echo; exit 0; fi
 adquirir_lock
@@ -56,7 +47,7 @@ if [ "$MODO" = "--resume" ]; then
 else
  TOTAL="${1:-${SHORT_LOTE:-3}}"; [[ "$TOTAL" =~ ^[0-9]+$ ]] || { echo "ERRO: quantidade inválida."; exit 1; }; TOTAL=$((TOTAL)); [ "$TOTAL" -lt 1 ] && TOTAL=1; [ "$TOTAL" -gt 10 ] && TOTAL=10; BATCH_ID="$(date +%F_%H%M%S)_$$"; INICIO=1; SUCESSOS=0; FALHAS=0; salvar_estado "$BATCH_ID" "$TOTAL" 0 "$SUCESSOS" "$FALHAS" "running"
 fi
-[ -f "$BASE/config.sh" ] || { echo "ERRO: config.sh não encontrado."; exit 1; }; [ -f "$BASE/main.py" ] || { echo "ERRO: main.py não encontrado."; exit 1; }
+[ -f "$BASE/config.sh" ] || { echo "ERRO: config.sh não encontrado."; exit 1; }; [ -f "$BASE/main.py" ] || { echo "ERRO: main.py não encontrado."; exit 1; }; [ -f "$BASE/release_artifact_guard.py" ] || { echo "ERRO: release_artifact_guard.py não encontrado."; exit 1; }
 # shellcheck disable=SC1091
 source "$BASE/config.sh"
 LOG_DIR="$BASE/logs/lotes"; mkdir -p "$LOG_DIR"; LOG="$LOG_DIR/lote_${BATCH_ID}.log"; exec > >(tee -a "$LOG") 2>&1
