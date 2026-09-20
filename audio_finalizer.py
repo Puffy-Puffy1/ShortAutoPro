@@ -10,9 +10,10 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 from subprocess_guard import run_group
+from runtime_config import env_float
 
 BASE=Path(os.getenv("SHORTAUTOPRO_BASE",os.path.expanduser("~/ShortAutoPro"))).resolve(); SID=os.getenv("SHORT_ID",date.today().isoformat()).strip(); VIDEO=BASE/"videos"/f"short_v6_{SID}.mp4"; REPORT=BASE/"reports"/"evolution"/f"final_audio_{SID}.json"
-TARGET=float(os.getenv("SAP_AUDIO_TARGET_LUFS","-14")); TP=float(os.getenv("SAP_AUDIO_TRUE_PEAK_DB","-1.5")); LRA=float(os.getenv("SAP_AUDIO_LRA","7"))
+TARGET=env_float("SAP_AUDIO_TARGET_LUFS",-14.0,-24.0,-8.0); TP=env_float("SAP_AUDIO_TRUE_PEAK_DB",-1.5,-6.0,-0.1); LRA=env_float("SAP_AUDIO_LRA",7.0,1.0,20.0)
 
 def atomic(p:Path,x:Any)->None:
  p.parent.mkdir(parents=True,exist_ok=True); fd,t=tempfile.mkstemp(prefix=f".{p.name}.",suffix=".tmp",dir=str(p.parent))
@@ -57,7 +58,7 @@ def remaster(path:Path,m:dict[str,float])->None:
 def main()->int:
  if not VIDEO.is_file(): print(f"ERRO AUDIO FINALIZER: vídeo ausente: {VIDEO}"); return 1
  try:
-  before=measure(VIDEO); tolerance_lufs=float(os.getenv("SAP_AUDIO_LUFS_TOLERANCE","0.7")); tolerance_tp=float(os.getenv("SAP_AUDIO_TP_TOLERANCE","0.2"))
+  before=measure(VIDEO); tolerance_lufs=env_float("SAP_AUDIO_LUFS_TOLERANCE",0.7,0.1,3.0); tolerance_tp=env_float("SAP_AUDIO_TP_TOLERANCE",0.2,0.05,1.5)
   need=abs(before["lufs"]-TARGET)>tolerance_lufs or before["true_peak_db"]>TP+tolerance_tp
   if need:
    remaster(VIDEO,before)
