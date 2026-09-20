@@ -105,7 +105,7 @@ WHISPER_MODEL="${WHISPER_MODEL:-$HOME/whisper.cpp/models/ggml-base.bin}"
 if [ -x "$WHISPER_CLI" ]; then ok "Whisper CLI"; else erro "Whisper CLI ausente: $WHISPER_CLI"; fi
 if [ -f "$WHISPER_MODEL" ]; then ok "Whisper model"; else erro "Whisper model ausente: $WHISPER_MODEL"; fi
 
-LIVRE_KB="$(df -Pk "$HOME" 2>/dev/null | awk 'NR==2 {print $4}')"
+LIVRE_KB="$(df -Pk "$BASE" 2>/dev/null | awk 'NR==2 {print $4}')"
 if [[ "${LIVRE_KB:-}" =~ ^[0-9]+$ ]]; then
     LIVRE_MB=$((LIVRE_KB / 1024))
     if [ "$LIVRE_MB" -ge 2000 ]; then
