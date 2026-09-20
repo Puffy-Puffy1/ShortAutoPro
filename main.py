@@ -27,6 +27,7 @@ from typing import Any
 import shortautopro_evolution as evo
 import production_profiler
 from subprocess_guard import run_group
+from runtime_config import env_int
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
 EVOLUTION = BASE / "shortautopro_evolution.py"
@@ -515,11 +516,7 @@ def cli() -> int:
         return run_pipeline()
 
     setup_env()
-    try:
-        control_timeout = int(os.getenv("SAP_CONTROL_COMMAND_TIMEOUT", "7200") or 7200)
-    except (TypeError, ValueError):
-        control_timeout = 7200
-    control_timeout = max(300, min(control_timeout, 21600))
+    control_timeout = env_int("SAP_CONTROL_COMMAND_TIMEOUT", 7200, 300, 21600)
 
     def run_control(command: list[str]) -> int:
         try:

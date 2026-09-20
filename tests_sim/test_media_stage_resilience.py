@@ -60,7 +60,7 @@ class MediaStageResilienceTests(unittest.TestCase):
         self.assertIn("no_progress_rounds >= 2", text)
         self.assertIn("TWO_CONSECUTIVE_NO_PROGRESS_ROUNDS", text)
         self.assertNotIn("reason=NO_PROGRESS", text)
-        self.assertIn('"SAP_MEDIA_STAGE_ROUNDS", "4"', text)
+        self.assertIn('env_int("SAP_MEDIA_STAGE_ROUNDS", 4, 1, 5)', text)
 
 
 if __name__ == "__main__":

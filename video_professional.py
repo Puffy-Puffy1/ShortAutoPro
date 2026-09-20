@@ -18,17 +18,14 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 from subprocess_guard import check_output_group, run_group
+from runtime_config import env_int
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
 SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat()).strip()
 
 
 def expected_scenes() -> int:
-    try:
-        value = int(os.getenv("SHORT_QTD_CENAS", "12"))
-    except (TypeError, ValueError):
-        value = 12
-    return max(6, min(20, value))
+    return env_int("SHORT_QTD_CENAS", 12, 6, 20)
 
 
 EXPECTED = expected_scenes()
@@ -52,16 +49,8 @@ MEDIA_EXTS = IMAGE_EXTS | VIDEO_EXTS
 _DURATION_CACHE: dict[tuple[str, int, int], float] = {}
 
 
-def timeout_value(name: str, default: int, low: int, high: int) -> int:
-    try:
-        value = int(os.getenv(name, str(default)))
-    except (TypeError, ValueError):
-        value = default
-    return max(low, min(high, value))
-
-
-SCENE_TIMEOUT = timeout_value("SHORT_SCENE_RENDER_TIMEOUT", 300, 60, 1200)
-ASSEMBLY_TIMEOUT = timeout_value("SHORT_ASSEMBLY_TIMEOUT", 900, 120, 2400)
+SCENE_TIMEOUT = env_int("SHORT_SCENE_RENDER_TIMEOUT", 300, 60, 1200)
+ASSEMBLY_TIMEOUT = env_int("SHORT_ASSEMBLY_TIMEOUT", 900, 120, 2400)
 
 
 def fail(message: str) -> None:
