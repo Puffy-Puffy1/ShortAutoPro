@@ -314,6 +314,7 @@ def probe_video(path: Path) -> dict[str, Any]:
 
 
 def stages_before_render(p: Pipeline) -> None:
+    p.run("0 - LEGACY RUNTIME PURGE", "tools/purge_legacy_runtime.py")
     p.run("PREFLIGHT CHECK", "preflight_check.sh", shell=True)
     p.run("HEALTH CHECK", "health_check.sh", shell=True)
     p.run("STORAGE PREFLIGHT", "storage_manager.py", "preflight")
