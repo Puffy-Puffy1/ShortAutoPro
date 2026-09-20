@@ -12,25 +12,13 @@ QTD=$((QTD)); [ "$QTD" -lt 1 ] && QTD=1; [ "$QTD" -gt 10 ] && QTD=10
 # shellcheck disable=SC1091
 source "$BASE/config.sh"
 [ -f "$BASE/main.py" ] || { echo "ERRO: main.py não encontrado."; exit 1; }
+[ -f "$BASE/release_artifact_guard.py" ] || { echo "ERRO: release_artifact_guard.py não encontrado."; exit 1; }
 BATCH_ID="$(date +%F_%H%M%S)_$$"; LOG_DIR="$BASE/logs/lotes"; mkdir -p "$LOG_DIR"; LOG="$LOG_DIR/lote_${BATCH_ID}.log"; exec > >(tee -a "$LOG") 2>&1
 printf '\n======================================\n SHORTAUTO PRO - BATCH QUEUE 3.0\n======================================\nLote: %s\nQuantidade: %s\nInício: %s\nLog: %s\n\n' "$BATCH_ID" "$QTD" "$(date)" "$LOG"
 SUCESSOS=0; FALHAS=0; declare -a IDS_OK=(); declare -a IDS_ERRO=()
 release_valido() {
  local run_id="$1"
- BASE_PY="$BASE" RUN_ID_PY="$run_id" python - <<'PY'
-import json, os
-from pathlib import Path
-base=Path(os.environ["BASE_PY"]); sid=os.environ["RUN_ID_PY"]
-try:
- manifest=json.loads((base/"manifests"/f"{sid}.json").read_text(encoding="utf-8"))
- quality=json.loads((base/"manifests"/f"{sid}_quality.json").read_text(encoding="utf-8"))
- release=json.loads((base/"manifests"/f"{sid}_release.json").read_text(encoding="utf-8"))
-except Exception: raise SystemExit(1)
-if manifest.get("short_id")!=sid or str(manifest.get("status","")).upper()!="QUALITY_PASS": raise SystemExit(1)
-if quality.get("approved") is not True: raise SystemExit(1)
-if release.get("decision") not in {"PUBLISH","ACCEPTABLE"}: raise SystemExit(1)
-print(sid)
-PY
+ python "$BASE/release_artifact_guard.py" --short-id "$run_id" >/dev/null 2>&1 && printf '%s\n' "$run_id"
 }
 for ((i=1; i<=QTD; i++)); do
  printf '\n######################################\n SHORT %s/%s\n######################################\n\n' "$i" "$QTD"
