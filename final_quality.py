@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import hashlib
 import json
 import math
 import os
@@ -44,6 +45,17 @@ MANIFEST_REQUIRED_FLAGS = (
     "publish_integrity_pass",
     "source_ledger_exists",
 )
+
+
+def file_sha256(path: Path) -> str:
+    try:
+        digest = hashlib.sha256()
+        with path.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
+    except OSError:
+        return ""
 
 
 def ler_json(path: Path):
@@ -230,6 +242,10 @@ def main():
     roteiro = ler_txt(ROTEIRO)
     hook = ler_txt(HOOK)
     resultado = avaliar(manifest, publish, roteiro, hook)
+    resultado["version"] = "FINAL_QUALITY_2.6_MANIFEST_CHAIN"
+    resultado["input_identity"] = {
+        "production_manifest_sha256": file_sha256(MANIFEST),
+    }
 
     try:
         atomic_json(SAIDA, resultado)
@@ -239,7 +255,7 @@ def main():
 
     print()
     print("================================")
-    print("FINAL QUALITY SCORE - 2.5.1")
+    print("FINAL QUALITY SCORE - 2.6")
     print("================================")
     print()
     print(f"Roteiro: {resultado['components']['script']:.1f}/25")
