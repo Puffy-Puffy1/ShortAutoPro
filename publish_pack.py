@@ -14,6 +14,11 @@ import requests
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro")))
 SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat()).strip()
 MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite").strip()
+try:
+    GEMINI_TIMEOUT = float(os.getenv("SAP_GEMINI_TIMEOUT", "75") or 75)
+except (TypeError, ValueError):
+    GEMINI_TIMEOUT = 75.0
+GEMINI_TIMEOUT = max(20.0, min(GEMINI_TIMEOUT, 120.0))
 
 R = BASE / "roteiros"
 ROTEIRO = R / f"short_{SHORT_ID}.txt"
@@ -319,7 +324,7 @@ def chamar_gemini(prompt: str, api_key: str) -> str:
                 url,
                 headers=headers,
                 json=payload,
-                timeout=100,
+                timeout=GEMINI_TIMEOUT,
             )
         except Exception as exc:
             if attempt == 3:
