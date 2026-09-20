@@ -34,7 +34,8 @@ class EvolutionRuntimeIntegrationTests(unittest.TestCase):
     def test_caption_audit_mirror_is_preserved(self):
         text = (ROOT / "legenda_dinamica.py").read_text(encoding="utf-8")
         self.assertIn("ASS_AUDIT", text)
-        self.assertIn("shutil.copyfile(ASS_FINAL, ASS_AUDIT)", text)
+        self.assertIn("os.replace(audit_tmp, ASS_AUDIT)", text)
+        self.assertIn("espelho ASS incompleto", text)
 
     def test_profiles_have_expected_free_presets(self):
         profiles = json.loads((ROOT / "config" / "channel_profiles.json").read_text(encoding="utf-8"))
