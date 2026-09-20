@@ -5,6 +5,7 @@ import argparse,fcntl,json,os,shutil,tempfile,time
 from datetime import date
 from pathlib import Path
 from typing import Any
+from runtime_config import env_float, env_int
 BASE=Path(os.getenv("SHORTAUTOPRO_BASE",os.path.expanduser("~/ShortAutoPro"))).resolve();SID=os.getenv("SHORT_ID",date.today().isoformat()).strip();OUT=BASE/"reports"/"evolution"/f"storage_{SID}.json"
 def atomic(p:Path,x:Any)->None:
  p.parent.mkdir(parents=True,exist_ok=True);fd,t=tempfile.mkstemp(prefix=f".{p.name}.",suffix=".tmp",dir=str(p.parent))
@@ -15,14 +16,8 @@ def atomic(p:Path,x:Any)->None:
   try:os.unlink(t)
   except OSError:pass
   raise
-def bounded_int(name:str,default:int,low:int,high:int)->int:
- try:value=int(os.getenv(name,str(default)) or default)
- except (TypeError,ValueError):value=default
- return max(low,min(high,value))
 def min_free_bytes()->int:
- try:value=float(os.getenv("SAP_MIN_FREE_GB","1.2") or 1.2)
- except (TypeError,ValueError):value=1.2
- value=max(0.5,min(value,20.0))
+ value=env_float("SAP_MIN_FREE_GB",1.2,0.5,20.0)
  return int(value*1024**3)
 def safe_mtime(p:Path)->float:
  try:return p.stat().st_mtime
@@ -83,7 +78,7 @@ def protected(p:Path)->bool:
   if name==sid or name==f"short_{sid}" or sid in name:return True
  return False
 def cleanup(execute:bool)->dict[str,Any]:
- keep=bounded_int("SHORT_STORAGE_KEEP_PROJECTS",3,1,20);days=bounded_int("SHORT_STORAGE_KEEP_DAYS",7,1,90);cutoff=time.time()-days*86400;remove=[]
+ keep=env_int("SHORT_STORAGE_KEEP_PROJECTS",3,1,20);days=env_int("SHORT_STORAGE_KEEP_DAYS",7,1,90);cutoff=time.time()-days*86400;remove=[]
  # Apply retention independently to media projects and temp projects so
  # transient temp directories cannot consume the retention slots of media.
  for items in candidate_groups():
