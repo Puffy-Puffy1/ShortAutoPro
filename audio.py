@@ -4,7 +4,7 @@ import json,math,os,shutil,subprocess,tempfile
 from datetime import date,datetime
 from pathlib import Path
 from typing import Any
-from subprocess_guard import run_group
+from subprocess_guard import check_output_group, run_group
 BASE=Path(os.getenv("SHORTAUTOPRO_BASE",os.path.expanduser("~/ShortAutoPro"))).resolve();SHORT_ID=os.getenv("SHORT_ID",date.today().isoformat());R=BASE/"roteiros";ROTEIRO=R/f"short_{SHORT_ID}.txt";SPEECH=R/f"speech_{SHORT_ID}.txt";SPEECH_PLAN=R/f"speech_{SHORT_ID}.json";AUDIO_DIR=BASE/"audios";VOICE_DIR=BASE/"piper"/"voice";AUDIO_DIR.mkdir(parents=True,exist_ok=True);MP3=AUDIO_DIR/f"short_{SHORT_ID}.mp3";MODEL=os.getenv("PIPER_MODEL","pt_BR-faber-medium").strip() or "pt_BR-faber-medium";REPORT=BASE/"reports"/"evolution"/f"audio_{SHORT_ID}.json"
 def bounded(name,default,low,high):
  try:v=float(os.getenv(name,str(default)))
@@ -31,7 +31,7 @@ def piper_raw(text:str,dest:Path,env:dict[str,str])->None:
  except subprocess.CalledProcessError as exc:fail(f"Piper falhou ({exc.returncode}): {(exc.stderr or '')[-700:]}")
  if not dest.is_file() or dest.stat().st_size<=0:fail("Piper não produziu RAW válido")
 def audio_duration(path:Path)->float:
- raw=subprocess.check_output(["ffprobe","-v","error","-show_entries","format=duration","-of","default=noprint_wrappers=1:nokey=1",str(path)],text=True,stderr=subprocess.DEVNULL,timeout=30).strip();v=float(raw)
+ raw=check_output_group(["ffprobe","-v","error","-show_entries","format=duration","-of","default=noprint_wrappers=1:nokey=1",str(path)],text=True,stderr=subprocess.DEVNULL,timeout=30).strip();v=float(raw)
  if not math.isfinite(v) or v<5:fail(f"duração de áudio inválida: {v}")
  return v
 def render_segmented(chunks:list[dict[str,Any]],work:Path,env:dict[str,str])->Path:
