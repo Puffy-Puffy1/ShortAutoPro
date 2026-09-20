@@ -18,6 +18,7 @@ from typing import Any
 import production_doctor
 import production_profiler
 from subprocess_guard import run_group
+from runtime_config import env_int
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
 
@@ -29,13 +30,7 @@ def resolve_sid(value: str | None) -> str:
 
 def run_command(command: list[str]) -> int:
     print("EXEC:", " ".join(command))
-    try:
-        timeout = int(
-            os.getenv("SAP_CONTROL_COMMAND_TIMEOUT", "7200") or 7200
-        )
-    except (TypeError, ValueError):
-        timeout = 7200
-    timeout = max(300, min(timeout, 21600))
+    timeout = env_int("SAP_CONTROL_COMMAND_TIMEOUT", 7200, 300, 21600)
     try:
         return run_group(
             command,
