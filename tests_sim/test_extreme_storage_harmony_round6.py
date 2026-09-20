@@ -14,10 +14,10 @@ class ExtremeStorageHarmonyRound6Tests(unittest.TestCase):
 
     def test_storage_env_values_have_safe_fallbacks(self):
         text = (ROOT / "storage_manager.py").read_text(encoding="utf-8")
-        self.assertIn('bounded_int("SHORT_STORAGE_KEEP_PROJECTS",3,1,20)', text)
-        self.assertIn('bounded_int("SHORT_STORAGE_KEEP_DAYS",7,1,90)', text)
+        self.assertIn('env_int("SHORT_STORAGE_KEEP_PROJECTS",3,1,20)', text)
+        self.assertIn('env_int("SHORT_STORAGE_KEEP_DAYS",7,1,90)', text)
         self.assertIn("def min_free_bytes()", text)
-        self.assertIn("except (TypeError,ValueError):value=1.2", text)
+        self.assertIn('env_float("SAP_MIN_FREE_GB",1.2,0.5,20.0)', text)
 
     def test_cleanup_tolerates_disappearing_files(self):
         text = (ROOT / "storage_manager.py").read_text(encoding="utf-8")
