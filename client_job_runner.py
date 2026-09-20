@@ -13,6 +13,7 @@ import json
 import os
 import subprocess
 from subprocess_guard import run_group
+from runtime_config import env_int
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -177,13 +178,7 @@ def run_job(path: Path, job: dict[str, Any], execute: bool) -> int:
         item["attempts"] = int(item.get("attempts", 0) or 0) + 1
         atomic_json(path, job)
 
-        try:
-            job_timeout = int(
-                os.getenv("SAP_CLIENT_JOB_TIMEOUT", "7200") or 7200
-            )
-        except (TypeError, ValueError):
-            job_timeout = 7200
-        job_timeout = max(600, min(job_timeout, 21600))
+        job_timeout = env_int("SAP_CLIENT_JOB_TIMEOUT", 7200, 600, 21600)
 
         try:
             result = run_group(
