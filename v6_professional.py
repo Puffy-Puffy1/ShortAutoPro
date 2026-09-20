@@ -19,6 +19,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 from subprocess_guard import check_output_group, run_group
+from runtime_config import env_int
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
 SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat()).strip()
@@ -137,12 +138,9 @@ def render_preset() -> str:
 
 
 def render_threads() -> int:
-    try:
-        configured = int(os.getenv("SAP_RENDER_THREADS", "0") or 0)
-    except (TypeError, ValueError):
-        configured = 0
+    configured = env_int("SAP_RENDER_THREADS", 0, 0, 8)
     if configured > 0:
-        return max(1, min(configured, 8))
+        return configured
     cpu = os.cpu_count() or 4
     return max(2, min(cpu, 6))
 
