@@ -26,6 +26,7 @@ from typing import Any
 
 import shortautopro_evolution as evo
 import production_profiler
+from subprocess_guard import run_group
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
 EVOLUTION = BASE / "shortautopro_evolution.py"
@@ -232,7 +233,7 @@ class Pipeline:
             stage_timeout = max(60, min(stage_timeout, 7200))
 
             try:
-                proc = subprocess.run(
+                proc = run_group(
                     cmd,
                     cwd=BASE,
                     env=os.environ.copy(),
