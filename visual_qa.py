@@ -5,7 +5,7 @@ import collections,hashlib,json,os,re,subprocess,tempfile
 from datetime import date
 from pathlib import Path
 from typing import Any
-from subprocess_guard import run_group
+from subprocess_guard import check_output_group, run_group
 BASE=Path(os.getenv("SHORTAUTOPRO_BASE",os.path.expanduser("~/ShortAutoPro"))).resolve();SID=os.getenv("SHORT_ID",date.today().isoformat()).strip();MEDIA=BASE/"imagens"/f"short_{SID}";VIDEO=BASE/"videos"/f"short_v6_{SID}.mp4";MAP=BASE/"roteiros"/f"scene_map_{SID}.json";VSCORE=BASE/"roteiros"/f"visual_score_{SID}.json";OUT=BASE/"reports"/"evolution"/f"visual_qa_{SID}.json"
 def atomic(p:Path,x:Any)->None:
  p.parent.mkdir(parents=True,exist_ok=True);fd,t=tempfile.mkstemp(prefix=f".{p.name}.",suffix=".tmp",dir=str(p.parent))
@@ -29,9 +29,17 @@ def sha(p:Path)->str:
  with p.open("rb") as f:
   for b in iter(lambda:f.read(1024*1024),b""):h.update(b)
  return h.hexdigest()
+_FILTERS_CACHE:set[str]|None=None
+def available_filters()->set[str]:
+ global _FILTERS_CACHE
+ if _FILTERS_CACHE is not None:return _FILTERS_CACHE
+ try:
+  raw=check_output_group(["ffmpeg","-hide_banner","-filters"],text=True,stderr=subprocess.STDOUT,timeout=30)
+  _FILTERS_CACHE={line.split()[1] for line in raw.splitlines() if len(line.split())>=2 and line.startswith(" ")}
+ except Exception:_FILTERS_CACHE=set()
+ return _FILTERS_CACHE
 def filter_exists(name:str)->bool:
- try:return any(name in line for line in subprocess.check_output(["ffmpeg","-hide_banner","-filters"],text=True,stderr=subprocess.STDOUT,timeout=30).splitlines())
- except Exception:return False
+ return name in available_filters()
 def black_seconds(path:Path)->float:
  if not path.is_file():return 0.0
  r=run_group(["ffmpeg","-hide_banner","-nostats","-i",str(path),"-vf","blackdetect=d=0.12:pix_th=0.02","-an","-f","null","-"],stdout=subprocess.DEVNULL,stderr=subprocess.PIPE,text=True,timeout=120)
