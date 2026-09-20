@@ -23,6 +23,18 @@ echo " SHORTAUTO PRO - HEALTH CHECK 3.0.2"
 echo "======================================"
 echo
 
+if [ -f "$BASE/tools/purge_legacy_runtime.py" ]; then
+    if python "$BASE/tools/purge_legacy_runtime.py" --check >/dev/null 2>&1; then
+        echo "OK  legacy runtime ausente"
+    else
+        echo "ERRO  arquitetura legada local ainda presente"
+        ERROS=$((ERROS + 1))
+    fi
+else
+    echo "ERRO  tools/purge_legacy_runtime.py ausente"
+    ERROS=$((ERROS + 1))
+fi
+
 ERROS=0
 
 checar_arquivo() {
