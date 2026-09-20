@@ -16,7 +16,7 @@ from typing import Any
 
 import media_must_verifier as mustv
 
-VERSION = "1.8"
+VERSION = "1.9"
 
 
 def _must_list(value: Any) -> list[str]:
@@ -148,14 +148,15 @@ def _rescue_queries(
 def _rescue_budget() -> int:
     """Return a bounded per-scene rescue-query budget.
 
-    Five preserves the previously certified behavior. The environment override
-    is useful on constrained/mobile runs without changing validation policy.
+    Three is the mobile-friendly default: enough to broaden retrieval while
+    keeping a hard latency bound. The environment override can raise it when
+    exhaustive retrieval is more important than speed.
     """
-    raw = os.getenv("SAP_MUST_RESCUE_MAX_QUERIES", "5")
+    raw = os.getenv("SAP_MUST_RESCUE_MAX_QUERIES", "3")
     try:
         value = int(raw)
     except (TypeError, ValueError):
-        value = 5
+        value = 3
     return max(1, min(value, 8))
 
 
@@ -284,9 +285,9 @@ def _wrap_pool(namespace: dict[str, Any]) -> bool:
         _mode = str(visual_mode or "").replace("_", " ").strip().casefold()
         if _mode in {"human context", "environment", "object", "abstract context"}:
             try:
-                _stock_budget = int(os.getenv("SAP_STOCK_RESCUE_MAX_QUERIES", "4") or 4)
+                _stock_budget = int(os.getenv("SAP_STOCK_RESCUE_MAX_QUERIES", "2") or 2)
             except (TypeError, ValueError):
-                _stock_budget = 4
+                _stock_budget = 2
             budget = min(budget, max(1, min(_stock_budget, 8)))
             print(
                 "SAP_STOCK_RESCUE_BUDGET="
@@ -355,6 +356,9 @@ def _wrap_pool(namespace: dict[str, Any]) -> bool:
     wrapped._sap_acquisition_cache = cache
     wrapped._sap_rescue_cache = rescue_cache
     wrapped._sap_acquisition_stats = stats
+    # Expose a cached single-round provider search for midia.py retries.
+    # It bypasses only recursive rescue expansion; validation remains intact.
+    wrapped._sap_call_original = call_original
     namespace["buscar_todos_candidatos"] = wrapped
     return True
 
