@@ -25,10 +25,10 @@ class MediaStageRealtimeBudgetTests(unittest.TestCase):
         self.assertIn("def round_timeout_seconds()", text)
         self.assertIn('remaining * scene_budget + grace', text)
 
-    def test_first_round_recovery_is_mobile_bounded(self):
+    def test_certified_recovery_budgets_are_preserved(self):
         text = (ROOT / "media_stage_runtime.py").read_text(encoding="utf-8")
-        self.assertIn("rescue_budget = (1, 2, 3, 4, 4)", text)
-        self.assertIn('SAP_MEDIA_SIMPLIFIED_RETRY_MAX', text)
+        self.assertIn("rescue_budget = (2, 4, 6, 8, 8)", text)
+        self.assertNotIn('env["SAP_MEDIA_SIMPLIFIED_RETRY_MAX"]', text)
 
     def test_midia_uses_canonical_base_override(self):
         text = (ROOT / "midia.py").read_text(encoding="utf-8")
