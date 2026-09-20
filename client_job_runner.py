@@ -176,10 +176,31 @@ def run_job(path: Path, job: dict[str, Any], execute: bool) -> int:
         item["attempts"] = int(item.get("attempts", 0) or 0) + 1
         atomic_json(path, job)
 
-        result = subprocess.run(["bash", str(PROFILE_RUN), profile], cwd=str(BASE), env=env)
+        try:
+            job_timeout = int(
+                os.getenv("SAP_CLIENT_JOB_TIMEOUT", "7200") or 7200
+            )
+        except (TypeError, ValueError):
+            job_timeout = 7200
+        job_timeout = max(600, min(job_timeout, 21600))
+
+        try:
+            result = subprocess.run(
+                ["bash", str(PROFILE_RUN), profile],
+                cwd=str(BASE),
+                env=env,
+                timeout=job_timeout,
+            )
+            returncode = int(result.returncode)
+        except subprocess.TimeoutExpired:
+            returncode = 124
+            print(
+                f"  TIMEOUT: produção excedeu {job_timeout}s."
+            )
+
         item["finished_at"] = now_iso()
-        item["returncode"] = int(result.returncode)
-        if result.returncode == 0 and output_ok(sid):
+        item["returncode"] = returncode
+        if returncode == 0 and output_ok(sid):
             item["status"] = "PASS"
             item["video"] = str(BASE / "videos" / f"short_v6_{sid}.mp4")
             print(f"  PASS: {item['video']}")
@@ -188,8 +209,8 @@ def run_job(path: Path, job: dict[str, Any], execute: bool) -> int:
             job["status"] = "PARTIAL"
             job["updated_at"] = now_iso()
             atomic_json(path, job)
-            print(f"  FAIL: retorno={result.returncode}. Job preservado para retomada.")
-            return result.returncode or 1
+            print(f"  FAIL: retorno={returncode}. Job preservado para retomada.")
+            return returncode or 1
         job["updated_at"] = now_iso()
         atomic_json(path, job)
 
