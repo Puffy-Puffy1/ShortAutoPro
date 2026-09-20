@@ -379,22 +379,36 @@ def consultar_commons(
     }
 
 
-    try:
+    r = None
+    for attempt in range(2):
+        try:
+            r = requests.get(
+                API,
+                headers=HEADERS,
+                params=params,
+                timeout=(min(6.0, TIMEOUT), TIMEOUT)
+            )
+        except Exception:
+            if attempt == 0:
+                time.sleep(0.8)
+                continue
+            return []
 
-        r = requests.get(
-            API,
-            headers=HEADERS,
-            params=params,
-            timeout=TIMEOUT
-        )
+        if r.ok:
+            break
 
-    except Exception:
+        if r.status_code not in {429, 500, 502, 503, 504} or attempt == 1:
+            return []
 
-        return []
+        wait = 1.0
+        if r.status_code == 429:
+            try:
+                wait = float(r.headers.get("Retry-After") or wait)
+            except (TypeError, ValueError):
+                wait = 1.0
+        time.sleep(max(0.5, min(wait, 4.0)))
 
-
-    if not r.ok:
-
+    if r is None or not r.ok:
         return []
 
 
