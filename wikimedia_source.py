@@ -42,8 +42,10 @@ except (TypeError, ValueError):
 
 SEARCH_DEADLINE = max(5.0, min(SEARCH_DEADLINE, 20.0))
 
-BASE = os.path.expanduser(
-    "~/ShortAutoPro"
+BASE = os.path.abspath(
+    os.path.expanduser(
+        os.getenv("SHORTAUTOPRO_BASE", "~/ShortAutoPro")
+    )
 )
 
 CREDIT_DIR = os.path.join(
