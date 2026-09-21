@@ -7,7 +7,7 @@ import sys
 import time
 from datetime import date
 
-import requests
+from gemini_runtime import GeminiInvalidResponse, generate_text
 
 from source_identity import validar_identidade
 from wiki_client import WikiRateLimit
@@ -25,128 +25,22 @@ TEMA = os.getenv("SHORT_TEMA", "mistérios, casos inexplicáveis e true crime")
 TOPIC_FILE = os.path.join(ROTEIRO_DIR, f"topic_{SHORT_ID}.txt")
 
 try:
-    GEMINI_TIMEOUT = float(os.getenv("SAP_GEMINI_TIMEOUT", "75") or 75)
-except (TypeError, ValueError):
-    GEMINI_TIMEOUT = 75.0
-GEMINI_TIMEOUT = max(20.0, min(GEMINI_TIMEOUT, 120.0))
-
-try:
     QTD_CENAS = int(os.getenv("SHORT_QTD_CENAS", "12"))
 except ValueError:
     QTD_CENAS = 12
 QTD_CENAS = max(6, min(QTD_CENAS, 20))
 
-if not GEMINI_KEY:
-    sys.exit("ERRO: GEMINI_API_KEY não configurada.")
-
-GEMINI_URL = (
-    "https://generativelanguage.googleapis.com/"
-    f"v1beta/models/{MODEL}:generateContent"
-)
-HEADERS = {
-    "Content-Type": "application/json",
-    "x-goog-api-key": GEMINI_KEY,
-}
-
-
-class GeminiGenerationUnavailable(RuntimeError):
-    pass
-
-
-def _gemini_diag(dados):
-    if not isinstance(dados, dict):
-        return "invalid_json_shape"
-    feedback = dados.get("promptFeedback", {})
-    if isinstance(feedback, dict) and feedback.get("blockReason"):
-        return "prompt_block=" + str(feedback.get("blockReason"))
-    candidates = dados.get("candidates", [])
-    if isinstance(candidates, list) and candidates:
-        reasons = []
-        for candidate in candidates:
-            if isinstance(candidate, dict) and candidate.get("finishReason"):
-                reasons.append(str(candidate.get("finishReason")))
-        if reasons:
-            return "finish_reason=" + ",".join(reasons)
-    return "no_usable_candidates"
+GeminiGenerationUnavailable = GeminiInvalidResponse
 
 
 def chamar_gemini(prompt, temperatura=0.5, tokens=1600):
-    payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "temperature": temperatura,
-            "maxOutputTokens": tokens,
-        },
-    }
-
-    for tentativa in range(1, 5):
-        print(f"Gemini tentativa {tentativa}/4...")
-        try:
-            r = requests.post(
-                GEMINI_URL,
-                headers=HEADERS,
-                json=payload,
-                timeout=GEMINI_TIMEOUT,
-            )
-        except Exception as exc:
-            if tentativa == 4:
-                raise RuntimeError(str(exc))
-            time.sleep(5)
-            continue
-
-        if r.ok:
-            try:
-                dados = r.json()
-            except Exception as exc:
-                if tentativa == 4:
-                    raise RuntimeError(f"Gemini retornou JSON inválido: {exc}")
-                print("Gemini HTTP 200 com JSON inválido. Tentando novamente...")
-                time.sleep(3)
-                continue
-
-            candidates = dados.get("candidates", []) if isinstance(dados, dict) else []
-            texto = ""
-            if isinstance(candidates, list):
-                for candidate in candidates:
-                    if not isinstance(candidate, dict):
-                        continue
-                    content = candidate.get("content", {})
-                    parts = content.get("parts", []) if isinstance(content, dict) else []
-                    if not isinstance(parts, list):
-                        continue
-                    chunks = [
-                        str(part.get("text", "") or "").strip()
-                        for part in parts
-                        if isinstance(part, dict) and str(part.get("text", "") or "").strip()
-                    ]
-                    if chunks:
-                        texto = "\n".join(chunks).strip()
-                        break
-
-            if texto:
-                return texto
-
-            diag = _gemini_diag(dados)
-            print(
-                "Gemini HTTP 200 sem texto utilizável "
-                f"({diag})."
-            )
-            if tentativa < 4:
-                print("Tentando novamente com o mesmo prompt...")
-                time.sleep(4)
-                continue
-            raise GeminiGenerationUnavailable(
-                "Gemini sem candidato utilizável após 4 tentativas: " + diag
-            )
-
-        if r.status_code in {429, 500, 502, 503, 504} and tentativa < 4:
-            print(f"Gemini HTTP {r.status_code}. Tentando novamente...")
-            time.sleep(8)
-            continue
-
-        raise RuntimeError(f"HTTP {r.status_code}: {r.text[:1200]}")
-
-    raise RuntimeError("Gemini não respondeu.")
+    return generate_text(
+        prompt,
+        temperature=temperatura,
+        max_output_tokens=tokens,
+        component="Script Engine",
+        api_key=GEMINI_KEY,
+    )
 
 
 def contar_palavras(texto):
