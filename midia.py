@@ -34,6 +34,7 @@ from media_provenance_capture_v1 import write_provenance as _sap_write_provenanc
 from media_emergency_fallback import create_editorial_reuse
 from media_resilience import (
     cache_validated_media as _sap_cache_validated_media,
+    cached_media_candidates as _sap_cached_media_candidates,
     provider_allowed as _sap_provider_allowed,
     provider_from_url as _sap_provider_from_url,
     quarantine_url as _sap_quarantine_url,
@@ -56,6 +57,7 @@ from source_router import (
 from evidence_guard import (
     avaliar_evidencia
 )
+import media_must_verifier as _sap_mustv
 
 
 
@@ -1425,22 +1427,6 @@ def baixar(
             destino
         )
 
-        try:
-            _sap_cache_validated_media(
-                url,
-                destino,
-                provider=provider,
-                metadata={
-                    "candidate": candidate
-                    if isinstance(candidate, dict)
-                    else {},
-                    "content_type": content_type,
-                    **media_info,
-                },
-            )
-        except Exception:
-            pass
-
         if provider not in {"unknown", ""}:
             try:
                 _sap_record_provider_result(
@@ -1673,6 +1659,148 @@ def simplificar_busca(busca, must_have):
     return saida
 
 
+def _sap_cache_candidate_metadata(candidate):
+    allowed = {
+        "fonte", "tipo", "score", "must_hits", "avoid_hits", "descricao",
+        "description", "id", "url", "title", "name", "caption", "alt",
+        "alt_text", "tags", "keywords", "subject", "category", "location",
+        "local", "city", "cidade", "country", "pais", "place", "geo",
+        "filename", "evidence_class", "topic_overlap", "segment_overlap",
+        "wiki_query_tier", "wiki_anchor_ratio", "wiki_query",
+        "wiki_query_overlap", "wiki_anchor_ok", "credit_author",
+        "credit_license", "credit_page",
+    }
+    out = {}
+    for key in allowed:
+        value = candidate.get(key)
+        if value is None:
+            continue
+        if isinstance(value, (str, int, float, bool)):
+            out[key] = value
+        elif isinstance(value, list):
+            out[key] = [
+                item for item in value
+                if isinstance(item, (str, int, float, bool))
+            ][:50]
+        elif isinstance(value, dict):
+            safe = {}
+            for sub_key, sub_value in value.items():
+                if isinstance(sub_value, (str, int, float, bool)):
+                    safe[str(sub_key)] = sub_value
+            if safe:
+                out[key] = safe
+    return out
+
+
+def _sap_offline_semantic_candidates(
+    busca,
+    must_have,
+    avoid,
+    segmento,
+    visual_mode,
+):
+    mode = str(visual_mode or "").strip().casefold()
+    safe_no_must_modes = {
+        "environment",
+        "object",
+        "abstract_context",
+        "abstract context",
+        "cta",
+    }
+
+    results = []
+    seen = set()
+
+    for record in _sap_cached_media_candidates(300):
+        candidate = record.get("candidate", {})
+        if not isinstance(candidate, dict) or not candidate:
+            continue
+
+        candidate = dict(candidate)
+        url = str(record.get("url", "") or candidate.get("url", "") or "")
+        if not url:
+            continue
+        candidate["url"] = url
+        candidate["_resilience_cached"] = True
+
+        evidence_text = _sap_mustv.asset_evidence_text(candidate)
+        if not evidence_text:
+            continue
+
+        relevance, _, avoid_hits = avaliar_relevancia(
+            busca,
+            evidence_text,
+            must_have,
+            avoid,
+        )
+        verified = _sap_mustv.verified_must(
+            candidate,
+            {"must_have": list(must_have or [])},
+        )
+
+        candidate["must_hits"] = int(verified.get("hits", 0) or 0)
+        candidate["avoid_hits"] = int(avoid_hits or 0)
+        candidate["_sap_verified_must_hits"] = int(
+            verified.get("hits", 0) or 0
+        )
+        candidate["_sap_must_total"] = int(
+            verified.get("total", 0) or 0
+        )
+
+        total_must = len(must_have or [])
+        if total_must:
+            if candidate["must_hits"] < total_must:
+                continue
+        else:
+            if mode not in safe_no_must_modes:
+                continue
+            if similaridade(busca, evidence_text) < 0.35:
+                continue
+
+        if candidate["avoid_hits"] > 0:
+            continue
+
+        source = str(candidate.get("fonte", "") or "")
+        if source == "Wikimedia":
+            try:
+                ev = avaliar_evidencia(
+                    candidate,
+                    ASSUNTO,
+                    segmento,
+                    must_have,
+                    visual_mode,
+                )
+            except Exception:
+                continue
+            if not ev.get("allowed"):
+                continue
+            candidate["evidence_class"] = ev.get("class")
+            candidate["topic_overlap"] = ev.get("topic_overlap", 0.0)
+            candidate["segment_overlap"] = ev.get("segment_overlap", 0.0)
+            candidate["score"] = float(relevance) + float(ev.get("bonus", 0.0))
+        else:
+            candidate["score"] = float(relevance) + 12.0
+
+        key = (
+            str(candidate.get("fonte", "")),
+            str(candidate.get("id", "")),
+            url,
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        results.append(candidate)
+
+    results.sort(
+        key=lambda item: (
+            int(item.get("must_hits", 0) or 0),
+            float(item.get("score", 0.0) or 0.0),
+        ),
+        reverse=True,
+    )
+    return results[:24]
+
+
 def buscar_todos_candidatos(
     busca,
     must_have,
@@ -1682,6 +1810,32 @@ def buscar_todos_candidatos(
 ):
 
     todos = []
+
+    if os.getenv("SAP_MEDIA_OFFLINE_CACHE_FIRST", "1") == "1":
+        try:
+            offline = _sap_offline_semantic_candidates(
+                busca,
+                must_have,
+                avoid,
+                segmento,
+                visual_mode,
+            )
+        except Exception as _sap_offline_exc:
+            offline = []
+            print(
+                "SAP_MEDIA_OFFLINE_CACHE=FAIL_OPEN "
+                f"{type(_sap_offline_exc).__name__}:"
+                f"{str(_sap_offline_exc)[:140]}"
+            )
+
+        if offline:
+            print(
+                "SAP_MEDIA_OFFLINE_CACHE=HIT "
+                f"candidates={len(offline)} "
+                f"must={len(must_have or [])} "
+                f"mode={str(visual_mode or 'unknown')}"
+            )
+            return offline
 
     # SOURCE ROUTER 4.2
     # Necessário também nos retries.
@@ -3527,6 +3681,29 @@ def baixar_candidato_5_2(
             candidato,
             destino
         )
+
+    if ok:
+        try:
+            _sap_cache_validated_media(
+                candidato.get("url", ""),
+                destino,
+                provider=_sap_provider_from_url(
+                    candidato.get("url", "")
+                ),
+                metadata={
+                    "candidate": _sap_cache_candidate_metadata(candidato),
+                },
+            )
+            if candidato.get("_resilience_cached"):
+                print("    SAP_MEDIA_OFFLINE_CACHE=REUSED")
+            else:
+                print("    SAP_MEDIA_OFFLINE_CACHE=PROMOTED")
+        except Exception as _sap_cache_exc:
+            print(
+                "    SAP_MEDIA_OFFLINE_CACHE=FAIL_OPEN "
+                f"{type(_sap_cache_exc).__name__}:"
+                f"{str(_sap_cache_exc)[:140]}"
+            )
 
 
     print(
