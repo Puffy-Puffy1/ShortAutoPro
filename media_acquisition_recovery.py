@@ -221,16 +221,16 @@ def _wrap_coverr(namespace: dict[str, Any]) -> bool:
             state["empty"] = 0
             return items
         state["empty"] += 1
+        try:
+            record_provider_result(
+                "coverr",
+                ok=False,
+                reason="persistent_empty",
+            )
+        except Exception:
+            pass
         if state["empty"] >= 2:
             state["open"] = True
-            try:
-                record_provider_result(
-                    "coverr",
-                    ok=False,
-                    reason="persistent_empty",
-                )
-            except Exception:
-                pass
             print("SAP_COVERR_CIRCUIT=TRIPPED empty_returns=2")
         return items
 
