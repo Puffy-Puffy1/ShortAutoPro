@@ -6,8 +6,9 @@ import json
 import re
 import time
 import shutil
-import requests
 from datetime import date
+
+from gemini_runtime import generate_text
 
 
 # =====================================================
@@ -31,13 +32,6 @@ MODEL = os.getenv(
     "GEMINI_MODEL",
     "gemini-3.5-flash-lite"
 )
-
-try:
-    GEMINI_TIMEOUT = float(os.getenv("SAP_GEMINI_TIMEOUT", "75") or 75)
-except (TypeError, ValueError):
-    GEMINI_TIMEOUT = 75.0
-GEMINI_TIMEOUT = max(20.0, min(GEMINI_TIMEOUT, 120.0))
-
 
 ROTEIRO = os.path.join(
     BASE,
@@ -599,129 +593,23 @@ Sem texto fora do JSON.
 # GEMINI
 # =====================================================
 
-URL = (
-    "https://generativelanguage.googleapis.com/"
-    f"v1beta/models/{MODEL}:generateContent"
-)
-
-HEADERS = {
-    "Content-Type":
-        "application/json",
-
-    "x-goog-api-key":
-        API_KEY
-}
-
-
-payload = {
-    "contents": [
-        {
-            "parts": [
-                {
-                    "text":
-                        prompt
-                }
-            ]
-        }
-    ],
-
-    "generationConfig": {
-        "temperature":
-            0.18,
-
-        "maxOutputTokens":
-            1800
-    }
-}
-
-
 bruto = None
 
-
-for tentativa in range(
-    1,
-    4
-):
-
-    print(
-        f"Cold Open tentativa "
-        f"{tentativa}/3..."
+try:
+    bruto = generate_text(
+        prompt,
+        temperature=0.18,
+        max_output_tokens=1800,
+        response_mime_type="application/json",
+        component="Cold Open Director",
+        api_key=API_KEY,
     )
-
-    try:
-
-        r = requests.post(
-            URL,
-            headers=HEADERS,
-            json=payload,
-            timeout=GEMINI_TIMEOUT
-        )
-
-    except Exception as e:
-
-        if tentativa == 3:
-
-            print(
-                f"AVISO Cold Open: {e}"
-            )
-
-            print(
-                "Roteiro original preservado."
-            )
-
-            raise SystemExit(0)
-
-        time.sleep(4)
-
-        continue
-
-
-    if r.ok:
-
-        try:
-
-            bruto = (
-                r.json()
-                ["candidates"][0]
-                ["content"]
-                ["parts"][0]
-                ["text"]
-                .strip()
-            )
-
-            break
-
-        except Exception:
-
-            bruto = None
-
-
-    if (
-        r.status_code
-        in [
-            429,
-            500,
-            502,
-            503,
-            504
-        ]
-        and tentativa < 3
-    ):
-
-        time.sleep(6)
-
-        continue
-
-
+except Exception as exc:
     print(
-        f"AVISO Cold Open HTTP "
-        f"{r.status_code}"
+        "AVISO Cold Open: "
+        f"{type(exc).__name__}: {str(exc)[:220]}"
     )
-
-    print(
-        "Roteiro original preservado."
-    )
-
+    print("Roteiro original preservado.")
     raise SystemExit(0)
 
 

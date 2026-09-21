@@ -8,9 +8,7 @@ import sys
 import time
 from datetime import date
 
-import requests
-
-from runtime_config import env_float, env_int
+from gemini_runtime import GeminiTemporaryUnavailable, generate_text
 from source_identity import validar_identidade
 from topic_memory import encontrar_duplicata, normalizar as normalizar_memoria
 from topic_reserve import melhor_reserva
@@ -23,26 +21,6 @@ SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat())
 TEMA = os.getenv("SHORT_TEMA", "mistérios, casos inexplicáveis e true crime")
 API_KEY = os.getenv("GEMINI_API_KEY")
 MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
-GEMINI_TIMEOUT = env_float("SAP_GEMINI_TIMEOUT", 28.0, 8.0, 60.0)
-GEMINI_ATTEMPTS_PER_MODEL = env_int("SAP_TOPIC_MODEL_ATTEMPTS", 2, 1, 3)
-
-# High-demand 503s are model-local/capacity-local failures. Do not hammer the
-# same endpoint three times for 75 seconds each; rotate across stable fallback
-# models and keep a final non-LLM recovery path.
-_default_model_chain = [
-    MODEL,
-    "gemini-3.1-flash-lite",
-    "gemini-3.5-flash",
-]
-_model_chain_env = os.getenv("GEMINI_MODEL_CHAIN", "").strip()
-MODEL_CHAIN = []
-for _model in (
-    [x.strip() for x in _model_chain_env.split(",") if x.strip()]
-    if _model_chain_env
-    else _default_model_chain
-):
-    if _model not in MODEL_CHAIN:
-        MODEL_CHAIN.append(_model)
 HISTORICO = os.path.join(BASE, "historico_assuntos.json")
 SAIDA = os.path.join(BASE, "roteiros", f"topic_{SHORT_ID}.txt")
 VERIFICACAO = os.path.join(BASE, "roteiros", f"topic_verified_{SHORT_ID}.json")
@@ -285,146 +263,16 @@ def score_novidade(nome):
     return max(0.0, 10.0 - sim * 10)
 
 
-class GeminiTemporarilyUnavailable(RuntimeError):
-    pass
-
-
-def _gemini_url(model):
-    return (
-        "https://generativelanguage.googleapis.com/v1beta/models/"
-        + str(model)
-        + ":generateContent"
-    )
-
-
-HEADERS = {"Content-Type": "application/json", "x-goog-api-key": API_KEY}
-
-
-def _extract_gemini_text(dados):
-    candidates = dados.get("candidates", []) if isinstance(dados, dict) else []
-    for candidate in candidates if isinstance(candidates, list) else []:
-        if not isinstance(candidate, dict):
-            continue
-        content = candidate.get("content", {})
-        parts = content.get("parts", []) if isinstance(content, dict) else []
-        chunks = [
-            str(part.get("text", "") or "").strip()
-            for part in parts
-            if isinstance(part, dict) and str(part.get("text", "") or "").strip()
-        ]
-        if chunks:
-            return "\n".join(chunks).strip()
-
-    feedback = dados.get("promptFeedback", {}) if isinstance(dados, dict) else {}
-    reason = (
-        str(feedback.get("blockReason", "") or "")
-        if isinstance(feedback, dict)
-        else ""
-    ) or "no_usable_candidates"
-    raise RuntimeError(f"Gemini sem candidato utilizável: {reason}")
+GeminiTemporarilyUnavailable = GeminiTemporaryUnavailable
 
 
 def chamar_gemini(prompt):
-    if not API_KEY:
-        raise GeminiTemporarilyUnavailable(
-            "GEMINI_API_KEY ausente; usando recuperação verificada"
-        )
-
-    payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.65, "maxOutputTokens": 1800},
-    }
-    transient_errors = []
-    total_models = len(MODEL_CHAIN)
-
-    for model_index, model in enumerate(MODEL_CHAIN, start=1):
-        url = _gemini_url(model)
-
-        for tentativa in range(1, GEMINI_ATTEMPTS_PER_MODEL + 1):
-            print(
-                "Topic Engine model "
-                f"{model_index}/{total_models}={model} "
-                f"tentativa {tentativa}/{GEMINI_ATTEMPTS_PER_MODEL}..."
-            )
-
-            try:
-                r = requests.post(
-                    url,
-                    headers=HEADERS,
-                    json=payload,
-                    timeout=GEMINI_TIMEOUT,
-                )
-            except requests.Timeout as exc:
-                transient_errors.append(f"{model}:timeout:{exc}")
-                print(f"Topic Engine: timeout em {model}; failover preparado.")
-                if tentativa < GEMINI_ATTEMPTS_PER_MODEL:
-                    time.sleep(1.5 * tentativa)
-                    continue
-                break
-            except requests.RequestException as exc:
-                transient_errors.append(f"{model}:network:{exc}")
-                print(f"Topic Engine: erro de rede em {model}; failover preparado.")
-                if tentativa < GEMINI_ATTEMPTS_PER_MODEL:
-                    time.sleep(1.5 * tentativa)
-                    continue
-                break
-
-            if r.ok:
-                try:
-                    dados = r.json()
-                except Exception as exc:
-                    transient_errors.append(f"{model}:invalid_json:{exc}")
-                    if tentativa < GEMINI_ATTEMPTS_PER_MODEL:
-                        time.sleep(1)
-                        continue
-                    break
-
-                try:
-                    texto = _extract_gemini_text(dados)
-                except RuntimeError as exc:
-                    transient_errors.append(f"{model}:empty:{exc}")
-                    if tentativa < GEMINI_ATTEMPTS_PER_MODEL:
-                        time.sleep(1)
-                        continue
-                    break
-
-                print(f"TOPIC_ENGINE_MODEL_OK={model}")
-                return texto
-
-            status = int(r.status_code or 0)
-            body = str(r.text or "")[:500]
-
-            if status in {429, 500, 502, 503, 504}:
-                transient_errors.append(f"{model}:HTTP_{status}:{body}")
-                print(
-                    "TOPIC_ENGINE_TRANSIENT="
-                    f"model={model} status={status} "
-                    "action=MODEL_FAILOVER"
-                )
-
-                # 503/504 usually indicate capacity/service trouble. Repeating
-                # the same model immediately adds latency without resilience.
-                if status in {503, 504}:
-                    break
-
-                if tentativa < GEMINI_ATTEMPTS_PER_MODEL:
-                    wait = 2
-                    if status == 429:
-                        try:
-                            wait = int(r.headers.get("Retry-After") or wait)
-                        except (TypeError, ValueError):
-                            wait = 2
-                        wait = max(1, min(wait, 12))
-                    time.sleep(wait)
-                    continue
-                break
-
-            # Permanent/request errors should not be retried on this model.
-            raise RuntimeError(f"HTTP {status} em {model}: {body}")
-
-    detail = " | ".join(transient_errors[-6:]) or "sem detalhe"
-    raise GeminiTemporarilyUnavailable(
-        "todos os modelos temporariamente indisponíveis: " + detail
+    return generate_text(
+        prompt,
+        temperature=0.65,
+        max_output_tokens=1800,
+        component="Topic Engine",
+        api_key=API_KEY,
     )
 
 
