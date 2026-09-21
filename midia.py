@@ -5404,8 +5404,11 @@ for numero, cena in enumerate(
             )
 
             _vi6_persist_now = (
-                numero == len(cenas)
-                or numero % 4 == 0
+                not resume_cached_media
+                and (
+                    numero == len(cenas)
+                    or numero % 4 == 0
+                )
             )
 
             if _vi6_persist_now:
