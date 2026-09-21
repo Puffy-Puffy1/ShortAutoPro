@@ -8,18 +8,11 @@ import time
 from datetime import date
 from pathlib import Path
 
-import requests
+from gemini_runtime import GeminiTemporaryUnavailable, generate_text
 
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro")))
 SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat()).strip()
-MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite").strip()
-try:
-    GEMINI_TIMEOUT = float(os.getenv("SAP_GEMINI_TIMEOUT", "75") or 75)
-except (TypeError, ValueError):
-    GEMINI_TIMEOUT = 75.0
-GEMINI_TIMEOUT = max(20.0, min(GEMINI_TIMEOUT, 120.0))
-
 R = BASE / "roteiros"
 ROTEIRO = R / f"short_{SHORT_ID}.txt"
 FONTE = R / f"fonte_{SHORT_ID}.txt"
@@ -297,76 +290,14 @@ def validate_payload(data, assunto, hook, roteiro):
 
 
 def chamar_gemini(prompt: str, api_key: str) -> str:
-    if not MODEL:
-        raise RuntimeError("GEMINI_MODEL vazio")
-
-    url = (
-        "https://generativelanguage.googleapis.com/"
-        f"v1beta/models/{MODEL}:generateContent"
+    return generate_text(
+        prompt,
+        temperature=0.45,
+        max_output_tokens=1300,
+        response_mime_type="application/json",
+        component="Publish Pack",
+        api_key=api_key,
     )
-    headers = {
-        "Content-Type": "application/json",
-        "x-goog-api-key": api_key,
-    }
-    payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "temperature": 0.45,
-            "maxOutputTokens": 1300,
-        },
-    }
-
-    wait = 4
-    for attempt in range(1, 4):
-        print(f"Publish Pack API tentativa {attempt}/3...")
-        try:
-            response = requests.post(
-                url,
-                headers=headers,
-                json=payload,
-                timeout=GEMINI_TIMEOUT,
-            )
-        except Exception as exc:
-            if attempt == 3:
-                raise RuntimeError(str(exc)) from exc
-            time.sleep(wait)
-            wait = min(wait * 2, 16)
-            continue
-
-        if response.ok:
-            try:
-                data = response.json()
-                text = data["candidates"][0]["content"]["parts"][0]["text"]
-            except Exception as exc:
-                if attempt == 3:
-                    raise RuntimeError("Resposta Gemini inválida.") from exc
-                time.sleep(wait)
-                wait = min(wait * 2, 16)
-                continue
-            text = str(text or "").strip()
-            if text:
-                return text
-            if attempt == 3:
-                raise RuntimeError("Resposta Gemini vazia.")
-            time.sleep(wait)
-            wait = min(wait * 2, 16)
-            continue
-
-        if response.status_code in {429, 500, 502, 503, 504} and attempt < 3:
-            retry_wait = wait
-            if response.status_code == 429:
-                try:
-                    retry_wait = int(response.headers.get("Retry-After") or retry_wait)
-                except (TypeError, ValueError):
-                    retry_wait = wait
-                retry_wait = max(2, min(retry_wait, 30))
-            time.sleep(retry_wait)
-            wait = min(wait * 2, 20)
-            continue
-
-        raise RuntimeError(f"Gemini HTTP {response.status_code}")
-
-    raise RuntimeError("Gemini não respondeu.")
 
 
 def build_prompt(assunto: str, hook: str, roteiro: str, fonte: str) -> str:
@@ -427,23 +358,111 @@ RESPONDA SOMENTE EM JSON VÁLIDO:
 """.strip()
 
 
-def generate_valid_pack(prompt, api_key, assunto, hook, roteiro, attempts=3):
-    """Retry whole generations when Gemini returns malformed or policy-invalid metadata."""
+def local_publish_pack(assunto: str, hook: str, roteiro: str) -> dict:
+    """Build conservative metadata locally without adding factual claims."""
+
+    topic = " ".join(str(assunto or "").split()).strip()
+    hook_clean = " ".join(str(hook or "").split()).strip()
+    if not topic:
+        raise ValueError("assunto ausente para fallback local")
+
+    candidates = [
+        topic,
+        f"{topic}: o que os registros relatam",
+        f"O mistério por trás de {topic}",
+    ]
+
+    normalized = []
+    seen = set()
+    for title in candidates:
+        title = " ".join(title.split()).strip(" .")
+        if len(title) < 20:
+            title = f"{title}: um caso que ainda intriga"
+        if len(title) > 70:
+            title = title[:67].rsplit(" ", 1)[0].rstrip(" ,:;-") + "..."
+        key = title.casefold()
+        if title and key not in seen:
+            seen.add(key)
+            normalized.append(title)
+
+    while len(normalized) < 3:
+        suffix = (
+            "em detalhes"
+            if len(normalized) == 1
+            else "segundo os registros"
+        )
+        title = f"{topic}: {suffix}"
+        if len(title) > 70:
+            title = title[:67].rsplit(" ", 1)[0].rstrip(" ,:;-") + "..."
+        if title.casefold() not in seen:
+            seen.add(title.casefold())
+            normalized.append(title)
+        else:
+            normalized.append(f"{topic[:48]}: investigação documental".strip())
+
+    hook_sentence = hook_clean.rstrip(".!?")
+    if hook_sentence:
+        description = (
+            f"{topic}. {hook_sentence}. "
+            "Veja os fatos apresentados no vídeo e comente qual detalhe mais chamou sua atenção."
+        )
+    else:
+        description = (
+            f"{topic}. Este Short resume os fatos apresentados na fonte usada na produção. "
+            "Comente qual detalhe mais chamou sua atenção."
+        )
+    description = " ".join(description.split())
+    if len(description) > 350:
+        description = description[:347].rsplit(" ", 1)[0].rstrip(" ,:;-") + "..."
+
+    raw = {
+        "titles": normalized[:3],
+        "description": description,
+        "hashtags": [
+            "#Shorts",
+            "#Misterio",
+            "#HistoriaReal",
+            "#Documentario",
+            "#Curiosidades",
+        ],
+        "pinned_comment": "Qual detalhe desse caso mais chamou sua atenção?",
+    }
+    pack = validate_payload(raw, topic, hook, roteiro)
+    pack["degraded_local"] = True
+    return pack
+
+
+def generate_valid_pack(prompt, api_key, assunto, hook, roteiro, attempts=2):
+    """Use shared Gemini failover, then finish locally if structured output is bad."""
     last_error = None
     for attempt in range(1, attempts + 1):
         print(f"Publish Pack conteúdo tentativa {attempt}/{attempts}...")
-        raw = chamar_gemini(prompt, api_key)
         try:
+            raw = chamar_gemini(prompt, api_key)
             data = parse_json_response(raw)
             return validate_payload(data, assunto, hook, roteiro)
+        except GeminiTemporaryUnavailable as exc:
+            last_error = exc
+            print(
+                "PUBLISH_PACK_AI=UNAVAILABLE "
+                f"{type(exc).__name__}:{str(exc)[:180]}"
+            )
+            break
         except Exception as exc:
             last_error = exc
             if attempt < attempts:
-                print(f"AVISO Publish Pack: resposta rejeitada ({exc}); tentando novamente.")
-                time.sleep(min(2 * attempt, 5))
+                print(
+                    f"AVISO Publish Pack: resposta rejeitada ({exc}); "
+                    "tentando uma correção."
+                )
                 continue
-            raise ValueError(f"Publish Pack inválido após {attempts} tentativas: {exc}") from exc
-    raise ValueError(f"Publish Pack inválido: {last_error}")
+            break
+
+    print(
+        "PUBLISH_PACK_FALLBACK=LOCAL "
+        f"reason={type(last_error).__name__ if last_error else 'unknown'}"
+    )
+    return local_publish_pack(assunto, hook, roteiro)
 
 
 def render_text(pack: dict) -> str:
@@ -466,8 +485,6 @@ def main() -> int:
             raise ValueError("SHORT_ID vazio")
 
         api_key = str(os.getenv("GEMINI_API_KEY", "") or "").strip()
-        if not api_key:
-            raise ValueError("GEMINI_API_KEY não configurada")
 
         roteiro = read_required(ROTEIRO, "roteiro")
         fonte = read_required(FONTE, "fonte factual")
@@ -503,6 +520,8 @@ def main() -> int:
             "topic": assunto,
             **pack,
         }
+        if output.get("degraded_local"):
+            print("PUBLISH_PACK_MODE=DEGRADED_LOCAL")
 
         atomic_json(SAIDA_JSON, output)
         atomic_text(SAIDA_TXT, render_text(output))
