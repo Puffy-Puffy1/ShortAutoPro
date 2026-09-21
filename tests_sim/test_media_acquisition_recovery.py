@@ -108,5 +108,22 @@ class MediaAcquisitionRecoveryTests(unittest.TestCase):
             self.assertEqual(recovery._rescue_budget(), 2)
 
 
+    def test_install_is_idempotent_and_keeps_existing_wrapper_active(self):
+        calls = []
+
+        def fake_search(busca, must_have, avoid, segmento="", visual_mode=""):
+            calls.append(busca)
+            return []
+
+        namespace = {"buscar_todos_candidatos": fake_search}
+        first = recovery.install(namespace)
+        wrapped = namespace["buscar_todos_candidatos"]
+        second = recovery.install(namespace)
+
+        self.assertTrue(first["must_pool_rescue"])
+        self.assertTrue(second["must_pool_rescue"])
+        self.assertIs(namespace["buscar_todos_candidatos"], wrapped)
+
+
 if __name__ == "__main__":
     unittest.main()
