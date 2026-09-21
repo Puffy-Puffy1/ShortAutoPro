@@ -26,11 +26,18 @@ from wikimedia_query_bridge import (
 
 API = "https://commons.wikimedia.org/w/api.php"
 
+WIKIMEDIA_CONTACT = str(
+    os.getenv(
+        "SAP_WIKIMEDIA_CONTACT",
+        "https://github.com/Puffy-Puffy1",
+    )
+    or "https://github.com/Puffy-Puffy1"
+).strip()
+
 HEADERS = {
     "User-Agent":
         "ShortAutoPro/3.5 "
-        "(documentary-media-research; "
-        "https://github.com/Puffy-Puffy1/ShortAutoPro)" 
+        f"(documentary-media-research; {WIKIMEDIA_CONTACT})"
 }
 
 try:
