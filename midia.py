@@ -2861,10 +2861,15 @@ def buscar_todos_candidatos(
     # Respect the route chosen by source_router, but never defer the only
     # credential-free engine. A stock-first fast path is valid only when at
     # least one configured stock provider can actually be queried.
-    _stock_provider_ready = bool(
-        (USAR_PEXELS and PEXELS_KEY)
-        or (USAR_PIXABAY and PIXABAY_KEY)
-        or (USAR_COVERR and COVERR_KEY)
+    _stock_provider_ready = any(
+        (
+            bool(USAR_PEXELS and PEXELS_KEY)
+            and _sap_provider_allowed("pexels")[0],
+            bool(USAR_PIXABAY and PIXABAY_KEY)
+            and _sap_provider_allowed("pixabay")[0],
+            bool(USAR_COVERR and COVERR_KEY)
+            and _sap_provider_allowed("coverr")[0],
+        )
     )
 
     if (
