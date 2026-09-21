@@ -412,6 +412,7 @@ def stages_before_render(p: Pipeline) -> None:
 
 
 def assemble_and_render(p: Pipeline) -> None:
+    p.run("8C - STAGE 6 / RENDER PRE-FLIGHT", "render_preflight.py")
     p.run("9 - PROFESSIONAL MULTI-BEAT ASSEMBLER", "video_professional.py")
     p.run("10 - FINAL RENDER V6 PROFESSIONAL", "v6_professional.py", retries=1)
     final = BASE / "videos" / f"short_v6_{p.sid}.mp4"
