@@ -8,7 +8,11 @@ import os
 from source_identity import validar_identidade
 from topic_memory import encontrar_duplicata, normalizar
 
-BASE = os.path.expanduser("~/ShortAutoPro")
+BASE = os.path.abspath(
+    os.path.expanduser(
+        os.getenv("SHORTAUTOPRO_BASE", "~/ShortAutoPro")
+    )
+)
 ROTEIROS = os.path.join(BASE, "roteiros")
 HISTORICO = os.path.join(BASE, "historico_assuntos.json")
 INDEX = os.path.join(BASE, "topic_index.json")
