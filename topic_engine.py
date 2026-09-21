@@ -671,10 +671,45 @@ except Exception:
     sys.exit("ERRO: JSON inválido e fallback verificado indisponível.")
 
 if not isinstance(dados, dict):
-    sys.exit("ERRO: resposta do Topic Engine não é um objeto JSON.")
+    print("AVISO: resposta do modelo não é objeto JSON; usando fallback verificado.")
+    fallback_selected = escolher_fallback_sem_llm()
+    if fallback_selected:
+        atomic_text(SAIDA, fallback_selected["topic"])
+        atomic_json(
+            VERIFICACAO,
+            {
+                "short_id": SHORT_ID,
+                "selected": fallback_selected,
+                "ranking": [fallback_selected],
+                "verification": [],
+                "runtime_rejected_topics": rejeitados_runtime,
+                "topic_engine_degraded": True,
+                "degraded_reason": "invalid_llm_object",
+            },
+        )
+        raise SystemExit(0)
+    sys.exit("ERRO: resposta inválida e fallback verificado indisponível.")
+
 topics = dados.get("topics", [])
 if not isinstance(topics, list):
-    sys.exit("ERRO: campo topics inválido.")
+    print("AVISO: campo topics inválido; usando fallback verificado.")
+    fallback_selected = escolher_fallback_sem_llm()
+    if fallback_selected:
+        atomic_text(SAIDA, fallback_selected["topic"])
+        atomic_json(
+            VERIFICACAO,
+            {
+                "short_id": SHORT_ID,
+                "selected": fallback_selected,
+                "ranking": [fallback_selected],
+                "verification": [],
+                "runtime_rejected_topics": rejeitados_runtime,
+                "topic_engine_degraded": True,
+                "degraded_reason": "invalid_topics_field",
+            },
+        )
+        raise SystemExit(0)
+    sys.exit("ERRO: campo topics inválido e fallback verificado indisponível.")
 if len(topics) < 8:
     print(
         "AVISO: poucos candidatos do modelo; "
