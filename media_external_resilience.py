@@ -167,6 +167,13 @@ def note_provider_event(provider: Any, event: str, *, status=None, retry_after=N
             item["open_until"] = 0.0
             item["open_reason"] = ""
             item["last_success"] = now
+        elif event == "HTTP_SUCCESS":
+            # Transport/API health recovered, but do not erase EMPTY streak.
+            # The parsed result will separately call note_items().
+            item["consecutive_failures"] = 0
+            if item.get("open_reason") != "EMPTY":
+                item["open_until"] = 0.0
+                item["open_reason"] = ""
         elif event == "EMPTY":
             item["empties"] = int(item.get("empties", 0) or 0) + 1
             item["empty_streak"] = int(item.get("empty_streak", 0) or 0) + 1
@@ -196,7 +203,7 @@ def note_response(provider: Any, response: Any):
     try: retry_after = response.headers.get("Retry-After")
     except Exception: pass
     if event == "SUCCESS":
-        note_provider_event(provider, "SUCCESS", status=status)
+        note_provider_event(provider, "HTTP_SUCCESS", status=status)
     elif event in {"AUTH", "RATE_LIMIT", "SERVER"}:
         note_provider_event(provider, event, status=status, retry_after=retry_after)
     return event
