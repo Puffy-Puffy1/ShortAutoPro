@@ -424,7 +424,8 @@ def main() -> int:
     print(
         f"VISUAL QA: {status} | score={score}/100 "
         f"| issues={len(issues)} warnings={len(warnings)} "
-        f"| video_scan={'PASS' if measurements.get('scan_ok') else 'FAIL'}"
+        "| video_scan=SINGLE_PASS "
+        f"status={'PASS' if measurements.get('scan_ok') else 'FAIL'}"
     )
     return 0 if status != "BLOCK" else 1
 
