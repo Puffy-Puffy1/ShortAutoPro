@@ -103,7 +103,7 @@ for arq in "${LEGADOS[@]}"; do
     if [ -e "$BASE/$arq" ]; then erro "legado proibido presente: $arq"; else ok "legado ausente: $arq"; fi
 done
 
-PASTAS=(roteiros audios imagens videos temp logs manifests backups queue credits reports .sap_state .locks)
+PASTAS=(roteiros audios imagens videos temp logs manifests backups queue credits reports .sap_state .sap_cache .locks)
 for pasta in "${PASTAS[@]}"; do
     if [ -d "$BASE/$pasta" ]; then
         ok "pasta $pasta"
