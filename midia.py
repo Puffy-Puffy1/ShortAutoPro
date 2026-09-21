@@ -6368,7 +6368,9 @@ for numero, cena in enumerate(
             escolhido
         )
 
-        if confiavel:
+        if escolhido.get("editorial_reuse"):
+            trust = "EDITORIAL_NON_EVIDENTIARY"
+        elif confiavel:
             trust = "HIGH"
         else:
             trust = "LOW"
