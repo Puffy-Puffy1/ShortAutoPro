@@ -19,6 +19,28 @@ QTD_CENAS = max(6, min(QTD_CENAS, 20))
 MEDIA_DIR = os.path.join(BASE, "imagens", f"short_{SHORT_ID}")
 REPORT = os.path.join(BASE, "roteiros", f"media_quality_{SHORT_ID}.json")
 EXTS = {".jpg", ".jpeg", ".png", ".webp", ".mp4"}
+EDITORIAL_INDEX = os.path.join(MEDIA_DIR, ".editorial_reuse_index.json")
+
+
+def editorial_scenes():
+    try:
+        with open(EDITORIAL_INDEX, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        scenes = data.get("scenes", {}) if isinstance(data, dict) else {}
+        if not isinstance(scenes, dict):
+            return set()
+        out = set()
+        for key in scenes:
+            try:
+                out.add(int(key))
+            except (TypeError, ValueError):
+                pass
+        return out
+    except Exception:
+        return set()
+
+
+EDITORIAL_SCENES = editorial_scenes()
 
 
 
@@ -199,6 +221,12 @@ videos = sum(1 for x in assets if x["file"].lower().endswith(".mp4"))
 if videos < 2:
     warnings.append(f"low_motion_mix={videos}")
 
+if EDITORIAL_SCENES:
+    warnings.append(
+        "editorial_reuse_scenes="
+        + ",".join(str(x) for x in sorted(EDITORIAL_SCENES))
+    )
+
 status = "BLOCK" if critical else "PASS"
 report = {
     "short_id": SHORT_ID,
@@ -208,6 +236,8 @@ report = {
     "media_count": len(files),
     "videos": videos,
     "photos": len(files) - videos,
+    "editorial_reuse_count": len(EDITORIAL_SCENES),
+    "editorial_reuse_scenes": sorted(EDITORIAL_SCENES),
     "critical": critical,
     "warnings": warnings,
     "assets": assets,
@@ -224,6 +254,7 @@ print()
 print(f"Mídias: {len(files)}/{QTD_CENAS}")
 print(f"Vídeos: {videos}")
 print(f"Fotos: {len(files) - videos}")
+print(f"EditorialReuse: {len(EDITORIAL_SCENES)}")
 print()
 
 for item in warnings:
