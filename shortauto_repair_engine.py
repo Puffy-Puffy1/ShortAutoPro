@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -199,10 +200,10 @@ def plan(sid: str) -> dict[str, Any]:
     else:
         low_resolution_scenes: set[int] = set()
         for warning in media_warnings:
-            match = __import__("re").search(
+            match = re.search(
                 r"low_resolution:scene_(\d+)",
                 str(warning),
-                flags=__import__("re").I,
+                flags=re.I,
             )
             if match:
                 low_resolution_scenes.add(int(match.group(1)))
@@ -385,7 +386,13 @@ def execute(sid: str, max_cycles: int) -> tuple[int, dict[str, Any]]:
                 if action_log["status"] == "PASS":
                     after_quality = quality_snapshot(sid, force_scenes)
                     action_log["quality_after"] = after_quality
-                    min_gain = float(os.getenv("SAP_REPAIR_MIN_QUALITY_GAIN", "1.5") or 1.5)
+                    try:
+                        min_gain = float(
+                            os.getenv("SAP_REPAIR_MIN_QUALITY_GAIN", "1.5") or 1.5
+                        )
+                    except (TypeError, ValueError):
+                        min_gain = 1.5
+                    min_gain = max(0.0, min(min_gain, 20.0))
                     improved = (
                         after_quality["media_status"] == "PASS"
                         and (
