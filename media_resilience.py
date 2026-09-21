@@ -49,6 +49,19 @@ def _load(path: Path, default: Any) -> Any:
         return default
 
 
+def _json_safe(value: Any) -> Any:
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, dict):
+        return {
+            str(key): _json_safe(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, (list, tuple, set)):
+        return [_json_safe(item) for item in value]
+    return str(value)
+
+
 def _atomic(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent))
@@ -216,7 +229,7 @@ def cache_query_result(
             "provider": str(provider),
             "created_at": now,
             "expires_at": now + max(60, int(ttl)),
-            "candidates": items,
+            "candidates": _json_safe(items),
         }
         # Keep the persistent metadata cache bounded.
         if len(entries) > 3000:
@@ -393,7 +406,7 @@ def cache_validated_media(
             "sha256": digest,
             "size_bytes": size,
             "provider": str(provider or provider_from_url(raw)),
-            "metadata": metadata if isinstance(metadata, dict) else {},
+            "metadata": _json_safe(metadata if isinstance(metadata, dict) else {}),
             "cached_at": _now(),
             "last_used_at": _now(),
         }
@@ -437,6 +450,10 @@ def restore_cached_media(
         if expected_sha and _file_sha256(tmp) != expected_sha:
             raise OSError("restored cache hash mismatch")
         os.replace(tmp, dest)
+        try:
+            touch_cached_media(raw)
+        except Exception:
+            pass
         return True
     except OSError:
         try:
