@@ -69,6 +69,12 @@ class MediaExternalResilienceTests(unittest.TestCase):
         self.assertIn("SAP_MEDIA_SEMANTIC_REJECT", text)
         self.assertIn("candidato=candidato", text)
 
+    def test_media_gate_surfaces_provider_health(self):
+        text = (ROOT / "media_master_gate.py").read_text(encoding="utf-8")
+        self.assertIn('"provider_health"', text)
+        self.assertIn('"provider_circuits_open"', text)
+        self.assertIn("Provider circuits abertos", text)
+
     def test_wikimedia_has_typed_failure_and_metadata_control(self):
         text = (ROOT / "wikimedia_source.py").read_text(encoding="utf-8")
         self.assertIn("SAP_WIKIMEDIA_CIRCUIT=SKIP", text)
