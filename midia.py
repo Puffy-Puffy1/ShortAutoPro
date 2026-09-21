@@ -40,6 +40,7 @@ from media_resilience import (
     quarantine_url as _sap_quarantine_url,
     record_provider_result as _sap_record_provider_result,
     restore_cached_media as _sap_restore_cached_media,
+    touch_cached_media as _sap_touch_cached_media,
     url_allowed as _sap_url_allowed,
 )
 
@@ -1438,7 +1439,7 @@ def baixar(
                 pass
 
         print(
-            "    SAP_MEDIA_BLOB_CACHE=STORED "
+            "    SAP_MEDIA_NETWORK=VALIDATED "
             f"provider={provider} bytes={total_bytes}"
         )
         return True
@@ -4670,19 +4671,22 @@ def baixar_candidato_5_2(
 
     if ok:
         try:
-            _sap_cache_validated_media(
-                candidato.get("url", ""),
-                destino,
-                provider=_sap_provider_from_url(
-                    candidato.get("url", "")
-                ),
-                metadata={
-                    "candidate": _sap_cache_candidate_metadata(candidato),
-                },
-            )
             if candidato.get("_resilience_cached"):
+                _sap_touch_cached_media(
+                    candidato.get("url", "")
+                )
                 print("    SAP_MEDIA_OFFLINE_CACHE=REUSED")
             else:
+                _sap_cache_validated_media(
+                    candidato.get("url", ""),
+                    destino,
+                    provider=_sap_provider_from_url(
+                        candidato.get("url", "")
+                    ),
+                    metadata={
+                        "candidate": _sap_cache_candidate_metadata(candidato),
+                    },
+                )
                 print("    SAP_MEDIA_OFFLINE_CACHE=PROMOTED")
         except Exception as _sap_cache_exc:
             print(
