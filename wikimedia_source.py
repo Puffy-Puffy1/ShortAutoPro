@@ -35,12 +35,12 @@ TIMEOUT = max(4.0, min(TIMEOUT, 30.0))
 
 try:
     SEARCH_DEADLINE = float(
-        os.getenv("SAP_WIKIMEDIA_SEARCH_DEADLINE", "18") or 18
+        os.getenv("SAP_WIKIMEDIA_SEARCH_DEADLINE", "8") or 8
     )
 except (TypeError, ValueError):
-    SEARCH_DEADLINE = 18.0
+    SEARCH_DEADLINE = 8.0
 
-SEARCH_DEADLINE = max(8.0, min(SEARCH_DEADLINE, 45.0))
+SEARCH_DEADLINE = max(5.0, min(SEARCH_DEADLINE, 20.0))
 
 BASE = os.path.expanduser(
     "~/ShortAutoPro"
