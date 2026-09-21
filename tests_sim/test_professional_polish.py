@@ -2,6 +2,7 @@ import unittest
 from pathlib import Path
 
 import professional_caption_director as pcd
+import visual_continuity_engine as vce
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -42,6 +43,57 @@ Dialogue: 0,0:00:00.80,0:00:01.60,Dynamic,,0,0,0,,O caso mudou completamente
         self.assertEqual(report["profile"], "cinepulsar")
         self.assertIn("Style: Dynamic,DejaVu Sans,70,", transformed)
         self.assertIn("O caso mudou completamente", transformed)
+
+
+class VisualContinuityScoringTests(unittest.TestCase):
+    def test_missing_optional_metadata_is_unknown_not_automatic_failure(self):
+        prev = {
+            "scene": 1,
+            "main_subject": "Alcatraz prison escape",
+            "query": "Alcatraz prison exterior night",
+            "shot_type": "wide",
+        }
+        cur = {
+            "scene": 2,
+            "main_subject": "Alcatraz escape prisoners",
+            "query": "Alcatraz cell corridor escape",
+            "shot_type": "medium",
+        }
+        score, components, issues = vce.continuity_pair(prev, cur)
+        self.assertGreaterEqual(score, 65)
+        self.assertIsNone(components["location"])
+        self.assertNotIn("location_anchor_lost", issues)
+
+    def test_real_anchor_break_still_reduces_continuity(self):
+        prev = {
+            "scene": 1,
+            "main_subject": "Alcatraz prisoners",
+            "location": "Alcatraz cell house",
+            "era": "1962",
+            "event": "escape preparation",
+            "query": "Alcatraz cell house prisoners 1962",
+            "shot_type": "wide",
+        }
+        cur = {
+            "scene": 2,
+            "main_subject": "Alcatraz prisoners",
+            "location": "New York subway",
+            "era": "2020",
+            "event": "escape preparation",
+            "query": "modern subway commuters",
+            "shot_type": "wide",
+        }
+        score, _components, issues = vce.continuity_pair(prev, cur)
+        self.assertLess(score, 80)
+        self.assertIn("location_anchor_lost", issues)
+        self.assertIn("era_anchor_lost", issues)
+
+    def test_quality_tiers_match_production_policy(self):
+        self.assertEqual(vce.quality_tier(49.9), "FAIL")
+        self.assertEqual(vce.quality_tier(52.6), "REVIEW")
+        self.assertEqual(vce.quality_tier(70), "ACCEPTABLE")
+        self.assertEqual(vce.quality_tier(84), "GOOD")
+        self.assertEqual(vce.quality_tier(94), "EXCELLENT")
 
 
 class ProfessionalMediaFloorTests(unittest.TestCase):
