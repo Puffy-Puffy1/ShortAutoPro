@@ -173,9 +173,39 @@ def execute(sid: str, max_cycles: int) -> tuple[int, dict[str, Any]]:
         for action in proposal["actions"]:
             action_log = {"id": action["id"], "reason": action["reason"], "commands": [], "status": "PASS"}
             for command in action["commands"]:
-                proc = subprocess.run(command, cwd=BASE, env=env, check=False)
-                action_log["commands"].append({"command": command, "returncode": proc.returncode})
-                if proc.returncode not in {0, 20}:
+                command_name = Path(str(command[1] if len(command) > 1 else command[0])).name
+                if command_name in {"video_professional.py", "v6_professional.py", "audio_finalizer.py"}:
+                    timeout_seconds = int(os.getenv("SAP_REPAIR_RENDER_TIMEOUT", "900") or 900)
+                elif command_name == "media_stage_runtime.py":
+                    timeout_seconds = int(os.getenv("SAP_REPAIR_MEDIA_TIMEOUT", "420") or 420)
+                else:
+                    timeout_seconds = int(os.getenv("SAP_REPAIR_ACTION_TIMEOUT", "300") or 300)
+                timeout_seconds = max(60, min(timeout_seconds, 1800))
+                try:
+                    proc = subprocess.run(
+                        command,
+                        cwd=BASE,
+                        env=env,
+                        check=False,
+                        timeout=timeout_seconds,
+                    )
+                    returncode = proc.returncode
+                except subprocess.TimeoutExpired:
+                    returncode = 124
+                    action_log["timeout_seconds"] = timeout_seconds
+                    print(
+                        "SHORTAUTO_REPAIR_ACTION_TIMEOUT "
+                        f"action={action['id']} command={command_name} "
+                        f"limit={timeout_seconds}s"
+                    )
+                action_log["commands"].append(
+                    {
+                        "command": command,
+                        "returncode": returncode,
+                        "timeout_seconds": timeout_seconds,
+                    }
+                )
+                if returncode not in {0, 20}:
                     action_log["status"] = "FAIL"
                     break
             cycle_log["actions"].append(action_log)
