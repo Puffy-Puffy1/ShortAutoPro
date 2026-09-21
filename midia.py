@@ -1525,6 +1525,992 @@ def baixar(
 
 
 # ==================================================
+# ANTI REPETIÇÃO
+# ==================================================
+
+usados = set()
+
+
+def penalidade_usado(
+    fonte,
+    ident
+):
+
+    if (
+        fonte,
+        str(ident)
+    ) in usados:
+        return -120
+
+    return 0
+
+
+def marcar_usado(
+    fonte,
+    ident
+):
+
+    usados.add(
+        (
+            fonte,
+            str(ident)
+        )
+    )
+
+
+# ==================================================
+# PEXELS VIDEO
+# ==================================================
+
+
+# SHORTAUTOPRO VSE421 SCENE SUCCESS FINALIZER
+
+def _vse42_cleanup_scene_sibling(destino):
+    """
+    Após um download BEM-SUCEDIDO, mantém apenas uma
+    mídia para o scene_XX.
+
+    Nunca remove arquivos antes do sucesso.
+    Nunca opera fora de imagens/short_*.
+    """
+
+    if not destino:
+        return []
+
+
+    try:
+
+        from pathlib import Path
+
+        target = Path(
+            destino
+        )
+
+
+        if not target.is_file():
+            return []
+
+
+        parent = target.parent
+
+        stem = target.stem
+
+
+        if not stem.startswith(
+            "scene_"
+        ):
+            return []
+
+
+        parent_text = str(
+            parent
+        )
+
+
+        if (
+            "/imagens/short_"
+            not in parent_text
+        ):
+            return []
+
+
+        allowed = (
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".webp",
+            ".mp4",
+            ".mov",
+            ".webm",
+            ".mkv",
+        )
+
+
+        removed = []
+
+
+        for suffix in allowed:
+
+            sibling = (
+                parent
+                /
+                (
+                    stem
+                    +
+                    suffix
+                )
+            )
+
+
+            if sibling == target:
+                continue
+
+
+            if not sibling.is_file():
+                continue
+
+
+            sibling.unlink()
+
+            removed.append(
+                str(sibling)
+            )
+
+
+        if removed:
+
+            print(
+                "  VSE421_STALE_SIBLING_REMOVED="
+                +
+                ",".join(
+                    removed
+                )
+            )
+
+
+        return removed
+
+
+    except Exception as exc:
+
+        print(
+            "  VSE421_SIBLING_WARNING="
+            +
+            type(exc).__name__
+            +
+            ":"
+            +
+            str(exc)
+        )
+
+        return []
+
+
+def _vse42_commit_safe(candidate):
+    """
+    Commit fail-open do candidato vencedor.
+    """
+
+    try:
+
+        from visual_selection_bridge_v42 import (
+            commit_candidate
+            as _commit_candidate
+        )
+
+
+        _commit_candidate(
+            candidate
+        )
+
+
+        print(
+            "  VSE421_SCENE_COMMIT=FIRST_SUCCESS"
+        )
+
+
+        return True
+
+
+    except Exception as exc:
+
+        print(
+            "  VSE421_COMMIT_WARNING="
+            +
+            type(exc).__name__
+            +
+            ":"
+            +
+            str(exc)
+        )
+
+
+        return False
+
+
+
+
+
+# ============================================================
+# SAP_PROVIDER_DIAGNOSTICS_V1
+# ============================================================
+
+def _sap_provider_diag_v1(
+    provider,
+    reason,
+    line=None,
+    exc=None,
+    response=None,
+):
+    try:
+        parts = [
+            "SAP_PROVIDER_DIAG",
+            f"provider={provider}",
+            f"reason={reason}",
+        ]
+
+        if line is not None:
+            parts.append(f"line={line}")
+
+        status_code = None
+        if response is not None:
+            status_code = getattr(response, "status_code", None)
+            parts.append("http=" + str(status_code))
+
+        if exc is not None:
+            parts.append(
+                "error="
+                + type(exc).__name__
+                + ":"
+                + str(exc)
+            )
+
+        base_provider = str(provider or "").split("_", 1)[0].casefold()
+        if base_provider in {"pexels", "pixabay", "coverr"}:
+            code = int(status_code or 0)
+            if response is not None and 200 <= code < 300:
+                _sap_record_provider_result(
+                    base_provider,
+                    ok=True,
+                    status_code=code,
+                )
+            elif response is not None and code:
+                retry_after = None
+                if code == 429:
+                    try:
+                        retry_after = float(
+                            response.headers.get("Retry-After") or 0
+                        )
+                    except (TypeError, ValueError):
+                        retry_after = None
+                _sap_record_provider_result(
+                    base_provider,
+                    ok=False,
+                    status_code=code,
+                    reason=(
+                        "auth"
+                        if code in {401, 403}
+                        else "rate_limit"
+                        if code == 429
+                        else "server"
+                        if code in {500, 502, 503, 504}
+                        else f"http_{code}"
+                    ),
+                    retry_after=retry_after,
+                )
+            elif exc is not None:
+                _sap_record_provider_result(
+                    base_provider,
+                    ok=False,
+                    reason=(
+                        "timeout"
+                        if isinstance(exc, requests.Timeout)
+                        else "network"
+                    ),
+                )
+
+        print(" ".join(parts))
+
+    except Exception:
+        pass
+
+
+def _sap_provider_enabled(provider):
+    allowed, reason = _sap_provider_allowed(provider)
+    if not allowed:
+        print(
+            "SAP_PROVIDER_CIRCUIT=OPEN "
+            f"provider={provider} reason={reason}"
+        )
+    return allowed
+
+def pexels_video(
+    busca,
+    must_have,
+    avoid
+):
+
+    if not USAR_PEXELS or not PEXELS_KEY:
+        _sap_provider_diag_v1('pexels_video', 'EMPTY_RETURN', line=1105, response=locals().get('r'))
+        return []
+
+    try:
+
+        r = _sap_http_session("pexels_video").get(
+            "https://api.pexels.com/videos/search",
+            headers={
+                "Authorization":
+                PEXELS_KEY
+            },
+            params={
+                "query": busca,
+                "orientation": "portrait",
+                "per_page": 20
+            },
+            timeout=_MEDIA_API_TIMEOUT
+        )
+
+    except Exception as _sap_provider_exc_v1:
+        _sap_provider_diag_v1('pexels_video', 'EXCEPTION', line=1123, exc=_sap_provider_exc_v1, response=locals().get('r'))
+        return []
+
+    if not r.ok:
+        _sap_provider_diag_v1('pexels_video', 'EMPTY_RETURN', line=1127, response=locals().get('r'))
+        return []
+
+    _sap_record_provider_result('pexels', ok=True, status_code=r.status_code)
+
+    saida = []
+
+    for item in r.json().get(
+        "videos",
+        []
+    ):
+
+        ident = item.get("id")
+
+        descricao = " ".join(
+            [
+                str(item.get("url", "")),
+                str(
+                    item.get(
+                        "user",
+                        {}
+                    ).get(
+                        "name",
+                        ""
+                    )
+                )
+            ]
+        )
+
+        rel, must_hits, avoid_hits = (
+            avaliar_relevancia(
+                busca,
+                descricao,
+                must_have,
+                avoid
+            )
+        )
+
+        melhor_variante = None
+
+        for arq in item.get(
+            "video_files",
+            []
+        ):
+
+            url = arq.get("link")
+
+            if not url:
+                continue
+
+            w = arq.get(
+                "width"
+            ) or 0
+
+            h = arq.get(
+                "height"
+            ) or 0
+
+            score = rel
+
+            if h > w:
+                score += 28
+
+            if h >= 1280:
+                score += 16
+
+            if w >= 720:
+                score += 8
+
+            score += penalidade_usado(
+                "Pexels",
+                ident
+            )
+
+            candidato_variante = {
+                "score": score,
+                "must_hits": must_hits,
+                "avoid_hits": avoid_hits,
+                "id": ident,
+                "url": url,
+                "fonte": "Pexels",
+                "tipo": "vídeo",
+                "descricao": descricao,
+                "_variant_width": w,
+                "_variant_height": h,
+            }
+
+            if (
+                melhor_variante is None
+                or (
+                    candidato_variante["score"],
+                    w * h,
+                )
+                >
+                (
+                    melhor_variante["score"],
+                    int(melhor_variante.get("_variant_width", 0) or 0)
+                    * int(melhor_variante.get("_variant_height", 0) or 0),
+                )
+            ):
+                melhor_variante = candidato_variante
+
+        if melhor_variante is not None:
+            saida.append(
+                melhor_variante
+            )
+
+    return saida
+
+
+# ==================================================
+# PEXELS FOTO
+# ==================================================
+
+def pexels_foto(
+    busca,
+    must_have,
+    avoid
+):
+
+    if not USAR_PEXELS or not PEXELS_KEY:
+        _sap_provider_diag_v1('pexels_foto', 'EMPTY_RETURN', line=1223, response=locals().get('r'))
+        return []
+
+    try:
+
+        r = _sap_http_session("pexels_foto").get(
+            "https://api.pexels.com/v1/search",
+            headers={
+                "Authorization":
+                PEXELS_KEY
+            },
+            params={
+                "query": busca,
+                "orientation": "portrait",
+                "per_page": 25
+            },
+            timeout=_MEDIA_API_TIMEOUT
+        )
+
+    except Exception as _sap_provider_exc_v1:
+        _sap_provider_diag_v1('pexels_foto', 'EXCEPTION', line=1241, exc=_sap_provider_exc_v1, response=locals().get('r'))
+        return []
+
+    if not r.ok:
+        _sap_provider_diag_v1('pexels_foto', 'EMPTY_RETURN', line=1245, response=locals().get('r'))
+        return []
+
+    _sap_record_provider_result('pexels', ok=True, status_code=r.status_code)
+
+    saida = []
+
+    for item in r.json().get(
+        "photos",
+        []
+    ):
+
+        ident = item.get("id")
+
+        descricao = str(
+            item.get(
+                "alt",
+                ""
+            )
+        )
+
+        rel, must_hits, avoid_hits = (
+            avaliar_relevancia(
+                busca,
+                descricao,
+                must_have,
+                avoid
+            )
+        )
+
+        src = item.get(
+            "src",
+            {}
+        )
+
+        url = (
+            src.get("portrait")
+            or src.get("large2x")
+            or src.get("large")
+            or src.get("original")
+        )
+
+        if not url:
+            continue
+
+        w = item.get(
+            "width"
+        ) or 0
+
+        h = item.get(
+            "height"
+        ) or 0
+
+        score = rel
+
+        if h > w:
+            score += 28
+
+        if h >= 1280:
+            score += 16
+
+        score += penalidade_usado(
+            "Pexels",
+            ident
+        )
+
+        saida.append(
+            {
+                "score": score,
+                "must_hits": must_hits,
+                "avoid_hits": avoid_hits,
+                "id": ident,
+                "url": url,
+                "fonte": "Pexels",
+                "tipo": "foto",
+                "descricao": descricao
+            }
+        )
+
+    return saida
+
+
+# ==================================================
+# PIXABAY VIDEO
+# ==================================================
+
+def pixabay_video(
+    busca,
+    must_have,
+    avoid
+):
+
+    if not USAR_PIXABAY or not PIXABAY_KEY:
+        _sap_provider_diag_v1('pixabay_video', 'EMPTY_RETURN', line=1335, response=locals().get('r'))
+        return []
+
+    try:
+
+        r = _sap_http_session("pixabay_video").get(
+            "https://pixabay.com/api/videos/",
+            params={
+                "key": PIXABAY_KEY,
+                "q": busca,
+                "video_type": "film",
+                "safesearch": "true",
+                "order": "popular",
+                "per_page": 20
+            },
+            timeout=_MEDIA_API_TIMEOUT
+        )
+
+    except Exception as _sap_provider_exc_v1:
+        _sap_provider_diag_v1('pixabay_video', 'EXCEPTION', line=1352, exc=_sap_provider_exc_v1, response=locals().get('r'))
+        return []
+
+    if not r.ok:
+        _sap_provider_diag_v1('pixabay_video', 'EMPTY_RETURN', line=1356, response=locals().get('r'))
+        return []
+
+    _sap_record_provider_result('pixabay', ok=True, status_code=r.status_code)
+
+    saida = []
+
+    for item in r.json().get(
+        "hits",
+        []
+    ):
+
+        ident = item.get("id")
+
+        descricao = " ".join(
+            [
+                str(item.get("tags", "")),
+                str(item.get("pageURL", ""))
+            ]
+        )
+
+        rel, must_hits, avoid_hits = (
+            avaliar_relevancia(
+                busca,
+                descricao,
+                must_have,
+                avoid
+            )
+        )
+
+        formatos = item.get(
+            "videos",
+            {}
+        )
+
+        melhor_variante = None
+
+        for chave in [
+            "large",
+            "medium",
+            "small",
+            "tiny"
+        ]:
+
+            info = formatos.get(
+                chave,
+                {}
+            )
+
+            url = info.get("url")
+
+            if not url:
+                continue
+
+            w = info.get(
+                "width"
+            ) or 0
+
+            h = info.get(
+                "height"
+            ) or 0
+
+            score = rel
+
+            if h > w:
+                score += 28
+
+            if h >= 720:
+                score += 12
+
+            if h >= 1080:
+                score += 8
+
+            score += penalidade_usado(
+                "Pixabay",
+                ident
+            )
+
+            candidato_variante = {
+                "score": score,
+                "must_hits": must_hits,
+                "avoid_hits": avoid_hits,
+                "id": ident,
+                "url": url,
+                "fonte": "Pixabay",
+                "tipo": "vídeo",
+                "descricao": descricao,
+                "_variant_width": w,
+                "_variant_height": h,
+            }
+
+            if (
+                melhor_variante is None
+                or (
+                    candidato_variante["score"],
+                    w * h,
+                )
+                >
+                (
+                    melhor_variante["score"],
+                    int(melhor_variante.get("_variant_width", 0) or 0)
+                    * int(melhor_variante.get("_variant_height", 0) or 0),
+                )
+            ):
+                melhor_variante = candidato_variante
+
+        if melhor_variante is not None:
+            saida.append(
+                melhor_variante
+            )
+
+    return saida
+
+
+# ==================================================
+# PIXABAY FOTO
+# ==================================================
+
+def pixabay_foto(
+    busca,
+    must_have,
+    avoid
+):
+
+    if not USAR_PIXABAY or not PIXABAY_KEY:
+        _sap_provider_diag_v1('pixabay_foto', 'EMPTY_RETURN', line=1456, response=locals().get('r'))
+        return []
+
+    try:
+
+        r = _sap_http_session("pixabay_foto").get(
+            "https://pixabay.com/api/",
+            params={
+                "key": PIXABAY_KEY,
+                "q": busca,
+                "image_type": "photo",
+                "orientation": "vertical",
+                "safesearch": "true",
+                "order": "popular",
+                "per_page": 25
+            },
+            timeout=_MEDIA_API_TIMEOUT
+        )
+
+    except Exception as _sap_provider_exc_v1:
+        _sap_provider_diag_v1('pixabay_foto', 'EXCEPTION', line=1474, exc=_sap_provider_exc_v1, response=locals().get('r'))
+        return []
+
+    if not r.ok:
+        _sap_provider_diag_v1('pixabay_foto', 'EMPTY_RETURN', line=1478, response=locals().get('r'))
+        return []
+
+    _sap_record_provider_result('pixabay', ok=True, status_code=r.status_code)
+
+    saida = []
+
+    for item in r.json().get(
+        "hits",
+        []
+    ):
+
+        ident = item.get("id")
+
+        descricao = str(
+            item.get(
+                "tags",
+                ""
+            )
+        )
+
+        rel, must_hits, avoid_hits = (
+            avaliar_relevancia(
+                busca,
+                descricao,
+                must_have,
+                avoid
+            )
+        )
+
+        url = (
+            item.get("largeImageURL")
+            or item.get("webformatURL")
+        )
+
+        if not url:
+            continue
+
+        w = item.get(
+            "imageWidth"
+        ) or 0
+
+        h = item.get(
+            "imageHeight"
+        ) or 0
+
+        score = rel
+
+        if h > w:
+            score += 28
+
+        if h >= 1280:
+            score += 16
+
+        score += penalidade_usado(
+            "Pixabay",
+            ident
+        )
+
+        saida.append(
+            {
+                "score": score,
+                "must_hits": must_hits,
+                "avoid_hits": avoid_hits,
+                "id": ident,
+                "url": url,
+                "fonte": "Pixabay",
+                "tipo": "foto",
+                "descricao": descricao
+            }
+        )
+
+    return saida
+
+
+# ==================================================
+# COVERR
+# ==================================================
+
+def coverr_video(
+    busca,
+    must_have,
+    avoid
+):
+
+    if not USAR_COVERR or not COVERR_KEY:
+        _sap_provider_diag_v1('coverr_video', 'EMPTY_RETURN', line=1561, response=locals().get('r'))
+        return []
+
+    try:
+
+        r = _sap_http_session("coverr_video").get(
+            "https://api.coverr.co/videos",
+            headers={
+                "Authorization":
+                f"Bearer {COVERR_KEY}"
+            },
+            params={
+                "query": busca,
+                "page": 0,
+                "page_size": 20,
+                "urls": "true"
+            },
+            timeout=_MEDIA_API_TIMEOUT
+        )
+
+    except Exception as _sap_provider_exc_v1:
+        _sap_provider_diag_v1('coverr_video', 'EXCEPTION', line=1580, exc=_sap_provider_exc_v1, response=locals().get('r'))
+        return []
+
+    if not r.ok:
+        _sap_provider_diag_v1('coverr_video', 'EMPTY_RETURN', line=1584, response=locals().get('r'))
+        return []
+
+    _sap_record_provider_result('coverr', ok=True, status_code=r.status_code)
+
+    saida = []
+
+    for item in r.json().get(
+        "hits",
+        []
+    ):
+
+        ident = (
+            item.get("id")
+            or item.get("slug")
+            or item.get("title")
+        )
+
+        descricao = " ".join(
+            [
+                str(item.get("title", "")),
+                str(item.get("description", "")),
+                str(item.get("tags", ""))
+            ]
+        )
+
+        rel, must_hits, avoid_hits = (
+            avaliar_relevancia(
+                busca,
+                descricao,
+                must_have,
+                avoid
+            )
+        )
+
+        urls = item.get(
+            "urls",
+            {}
+        )
+
+        if not isinstance(
+            urls,
+            dict
+        ):
+            continue
+
+        for _, url in urls.items():
+
+            if not isinstance(
+                url,
+                str
+            ):
+                continue
+
+            score = rel
+
+            if ".mp4" in url.lower():
+                score += 8
+
+            score += penalidade_usado(
+                "Coverr",
+                ident
+            )
+
+            saida.append(
+                {
+                    "score": score,
+                    "must_hits": must_hits,
+                    "avoid_hits": avoid_hits,
+                    "id": ident,
+                    "url": url,
+                    "fonte": "Coverr",
+                    "tipo": "vídeo",
+                    "descricao": descricao
+                }
+            )
+
+    return saida
+
+
+# ==================================================
+# LOCAL
+# ==================================================
+
+def buscar_local(
+    preferir_video
+):
+
+    if not USAR_LOCAL:
+        return None
+
+    videos = []
+    fotos = []
+
+    for nome in os.listdir(
+        LOCAL_DIR
+    ):
+
+        caminho = os.path.join(
+            LOCAL_DIR,
+            nome
+        )
+
+        ext = os.path.splitext(
+            nome
+        )[1].lower()
+
+        if ext == ".mp4":
+            videos.append(caminho)
+
+        elif ext in [
+            ".jpg",
+            ".jpeg",
+            ".png"
+        ]:
+            fotos.append(caminho)
+
+    random.shuffle(videos)
+    random.shuffle(fotos)
+
+    candidatos = (
+        videos + fotos
+        if preferir_video
+        else fotos + videos
+    )
+
+    if not candidatos:
+        return None
+
+    return candidatos[0]
+
+
+
+
+# ==================================================
 # FILTRO DE QUALIDADE
 # ==================================================
 
