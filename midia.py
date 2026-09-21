@@ -32,6 +32,15 @@ from runtime_config import env_float, env_int
 from media_must_priority import prioritize as _sap_prioritize_must
 from media_provenance_capture_v1 import write_provenance as _sap_write_provenance
 from media_emergency_fallback import create_editorial_reuse
+from media_resilience import (
+    cache_validated_media as _sap_cache_validated_media,
+    provider_allowed as _sap_provider_allowed,
+    provider_from_url as _sap_provider_from_url,
+    quarantine_url as _sap_quarantine_url,
+    record_provider_result as _sap_record_provider_result,
+    restore_cached_media as _sap_restore_cached_media,
+    url_allowed as _sap_url_allowed,
+)
 
 from wikimedia_source import (
     buscar_wikimedia_fotos,
@@ -1604,16 +1613,16 @@ def _sap_provider_diag_v1(
                 f"line={line}"
             )
 
+        status_code = None
         if response is not None:
+            status_code = getattr(
+                response,
+                "status_code",
+                None,
+            )
             parts.append(
                 "http="
-                + str(
-                    getattr(
-                        response,
-                        "status_code",
-                        None,
-                    )
-                )
+                + str(status_code)
             )
 
         if exc is not None:
@@ -1624,12 +1633,66 @@ def _sap_provider_diag_v1(
                 + str(exc)
             )
 
+        base_provider = str(provider or "").split("_", 1)[0].casefold()
+        if base_provider in {"pexels", "pixabay", "coverr"}:
+            code = int(status_code or 0)
+            if response is not None and 200 <= code < 300:
+                _sap_record_provider_result(
+                    base_provider,
+                    ok=True,
+                    status_code=code,
+                )
+            elif response is not None and code:
+                retry_after = None
+                if code == 429:
+                    try:
+                        retry_after = float(
+                            response.headers.get("Retry-After") or 0
+                        )
+                    except (TypeError, ValueError):
+                        retry_after = None
+                _sap_record_provider_result(
+                    base_provider,
+                    ok=False,
+                    status_code=code,
+                    reason=(
+                        "auth"
+                        if code in {401, 403}
+                        else "rate_limit"
+                        if code == 429
+                        else "server"
+                        if code in {500, 502, 503, 504}
+                        else f"http_{code}"
+                    ),
+                    retry_after=retry_after,
+                )
+            elif exc is not None:
+                _sap_record_provider_result(
+                    base_provider,
+                    ok=False,
+                    reason=(
+                        "timeout"
+                        if isinstance(exc, requests.Timeout)
+                        else "network"
+                    ),
+                )
+
         print(
             " ".join(parts)
         )
 
     except Exception:
         pass
+
+
+def _sap_provider_enabled(provider):
+    allowed, reason = _sap_provider_allowed(provider)
+    if not allowed:
+        print(
+            "SAP_PROVIDER_CIRCUIT=OPEN "
+            f"provider={provider} reason={reason}"
+        )
+    return allowed
 
 def pexels_video(
     busca,
@@ -2524,7 +2587,7 @@ def buscar_todos_candidatos(
         )
 
     if USAR_VIDEOS:
-        if USAR_PEXELS and PEXELS_KEY:
+        if USAR_PEXELS and PEXELS_KEY and _sap_provider_enabled("pexels"):
             provider_jobs.append(
                 (
                     "pexels_video",
@@ -2535,7 +2598,7 @@ def buscar_todos_candidatos(
                     )
                 )
             )
-        if USAR_PIXABAY and PIXABAY_KEY:
+        if USAR_PIXABAY and PIXABAY_KEY and _sap_provider_enabled("pixabay"):
             provider_jobs.append(
                 (
                     "pixabay_video",
@@ -2546,7 +2609,7 @@ def buscar_todos_candidatos(
                     )
                 )
             )
-        if USAR_COVERR and COVERR_KEY:
+        if USAR_COVERR and COVERR_KEY and _sap_provider_enabled("coverr"):
             provider_jobs.append(
                 (
                     "coverr_video",
@@ -2558,7 +2621,7 @@ def buscar_todos_candidatos(
                 )
             )
 
-    if USAR_PEXELS and PEXELS_KEY:
+    if USAR_PEXELS and PEXELS_KEY and _sap_provider_enabled("pexels"):
         provider_jobs.append(
             (
                 "pexels_foto",
@@ -2570,7 +2633,7 @@ def buscar_todos_candidatos(
             )
         )
 
-    if USAR_PIXABAY and PIXABAY_KEY:
+    if USAR_PIXABAY and PIXABAY_KEY and _sap_provider_enabled("pixabay"):
         provider_jobs.append(
             (
                 "pixabay_foto",
