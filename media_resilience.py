@@ -543,6 +543,66 @@ def cache_stats() -> dict[str, Any]:
     return {"items": count, "bytes": total}
 
 
+def resilience_snapshot() -> dict[str, Any]:
+    now = _now()
+    provider_data = _load(PROVIDER_STATE, {"providers": {}})
+    providers = (
+        provider_data.get("providers", {})
+        if isinstance(provider_data, dict)
+        else {}
+    )
+    if not isinstance(providers, dict):
+        providers = {}
+
+    provider_summary = {}
+    open_circuits = 0
+    for name, item in providers.items():
+        if not isinstance(item, dict):
+            continue
+        until = float(item.get("circuit_until", 0.0) or 0.0)
+        is_open = until > now
+        if is_open:
+            open_circuits += 1
+        provider_summary[str(name)] = {
+            "open": is_open,
+            "consecutive_failures": int(
+                item.get("consecutive_failures", 0) or 0
+            ),
+            "last_reason": str(item.get("last_reason", "") or ""),
+            "cooldown_remaining_seconds": round(max(0.0, until - now), 1),
+        }
+
+    quarantine_data = _load(QUARANTINE_STATE, {"urls": {}})
+    urls = (
+        quarantine_data.get("urls", {})
+        if isinstance(quarantine_data, dict)
+        else {}
+    )
+    active_quarantine = 0
+    if isinstance(urls, dict):
+        active_quarantine = sum(
+            1
+            for item in urls.values()
+            if isinstance(item, dict)
+            and float(item.get("until", 0.0) or 0.0) > now
+        )
+
+    query_data = _load(QUERY_STATE, {"entries": {}})
+    entries = (
+        query_data.get("entries", {})
+        if isinstance(query_data, dict)
+        else {}
+    )
+
+    return {
+        "providers": provider_summary,
+        "open_circuits": open_circuits,
+        "quarantined_urls": active_quarantine,
+        "query_cache_entries": len(entries) if isinstance(entries, dict) else 0,
+        "blob_cache": cache_stats(),
+    }
+
+
 def prune_cache(
     *,
     max_bytes: int | None = None,
@@ -635,6 +695,7 @@ __all__ = [
     "restore_cached_media",
     "provider_from_url",
     "cache_stats",
+    "resilience_snapshot",
     "cached_media_candidates",
     "touch_cached_media",
     "prune_cache",
