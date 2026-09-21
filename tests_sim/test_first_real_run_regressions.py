@@ -8,9 +8,9 @@ MIDIA = ROOT / "midia.py"
 class MediaResolutionGuardTests(unittest.TestCase):
     def test_guard_rejects_subcritical_download_before_commit(self):
         source = MIDIA.read_text(encoding="utf-8")
-        self.assertIn("largura * altura < 320 * 180", source)
+        self.assertIn("pixels < 320 * 180", source)
         self.assertIn("mídia abaixo do piso técnico", source)
-        guard = source.index("largura * altura < 320 * 180")
+        guard = source.index("pixels < 320 * 180")
         commit = source.index("os.replace(", guard)
         self.assertLess(guard, commit)
 
