@@ -13,6 +13,7 @@ from gemini_runtime import (
     generate_text,
 )
 
+from script_fallback import build_extractive_script, build_scene_queries
 from source_identity import validar_identidade
 from wiki_client import WikiRateLimit
 from wiki_client import extract as wiki_extract_client
@@ -72,92 +73,6 @@ def limpar_roteiro(texto):
         flags=re.IGNORECASE,
     )
     return texto.strip()
-
-
-def _sentencas_fonte(texto):
-    bruto = re.sub(r"\s+", " ", str(texto or "")).strip()
-    if not bruto:
-        return []
-    partes = re.split(r"(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÂÊÔÃÕÇ0-9])", bruto)
-    saida = []
-    for parte in partes:
-        parte = re.sub(r"\[[0-9]+\]", "", parte).strip()
-        if contar_palavras(parte) < 5:
-            continue
-        if parte.casefold().startswith(("ver também", "referências", "ligações externas")):
-            continue
-        saida.append(parte)
-    return saida
-
-
-def roteiro_extrativo_factual(fonte_texto):
-    """Monta um roteiro factual sem IA usando apenas frases da fonte validada."""
-    sentencas = _sentencas_fonte(fonte_texto)
-    if not sentencas:
-        return ""
-
-    escolhidas = []
-    palavras = 0
-    alvo_sem_cta = 114
-
-    for sentenca in sentencas[:24]:
-        qtd = contar_palavras(sentenca)
-        if qtd <= 0:
-            continue
-        if palavras + qtd <= alvo_sem_cta:
-            escolhidas.append(sentenca)
-            palavras += qtd
-            if palavras >= 101:
-                break
-
-    if palavras < 101:
-        for sentenca in sentencas[len(escolhidas):32]:
-            qtd = contar_palavras(sentenca)
-            if qtd <= 0:
-                continue
-            if palavras + qtd <= 120:
-                escolhidas.append(sentenca)
-                palavras += qtd
-            if palavras >= 101:
-                break
-
-    texto = " ".join(escolhidas).strip()
-    if not texto:
-        return ""
-
-    cta = "Qual detalhe desse caso mais chama sua atenção? Comente."
-    com_cta = f"{texto} {cta}".strip()
-
-    # Normalmente o conjunto de frases já cai na faixa desejada. Se ultrapassar,
-    # remova frases completas do fim; nunca corte uma afirmação factual no meio.
-    while contar_palavras(com_cta) > 125 and len(escolhidas) > 1:
-        escolhidas.pop()
-        texto = " ".join(escolhidas).strip()
-        com_cta = f"{texto} {cta}".strip()
-
-    if 105 <= contar_palavras(com_cta) <= 125:
-        return com_cta
-
-    # Última recuperação: use somente o texto factual se ele já estiver na faixa.
-    if 105 <= contar_palavras(texto) <= 125:
-        return texto
-
-    return ""
-
-
-def cenas_fallback_local(assunto_texto, quantidade):
-    base = limpar_assunto(assunto_texto) or "documentary case"
-    palavras = re.findall(r"[\wÀ-ÿ'-]+", base, flags=re.UNICODE)
-    termo = " ".join(palavras[:5]).strip() or "documentary case"
-    modelos = [
-        f"{termo} archival documentary footage",
-        f"{termo} historical location exterior",
-        f"{termo} investigation documents archive",
-        f"{termo} night sky documentary context",
-        f"{termo} official records close up",
-        f"{termo} historical news archive",
-    ]
-    return "\n".join(modelos[i % len(modelos)] for i in range(quantidade))
 
 
 def limpar_assunto(texto):
@@ -418,13 +333,13 @@ for tentativa in range(1, 4):
             "SAP_SCRIPT_AI=UNAVAILABLE "
             f"{type(exc).__name__}:{str(exc)[:220]}"
         )
-        roteiro = roteiro_extrativo_factual(fonte)
+        roteiro = build_extractive_script(fonte)
         if not roteiro:
             sys.exit(
                 "ERRO: Gemini indisponível e fallback factual local não conseguiu "
                 "atingir 105-125 palavras sem cortar afirmações."
             )
-        cenas_texto = cenas_fallback_local(assunto, QTD_CENAS)
+        cenas_texto = build_scene_queries(assunto, QTD_CENAS, clean_topic=limpar_assunto)
         script_degraded = True
         print(
             "SAP_SCRIPT_FALLBACK=SOURCE_EXTRACTIVE_OK "
@@ -436,13 +351,13 @@ for tentativa in range(1, 4):
             "SAP_SCRIPT_AI=INVALID_RESPONSE "
             f"{type(exc).__name__}:{str(exc)[:220]}"
         )
-        roteiro = roteiro_extrativo_factual(fonte)
+        roteiro = build_extractive_script(fonte)
         if not roteiro:
             sys.exit(
                 "ERRO: resposta Gemini inválida e fallback factual local "
                 "não conseguiu atingir 105-125 palavras."
             )
-        cenas_texto = cenas_fallback_local(assunto, QTD_CENAS)
+        cenas_texto = build_scene_queries(assunto, QTD_CENAS, clean_topic=limpar_assunto)
         script_degraded = True
         print(
             "SAP_SCRIPT_FALLBACK=SOURCE_EXTRACTIVE_OK "
@@ -454,10 +369,10 @@ for tentativa in range(1, 4):
             "SAP_SCRIPT_AI=ERROR "
             f"{type(exc).__name__}:{str(exc)[:220]}"
         )
-        roteiro = roteiro_extrativo_factual(fonte)
+        roteiro = build_extractive_script(fonte)
         if not roteiro:
             sys.exit(f"ERRO gerando roteiro: {exc}")
-        cenas_texto = cenas_fallback_local(assunto, QTD_CENAS)
+        cenas_texto = build_scene_queries(assunto, QTD_CENAS, clean_topic=limpar_assunto)
         script_degraded = True
         print(
             "SAP_SCRIPT_FALLBACK=SOURCE_EXTRACTIVE_OK "
@@ -508,6 +423,7 @@ REGRAS OBRIGATÓRIAS:
 - responda SOMENTE com o roteiro final.
 """
 
+    reparado = ""
     try:
         reparado = limpar_roteiro(
             chamar_gemini(
@@ -521,22 +437,22 @@ REGRAS OBRIGATÓRIAS:
             "SAP_SCRIPT_REPAIR=AI_FAIL "
             f"{type(exc).__name__}:{str(exc)[:220]}"
         )
-        reparado = roteiro_extrativo_factual(fonte)
+        reparado = build_extractive_script(fonte)
         if reparado:
             script_degraded = True
-            cenas_texto = cenas_fallback_local(assunto, QTD_CENAS)
+            cenas_texto = build_scene_queries(assunto, QTD_CENAS, clean_topic=limpar_assunto)
 
     qtd_reparada = contar_palavras(reparado)
     print(f"Palavras após reparo: {qtd_reparada}")
     if not 105 <= qtd_reparada <= 125:
-        reparado = roteiro_extrativo_factual(fonte)
+        reparado = build_extractive_script(fonte)
         if not reparado:
             sys.exit(
                 f"ERRO: reparo final ainda fora do limite: {qtd_reparada} palavras "
                 "e fallback factual indisponível."
             )
         script_degraded = True
-        cenas_texto = cenas_fallback_local(assunto, QTD_CENAS)
+        cenas_texto = build_scene_queries(assunto, QTD_CENAS, clean_topic=limpar_assunto)
         print(
             "SAP_SCRIPT_REPAIR=SOURCE_EXTRACTIVE_RECOVERY "
             f"words={contar_palavras(reparado)}"
@@ -609,14 +525,14 @@ if not roteiro_auditado:
         "SAP_SCRIPT_FACT_AUDIT=AI_EXHAUSTED "
         "action=SOURCE_EXTRACTIVE_RECOVERY"
     )
-    roteiro_auditado = roteiro_extrativo_factual(fonte)
+    roteiro_auditado = build_extractive_script(fonte)
     if not roteiro_auditado:
         sys.exit(
             "ERRO: auditoria factual indisponível e fallback extrativo "
             "não conseguiu produzir 105-125 palavras."
         )
     script_degraded = True
-    cenas_texto = cenas_fallback_local(assunto, QTD_CENAS)
+    cenas_texto = build_scene_queries(assunto, QTD_CENAS, clean_topic=limpar_assunto)
 
 roteiro = roteiro_auditado
 if script_degraded:
@@ -681,10 +597,10 @@ REGRAS:
             break
 
     if not corrigido_final:
-        corrigido_final = roteiro_extrativo_factual(fonte)
+        corrigido_final = build_extractive_script(fonte)
         if corrigido_final:
             script_degraded = True
-            cenas_texto = cenas_fallback_local(assunto, QTD_CENAS)
+            cenas_texto = build_scene_queries(assunto, QTD_CENAS, clean_topic=limpar_assunto)
             print("SAP_SCRIPT_LANGUAGE_GUARD=SOURCE_EXTRACTIVE_RECOVERY")
         else:
             sys.exit(
