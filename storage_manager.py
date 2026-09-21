@@ -6,6 +6,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 from runtime_config import env_float, env_int
+from media_resilience import cache_stats as media_cache_stats, prune_cache as prune_media_cache
 BASE=Path(os.getenv("SHORTAUTOPRO_BASE",os.path.expanduser("~/ShortAutoPro"))).resolve();SID=os.getenv("SHORT_ID",date.today().isoformat()).strip();OUT=BASE/"reports"/"evolution"/f"storage_{SID}.json"
 def atomic(p:Path,x:Any)->None:
  p.parent.mkdir(parents=True,exist_ok=True);fd,t=tempfile.mkstemp(prefix=f".{p.name}.",suffix=".tmp",dir=str(p.parent))
@@ -113,7 +114,19 @@ def cleanup(execute:bool)->dict[str,Any]:
 def main()->int:
  ap=argparse.ArgumentParser();ap.add_argument("command",choices=["preflight","cleanup","status"],nargs="?",default="status");ap.add_argument("--execute",action="store_true");args=ap.parse_args();usage=shutil.disk_usage(BASE);min_free=min_free_bytes();payload={"short_id":SID,"version":"1.1","disk":{"total":usage.total,"used":usage.used,"free":usage.free,"free_gb":round(usage.free/1024**3,2),"min_free_gb":round(min_free/1024**3,2)}}
  if args.command=="preflight":payload["status"]="PASS" if usage.free>=min_free else "BLOCK";atomic(OUT,payload);print(json.dumps(payload,indent=2));return 0 if payload["status"]=="PASS" else 1
- if args.command=="cleanup":payload["cleanup"]=cleanup(args.execute);payload["status"]="PASS"
- else:payload["status"]="PASS"
+ if args.command=="cleanup":
+  payload["cleanup"]=cleanup(args.execute)
+  try:
+   payload["media_cache_before"]=media_cache_stats()
+   if args.execute:
+    payload["media_cache_cleanup"]=prune_media_cache()
+   payload["media_cache_after"]=media_cache_stats()
+  except Exception as exc:
+   payload["media_cache_warning"]=f"{type(exc).__name__}: {exc}"
+  payload["status"]="PASS"
+ else:
+  try:payload["media_cache"]=media_cache_stats()
+  except Exception:payload["media_cache"]={}
+  payload["status"]="PASS"
  atomic(OUT,payload);print(json.dumps(payload,indent=2));return 0
 if __name__=="__main__":raise SystemExit(main())
