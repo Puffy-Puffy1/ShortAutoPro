@@ -1328,7 +1328,7 @@ def baixar(
                 except (TypeError, ValueError):
                     retry_after = None
 
-            if status in {401, 403, 429, 500, 502, 503, 504}:
+            if status in {429, 500, 502, 503, 504}:
                 _sap_record_provider_result(
                     provider,
                     ok=False,
