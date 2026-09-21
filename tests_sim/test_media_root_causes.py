@@ -11,6 +11,22 @@ class MediaRootCauseRegressionTests(unittest.TestCase):
         self.assertIn("_executor = ThreadPoolExecutor(", text)
         self.assertIn("cancel_futures=True", text)
 
+    def test_parallel_deadline_collects_completed_futures_without_order_loss(self):
+        text = (ROOT / "midia.py").read_text(encoding="utf-8")
+        self.assertIn("from concurrent.futures import ThreadPoolExecutor, wait", text)
+        self.assertIn("_done, _not_done = wait(", text)
+        self.assertIn("if future not in _done:", text)
+        self.assertIn("future.result()", text)
+        self.assertNotIn("timeout=_provider_remaining", text)
+
+    def test_local_fallback_commits_only_after_successful_copy(self):
+        text = (ROOT / "midia.py").read_text(encoding="utf-8")
+        start = text.index("# FALLBACK LOCAL FINAL")
+        end = text.index("# EMERGENCY EDITORIAL COMPLETION", start)
+        block = text[start:end]
+        self.assertEqual(block.count("_vse42_commit_safe(escolhido)"), 1)
+        self.assertIn("if sucesso:\n                _vse42_cleanup_scene_sibling(destino)", block)
+
     def test_unconfigured_stock_providers_are_not_enqueued(self):
         text = (ROOT / "midia.py").read_text(encoding="utf-8")
         self.assertIn("if USAR_PEXELS and PEXELS_KEY:", text)
