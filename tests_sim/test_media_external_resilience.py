@@ -135,7 +135,10 @@ class MediaExternalResilienceTests(unittest.TestCase):
     def test_midia_integrates_circuits_quarantine_and_bounded_download(self):
         text = (ROOT / "midia.py").read_text(encoding="utf-8")
         self.assertIn("SAP_MEDIA_PROVIDER_CIRCUIT=SKIP", text)
-        self.assertIn("SAP_MEDIA_ASSET_QUARANTINE", text)
+        self.assertIn("_sap_filter_quarantined(", text)
+        self.assertIn("_sap_mark_asset_bad(", text)
+        resilience_text = (ROOT / "media_external_resilience.py").read_text(encoding="utf-8")
+        self.assertIn("SAP_MEDIA_ASSET_QUARANTINE", resilience_text)
         self.assertIn("SAP_MEDIA_DOWNLOAD_MAX_MB", text)
         self.assertIn("SAP_MEDIA_DOWNLOAD_WALL_SECONDS", text)
         self.assertIn("SAP_MEDIA_DOWNLOAD_MAX_PIXELS", text)
