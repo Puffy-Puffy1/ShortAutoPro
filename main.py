@@ -411,6 +411,61 @@ def stages_before_render(p: Pipeline) -> None:
     p.run("8B - EVOLUTION CAPTION AUDIT", "shortautopro_evolution.py", "caption-audit")
 
 
+def pre_render_repair(p: Pipeline) -> None:
+    code = p.run(
+        "8B1 - BOUNDED PRE-RENDER AUTO-REPAIR",
+        "shortauto_repair_engine.py",
+        "--short-id",
+        p.sid,
+        "--execute",
+        "--max-cycles",
+        "1",
+        allow_codes={0, 20},
+    )
+
+    repair_report = BASE / "reports" / "repair" / f"repair_{p.sid}.json"
+    accepted_media_repair = False
+    try:
+        data = json.loads(repair_report.read_text(encoding="utf-8"))
+        history = data.get("history", []) if isinstance(data, dict) else []
+        for cycle in history if isinstance(history, list) else []:
+            if not isinstance(cycle, dict):
+                continue
+            for action in cycle.get("actions", []) if isinstance(cycle.get("actions"), list) else []:
+                if not isinstance(action, dict):
+                    continue
+                if (
+                    str(action.get("status", "")).upper() == "PASS"
+                    and str(action.get("id", "")) in {
+                        "media_reacquire",
+                        "media_quality_refresh",
+                        "visual_continuity_repair",
+                    }
+                ):
+                    accepted_media_repair = True
+    except Exception as exc:
+        print(
+            "PRE_RENDER_REPAIR_HISTORY=UNAVAILABLE "
+            f"{type(exc).__name__}:{str(exc)[:140]}"
+        )
+
+    if accepted_media_repair:
+        p.run("8B2 - REFRESH MULTI-ASSET PLAN", "multi_asset_director.py")
+        p.run("8B3 - REFRESH PRODUCTION SUPERVISOR", "production_supervisor.py")
+        p.run("8B4 - REFRESH EDITORIAL GATE", "editorial_gate.py")
+        p.run(
+            "8B5 - RECHECK SELECTED VISUAL CONTINUITY",
+            "visual_continuity_engine.py",
+            "--selected",
+        )
+
+    if code == 20:
+        print(
+            "PRE_RENDER_REPAIR=HOLD; bounded repairs exhausted. "
+            "Render pre-flight will decide whether it is safe to encode."
+        )
+
+
 def assemble_and_render(p: Pipeline) -> None:
     p.run("8C - STAGE 6 / RENDER PRE-FLIGHT", "render_preflight.py")
     p.run("9 - PROFESSIONAL MULTI-BEAT ASSEMBLER", "video_professional.py")
@@ -556,6 +611,7 @@ def run_pipeline() -> int:
         print("PIPELINE: PROFESSIONAL_CANONICAL")
         try:
             stages_before_render(p)
+            pre_render_repair(p)
             assemble_and_render(p)
             code = final_gates(p)
             if code == 20:
