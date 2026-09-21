@@ -23,7 +23,7 @@ try:
 except Exception:  # pragma: no cover - non-POSIX fallback
     fcntl = None
 
-VERSION = "2.0"
+VERSION = "2.1"
 BASE = Path(os.path.abspath(os.path.expanduser(os.getenv("SHORTAUTOPRO_BASE", "~/ShortAutoPro"))))
 STATE_FILE = BASE / "cache" / "media_resilience" / "state.json"
 _LOCK = threading.RLock()
@@ -46,7 +46,7 @@ COOLDOWNS = {
     "UNKNOWN": 30.0,
 }
 ASSET_TTL = {
-    "HTTP_403": 1800.0, "HTTP_404": 604800.0, "HTTP_410": 604800.0,
+    "HTTP_401": 1800.0, "HTTP_403": 1800.0, "HTTP_404": 604800.0, "HTTP_410": 604800.0,
     "HTTP_429": 900.0, "TIMEOUT": 600.0, "NETWORK": 600.0,
     "CONTENT_TYPE": 86400.0, "TOO_SMALL": 86400.0,
     "TOO_LARGE": 86400.0, "CORRUPT": 86400.0,
@@ -125,22 +125,40 @@ def _process_lock():
         handle.close()
 
 
+def _safe_float(value: Any, default: float = 0.0) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return float(default)
+
+
+def _safe_int(value: Any, default: int = 0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return int(default)
+
+
 def _provider_defaults(item: Any) -> dict[str, Any]:
     if not isinstance(item, dict):
         item = {}
-    defaults = {
-        "consecutive_failures": 0,
-        "empty_streak": 0,
-        "open_until": 0.0,
-        "open_reason": "",
-        "probe_lease_until": 0.0,
-        "probe_owner": "",
-        "successes": 0,
-        "failures": 0,
-        "empties": 0,
-    }
-    for key, value in defaults.items():
-        item.setdefault(key, value)
+
+    for key in (
+        "consecutive_failures",
+        "empty_streak",
+        "successes",
+        "failures",
+        "empties",
+        "resource_misses",
+    ):
+        item[key] = max(0, _safe_int(item.get(key, 0), 0))
+
+    for key in ("open_until", "probe_lease_until"):
+        item[key] = max(0.0, _safe_float(item.get(key, 0.0), 0.0))
+
+    for key in ("open_reason", "probe_owner"):
+        item[key] = str(item.get(key, "") or "")
+
     return item
 
 
@@ -153,7 +171,10 @@ def _cleanup(state: dict[str, Any]) -> None:
 
     for key in list(bad):
         item = bad.get(key)
-        if not isinstance(item, dict) or float(item.get("expires_at", 0.0) or 0.0) <= now:
+        if not isinstance(item, dict):
+            bad.pop(key, None)
+            continue
+        if _safe_float(item.get("expires_at", 0.0), 0.0) <= now:
             bad.pop(key, None)
 
     if len(bad) > MAX_BAD_ASSETS:
@@ -283,8 +304,8 @@ def provider_gate(provider: Any):
             item = _provider_defaults(state["providers"].get(family))
             state["providers"][family] = item
             now = time.time()
-            until = float(item.get("open_until", 0.0) or 0.0)
-            lease_until = float(item.get("probe_lease_until", 0.0) or 0.0)
+            until = _safe_float(item.get("open_until", 0.0), 0.0)
+            lease_until = _safe_float(item.get("probe_lease_until", 0.0), 0.0)
 
             if until > now:
                 return False, str(item.get("open_reason", "OPEN") or "OPEN"), until - now
@@ -365,6 +386,13 @@ def note_provider_event(
                     item["open_until"] = now + COOLDOWNS["EMPTY"]
                     item["open_reason"] = "EMPTY"
 
+            elif event == "RESOURCE_MISS":
+                # A 401/403/404/410 from a media CDN is URL/asset scoped.
+                # It must not poison the search-provider circuit.
+                item["resource_misses"] = int(item.get("resource_misses", 0) or 0) + 1
+                item["consecutive_failures"] = 0
+                item["empty_streak"] = 0
+
             else:
                 item["failures"] = int(item.get("failures", 0) or 0) + 1
                 item["consecutive_failures"] = int(
@@ -387,6 +415,7 @@ def note_provider_event(
 def note_response(provider: Any, response: Any):
     status = getattr(response, "status_code", None)
     event = classify_http_status(status)
+    family = provider_family(provider)
     retry_after = None
     try:
         retry_after = response.headers.get("Retry-After")
@@ -395,6 +424,13 @@ def note_response(provider: Any, response: Any):
 
     if event == "SUCCESS":
         note_provider_event(provider, "HTTP_SUCCESS", status=status)
+    elif family.startswith("download_") and status in {401, 403, 404, 410}:
+        note_provider_event(
+            provider,
+            "RESOURCE_MISS",
+            status=status,
+            detail=f"download_http_{status}",
+        )
     else:
         note_provider_event(
             provider,
@@ -481,7 +517,7 @@ def asset_blocked(
                 item = state["bad_assets"].get(key)
                 if not isinstance(item, dict):
                     continue
-                remaining = float(item.get("expires_at", 0.0) or 0.0) - now
+                remaining = _safe_float(item.get("expires_at", 0.0), 0.0) - now
                 if remaining > 0:
                     return True, str(item.get("reason", "BLOCKED")), remaining
                 state["bad_assets"].pop(key, None)
@@ -498,7 +534,9 @@ def mark_asset_bad(
     asset_wide: bool = False,
 ):
     reason = str(reason or "UNKNOWN").upper()
-    if status in {403, "403"}:
+    if status in {401, "401"}:
+        reason = "HTTP_401"
+    elif status in {403, "403"}:
         reason = "HTTP_403"
     elif status in {404, "404"}:
         reason = "HTTP_404"
@@ -573,10 +611,18 @@ def filter_quarantined(candidates: Any):
             continue
 
         primary = str(candidate.get("url") or "").strip()
-        if primary and primary not in available:
+        selected = primary if primary in available else available[0]
+        cleaned_variants = [url for url in available if url != selected]
+
+        if (
+            selected != primary
+            or list(candidate.get("_download_variants", []) or []) != cleaned_variants
+        ):
             candidate = dict(candidate)
-            candidate["url"] = available[0]
-            candidate["_download_variants"] = available[1:]
+            candidate["url"] = selected
+            candidate["_download_variants"] = cleaned_variants
+
+        if primary and selected != primary:
             print(
                 "SAP_MEDIA_ASSET_QUARANTINE=PRIMARY_ROTATED "
                 f"provider={provider_family(provider)} id={asset_id or '?'}"
@@ -619,7 +665,7 @@ def diagnostics():
                 "bad_assets_active": len(state.get("bad_assets", {})),
                 "corrupt_recoveries": int(state.get("corrupt_recoveries", 0) or 0),
                 "last_corrupt_backup": state.get("last_corrupt_backup", ""),
-                "updated_at": float(state.get("updated_at", 0.0) or 0.0),
+                "updated_at": _safe_float(state.get("updated_at", 0.0), 0.0),
             }
 
 
