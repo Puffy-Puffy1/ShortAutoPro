@@ -138,5 +138,12 @@ class ProductionSupervisorHardeningTests(unittest.TestCase):
         self.assertLess(gate, assembler)
         self.assertIn('"production_supervisor.py", "--pre-render"', main_text)
 
+    def test_resume_render_paths_keep_same_pre_render_contract(self):
+        resume_text = (REPO / "resume_short_runtime.py").read_text(encoding="utf-8")
+        self.assertGreaterEqual(
+            resume_text.count('"production_supervisor.py", "--pre-render"'),
+            2,
+        )
+
 if __name__ == "__main__":
     unittest.main()
