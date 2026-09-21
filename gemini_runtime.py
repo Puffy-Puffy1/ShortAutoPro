@@ -67,14 +67,21 @@ def _extract_text(data: object) -> str:
             parts = content.get("parts", []) if isinstance(content, dict) else []
             if not isinstance(parts, list):
                 continue
+            finish = str(candidate.get("finishReason", "") or "").strip().upper()
+            if finish and finish != "STOP":
+                raise GeminiInvalidResponse("finish_reason=" + finish)
+
             chunks = [
-                str(part.get("text", "") or "").strip()
+                str(part.get("text", "") or "")
                 for part in parts
                 if isinstance(part, dict)
-                and str(part.get("text", "") or "").strip()
+                and not part.get("thought")
+                and str(part.get("text", "") or "")
             ]
             if chunks:
-                return "\n".join(chunks).strip()
+                # Gemini may split structured JSON in the middle of a quoted
+                # string. Joining with a newline mutates that JSON.
+                return "".join(chunks).strip()
 
     feedback = data.get("promptFeedback", {})
     if isinstance(feedback, dict) and feedback.get("blockReason"):
@@ -191,7 +198,28 @@ def generate_text(
                 try:
                     text = _extract_text(data)
                 except GeminiInvalidResponse as exc:
-                    invalid.append(f"{model}:{exc}")
+                    reason = str(exc)
+                    invalid.append(f"{model}:{reason}")
+
+                    if "finish_reason=MAX_TOKENS" in reason and attempt < attempts:
+                        current = int(payload["generationConfig"]["maxOutputTokens"])
+                        payload["generationConfig"]["maxOutputTokens"] = min(
+                            16000,
+                            max(current + 512, current * 2),
+                        )
+                        print(
+                            f"SAP_GEMINI_OUTPUT_BUDGET_GROW component={component} "
+                            f"model={model} tokens="
+                            f"{payload['generationConfig']['maxOutputTokens']}"
+                        )
+                        continue
+
+                    # Safety/policy stops are deterministic for the same prompt;
+                    # do not burn retries or model rotations trying to bypass
+                    # them. Callers can fail-open/fallback explicitly.
+                    if "finish_reason=SAFETY" in reason or "prompt_block=" in reason:
+                        raise
+
                     if attempt < attempts:
                         time.sleep(1.0)
                         continue
