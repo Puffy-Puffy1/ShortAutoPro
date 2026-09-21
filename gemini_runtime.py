@@ -231,7 +231,7 @@ def generate_text(
                 return text
 
             status = int(response.status_code or 0)
-            body = str(response.text or "")[:500]
+            body = str(getattr(response, "text", "") or "")[:500]
 
             if status in {429, 500, 502, 503, 504}:
                 transient.append(f"{model}:HTTP_{status}:{body}")
