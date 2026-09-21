@@ -10,6 +10,7 @@ from datetime import date
 
 import requests
 
+from runtime_config import env_float, env_int
 from source_identity import validar_identidade
 from topic_memory import encontrar_duplicata, normalizar as normalizar_memoria
 from topic_reserve import melhor_reserva
@@ -22,11 +23,26 @@ SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat())
 TEMA = os.getenv("SHORT_TEMA", "mistérios, casos inexplicáveis e true crime")
 API_KEY = os.getenv("GEMINI_API_KEY")
 MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
-try:
-    GEMINI_TIMEOUT = float(os.getenv("SAP_GEMINI_TIMEOUT", "75") or 75)
-except (TypeError, ValueError):
-    GEMINI_TIMEOUT = 75.0
-GEMINI_TIMEOUT = max(20.0, min(GEMINI_TIMEOUT, 120.0))
+GEMINI_TIMEOUT = env_float("SAP_GEMINI_TIMEOUT", 28.0, 8.0, 60.0)
+GEMINI_ATTEMPTS_PER_MODEL = env_int("SAP_TOPIC_MODEL_ATTEMPTS", 2, 1, 3)
+
+# High-demand 503s are model-local/capacity-local failures. Do not hammer the
+# same endpoint three times for 75 seconds each; rotate across stable fallback
+# models and keep a final non-LLM recovery path.
+_default_model_chain = [
+    MODEL,
+    "gemini-3.1-flash-lite",
+    "gemini-3.5-flash",
+]
+_model_chain_env = os.getenv("GEMINI_MODEL_CHAIN", "").strip()
+MODEL_CHAIN = []
+for _model in (
+    [x.strip() for x in _model_chain_env.split(",") if x.strip()]
+    if _model_chain_env
+    else _default_model_chain
+):
+    if _model not in MODEL_CHAIN:
+        MODEL_CHAIN.append(_model)
 HISTORICO = os.path.join(BASE, "historico_assuntos.json")
 SAIDA = os.path.join(BASE, "roteiros", f"topic_{SHORT_ID}.txt")
 VERIFICACAO = os.path.join(BASE, "roteiros", f"topic_verified_{SHORT_ID}.json")
@@ -266,8 +282,43 @@ def score_novidade(nome):
     return max(0.0, 10.0 - sim * 10)
 
 
-URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent"
+class GeminiTemporarilyUnavailable(RuntimeError):
+    pass
+
+
+def _gemini_url(model):
+    return (
+        "https://generativelanguage.googleapis.com/v1beta/models/"
+        + str(model)
+        + ":generateContent"
+    )
+
+
 HEADERS = {"Content-Type": "application/json", "x-goog-api-key": API_KEY}
+
+
+def _extract_gemini_text(dados):
+    candidates = dados.get("candidates", []) if isinstance(dados, dict) else []
+    for candidate in candidates if isinstance(candidates, list) else []:
+        if not isinstance(candidate, dict):
+            continue
+        content = candidate.get("content", {})
+        parts = content.get("parts", []) if isinstance(content, dict) else []
+        chunks = [
+            str(part.get("text", "") or "").strip()
+            for part in parts
+            if isinstance(part, dict) and str(part.get("text", "") or "").strip()
+        ]
+        if chunks:
+            return "\n".join(chunks).strip()
+
+    feedback = dados.get("promptFeedback", {}) if isinstance(dados, dict) else {}
+    reason = (
+        str(feedback.get("blockReason", "") or "")
+        if isinstance(feedback, dict)
+        else ""
+    ) or "no_usable_candidates"
+    raise RuntimeError(f"Gemini sem candidato utilizável: {reason}")
 
 
 def chamar_gemini(prompt):
@@ -275,63 +326,222 @@ def chamar_gemini(prompt):
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {"temperature": 0.65, "maxOutputTokens": 1800},
     }
-    for tentativa in range(1, 4):
-        print(f"Topic Engine tentativa {tentativa}/3...")
-        try:
-            r = requests.post(URL, headers=HEADERS, json=payload, timeout=GEMINI_TIMEOUT)
-        except Exception as exc:
-            if tentativa == 3:
-                raise RuntimeError(str(exc))
-            time.sleep(4)
-            continue
+    transient_errors = []
+    total_models = len(MODEL_CHAIN)
 
-        if r.ok:
+    for model_index, model in enumerate(MODEL_CHAIN, start=1):
+        url = _gemini_url(model)
+
+        for tentativa in range(1, GEMINI_ATTEMPTS_PER_MODEL + 1):
+            print(
+                "Topic Engine model "
+                f"{model_index}/{total_models}={model} "
+                f"tentativa {tentativa}/{GEMINI_ATTEMPTS_PER_MODEL}..."
+            )
+
             try:
-                dados = r.json()
-            except Exception as exc:
-                if tentativa == 3:
-                    raise RuntimeError(f"Gemini retornou JSON inválido: {exc}")
-                time.sleep(3)
-                continue
-
-            candidates = dados.get("candidates", []) if isinstance(dados, dict) else []
-            for candidate in candidates if isinstance(candidates, list) else []:
-                if not isinstance(candidate, dict):
+                r = requests.post(
+                    url,
+                    headers=HEADERS,
+                    json=payload,
+                    timeout=GEMINI_TIMEOUT,
+                )
+            except requests.Timeout as exc:
+                transient_errors.append(f"{model}:timeout:{exc}")
+                print(f"Topic Engine: timeout em {model}; failover preparado.")
+                if tentativa < GEMINI_ATTEMPTS_PER_MODEL:
+                    time.sleep(1.5 * tentativa)
                     continue
-                content = candidate.get("content", {})
-                parts = content.get("parts", []) if isinstance(content, dict) else []
-                chunks = [
-                    str(part.get("text", "") or "").strip()
-                    for part in parts
-                    if isinstance(part, dict) and str(part.get("text", "") or "").strip()
-                ]
-                if chunks:
-                    return "\n".join(chunks).strip()
+                break
+            except requests.RequestException as exc:
+                transient_errors.append(f"{model}:network:{exc}")
+                print(f"Topic Engine: erro de rede em {model}; failover preparado.")
+                if tentativa < GEMINI_ATTEMPTS_PER_MODEL:
+                    time.sleep(1.5 * tentativa)
+                    continue
+                break
 
-            feedback = dados.get("promptFeedback", {}) if isinstance(dados, dict) else {}
-            reason = (
-                str(feedback.get("blockReason", "") or "")
-                if isinstance(feedback, dict)
-                else ""
-            ) or "no_usable_candidates"
-            print(f"Topic Engine: Gemini sem texto ({reason}).")
-            if tentativa < 3:
-                time.sleep(4)
-                continue
-            raise RuntimeError(f"Gemini sem candidato utilizável: {reason}")
-
-        if r.status_code in {429, 500, 502, 503, 504} and tentativa < 3:
-            espera = 6
-            if r.status_code == 429:
+            if r.ok:
                 try:
-                    espera = int(r.headers.get("Retry-After") or espera)
-                except (TypeError, ValueError):
-                    espera = 6
-                espera = max(2, min(espera, 30))
-            time.sleep(espera)
+                    dados = r.json()
+                except Exception as exc:
+                    transient_errors.append(f"{model}:invalid_json:{exc}")
+                    if tentativa < GEMINI_ATTEMPTS_PER_MODEL:
+                        time.sleep(1)
+                        continue
+                    break
+
+                try:
+                    texto = _extract_gemini_text(dados)
+                except RuntimeError as exc:
+                    transient_errors.append(f"{model}:empty:{exc}")
+                    if tentativa < GEMINI_ATTEMPTS_PER_MODEL:
+                        time.sleep(1)
+                        continue
+                    break
+
+                print(f"TOPIC_ENGINE_MODEL_OK={model}")
+                return texto
+
+            status = int(r.status_code or 0)
+            body = str(r.text or "")[:500]
+
+            if status in {429, 500, 502, 503, 504}:
+                transient_errors.append(f"{model}:HTTP_{status}:{body}")
+                print(
+                    "TOPIC_ENGINE_TRANSIENT="
+                    f"model={model} status={status} "
+                    "action=MODEL_FAILOVER"
+                )
+
+                # 503/504 usually indicate capacity/service trouble. Repeating
+                # the same model immediately adds latency without resilience.
+                if status in {503, 504}:
+                    break
+
+                if tentativa < GEMINI_ATTEMPTS_PER_MODEL:
+                    wait = 2
+                    if status == 429:
+                        try:
+                            wait = int(r.headers.get("Retry-After") or wait)
+                        except (TypeError, ValueError):
+                            wait = 2
+                        wait = max(1, min(wait, 12))
+                    time.sleep(wait)
+                    continue
+                break
+
+            # Permanent/request errors should not be retried on this model.
+            raise RuntimeError(f"HTTP {status} em {model}: {body}")
+
+    detail = " | ".join(transient_errors[-6:]) or "sem detalhe"
+    raise GeminiTemporarilyUnavailable(
+        "todos os modelos temporariamente indisponíveis: " + detail
+    )
+
+
+FALLBACK_TOPIC_SEEDS = [
+    "Desaparecimento de Frederick Valentich",
+    "Incidente do Passo Dyatlov",
+    "Sinal Wow!",
+    "Monstro de Flatwoods",
+    "Voo 19",
+    "D. B. Cooper",
+    "Caso Tamam Shud",
+    "MV Joyita",
+    "USS Cyclops",
+    "Farol das Ilhas Flannan",
+    "Colônia de Roanoke",
+    "Manuscrito Voynich",
+    "Cinco de Yuba County",
+    "Crianças Sodder",
+    "Caso das Máscaras de Chumbo",
+    "Hinterkaifeck",
+    "Kaspar Hauser",
+    "Desaparecimento das crianças Beaumont",
+]
+
+
+def _fallback_candidate_score(nome, verificacao):
+    return (
+        score_visual_nome(nome) * 1.10
+        + score_hook_nome(nome) * 1.15
+        + score_documentacao(verificacao.get("chars", 0)) * 1.25
+        + score_titulo(verificacao.get("similarity", 0.0)) * 0.55
+        + score_novidade(nome) * 0.75
+    )
+
+
+def escolher_fallback_sem_llm():
+    print()
+    print("TOPIC_ENGINE_FALLBACK=START")
+
+    reserva = melhor_reserva()
+    if reserva:
+        nome = str(reserva.get("topic", "")).strip()
+        if nome:
+            print(
+                "TOPIC_ENGINE_FALLBACK=VERIFIED_RESERVE "
+                f"topic={nome}"
+            )
+            return {
+                "topic": nome,
+                "score": float(reserva.get("score", 0.0) or 0.0),
+                "wiki_title": str(reserva.get("wiki_title", "") or ""),
+                "wiki_chars": 0,
+                "wiki_similarity": 1.0,
+                "gemini": {},
+                "objective": {
+                    "visual": score_visual_nome(nome),
+                    "hook": score_hook_nome(nome),
+                    "documentation": 0.0,
+                    "title_match": 10.0,
+                    "novelty": score_novidade(nome),
+                },
+                "reserve": True,
+                "engine_fallback": "verified_reserve",
+            }
+
+    print("TOPIC_ENGINE_FALLBACK=LOCAL_WIKIPEDIA_DISCOVERY")
+
+    melhores = []
+    for nome in FALLBACK_TOPIC_SEEDS:
+        duplicata = encontrar_duplicata(nome, historico, limite=0.72)
+        if duplicata.get("duplicate"):
             continue
-        raise RuntimeError(f"HTTP {r.status_code}: {r.text[:1000]}")
-    raise RuntimeError("Gemini não respondeu.")
+
+        chave = normalizar_memoria(nome) or nome.casefold()
+        if chave in rejeitados_runtime_norm:
+            continue
+
+        try:
+            verificacao = verificar_wikipedia(nome)
+        except WikiRateLimit:
+            print("TOPIC_ENGINE_FALLBACK=WIKIPEDIA_RATE_LIMIT")
+            break
+        except Exception as exc:
+            print(
+                "TOPIC_ENGINE_FALLBACK=WIKI_FAIL_OPEN "
+                f"topic={nome} error={type(exc).__name__}:{str(exc)[:120]}"
+            )
+            continue
+
+        if not verificacao.get("ok"):
+            continue
+
+        score = _fallback_candidate_score(nome, verificacao)
+        melhores.append(
+            {
+                "topic": nome,
+                "score": round(score, 2),
+                "wiki_title": verificacao["wiki_title"],
+                "wiki_chars": verificacao["chars"],
+                "wiki_similarity": verificacao["similarity"],
+                "gemini": {},
+                "objective": {
+                    "visual": score_visual_nome(nome),
+                    "hook": score_hook_nome(nome),
+                    "documentation": score_documentacao(verificacao["chars"]),
+                    "title_match": score_titulo(verificacao["similarity"]),
+                    "novelty": score_novidade(nome),
+                },
+                "engine_fallback": "local_wikipedia_verified",
+            }
+        )
+
+        if len(melhores) >= 3:
+            break
+
+    if not melhores:
+        return None
+
+    melhores.sort(key=lambda x: x["score"], reverse=True)
+    selected = melhores[0]
+    print(
+        "TOPIC_ENGINE_FALLBACK=LOCAL_VERIFIED_OK "
+        f"topic={selected['topic']}"
+    )
+    return selected
 
 
 usados = [
@@ -379,17 +589,78 @@ print()
 print(f"Assuntos no histórico: {len(historico)}")
 print()
 
+fallback_selected = None
+
 try:
     bruto = chamar_gemini(prompt)
+except GeminiTemporarilyUnavailable as exc:
+    print(f"AVISO Topic Engine: {exc}")
+    fallback_selected = escolher_fallback_sem_llm()
+    if not fallback_selected:
+        sys.exit(
+            "ERRO Topic Engine: Gemini indisponível e nenhum fallback verificado disponível."
+        )
 except Exception as exc:
-    sys.exit(f"ERRO Topic Engine: {exc}")
+    # Request/configuration errors can still use a verified fallback instead of
+    # blocking the whole production chain.
+    print(f"AVISO Topic Engine não transitório: {exc}")
+    fallback_selected = escolher_fallback_sem_llm()
+    if not fallback_selected:
+        sys.exit(f"ERRO Topic Engine: {exc}")
+
+if fallback_selected:
+    atomic_text(SAIDA, fallback_selected["topic"])
+    atomic_json(
+        VERIFICACAO,
+        {
+            "short_id": SHORT_ID,
+            "selected": fallback_selected,
+            "ranking": [fallback_selected],
+            "verification": [
+                {
+                    "topic": fallback_selected["topic"],
+                    "approved": True,
+                    "reason": fallback_selected.get("engine_fallback", "fallback"),
+                    "wiki_title": fallback_selected.get("wiki_title", ""),
+                }
+            ],
+            "runtime_rejected_topics": rejeitados_runtime,
+            "topic_engine_degraded": True,
+        },
+    )
+    print()
+    print("================================")
+    print("TOPIC ENGINE DEGRADED MODE: OK")
+    print("================================")
+    print()
+    print("Assunto escolhido:")
+    print(fallback_selected["topic"])
+    print()
+    raise SystemExit(0)
 
 bruto = bruto.replace("```json", "").replace("```", "").strip()
 try:
     dados = json.loads(bruto)
 except Exception:
     print(bruto)
-    sys.exit("ERRO: JSON inválido.")
+    fallback_selected = escolher_fallback_sem_llm()
+    if fallback_selected:
+        atomic_text(SAIDA, fallback_selected["topic"])
+        atomic_json(
+            VERIFICACAO,
+            {
+                "short_id": SHORT_ID,
+                "selected": fallback_selected,
+                "ranking": [fallback_selected],
+                "verification": [],
+                "runtime_rejected_topics": rejeitados_runtime,
+                "topic_engine_degraded": True,
+                "degraded_reason": "invalid_llm_json",
+            },
+        )
+        print("TOPIC_ENGINE_JSON_RECOVERY=FALLBACK_OK")
+        raise SystemExit(0)
+    sys.exit("ERRO: JSON inválido e fallback verificado indisponível.")
 
 if not isinstance(dados, dict):
     sys.exit("ERRO: resposta do Topic Engine não é um objeto JSON.")
@@ -397,7 +668,28 @@ topics = dados.get("topics", [])
 if not isinstance(topics, list):
     sys.exit("ERRO: campo topics inválido.")
 if len(topics) < 8:
-    sys.exit("ERRO: poucos candidatos.")
+    print(
+        "AVISO: poucos candidatos do modelo; "
+        "ativando fallback verificado para evitar bloqueio."
+    )
+    fallback_selected = escolher_fallback_sem_llm()
+    if fallback_selected:
+        atomic_text(SAIDA, fallback_selected["topic"])
+        atomic_json(
+            VERIFICACAO,
+            {
+                "short_id": SHORT_ID,
+                "selected": fallback_selected,
+                "ranking": [fallback_selected],
+                "verification": [],
+                "runtime_rejected_topics": rejeitados_runtime,
+                "topic_engine_degraded": True,
+                "degraded_reason": "insufficient_llm_candidates",
+            },
+        )
+        print("TOPIC_ENGINE_CANDIDATE_RECOVERY=FALLBACK_OK")
+        raise SystemExit(0)
+    sys.exit("ERRO: poucos candidatos e fallback verificado indisponível.")
 
 aprovados = []
 relatorio = []
