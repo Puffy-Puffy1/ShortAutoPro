@@ -432,9 +432,23 @@ for tentativa in range(1, 4):
         )
         break
     except GeminiGenerationUnavailable as exc:
-        print(f"SAP_SCRIPT_TOPIC_INCOMPATIBLE={assunto}")
-        print(f"SAP_SCRIPT_GEMINI_DIAGNOSTIC={exc}")
-        raise SystemExit(24)
+        print(
+            "SAP_SCRIPT_AI=INVALID_RESPONSE "
+            f"{type(exc).__name__}:{str(exc)[:220]}"
+        )
+        roteiro = roteiro_extrativo_factual(fonte)
+        if not roteiro:
+            sys.exit(
+                "ERRO: resposta Gemini inválida e fallback factual local "
+                "não conseguiu atingir 105-125 palavras."
+            )
+        cenas_texto = cenas_fallback_local(assunto, QTD_CENAS)
+        script_degraded = True
+        print(
+            "SAP_SCRIPT_FALLBACK=SOURCE_EXTRACTIVE_OK "
+            f"words={contar_palavras(roteiro)}"
+        )
+        break
     except Exception as exc:
         print(
             "SAP_SCRIPT_AI=ERROR "
@@ -503,17 +517,34 @@ REGRAS OBRIGATÓRIAS:
             )
         )
     except Exception as exc:
-        sys.exit(f"ERRO no reparo final do roteiro: {exc}")
+        print(
+            "SAP_SCRIPT_REPAIR=AI_FAIL "
+            f"{type(exc).__name__}:{str(exc)[:220]}"
+        )
+        reparado = roteiro_extrativo_factual(fonte)
+        if reparado:
+            script_degraded = True
+            cenas_texto = cenas_fallback_local(assunto, QTD_CENAS)
 
     qtd_reparada = contar_palavras(reparado)
     print(f"Palavras após reparo: {qtd_reparada}")
     if not 105 <= qtd_reparada <= 125:
-        sys.exit(
-            f"ERRO: reparo final ainda fora do limite: {qtd_reparada} palavras."
+        reparado = roteiro_extrativo_factual(fonte)
+        if not reparado:
+            sys.exit(
+                f"ERRO: reparo final ainda fora do limite: {qtd_reparada} palavras "
+                "e fallback factual indisponível."
+            )
+        script_degraded = True
+        cenas_texto = cenas_fallback_local(assunto, QTD_CENAS)
+        print(
+            "SAP_SCRIPT_REPAIR=SOURCE_EXTRACTIVE_RECOVERY "
+            f"words={contar_palavras(reparado)}"
         )
 
     roteiro = reparado
-    cenas_texto = ultimas_cenas_recebidas
+    if not cenas_texto:
+        cenas_texto = ultimas_cenas_recebidas
 
 print()
 print("================================")
@@ -574,9 +605,18 @@ for auditoria in range(1, 4) if not script_degraded else []:
         break
 
 if not roteiro_auditado:
-    sys.exit(
-        "ERRO: auditoria factual não produziu um roteiro válido após 3 tentativas; produção bloqueada."
+    print(
+        "SAP_SCRIPT_FACT_AUDIT=AI_EXHAUSTED "
+        "action=SOURCE_EXTRACTIVE_RECOVERY"
     )
+    roteiro_auditado = roteiro_extrativo_factual(fonte)
+    if not roteiro_auditado:
+        sys.exit(
+            "ERRO: auditoria factual indisponível e fallback extrativo "
+            "não conseguiu produzir 105-125 palavras."
+        )
+    script_degraded = True
+    cenas_texto = cenas_fallback_local(assunto, QTD_CENAS)
 
 roteiro = roteiro_auditado
 if script_degraded:
@@ -641,9 +681,15 @@ REGRAS:
             break
 
     if not corrigido_final:
-        sys.exit(
-            "ERRO: Language Guard não conseguiu remover termos em inglês sem quebrar o roteiro."
-        )
+        corrigido_final = roteiro_extrativo_factual(fonte)
+        if corrigido_final:
+            script_degraded = True
+            cenas_texto = cenas_fallback_local(assunto, QTD_CENAS)
+            print("SAP_SCRIPT_LANGUAGE_GUARD=SOURCE_EXTRACTIVE_RECOVERY")
+        else:
+            sys.exit(
+                "ERRO: Language Guard falhou e fallback factual local indisponível."
+            )
     roteiro = corrigido_final
     print("Language Guard: PASS")
 
