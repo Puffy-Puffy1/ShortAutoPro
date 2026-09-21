@@ -50,12 +50,14 @@ class Stage6FastStrictPathTests(unittest.TestCase):
         self.assertIn("SAP_MUST_RESCUE_CACHE=HIT", text)
         self.assertIn("SAP_MEDIA_ACQUISITION_CACHE=HIT", text)
 
-    def test_provider_round_uses_shared_deadline(self):
+    def test_provider_round_uses_shared_deadline_without_order_loss(self):
         text = (ROOT / "midia.py").read_text(encoding="utf-8")
-        self.assertIn("_provider_deadline", text)
-        self.assertIn("_provider_remaining", text)
+        self.assertIn("_done, _not_done = wait(", text)
+        self.assertIn("timeout=_PROVIDER_RESULT_TIMEOUT", text)
+        self.assertIn("if future not in _done:", text)
         self.assertIn("round_deadline=", text)
         self.assertIn('SAP_MEDIA_PROVIDER_RESULT_TIMEOUT", "6"', text)
+        self.assertNotIn("_provider_remaining", text)
 
     def test_recovery_exposes_one_shot_and_mobile_budget(self):
         text = (ROOT / "media_acquisition_recovery.py").read_text(encoding="utf-8")
