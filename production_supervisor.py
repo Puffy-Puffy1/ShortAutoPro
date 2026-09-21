@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 
+import argparse
 import json
 import os
 import re
+import shutil
 import tempfile
 from datetime import date
 from pathlib import Path
@@ -30,7 +32,10 @@ PATHS = {
     "source": ROTEIROS / f"fonte_{SHORT_ID}.txt",
     "scene_map": ROTEIROS / f"scene_map_{SHORT_ID}.json",
     "motion": ROTEIROS / f"motion_plan_{SHORT_ID}.json",
+    "audio": BASE / "audios" / f"short_{SHORT_ID}.mp3",
+    "subtitles": BASE / "videos" / f"short_{SHORT_ID}.ass",
     "report": ROTEIROS / f"supervisor_{SHORT_ID}.json",
+    "pre_render_report": ROTEIROS / f"stage6_preflight_{SHORT_ID}.json",
 }
 
 
@@ -339,10 +344,211 @@ def evaluate(topic, script, source_text, scene_map, motion):
     }
 
 
+
+def _probe_duration(path: Path) -> float:
+    if not path.is_file() or path.stat().st_size <= 0:
+        return 0.0
+    try:
+        import subprocess
+        from subprocess_guard import run_group
+        proc = run_group(
+            [
+                "ffprobe", "-v", "error",
+                "-show_entries", "format=duration",
+                "-of", "default=noprint_wrappers=1:nokey=1",
+                str(path),
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=20,
+        )
+        return float((proc.stdout or "").strip() or 0.0)
+    except Exception:
+        return 0.0
+
+
+def _ass_dialogue_bounds(path: Path):
+    if not path.is_file() or path.stat().st_size <= 0:
+        return None
+    starts = []
+    ends = []
+
+    def parse_time(raw):
+        try:
+            h, m, rest = raw.strip().split(":")
+            sec, cent = rest.split(".")
+            return int(h) * 3600 + int(m) * 60 + int(sec) + int(cent) / 100.0
+        except Exception:
+            return None
+
+    try:
+        for line in path.read_text(encoding="utf-8", errors="strict").splitlines():
+            if not line.startswith("Dialogue:"):
+                continue
+            parts = line.split(",", 9)
+            if len(parts) != 10:
+                continue
+            start = parse_time(parts[1])
+            end = parse_time(parts[2])
+            if start is None or end is None or end <= start:
+                continue
+            starts.append(start)
+            ends.append(end)
+    except Exception:
+        return None
+    if not starts or not ends:
+        return None
+    return min(starts), max(ends), len(starts)
+
+
+def pre_render_validate():
+    critical = []
+    warnings = []
+    repairs = []
+    checks = {}
+
+    scene_map = read_json(PATHS["scene_map"])
+    scenes, scene_errors = validate_numbered_scenes(scene_map, "scene_map")
+    checks["scene_map"] = not scene_errors
+    if scene_errors:
+        critical.extend(scene_errors)
+
+    media, media_errors = media_inventory()
+    checks["media_count"] = len(media) == QTD_CENAS and not media_errors
+    if media_errors:
+        critical.extend(media_errors)
+
+    invalid_media = []
+    for path in media:
+        try:
+            if path.stat().st_size <= 0:
+                invalid_media.append(path.name)
+        except OSError:
+            invalid_media.append(path.name)
+    checks["media_nonempty"] = not invalid_media
+    if invalid_media:
+        critical.append("media_empty_or_unreadable:" + ",".join(invalid_media))
+
+    audio = PATHS["audio"]
+    audio_duration = _probe_duration(audio)
+    checks["audio"] = audio_duration > 0
+    if audio_duration <= 0:
+        critical.append("audio_missing_or_invalid")
+
+    subtitle_bounds = _ass_dialogue_bounds(PATHS["subtitles"])
+    checks["subtitles"] = subtitle_bounds is not None
+    if subtitle_bounds is None:
+        critical.append("subtitles_missing_or_invalid")
+    else:
+        first_sub, last_sub, subtitle_count = subtitle_bounds
+        checks["subtitle_count"] = subtitle_count > 0
+        if first_sub < -0.01:
+            critical.append("subtitle_negative_start")
+        if audio_duration > 0 and last_sub > audio_duration + 0.75:
+            critical.append(
+                f"subtitle_ends_after_audio:{last_sub:.2f}>{audio_duration:.2f}"
+            )
+        elif audio_duration > 0 and last_sub < max(0.0, audio_duration - 4.0):
+            warnings.append(
+                f"subtitle_tail_gap:{audio_duration-last_sub:.2f}s"
+            )
+
+    ffmpeg_ok = shutil.which("ffmpeg") is not None
+    ffprobe_ok = shutil.which("ffprobe") is not None
+    checks["ffmpeg"] = ffmpeg_ok
+    checks["ffprobe"] = ffprobe_ok
+    if not ffmpeg_ok:
+        critical.append("ffmpeg_missing")
+    if not ffprobe_ok:
+        critical.append("ffprobe_missing")
+
+    for name, path in (
+        ("temp_dir", BASE / "temp"),
+        ("video_dir", BASE / "videos"),
+    ):
+        try:
+            path.mkdir(parents=True, exist_ok=True)
+            writable = os.access(path, os.W_OK)
+        except OSError:
+            writable = False
+        checks[name] = writable
+        if not writable:
+            critical.append(f"{name}_not_writable")
+
+    try:
+        free = shutil.disk_usage(BASE).free
+    except OSError:
+        free = 0
+    # Keep this conservative for Termux: block only at a genuinely unsafe
+    # floor, warn when headroom is small for intermediate H.264 scene files.
+    checks["disk_free_bytes"] = free
+    if free and free < 350 * 1024 * 1024:
+        critical.append(f"disk_space_critical:{free}")
+    elif free and free < 1200 * 1024 * 1024:
+        warnings.append(f"disk_space_low:{free}")
+    elif not free:
+        warnings.append("disk_space_unknown")
+
+    result = {
+        "short_id": SHORT_ID,
+        "version": "5.3",
+        "mode": "PRE_RENDER",
+        "status": "FAIL" if critical else ("WARNING" if warnings else "READY"),
+        "scene_count": len(scenes),
+        "media_count": len(media),
+        "audio_duration": round(audio_duration, 3),
+        "checks": checks,
+        "critical": critical,
+        "warnings": warnings,
+        "repairs": repairs,
+    }
+    return result
+
+
+def run_pre_render() -> int:
+    report = pre_render_validate()
+    try:
+        atomic_json(PATHS["pre_render_report"], report)
+    except Exception as exc:
+        print(f"ERRO STAGE 6 PRE-FLIGHT: falha gravando relatório: {exc}")
+        return 1
+
+    print()
+    print("================================")
+    print("STAGE 6 PRE-RENDER CHECK")
+    print("================================")
+    print(f"Scene map ............... {'OK' if report['checks'].get('scene_map') else 'FAIL'}")
+    print(f"Scenes .................. {report['scene_count']}/{QTD_CENAS}")
+    print(f"Media ................... {report['media_count']}/{QTD_CENAS}")
+    print(f"Audio ................... {'OK' if report['checks'].get('audio') else 'FAIL'}")
+    print(f"Subtitles ............... {'OK' if report['checks'].get('subtitles') else 'FAIL'}")
+    print(f"FFmpeg .................. {'OK' if report['checks'].get('ffmpeg') else 'FAIL'}")
+    print(f"FFprobe ................. {'OK' if report['checks'].get('ffprobe') else 'FAIL'}")
+    print(f"Temporary directory ..... {'OK' if report['checks'].get('temp_dir') else 'FAIL'}")
+    print(f"Output directory ........ {'OK' if report['checks'].get('video_dir') else 'FAIL'}")
+    print(f"PRE-FLIGHT: {report['status']}")
+    if report["warnings"]:
+        for item in report["warnings"]:
+            print(f"AVISO: {item}")
+    if report["critical"]:
+        for item in report["critical"]:
+            print(f"ERRO: {item}")
+        return 1
+    return 0
+
+
 def main():
+    parser = argparse.ArgumentParser(add_help=True)
+    parser.add_argument("--pre-render", action="store_true")
+    args = parser.parse_args()
+
     if not SHORT_ID:
         print("ERRO: SHORT_ID vazio")
         return 1
+
+    if args.pre_render:
+        return run_pre_render()
 
     topic = read_text(PATHS["topic_real"]) or read_text(PATHS["topic"])
     script = read_text(PATHS["script"])
