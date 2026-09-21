@@ -6,8 +6,9 @@ import re
 import json
 import time
 import shutil
-import requests
 from datetime import date
+
+from gemini_runtime import generate_text
 
 
 BASE = os.path.abspath(os.path.expanduser(os.getenv("SHORTAUTOPRO_BASE", "~/ShortAutoPro")))
@@ -57,12 +58,6 @@ MODEL = os.getenv(
 )
 
 try:
-    GEMINI_TIMEOUT = float(os.getenv("SAP_GEMINI_TIMEOUT", "75") or 75)
-except (TypeError, ValueError):
-    GEMINI_TIMEOUT = 75.0
-GEMINI_TIMEOUT = max(20.0, min(GEMINI_TIMEOUT, 120.0))
-
-try:
     HOOK_MIN_SCORE = float(
         os.getenv(
             "SHORT_HOOK_MIN_SCORE",
@@ -77,11 +72,6 @@ HOOK_MIN_SCORE = max(
     min(HOOK_MIN_SCORE, 95.0)
 )
 
-
-if not API_KEY:
-    sys.exit(
-        "ERRO: GEMINI_API_KEY não configurada."
-    )
 
 if not os.path.exists(ROTEIRO):
     sys.exit(
@@ -192,110 +182,13 @@ shutil.copy2(
 # GEMINI
 # =========================================
 
-URL = (
-    "https://generativelanguage.googleapis.com/"
-    f"v1beta/models/{MODEL}:generateContent"
-)
-
-HEADERS = {
-    "Content-Type": "application/json",
-    "x-goog-api-key": API_KEY
-}
-
-
 def chamar_gemini(prompt):
-
-    payload = {
-        "contents": [
-            {
-                "parts": [
-                    {
-                        "text": prompt
-                    }
-                ]
-            }
-        ],
-        "generationConfig": {
-            "temperature": 0.55,
-            "maxOutputTokens": 1800
-        }
-    }
-
-    for tentativa in range(1, 5):
-
-        print(
-            f"Hook Engine tentativa "
-            f"{tentativa}/4..."
-        )
-
-        try:
-
-            r = requests.post(
-                URL,
-                headers=HEADERS,
-                json=payload,
-                timeout=GEMINI_TIMEOUT
-            )
-
-        except Exception as e:
-
-            if tentativa == 4:
-                raise RuntimeError(
-                    str(e)
-                )
-
-            time.sleep(5)
-            continue
-
-
-        if r.ok:
-            try:
-                dados = r.json()
-                texto = (
-                    dados["candidates"][0]
-                    ["content"]["parts"][0]["text"]
-                    .strip()
-                )
-                if texto:
-                    return texto
-                raise ValueError("texto vazio")
-            except Exception as exc:
-                if tentativa == 4:
-                    raise RuntimeError(
-                        "Gemini retornou resposta inválida."
-                    ) from exc
-                espera = min(3 * tentativa, 8)
-                print(
-                    "Hook Engine: resposta Gemini incompleta; "
-                    f"nova tentativa em {espera}s"
-                )
-                time.sleep(espera)
-                continue
-
-
-        if (
-            r.status_code
-            in [429, 500, 502, 503, 504]
-            and tentativa < 4
-        ):
-            espera = 8
-            if r.status_code == 429:
-                try:
-                    espera = int(r.headers.get("Retry-After") or espera)
-                except (TypeError, ValueError):
-                    espera = 8
-                espera = max(2, min(espera, 30))
-            time.sleep(espera)
-            continue
-
-
-        raise RuntimeError(
-            f"HTTP {r.status_code}: {r.text}"
-        )
-
-
-    raise RuntimeError(
-        "Gemini não respondeu."
+    return generate_text(
+        prompt,
+        temperature=0.55,
+        max_output_tokens=1800,
+        component="Hook Engine",
+        api_key=API_KEY,
     )
 
 
