@@ -71,12 +71,12 @@ def round_env(round_index: int) -> dict[str, str]:
     env["SAP_MEDIA_INCREMENTAL"] = "1"
 
     # Increasing retrieval effort only. MUST acceptance rules are untouched.
-    rescue_budget = (2, 4, 6, 8, 8)[min(round_index, 4)]
+    rescue_budget = (1, 2, 3)[min(round_index, 2)]
     # Keep recovery bounded on mobile. The provider layer already runs
     # concurrently, so escalating to 30-45s makes hard scenes dominate the
     # entire Short production without improving acceptance rules.
-    provider_timeout = (12, 14, 16, 18, 20)[min(round_index, 4)]
-    wiki_deadline = (12, 16, 20, 24, 28)[min(round_index, 4)]
+    provider_timeout = (8, 10, 12)[min(round_index, 2)]
+    wiki_deadline = (8, 10, 12)[min(round_index, 2)]
 
     env["SAP_STOCK_RESCUE_MAX_QUERIES"] = str(rescue_budget)
     env["SAP_MUST_RESCUE_MAX_QUERIES"] = str(rescue_budget)
@@ -139,11 +139,11 @@ def round_timeout_seconds() -> tuple[int, int]:
         remaining = len(pending)
     else:
         remaining = max(1, expected - current_completed_hint())
-    base = env_int("SAP_MEDIA_ROUND_TIMEOUT", 240, 60, 900)
-    scene_budget = env_float("SAP_MEDIA_SCENE_BUDGET_SECONDS", 75.0, 30.0, 180.0)
-    grace = env_int("SAP_MEDIA_ROUND_GRACE_SECONDS", 45, 15, 180)
+    base = env_int("SAP_MEDIA_ROUND_TIMEOUT", 120, 45, 300)
+    scene_budget = env_float("SAP_MEDIA_SCENE_BUDGET_SECONDS", 28.0, 15.0, 60.0)
+    grace = env_int("SAP_MEDIA_ROUND_GRACE_SECONDS", 20, 10, 60)
     dynamic = int(remaining * scene_budget + grace)
-    return max(base, min(dynamic, 900)), remaining
+    return max(45, min(max(base, dynamic), 300)), remaining
 
 
 def main() -> int:
@@ -154,7 +154,7 @@ def main() -> int:
         print(f"ERRO MEDIA STAGE: ausente {MIDIA}")
         return 1
 
-    max_rounds = env_int("SAP_MEDIA_STAGE_ROUNDS", 4, 1, 5)
+    max_rounds = env_int("SAP_MEDIA_STAGE_ROUNDS", 2, 1, 3)
 
     previous_missing: set[int] | None = None
     previous_total = -1
@@ -176,7 +176,7 @@ def main() -> int:
             "MEDIA_STAGE_RUNTIME=BUDGET "
             f"round={round_index + 1} remaining={remaining_hint} "
             f"timeout={round_timeout}s "
-            f"scene_budget={env_float('SAP_MEDIA_SCENE_BUDGET_SECONDS', 75.0, 30.0, 180.0):.0f}s"
+            f"scene_budget={env_float('SAP_MEDIA_SCENE_BUDGET_SECONDS', 28.0, 15.0, 60.0):.0f}s"
         )
 
         previous_report = report_signature()
@@ -237,7 +237,7 @@ def main() -> int:
                 no_progress_rounds += 1
                 action = (
                     "STOP_BOUNDED_RECOVERY"
-                    if no_progress_rounds >= 2
+                    if no_progress_rounds >= 1
                     else "ESCALATE_NEXT_ROUND"
                 )
                 print(
@@ -247,10 +247,10 @@ def main() -> int:
                     f"missing={','.join(map(str, sorted(missing)))} "
                     f"action={action}"
                 )
-                if no_progress_rounds >= 2:
+                if no_progress_rounds >= 1:
                     print(
                         "MEDIA_STAGE_RUNTIME=EARLY_STOP "
-                        "reason=TWO_CONSECUTIVE_NO_PROGRESS_ROUNDS"
+                        "reason=ONE_NO_PROGRESS_ROUND_AFTER_RETRY"
                     )
                     break
 
@@ -258,7 +258,7 @@ def main() -> int:
         previous_total = total
 
         if round_index + 1 < max_rounds:
-            next_budget = (2, 4, 6, 8, 8)[min(round_index + 1, 4)]
+            next_budget = (1, 2, 3)[min(round_index + 1, 2)]
             print(
                 "MEDIA_STAGE_RUNTIME=RETRY_MISSING_ONLY "
                 f"next_round={round_index + 2} "
