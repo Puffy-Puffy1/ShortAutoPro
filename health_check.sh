@@ -142,6 +142,7 @@ for name in (
     "media_must_priority",
     "media_strict_must_guard",
     "media_acquisition_recovery",
+    "media_resilience",
     "visual_engine_unified",
     "visual_query_expansion_v4",
     "media_runtime_adapter_v1",
