@@ -104,13 +104,15 @@ def local_contract(scene: dict[str, Any]) -> dict[str, Any]:
     must = clean_list(scene.get("must_have"), 4)
     avoid = clean_list(scene.get("avoid"), 6)
     if not must:
-        # deterministic factual fallback: only reuse words already present.
-        candidates = [x for x in re.findall(r"[A-Za-zÀ-ÿ0-9'-]+", segment) if len(x) >= 5]
-        must = [x.lower() for x in candidates[:2]] or ["context"]
+        # Safe fallback must never promote arbitrary narration words into hard
+        # acquisition requirements. Hard MUSTs are factual contracts and should
+        # exist only when a previous verified stage explicitly supplied them.
+        must = []
+    fallback_subject = clean(scene.get("main_subject")) or clean(scene.get("environment")) or "documentary context"
     return {
         "scene": int(scene["scene"]),
         "segment": segment,
-        "main_subject": clean(scene.get("main_subject")) or " ".join(must[:2]),
+        "main_subject": fallback_subject,
         "environment": clean(scene.get("environment") or scene.get("setting")),
         "location": clean(scene.get("location")),
         "era": clean(scene.get("era")),
@@ -119,7 +121,7 @@ def local_contract(scene: dict[str, Any]) -> dict[str, Any]:
         "movement": clean(scene.get("movement")) or "hold",
         "must_have": must,
         "avoid": avoid,
-        "query": query or " ".join(must + ["documentary"]),
+        "query": query or "documentary context archival visual",
         "alt_queries": clean_list(scene.get("alt_queries"), 3),
         "protected_zone": clean(scene.get("protected_zone")) or "center",
         "reason": "deterministic fallback",
