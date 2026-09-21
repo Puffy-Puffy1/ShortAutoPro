@@ -1188,174 +1188,330 @@ def avaliar_relevancia(
 # DOWNLOAD
 # ==================================================
 
+def _sap_validate_media_file(path):
+    probe = run_group(
+        [
+            "ffprobe",
+            "-v", "error",
+            "-select_streams", "v:0",
+            "-show_entries", "stream=width,height",
+            "-of", "json",
+            path,
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        timeout=max(6.0, _MEDIA_API_TIMEOUT),
+    )
+
+    if probe.returncode != 0:
+        raise RuntimeError("arquivo visual rejeitado pelo ffprobe")
+
+    dados = json.loads(probe.stdout)
+    streams = dados.get("streams", [])
+    if not streams:
+        raise RuntimeError("arquivo sem stream visual")
+
+    largura = int(streams[0].get("width", 0) or 0)
+    altura = int(streams[0].get("height", 0) or 0)
+
+    if largura <= 0 or altura <= 0:
+        raise RuntimeError("dimensões inválidas")
+
+    if largura * altura < 320 * 180:
+        raise RuntimeError(
+            f"mídia abaixo do piso técnico: {largura}x{altura}"
+        )
+
+    return {
+        "width": largura,
+        "height": altura,
+    }
+
+
 def baixar(
     url,
     destino,
-    timeout=120
+    timeout=35,
+    candidate=None,
 ):
+    temporario = destino + ".part"
+    provider = _sap_provider_from_url(url)
 
-    temporario = (
-        destino
-        + ".part"
-    )
+    # A previously validated physical copy wins over network availability.
+    try:
+        if _sap_restore_cached_media(url, destino):
+            try:
+                _sap_validate_media_file(destino)
+                print(
+                    "    SAP_MEDIA_BLOB_CACHE=HIT "
+                    f"provider={provider}"
+                )
+                return True
+            except Exception:
+                try:
+                    os.remove(destino)
+                except OSError:
+                    pass
+    except Exception:
+        pass
+
+    allowed, quarantine_reason = _sap_url_allowed(url)
+    if not allowed:
+        print(
+            "    SAP_MEDIA_URL_QUARANTINE=SKIP "
+            f"reason={quarantine_reason}"
+        )
+        return False
 
     try:
-
         if not url:
-            raise RuntimeError(
-                "URL vazia"
-            )
+            raise RuntimeError("URL vazia")
 
-        if os.path.exists(
-            temporario
-        ):
-            os.remove(
-                temporario
-            )
+        if os.path.exists(temporario):
+            os.remove(temporario)
 
         headers = {
             "User-Agent":
-                "ShortAutoPro/5.2 "
-                "DocumentaryMediaClient/1.0",
+                "ShortAutoPro/6.0 "
+                "(documentary-media-client; resilient-cache)",
 
             "Accept":
                 "image/*,video/*,"
-                "application/octet-stream;q=0.9,*/*;q=0.5"
+                "application/octet-stream;q=0.9,*/*;q=0.5",
         }
+
+        try:
+            max_mb = float(
+                os.getenv("SAP_MEDIA_DOWNLOAD_MAX_MB", "80") or 80
+            )
+        except (TypeError, ValueError):
+            max_mb = 80.0
+        max_bytes = int(
+            max(5.0, min(max_mb, 250.0))
+            * 1024
+            * 1024
+        )
+
+        try:
+            deadline_seconds = float(
+                os.getenv("SAP_MEDIA_DOWNLOAD_DEADLINE_SECONDS", "30") or 30
+            )
+        except (TypeError, ValueError):
+            deadline_seconds = 30.0
+
+        deadline_seconds = max(
+            8.0,
+            min(deadline_seconds, max(10.0, float(timeout))),
+        )
+        started = time.monotonic()
 
         r = _sap_http_session("download").get(
             url,
-            timeout=timeout,
+            timeout=(5.0, min(15.0, float(timeout))),
             stream=True,
             allow_redirects=True,
-            headers=headers
+            headers=headers,
         )
 
-        r.raise_for_status()
+        status = int(getattr(r, "status_code", 0) or 0)
+        if not r.ok:
+            retry_after = None
+            if status == 429:
+                try:
+                    retry_after = float(
+                        r.headers.get("Retry-After") or 0
+                    )
+                except (TypeError, ValueError):
+                    retry_after = None
+
+            if status in {401, 403, 429, 500, 502, 503, 504}:
+                _sap_record_provider_result(
+                    provider,
+                    ok=False,
+                    status_code=status,
+                    reason=(
+                        "auth"
+                        if status in {401, 403}
+                        else "rate_limit"
+                        if status == 429
+                        else "server"
+                    ),
+                    retry_after=retry_after,
+                )
+
+            if status in {401, 403, 404, 410, 429}:
+                _sap_quarantine_url(
+                    url,
+                    reason=f"http_{status}",
+                    status_code=status,
+                )
+
+            r.raise_for_status()
 
         content_type = (
-            r.headers.get(
-                "Content-Type",
-                ""
-            )
+            r.headers.get("Content-Type", "")
             .split(";")[0]
             .strip()
             .lower()
         )
 
         if (
-            content_type.startswith(
-                "text/"
-            )
+            content_type.startswith("text/")
             or content_type
             in {
                 "application/json",
-                "application/xml"
+                "application/xml",
+                "text/html",
             }
         ):
+            _sap_quarantine_url(
+                url,
+                reason="mime",
+                status_code=status,
+            )
             raise RuntimeError(
-                f"content-type inválido: "
-                f"{content_type}"
+                f"content-type inválido: {content_type}"
             )
 
-        with open(
-            temporario,
-            "wb"
-        ) as f:
+        try:
+            declared = int(
+                r.headers.get("Content-Length") or 0
+            )
+        except (TypeError, ValueError):
+            declared = 0
 
+        if declared > max_bytes:
+            _sap_quarantine_url(
+                url,
+                reason="too_large",
+                ttl_seconds=6 * 3600,
+            )
+            raise RuntimeError(
+                f"arquivo excede limite: {declared} bytes"
+            )
+
+        total_bytes = 0
+        with open(temporario, "wb") as f:
             for bloco in r.iter_content(
                 chunk_size=256 * 1024
             ):
-
-                if bloco:
-                    f.write(
-                        bloco
+                if time.monotonic() - started > deadline_seconds:
+                    raise TimeoutError(
+                        f"download excedeu {deadline_seconds:.1f}s"
                     )
+                if bloco:
+                    total_bytes += len(bloco)
+                    if total_bytes > max_bytes:
+                        raise RuntimeError(
+                            f"download excedeu limite de {max_bytes} bytes"
+                        )
+                    f.write(bloco)
 
         if (
-            not os.path.exists(
-                temporario
-            )
-            or os.path.getsize(
-                temporario
-            ) <= 1000
+            not os.path.exists(temporario)
+            or os.path.getsize(temporario) <= 1000
         ):
             raise RuntimeError(
                 "arquivo vazio ou muito pequeno"
             )
 
-        probe = run_group(
-            [
-                "ffprobe",
-                "-v",
-                "error",
-                "-select_streams",
-                "v:0",
-                "-show_entries",
-                "stream=width,height",
-                "-of",
-                "json",
-                temporario
-            ],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            timeout=_MEDIA_API_TIMEOUT
+        media_info = _sap_validate_media_file(
+            temporario
         )
-
-        if probe.returncode != 0:
-            raise RuntimeError(
-                "arquivo visual rejeitado pelo ffprobe"
-            )
-
-        dados = json.loads(
-            probe.stdout
-        )
-
-        streams = dados.get(
-            "streams",
-            []
-        )
-
-        if not streams:
-            raise RuntimeError(
-                "arquivo sem stream visual"
-            )
-
-        largura = int(
-            streams[0].get(
-                "width",
-                0
-            )
-            or 0
-        )
-
-        altura = int(
-            streams[0].get(
-                "height",
-                0
-            )
-            or 0
-        )
-
-        if largura <= 0 or altura <= 0:
-            raise RuntimeError(
-                "dimensões inválidas"
-            )
-
-        if largura * altura < 320 * 180:
-            raise RuntimeError(
-                f"mídia abaixo do piso técnico: {largura}x{altura}"
-            )
 
         os.replace(
             temporario,
             destino
         )
 
+        try:
+            _sap_cache_validated_media(
+                url,
+                destino,
+                provider=provider,
+                metadata={
+                    "candidate": candidate
+                    if isinstance(candidate, dict)
+                    else {},
+                    "content_type": content_type,
+                    **media_info,
+                },
+            )
+        except Exception:
+            pass
+
+        if provider not in {"unknown", ""}:
+            try:
+                _sap_record_provider_result(
+                    provider,
+                    ok=True,
+                    status_code=status or 200,
+                )
+            except Exception:
+                pass
+
+        print(
+            "    SAP_MEDIA_BLOB_CACHE=STORED "
+            f"provider={provider} bytes={total_bytes}"
+        )
         return True
 
+    except requests.Timeout as e:
+        try:
+            _sap_record_provider_result(
+                provider,
+                ok=False,
+                reason="timeout",
+            )
+            _sap_quarantine_url(
+                url,
+                reason="timeout",
+                ttl_seconds=10 * 60,
+            )
+        except Exception:
+            pass
+        print(
+            f"    DOWNLOAD FAIL: {type(e).__name__}: {str(e)[:180]}"
+        )
+
+    except TimeoutError as e:
+        try:
+            _sap_record_provider_result(
+                provider,
+                ok=False,
+                reason="timeout",
+            )
+            _sap_quarantine_url(
+                url,
+                reason="timeout",
+                ttl_seconds=10 * 60,
+            )
+        except Exception:
+            pass
+        print(
+            f"    DOWNLOAD FAIL: {type(e).__name__}: {str(e)[:180]}"
+        )
+
     except Exception as e:
+        reason_text = str(e).lower()
+        try:
+            if any(
+                token in reason_text
+                for token in (
+                    "ffprobe",
+                    "sem stream visual",
+                    "dimensões inválidas",
+                    "piso técnico",
+                    "vazio ou muito pequeno",
+                )
+            ):
+                _sap_quarantine_url(
+                    url,
+                    reason="corrupt",
+                )
+        except Exception:
+            pass
 
         print(
             f"    DOWNLOAD FAIL: "
@@ -1363,1009 +1519,23 @@ def baixar(
             f"{str(e)[:180]}"
         )
 
-        for arquivo in [
-            temporario,
-            destino
-        ]:
-
-            if os.path.exists(
-                arquivo
-            ):
-
+    finally:
+        for arquivo in [temporario]:
+            if os.path.exists(arquivo):
                 try:
-                    os.remove(
-                        arquivo
-                    )
-
-                except Exception:
+                    os.remove(arquivo)
+                except OSError:
                     pass
 
-        return False
+    # Never leave a failed/corrupt destination behind.
+    if os.path.exists(destino):
+        try:
+            os.remove(destino)
+        except OSError:
+            pass
+
+    return False
 
-
-# ==================================================
-# ANTI REPETIÇÃO
-# ==================================================
-
-usados = set()
-
-
-def penalidade_usado(
-    fonte,
-    ident
-):
-
-    if (
-        fonte,
-        str(ident)
-    ) in usados:
-        return -120
-
-    return 0
-
-
-def marcar_usado(
-    fonte,
-    ident
-):
-
-    usados.add(
-        (
-            fonte,
-            str(ident)
-        )
-    )
-
-
-# ==================================================
-# PEXELS VIDEO
-# ==================================================
-
-
-# SHORTAUTOPRO VSE421 SCENE SUCCESS FINALIZER
-
-def _vse42_cleanup_scene_sibling(destino):
-    """
-    Após um download BEM-SUCEDIDO, mantém apenas uma
-    mídia para o scene_XX.
-
-    Nunca remove arquivos antes do sucesso.
-    Nunca opera fora de imagens/short_*.
-    """
-
-    if not destino:
-        return []
-
-
-    try:
-
-        from pathlib import Path
-
-        target = Path(
-            destino
-        )
-
-
-        if not target.is_file():
-            return []
-
-
-        parent = target.parent
-
-        stem = target.stem
-
-
-        if not stem.startswith(
-            "scene_"
-        ):
-            return []
-
-
-        parent_text = str(
-            parent
-        )
-
-
-        if (
-            "/imagens/short_"
-            not in parent_text
-        ):
-            return []
-
-
-        allowed = (
-            ".jpg",
-            ".jpeg",
-            ".png",
-            ".webp",
-            ".mp4",
-            ".mov",
-            ".webm",
-            ".mkv",
-        )
-
-
-        removed = []
-
-
-        for suffix in allowed:
-
-            sibling = (
-                parent
-                /
-                (
-                    stem
-                    +
-                    suffix
-                )
-            )
-
-
-            if sibling == target:
-                continue
-
-
-            if not sibling.is_file():
-                continue
-
-
-            sibling.unlink()
-
-            removed.append(
-                str(sibling)
-            )
-
-
-        if removed:
-
-            print(
-                "  VSE421_STALE_SIBLING_REMOVED="
-                +
-                ",".join(
-                    removed
-                )
-            )
-
-
-        return removed
-
-
-    except Exception as exc:
-
-        print(
-            "  VSE421_SIBLING_WARNING="
-            +
-            type(exc).__name__
-            +
-            ":"
-            +
-            str(exc)
-        )
-
-        return []
-
-
-def _vse42_commit_safe(candidate):
-    """
-    Commit fail-open do candidato vencedor.
-    """
-
-    try:
-
-        from visual_selection_bridge_v42 import (
-            commit_candidate
-            as _commit_candidate
-        )
-
-
-        _commit_candidate(
-            candidate
-        )
-
-
-        print(
-            "  VSE421_SCENE_COMMIT=FIRST_SUCCESS"
-        )
-
-
-        return True
-
-
-    except Exception as exc:
-
-        print(
-            "  VSE421_COMMIT_WARNING="
-            +
-            type(exc).__name__
-            +
-            ":"
-            +
-            str(exc)
-        )
-
-
-        return False
-
-
-
-
-
-# ============================================================
-# SAP_PROVIDER_DIAGNOSTICS_V1
-# ============================================================
-
-def _sap_provider_diag_v1(
-    provider,
-    reason,
-    line=None,
-    exc=None,
-    response=None,
-):
-    try:
-        parts = [
-            "SAP_PROVIDER_DIAG",
-            f"provider={provider}",
-            f"reason={reason}",
-        ]
-
-        if line is not None:
-            parts.append(
-                f"line={line}"
-            )
-
-        status_code = None
-        if response is not None:
-            status_code = getattr(
-                response,
-                "status_code",
-                None,
-            )
-            parts.append(
-                "http="
-                + str(status_code)
-            )
-
-        if exc is not None:
-            parts.append(
-                "error="
-                + type(exc).__name__
-                + ":"
-                + str(exc)
-            )
-
-        base_provider = str(provider or "").split("_", 1)[0].casefold()
-        if base_provider in {"pexels", "pixabay", "coverr"}:
-            code = int(status_code or 0)
-            if response is not None and 200 <= code < 300:
-                _sap_record_provider_result(
-                    base_provider,
-                    ok=True,
-                    status_code=code,
-                )
-            elif response is not None and code:
-                retry_after = None
-                if code == 429:
-                    try:
-                        retry_after = float(
-                            response.headers.get("Retry-After") or 0
-                        )
-                    except (TypeError, ValueError):
-                        retry_after = None
-                _sap_record_provider_result(
-                    base_provider,
-                    ok=False,
-                    status_code=code,
-                    reason=(
-                        "auth"
-                        if code in {401, 403}
-                        else "rate_limit"
-                        if code == 429
-                        else "server"
-                        if code in {500, 502, 503, 504}
-                        else f"http_{code}"
-                    ),
-                    retry_after=retry_after,
-                )
-            elif exc is not None:
-                _sap_record_provider_result(
-                    base_provider,
-                    ok=False,
-                    reason=(
-                        "timeout"
-                        if isinstance(exc, requests.Timeout)
-                        else "network"
-                    ),
-                )
-
-        print(
-            " ".join(parts)
-        )
-
-    except Exception:
-        pass
-
-
-def _sap_provider_enabled(provider):
-    allowed, reason = _sap_provider_allowed(provider)
-    if not allowed:
-        print(
-            "SAP_PROVIDER_CIRCUIT=OPEN "
-            f"provider={provider} reason={reason}"
-        )
-    return allowed
-
-def pexels_video(
-    busca,
-    must_have,
-    avoid
-):
-
-    if not USAR_PEXELS or not PEXELS_KEY:
-        _sap_provider_diag_v1('pexels_video', 'EMPTY_RETURN', line=1105, response=locals().get('r'))
-        return []
-
-    try:
-
-        r = _sap_http_session("pexels_video").get(
-            "https://api.pexels.com/videos/search",
-            headers={
-                "Authorization":
-                PEXELS_KEY
-            },
-            params={
-                "query": busca,
-                "orientation": "portrait",
-                "per_page": 20
-            },
-            timeout=_MEDIA_API_TIMEOUT
-        )
-
-    except Exception as _sap_provider_exc_v1:
-        _sap_provider_diag_v1('pexels_video', 'EXCEPTION', line=1123, exc=_sap_provider_exc_v1, response=locals().get('r'))
-        return []
-
-    if not r.ok:
-        _sap_provider_diag_v1('pexels_video', 'EMPTY_RETURN', line=1127, response=locals().get('r'))
-        return []
-
-    saida = []
-
-    for item in r.json().get(
-        "videos",
-        []
-    ):
-
-        ident = item.get("id")
-
-        descricao = " ".join(
-            [
-                str(item.get("url", "")),
-                str(
-                    item.get(
-                        "user",
-                        {}
-                    ).get(
-                        "name",
-                        ""
-                    )
-                )
-            ]
-        )
-
-        rel, must_hits, avoid_hits = (
-            avaliar_relevancia(
-                busca,
-                descricao,
-                must_have,
-                avoid
-            )
-        )
-
-        melhor_variante = None
-
-        for arq in item.get(
-            "video_files",
-            []
-        ):
-
-            url = arq.get("link")
-
-            if not url:
-                continue
-
-            w = arq.get(
-                "width"
-            ) or 0
-
-            h = arq.get(
-                "height"
-            ) or 0
-
-            score = rel
-
-            if h > w:
-                score += 28
-
-            if h >= 1280:
-                score += 16
-
-            if w >= 720:
-                score += 8
-
-            score += penalidade_usado(
-                "Pexels",
-                ident
-            )
-
-            candidato_variante = {
-                "score": score,
-                "must_hits": must_hits,
-                "avoid_hits": avoid_hits,
-                "id": ident,
-                "url": url,
-                "fonte": "Pexels",
-                "tipo": "vídeo",
-                "descricao": descricao,
-                "_variant_width": w,
-                "_variant_height": h,
-            }
-
-            if (
-                melhor_variante is None
-                or (
-                    candidato_variante["score"],
-                    w * h,
-                )
-                >
-                (
-                    melhor_variante["score"],
-                    int(melhor_variante.get("_variant_width", 0) or 0)
-                    * int(melhor_variante.get("_variant_height", 0) or 0),
-                )
-            ):
-                melhor_variante = candidato_variante
-
-        if melhor_variante is not None:
-            saida.append(
-                melhor_variante
-            )
-
-    return saida
-
-
-# ==================================================
-# PEXELS FOTO
-# ==================================================
-
-def pexels_foto(
-    busca,
-    must_have,
-    avoid
-):
-
-    if not USAR_PEXELS or not PEXELS_KEY:
-        _sap_provider_diag_v1('pexels_foto', 'EMPTY_RETURN', line=1223, response=locals().get('r'))
-        return []
-
-    try:
-
-        r = _sap_http_session("pexels_foto").get(
-            "https://api.pexels.com/v1/search",
-            headers={
-                "Authorization":
-                PEXELS_KEY
-            },
-            params={
-                "query": busca,
-                "orientation": "portrait",
-                "per_page": 25
-            },
-            timeout=_MEDIA_API_TIMEOUT
-        )
-
-    except Exception as _sap_provider_exc_v1:
-        _sap_provider_diag_v1('pexels_foto', 'EXCEPTION', line=1241, exc=_sap_provider_exc_v1, response=locals().get('r'))
-        return []
-
-    if not r.ok:
-        _sap_provider_diag_v1('pexels_foto', 'EMPTY_RETURN', line=1245, response=locals().get('r'))
-        return []
-
-    saida = []
-
-    for item in r.json().get(
-        "photos",
-        []
-    ):
-
-        ident = item.get("id")
-
-        descricao = str(
-            item.get(
-                "alt",
-                ""
-            )
-        )
-
-        rel, must_hits, avoid_hits = (
-            avaliar_relevancia(
-                busca,
-                descricao,
-                must_have,
-                avoid
-            )
-        )
-
-        src = item.get(
-            "src",
-            {}
-        )
-
-        url = (
-            src.get("portrait")
-            or src.get("large2x")
-            or src.get("large")
-            or src.get("original")
-        )
-
-        if not url:
-            continue
-
-        w = item.get(
-            "width"
-        ) or 0
-
-        h = item.get(
-            "height"
-        ) or 0
-
-        score = rel
-
-        if h > w:
-            score += 28
-
-        if h >= 1280:
-            score += 16
-
-        score += penalidade_usado(
-            "Pexels",
-            ident
-        )
-
-        saida.append(
-            {
-                "score": score,
-                "must_hits": must_hits,
-                "avoid_hits": avoid_hits,
-                "id": ident,
-                "url": url,
-                "fonte": "Pexels",
-                "tipo": "foto",
-                "descricao": descricao
-            }
-        )
-
-    return saida
-
-
-# ==================================================
-# PIXABAY VIDEO
-# ==================================================
-
-def pixabay_video(
-    busca,
-    must_have,
-    avoid
-):
-
-    if not USAR_PIXABAY or not PIXABAY_KEY:
-        _sap_provider_diag_v1('pixabay_video', 'EMPTY_RETURN', line=1335, response=locals().get('r'))
-        return []
-
-    try:
-
-        r = _sap_http_session("pixabay_video").get(
-            "https://pixabay.com/api/videos/",
-            params={
-                "key": PIXABAY_KEY,
-                "q": busca,
-                "video_type": "film",
-                "safesearch": "true",
-                "order": "popular",
-                "per_page": 20
-            },
-            timeout=_MEDIA_API_TIMEOUT
-        )
-
-    except Exception as _sap_provider_exc_v1:
-        _sap_provider_diag_v1('pixabay_video', 'EXCEPTION', line=1352, exc=_sap_provider_exc_v1, response=locals().get('r'))
-        return []
-
-    if not r.ok:
-        _sap_provider_diag_v1('pixabay_video', 'EMPTY_RETURN', line=1356, response=locals().get('r'))
-        return []
-
-    saida = []
-
-    for item in r.json().get(
-        "hits",
-        []
-    ):
-
-        ident = item.get("id")
-
-        descricao = " ".join(
-            [
-                str(item.get("tags", "")),
-                str(item.get("pageURL", ""))
-            ]
-        )
-
-        rel, must_hits, avoid_hits = (
-            avaliar_relevancia(
-                busca,
-                descricao,
-                must_have,
-                avoid
-            )
-        )
-
-        formatos = item.get(
-            "videos",
-            {}
-        )
-
-        melhor_variante = None
-
-        for chave in [
-            "large",
-            "medium",
-            "small",
-            "tiny"
-        ]:
-
-            info = formatos.get(
-                chave,
-                {}
-            )
-
-            url = info.get("url")
-
-            if not url:
-                continue
-
-            w = info.get(
-                "width"
-            ) or 0
-
-            h = info.get(
-                "height"
-            ) or 0
-
-            score = rel
-
-            if h > w:
-                score += 28
-
-            if h >= 720:
-                score += 12
-
-            if h >= 1080:
-                score += 8
-
-            score += penalidade_usado(
-                "Pixabay",
-                ident
-            )
-
-            candidato_variante = {
-                "score": score,
-                "must_hits": must_hits,
-                "avoid_hits": avoid_hits,
-                "id": ident,
-                "url": url,
-                "fonte": "Pixabay",
-                "tipo": "vídeo",
-                "descricao": descricao,
-                "_variant_width": w,
-                "_variant_height": h,
-            }
-
-            if (
-                melhor_variante is None
-                or (
-                    candidato_variante["score"],
-                    w * h,
-                )
-                >
-                (
-                    melhor_variante["score"],
-                    int(melhor_variante.get("_variant_width", 0) or 0)
-                    * int(melhor_variante.get("_variant_height", 0) or 0),
-                )
-            ):
-                melhor_variante = candidato_variante
-
-        if melhor_variante is not None:
-            saida.append(
-                melhor_variante
-            )
-
-    return saida
-
-
-# ==================================================
-# PIXABAY FOTO
-# ==================================================
-
-def pixabay_foto(
-    busca,
-    must_have,
-    avoid
-):
-
-    if not USAR_PIXABAY or not PIXABAY_KEY:
-        _sap_provider_diag_v1('pixabay_foto', 'EMPTY_RETURN', line=1456, response=locals().get('r'))
-        return []
-
-    try:
-
-        r = _sap_http_session("pixabay_foto").get(
-            "https://pixabay.com/api/",
-            params={
-                "key": PIXABAY_KEY,
-                "q": busca,
-                "image_type": "photo",
-                "orientation": "vertical",
-                "safesearch": "true",
-                "order": "popular",
-                "per_page": 25
-            },
-            timeout=_MEDIA_API_TIMEOUT
-        )
-
-    except Exception as _sap_provider_exc_v1:
-        _sap_provider_diag_v1('pixabay_foto', 'EXCEPTION', line=1474, exc=_sap_provider_exc_v1, response=locals().get('r'))
-        return []
-
-    if not r.ok:
-        _sap_provider_diag_v1('pixabay_foto', 'EMPTY_RETURN', line=1478, response=locals().get('r'))
-        return []
-
-    saida = []
-
-    for item in r.json().get(
-        "hits",
-        []
-    ):
-
-        ident = item.get("id")
-
-        descricao = str(
-            item.get(
-                "tags",
-                ""
-            )
-        )
-
-        rel, must_hits, avoid_hits = (
-            avaliar_relevancia(
-                busca,
-                descricao,
-                must_have,
-                avoid
-            )
-        )
-
-        url = (
-            item.get("largeImageURL")
-            or item.get("webformatURL")
-        )
-
-        if not url:
-            continue
-
-        w = item.get(
-            "imageWidth"
-        ) or 0
-
-        h = item.get(
-            "imageHeight"
-        ) or 0
-
-        score = rel
-
-        if h > w:
-            score += 28
-
-        if h >= 1280:
-            score += 16
-
-        score += penalidade_usado(
-            "Pixabay",
-            ident
-        )
-
-        saida.append(
-            {
-                "score": score,
-                "must_hits": must_hits,
-                "avoid_hits": avoid_hits,
-                "id": ident,
-                "url": url,
-                "fonte": "Pixabay",
-                "tipo": "foto",
-                "descricao": descricao
-            }
-        )
-
-    return saida
-
-
-# ==================================================
-# COVERR
-# ==================================================
-
-def coverr_video(
-    busca,
-    must_have,
-    avoid
-):
-
-    if not USAR_COVERR or not COVERR_KEY:
-        _sap_provider_diag_v1('coverr_video', 'EMPTY_RETURN', line=1561, response=locals().get('r'))
-        return []
-
-    try:
-
-        r = _sap_http_session("coverr_video").get(
-            "https://api.coverr.co/videos",
-            headers={
-                "Authorization":
-                f"Bearer {COVERR_KEY}"
-            },
-            params={
-                "query": busca,
-                "page": 0,
-                "page_size": 20,
-                "urls": "true"
-            },
-            timeout=_MEDIA_API_TIMEOUT
-        )
-
-    except Exception as _sap_provider_exc_v1:
-        _sap_provider_diag_v1('coverr_video', 'EXCEPTION', line=1580, exc=_sap_provider_exc_v1, response=locals().get('r'))
-        return []
-
-    if not r.ok:
-        _sap_provider_diag_v1('coverr_video', 'EMPTY_RETURN', line=1584, response=locals().get('r'))
-        return []
-
-    saida = []
-
-    for item in r.json().get(
-        "hits",
-        []
-    ):
-
-        ident = (
-            item.get("id")
-            or item.get("slug")
-            or item.get("title")
-        )
-
-        descricao = " ".join(
-            [
-                str(item.get("title", "")),
-                str(item.get("description", "")),
-                str(item.get("tags", ""))
-            ]
-        )
-
-        rel, must_hits, avoid_hits = (
-            avaliar_relevancia(
-                busca,
-                descricao,
-                must_have,
-                avoid
-            )
-        )
-
-        urls = item.get(
-            "urls",
-            {}
-        )
-
-        if not isinstance(
-            urls,
-            dict
-        ):
-            continue
-
-        for _, url in urls.items():
-
-            if not isinstance(
-                url,
-                str
-            ):
-                continue
-
-            score = rel
-
-            if ".mp4" in url.lower():
-                score += 8
-
-            score += penalidade_usado(
-                "Coverr",
-                ident
-            )
-
-            saida.append(
-                {
-                    "score": score,
-                    "must_hits": must_hits,
-                    "avoid_hits": avoid_hits,
-                    "id": ident,
-                    "url": url,
-                    "fonte": "Coverr",
-                    "tipo": "vídeo",
-                    "descricao": descricao
-                }
-            )
-
-    return saida
-
-
-# ==================================================
-# LOCAL
-# ==================================================
-
-def buscar_local(
-    preferir_video
-):
-
-    if not USAR_LOCAL:
-        return None
-
-    videos = []
-    fotos = []
-
-    for nome in os.listdir(
-        LOCAL_DIR
-    ):
-
-        caminho = os.path.join(
-            LOCAL_DIR,
-            nome
-        )
-
-        ext = os.path.splitext(
-            nome
-        )[1].lower()
-
-        if ext == ".mp4":
-            videos.append(caminho)
-
-        elif ext in [
-            ".jpg",
-            ".jpeg",
-            ".png"
-        ]:
-            fotos.append(caminho)
-
-    random.shuffle(videos)
-    random.shuffle(fotos)
-
-    candidatos = (
-        videos + fotos
-        if preferir_video
-        else fotos + videos
-    )
-
-    if not candidatos:
-        return None
-
-    return candidatos[0]
 
 
 # ==================================================
@@ -4348,7 +3518,8 @@ def baixar_candidato_5_2(
             "url",
             ""
         ),
-        destino
+        destino,
+        candidate=candidato,
     )
 
     if ok:
