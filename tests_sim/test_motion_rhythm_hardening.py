@@ -109,7 +109,7 @@ class MotionRhythmHardeningTests(unittest.TestCase):
 
     def test_media_selector_is_native_and_compiles(self):
         source = MIDIA.read_text(encoding="utf-8")
-        self.assertIn("largura * altura < 320 * 180", source)
+        self.assertIn("pixels < 320 * 180", source)
         self.assertIn("def _sap_professional_media_accept_v1", source)
         pipeline = (REPO / "main.py").read_text(encoding="utf-8")
         self.assertIn('p.run("6 - SMART MEDIA SELECTOR", "media_stage_runtime.py"', pipeline)
