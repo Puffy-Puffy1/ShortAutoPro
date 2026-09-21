@@ -10,7 +10,7 @@ from datetime import date
 from gemini_runtime import generate_text
 from runtime_config import env_int
 
-VERSION = "3.5"
+VERSION = "3.6"
 if __name__ == "__main__" and "--version" in sys.argv[1:]:
     print(f"DOCUMENTARY DIRECTOR - STABLE {VERSION}")
     raise SystemExit(0)
@@ -81,28 +81,80 @@ def limpar_lista(valor, maximo=10):
 def extrair_objeto_json(texto):
     if not isinstance(texto, str) or not texto.strip():
         raise ValueError("resposta vazia")
+
     limpo = texto.strip().lstrip("\ufeff")
     fence = chr(96) * 3
+
     if limpo.startswith(fence):
         linhas = limpo.splitlines()
         limpo = "\n".join(linhas[1:]).strip()
         if limpo.endswith(fence):
             limpo = limpo[:-3].rstrip()
+
+    valor = None
+
     try:
         valor = json.loads(limpo)
     except json.JSONDecodeError:
-        # Decode only the first outer object. Never salvage a nested object
-        # from an incomplete outer document, or modify text inside strings.
-        inicio = limpo.find("{")
-        if inicio < 0 or limpo.startswith("["):
-            raise ValueError("nenhum objeto JSON válido encontrado")
-        try:
-            valor, _ = json.JSONDecoder().raw_decode(limpo, inicio)
-        except json.JSONDecodeError as exc:
-            raise ValueError(f"JSON inválido na posição {exc.pos}: {exc.msg}") from exc
+        decoder = json.JSONDecoder()
+
+        # First try the first object or array embedded in surrounding prose.
+        candidatos_inicio = [
+            pos for pos in (limpo.find("{"), limpo.find("["))
+            if pos >= 0
+        ]
+        for inicio in sorted(candidatos_inicio):
+            try:
+                valor, _ = decoder.raw_decode(limpo, inicio)
+                break
+            except json.JSONDecodeError:
+                continue
+
+        if valor is None:
+            raise ValueError("nenhum JSON válido encontrado")
+
+    # Gemini sometimes returns the scenes array directly even when the prompt
+    # requested {"scenes":[...]}. That shape is losslessly recoverable.
+    if isinstance(valor, list):
+        return {
+            "scenes": valor,
+            "_normalized_from": "root_array",
+        }
+
     if not isinstance(valor, dict):
-        raise ValueError("JSON raiz não é objeto")
-    return valor
+        raise ValueError("JSON raiz não é objeto nem lista")
+
+    # Common recoverable wrappers from structured-output models.
+    for key in ("result", "data", "output", "response"):
+        wrapped = valor.get(key)
+        if isinstance(wrapped, dict) and isinstance(wrapped.get("scenes"), list):
+            normalized = dict(wrapped)
+            normalized["_normalized_from"] = f"wrapper:{key}"
+            return normalized
+        if isinstance(wrapped, list):
+            return {
+                "scenes": wrapped,
+                "_normalized_from": f"wrapper_list:{key}",
+            }
+
+    if isinstance(valor.get("scenes"), list):
+        return valor
+
+    # Another common shape is a dict keyed by scene number.
+    numeric_items = []
+    for key, item in valor.items():
+        if str(key).isdigit() and isinstance(item, dict):
+            normalized = dict(item)
+            normalized.setdefault("scene", int(key))
+            numeric_items.append(normalized)
+    if numeric_items:
+        numeric_items.sort(key=lambda item: int(item.get("scene", 0) or 0))
+        return {
+            "scenes": numeric_items,
+            "_normalized_from": "numeric_object",
+        }
+
+    raise ValueError("JSON válido sem campo scenes recuperável")
 
 
 def numero_cena(valor):
@@ -136,7 +188,7 @@ def validar_resposta_documental(resposta):
         if not isinstance(query, str) or not 4 <= len(query.split()) <= 16:
             raise ValueError(f"cena {numero} com query inválida (4 a 16 palavras)")
         must = item.get("must_have")
-        if (not isinstance(must, list) or not 1 <= len(must) <= 3
+        if (not isinstance(must, list) or len(must) > 3
                 or any(not isinstance(term, str) or not term.strip() for term in must)):
             raise ValueError(f"cena {numero} com must_have inválido")
         avoid = item.get("avoid", [])
@@ -272,7 +324,7 @@ REGRAS:
 - não invente retratos de pessoas reais;
 - alegações controversas devem permanecer visualmente ambíguas;
 - query em inglês, aproximadamente 5 a 13 palavras;
-- must_have: 1 a 3 conceitos essenciais;
+- must_have: 0 a 3 conceitos realmente obrigatórios; use [] quando nenhum elemento factual específico precisar ser provado visualmente;
 - avoid: 2 a 5 conceitos inadequados quando possível;
 - não use o mesmo visual_mode ou shot_type mais de 2 vezes consecutivas;
 - relevância factual é mais importante que movimento.
@@ -293,7 +345,7 @@ historico = []
 
 print()
 print("================================")
-print("DOCUMENTARY DIRECTOR - STABLE 3.5")
+print("DOCUMENTARY DIRECTOR - STABLE 3.6")
 print("================================")
 print()
 
@@ -333,10 +385,16 @@ for tentativa in range(1, 4):
         break
 
     try:
-        resposta = validar_resposta_documental(
-            extrair_objeto_json(bruto)
-        )
+        normalizada = extrair_objeto_json(bruto)
+        origem_normalizacao = str(normalizada.get("_normalized_from", "") or "")
+        resposta = validar_resposta_documental(normalizada)
         registro["status"] = "PASS"
+        if origem_normalizacao:
+            registro["normalized_from"] = origem_normalizacao
+            print(
+                "DOCUMENTARY_JSON_NORMALIZED="
+                f"{origem_normalizacao}"
+            )
         break
     except ValueError as exc:
         ultimo_erro = str(exc)
@@ -354,7 +412,7 @@ if resposta is None:
         REPORT,
         {
             "short_id": SHORT_ID,
-            "version": "3.5",
+            "version": "3.6",
             "status": "DEGRADED",
             "applied": False,
             "preserved_original_scene_map": True,
@@ -414,10 +472,9 @@ for cena_original in cenas:
         sys.exit(f"ERRO: cena {numero} ficou sem query válida.")
 
     must = limpar_lista(novo.get("must_have", []), 3)
-    if not must:
-        must = limpar_lista(cena_original.get("must_have", []), 3)
-    if not must:
-        sys.exit(f"ERRO: cena {numero} ficou sem must_have.")
+    original_must = limpar_lista(cena_original.get("must_have", []), 3)
+    if not must and original_must:
+        must = original_must
 
     avoid = limpar_lista(novo.get("avoid", []), 5)
     if len(avoid) < 2:
@@ -458,7 +515,7 @@ for i in range(2, len(resultado)):
 mapa_final = dict(mapa)
 mapa_final["scenes"] = resultado
 mapa_final["documentary_director"] = {
-    "version": "3.5",
+    "version": "3.6",
     "applied": True,
     "expected_scenes": QTD_CENAS,
     "visual_mode_triple_repetitions": repeticoes_mode,
@@ -468,7 +525,7 @@ mapa_final["documentary_director"] = {
 atomic_json(SCENE_MAP, mapa_final)
 atomic_json(REPORT, {
     "short_id": SHORT_ID,
-    "version": "3.5",
+    "version": "3.6",
     "status": "PASS",
     "attempts": len(historico),
     "attempt_history": historico,
