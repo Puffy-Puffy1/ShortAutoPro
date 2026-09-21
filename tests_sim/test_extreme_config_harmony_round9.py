@@ -35,8 +35,8 @@ class ExtremeConfigHarmonyRound9Tests(unittest.TestCase):
 
     def test_secondary_asset_config_has_explicit_bounds(self):
         text = (ROOT / "multi_asset_director.py").read_text(encoding="utf-8")
-        self.assertIn('env_int("SAP_MULTI_ASSET_MAX",4,0,6)', text)
-        self.assertIn('env_float("SAP_MULTI_ASSET_DOWNLOAD_SECONDS",45.0,10.0,120.0)', text)
+        self.assertIn('env_int("SAP_MULTI_ASSET_MAX",2,0,4)', text)
+        self.assertIn('env_float("SAP_MULTI_ASSET_DOWNLOAD_SECONDS",20.0,8.0,60.0)', text)
 
     def test_audio_policy_config_has_safe_bounds(self):
         text = (ROOT / "audio_finalizer.py").read_text(encoding="utf-8")
