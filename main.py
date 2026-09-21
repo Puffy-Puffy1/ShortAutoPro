@@ -213,6 +213,45 @@ class Pipeline:
         except Exception:
             pass
 
+    def _stage_timeout_seconds(self, file: str) -> int:
+        """Return a bounded timeout appropriate for the production stage."""
+        explicit = os.getenv("SAP_STAGE_TIMEOUT_SECONDS", "").strip()
+        if explicit:
+            try:
+                return max(60, min(int(explicit), 7200))
+            except ValueError:
+                pass
+
+        name = str(file or "").strip().lower()
+
+        # Network/AI refinement stages already have their own short retry logic.
+        if name in {
+            "topic_engine_runtime.py",
+            "script_runtime.py",
+            "hook_runtime.py",
+            "narrative_director.py",
+            "cold_open_director.py",
+            "scene_director.py",
+            "documentary_director.py",
+            "visual_director.py",
+        }:
+            return env_int("SAP_STAGE_TIMEOUT_AI_SECONDS", 240, 60, 900)
+
+        # Media acquisition is explicitly bounded and has emergency completion.
+        if name == "media_stage_runtime.py":
+            return env_int("SAP_STAGE_TIMEOUT_MEDIA_SECONDS", 420, 120, 900)
+
+        # Encoding/rendering legitimately needs more headroom on Android.
+        if name in {
+            "video_professional.py",
+            "v6_professional.py",
+            "audio_finalizer.py",
+        }:
+            return env_int("SAP_STAGE_TIMEOUT_RENDER_SECONDS", 1200, 180, 2400)
+
+        # Analysis/gates should never need 30 minutes.
+        return env_int("SAP_STAGE_TIMEOUT_DEFAULT_SECONDS", 600, 60, 1800)
+
     def run(
         self,
         title: str,
@@ -233,7 +272,7 @@ class Pipeline:
         cmd: list[str] = []
         for attempt in range(retries + 1):
             cmd = ["bash", str(path), *args] if shell else [sys.executable, str(path), *args]
-            stage_timeout = env_int("SAP_STAGE_TIMEOUT_SECONDS", 1800, 60, 7200)
+            stage_timeout = self._stage_timeout_seconds(file)
 
             try:
                 proc = run_group(
