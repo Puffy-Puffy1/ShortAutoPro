@@ -7,9 +7,13 @@ import sys
 import time
 from datetime import date
 
-import requests
+from gemini_runtime import generate_text
 
-BASE = os.path.expanduser("~/ShortAutoPro")
+BASE = os.path.abspath(
+    os.path.expanduser(
+        os.getenv("SHORTAUTOPRO_BASE", "~/ShortAutoPro")
+    )
+)
 SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat())
 ROTEIRO = os.path.join(BASE, "roteiros", f"short_{SHORT_ID}.txt")
 KEYWORDS = os.path.join(BASE, "roteiros", f"keywords_{SHORT_ID}.txt")
@@ -23,8 +27,6 @@ except ValueError:
     QTD_CENAS = 12
 QTD_CENAS = max(6, min(QTD_CENAS, 20))
 
-if not GEMINI_KEY:
-    sys.exit("ERRO: GEMINI_API_KEY não configurada.")
 if not os.path.isfile(ROTEIRO):
     sys.exit(f"ERRO: roteiro não encontrado: {ROTEIRO}")
 
@@ -77,41 +79,56 @@ def atomic_json(path, data):
 
 
 total_palavras = len(extrair_palavras(roteiro))
-URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent"
-HEADERS = {"Content-Type": "application/json", "x-goog-api-key": GEMINI_KEY}
 
 
 def chamar_gemini(prompt):
-    payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.15, "maxOutputTokens": 2400},
-    }
-    for tentativa in range(1, 5):
-        print(f"Scene Director tentativa {tentativa}/4...")
-        try:
-            r = requests.post(URL, headers=HEADERS, json=payload, timeout=120)
-        except Exception as exc:
-            if tentativa == 4:
-                raise RuntimeError(str(exc))
-            time.sleep(5)
-            continue
+    return generate_text(
+        prompt,
+        temperature=0.15,
+        max_output_tokens=2400,
+        response_mime_type="application/json",
+        component="Scene Director",
+        api_key=GEMINI_KEY,
+    )
 
-        if r.ok:
-            try:
-                dados = r.json()
-                texto = dados["candidates"][0]["content"]["parts"][0]["text"]
-                texto = str(texto).strip()
-                if not texto:
-                    raise ValueError("texto vazio")
-                return texto
-            except Exception as exc:
-                raise RuntimeError(f"Gemini retornou resposta inválida: {exc}")
 
-        if r.status_code in {429, 500, 502, 503, 504} and tentativa < 4:
-            time.sleep(8)
-            continue
-        raise RuntimeError(f"HTTP {r.status_code}: {r.text[:1200]}")
-    raise RuntimeError("Gemini não respondeu.")
+def fallback_local_scenes(texto, quantidade):
+    palavras = extrair_palavras(texto)
+    if not palavras:
+        return []
+
+    quantidade = max(1, min(int(quantidade), len(palavras)))
+    base = len(palavras) // quantidade
+    resto = len(palavras) % quantidade
+    cenas = []
+    cursor = 0
+
+    for indice in range(quantidade):
+        tamanho = base + (1 if indice < resto else 0)
+        trecho_palavras = palavras[cursor:cursor + tamanho]
+        cursor += tamanho
+        trecho = " ".join(trecho_palavras).strip()
+
+        # The local fallback is deliberately conservative: it preserves the
+        # narration exactly and uses a generic documentary query. Later visual
+        # directors can enrich the query when AI is available.
+        termos = [
+            p.lower()
+            for p in trecho_palavras
+            if len(p) >= 5
+        ][:3]
+
+        cenas.append(
+            {
+                "segment": trecho,
+                "query": "documentary visual context scene",
+                "must_have": termos[:2],
+                "avoid": ["wrong person", "unrelated event"],
+                "fallback_local": True,
+            }
+        )
+
+    return cenas
 
 
 prompt = f"""
@@ -151,27 +168,28 @@ print(f"Palavras: {total_palavras}")
 print(f"Cenas: {QTD_CENAS}")
 print()
 
+scenes = []
 try:
     bruto = chamar_gemini(prompt)
-except Exception as exc:
-    sys.exit(f"ERRO Scene Director: {exc}")
-
-bruto = bruto.replace("```json", "").replace("```", "").strip()
-try:
+    bruto = bruto.replace("```json", "").replace("```", "").strip()
     dados = json.loads(bruto)
-except Exception:
-    print("Resposta recebida:")
-    print(bruto)
-    sys.exit("ERRO: JSON inválido.")
+    if isinstance(dados, dict) and isinstance(dados.get("scenes"), list):
+        scenes = [item for item in dados.get("scenes", []) if isinstance(item, dict)]
+except Exception as exc:
+    print(
+        "SCENE_DIRECTOR_AI=FAIL_OPEN "
+        f"{type(exc).__name__}:{str(exc)[:180]}"
+    )
 
-if not isinstance(dados, dict):
-    sys.exit("ERRO: resposta do Scene Director não é um objeto JSON.")
-scenes = dados.get("scenes", [])
-if not isinstance(scenes, list):
-    sys.exit("ERRO: campo scenes não é uma lista.")
-scenes = [item for item in scenes if isinstance(item, dict)]
 if not scenes:
-    sys.exit("ERRO: Gemini não retornou nenhuma cena utilizável.")
+    print(
+        "SCENE_DIRECTOR_FALLBACK=LOCAL_SEMANTIC_SPLIT "
+        f"target={QTD_CENAS}"
+    )
+    scenes = fallback_local_scenes(roteiro, QTD_CENAS)
+
+if not scenes:
+    sys.exit("ERRO: Scene Director não conseguiu criar cenas locais.")
 
 scene_count_original = len(scenes)
 recovery_actions = []
