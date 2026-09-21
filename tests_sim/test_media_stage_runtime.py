@@ -14,9 +14,12 @@ class MediaStageRuntimeTests(unittest.TestCase):
         second = msr.round_env(1)
         third = msr.round_env(2)
         self.assertEqual(first["SAP_MEDIA_INCREMENTAL"], "1")
-        self.assertEqual(first["SAP_STOCK_RESCUE_MAX_QUERIES"], "2")
-        self.assertEqual(second["SAP_STOCK_RESCUE_MAX_QUERIES"], "4")
-        self.assertEqual(third["SAP_STOCK_RESCUE_MAX_QUERIES"], "6")
+        self.assertEqual(first["SAP_STOCK_RESCUE_MAX_QUERIES"], "1")
+        self.assertEqual(second["SAP_STOCK_RESCUE_MAX_QUERIES"], "1")
+        self.assertEqual(third["SAP_STOCK_RESCUE_MAX_QUERIES"], "2")
+        self.assertEqual(first["SAP_MUST_RESCUE_MAX_QUERIES"], "1")
+        self.assertEqual(second["SAP_MUST_RESCUE_MAX_QUERIES"], "1")
+        self.assertEqual(third["SAP_MUST_RESCUE_MAX_QUERIES"], "2")
         self.assertLess(
             int(first["SAP_MEDIA_PROVIDER_RESULT_TIMEOUT"]),
             int(third["SAP_MEDIA_PROVIDER_RESULT_TIMEOUT"]),
