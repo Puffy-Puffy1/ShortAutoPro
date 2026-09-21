@@ -446,6 +446,67 @@ def restore_cached_media(
         return False
 
 
+def cached_media_candidates(limit: int = 250) -> list[dict[str, Any]]:
+    """Return durable, physically present cached assets with stored metadata."""
+    data = _load(BLOB_INDEX, {"items": {}})
+    items = data.get("items", {}) if isinstance(data, dict) else {}
+    if not isinstance(items, dict):
+        return []
+
+    rows: list[tuple[float, dict[str, Any]]] = []
+    for item in items.values():
+        if not isinstance(item, dict):
+            continue
+        blob = Path(str(item.get("blob", "") or ""))
+        try:
+            if not blob.is_file() or blob.stat().st_size <= 1000:
+                continue
+        except OSError:
+            continue
+        metadata = item.get("metadata", {})
+        if not isinstance(metadata, dict):
+            metadata = {}
+        candidate = metadata.get("candidate", {})
+        if not isinstance(candidate, dict) or not candidate:
+            continue
+        rows.append(
+            (
+                float(item.get("last_used_at", item.get("cached_at", 0)) or 0),
+                {
+                    "url": str(item.get("url", "") or ""),
+                    "blob": str(blob),
+                    "sha256": str(item.get("sha256", "") or ""),
+                    "provider": str(item.get("provider", "") or ""),
+                    "candidate": candidate,
+                    "cached_at": float(item.get("cached_at", 0) or 0),
+                },
+            )
+        )
+
+    rows.sort(key=lambda row: row[0], reverse=True)
+    return [row[1] for row in rows[: max(1, min(int(limit), 1000))]]
+
+
+def touch_cached_media(url: str) -> None:
+    raw = str(url or "").strip()
+    if not raw:
+        return
+    key = _hash_text(raw)
+    with _Lock():
+        data = _load(BLOB_INDEX, {"version": "1.0", "items": {}})
+        items = data.get("items", {}) if isinstance(data, dict) else {}
+        if not isinstance(items, dict) or key not in items:
+            return
+        item = items.get(key)
+        if not isinstance(item, dict):
+            return
+        item["last_used_at"] = _now()
+        items[key] = item
+        data["items"] = items
+        data["updated_at"] = _now()
+        _atomic(BLOB_INDEX, data)
+
+
 def cache_stats() -> dict[str, Any]:
     data = _load(BLOB_INDEX, {"items": {}})
     items = data.get("items", {}) if isinstance(data, dict) else {}
@@ -557,5 +618,7 @@ __all__ = [
     "restore_cached_media",
     "provider_from_url",
     "cache_stats",
+    "cached_media_candidates",
+    "touch_cached_media",
     "prune_cache",
 ]
