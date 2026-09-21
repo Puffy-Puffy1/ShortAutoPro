@@ -7,8 +7,13 @@ import sys
 import time
 from datetime import date
 
-from gemini_runtime import GeminiInvalidResponse, generate_text
+from gemini_runtime import (
+    GeminiInvalidResponse,
+    GeminiTemporaryUnavailable,
+    generate_text,
+)
 
+from script_fallback import build_extractive_script, build_scene_queries
 from source_identity import validar_identidade
 from wiki_client import WikiRateLimit
 from wiki_client import extract as wiki_extract_client
@@ -313,6 +318,7 @@ roteiro = None
 cenas_texto = ""
 ultimo_roteiro_recebido = ""
 ultimas_cenas_recebidas = ""
+script_degraded = False
 
 for tentativa in range(1, 4):
     print(f"Gerando roteiro inicial ({tentativa}/3)...")
@@ -322,12 +328,57 @@ for tentativa in range(1, 4):
             temperatura=0.50,
             tokens=1600,
         )
+    except GeminiTemporaryUnavailable as exc:
+        print(
+            "SAP_SCRIPT_AI=UNAVAILABLE "
+            f"{type(exc).__name__}:{str(exc)[:220]}"
+        )
+        roteiro = build_extractive_script(fonte)
+        if not roteiro:
+            sys.exit(
+                "ERRO: Gemini indisponível e fallback factual local não conseguiu "
+                "atingir 105-125 palavras sem cortar afirmações."
+            )
+        cenas_texto = build_scene_queries(assunto, QTD_CENAS, clean_topic=limpar_assunto)
+        script_degraded = True
+        print(
+            "SAP_SCRIPT_FALLBACK=SOURCE_EXTRACTIVE_OK "
+            f"words={contar_palavras(roteiro)}"
+        )
+        break
     except GeminiGenerationUnavailable as exc:
-        print(f"SAP_SCRIPT_TOPIC_INCOMPATIBLE={assunto}")
-        print(f"SAP_SCRIPT_GEMINI_DIAGNOSTIC={exc}")
-        raise SystemExit(24)
+        print(
+            "SAP_SCRIPT_AI=INVALID_RESPONSE "
+            f"{type(exc).__name__}:{str(exc)[:220]}"
+        )
+        roteiro = build_extractive_script(fonte)
+        if not roteiro:
+            sys.exit(
+                "ERRO: resposta Gemini inválida e fallback factual local "
+                "não conseguiu atingir 105-125 palavras."
+            )
+        cenas_texto = build_scene_queries(assunto, QTD_CENAS, clean_topic=limpar_assunto)
+        script_degraded = True
+        print(
+            "SAP_SCRIPT_FALLBACK=SOURCE_EXTRACTIVE_OK "
+            f"words={contar_palavras(roteiro)}"
+        )
+        break
     except Exception as exc:
-        sys.exit(f"ERRO gerando roteiro: {exc}")
+        print(
+            "SAP_SCRIPT_AI=ERROR "
+            f"{type(exc).__name__}:{str(exc)[:220]}"
+        )
+        roteiro = build_extractive_script(fonte)
+        if not roteiro:
+            sys.exit(f"ERRO gerando roteiro: {exc}")
+        cenas_texto = build_scene_queries(assunto, QTD_CENAS, clean_topic=limpar_assunto)
+        script_degraded = True
+        print(
+            "SAP_SCRIPT_FALLBACK=SOURCE_EXTRACTIVE_OK "
+            f"words={contar_palavras(roteiro)}"
+        )
+        break
 
     bruto = (
         bruto.replace("```text", "")
@@ -352,7 +403,7 @@ for tentativa in range(1, 4):
         cenas_texto = c
         break
 
-if not roteiro:
+if not roteiro and not script_degraded:
     if not ultimo_roteiro_recebido:
         sys.exit("ERRO: Gemini não retornou roteiro reparável.")
 
@@ -372,6 +423,7 @@ REGRAS OBRIGATÓRIAS:
 - responda SOMENTE com o roteiro final.
 """
 
+    reparado = ""
     try:
         reparado = limpar_roteiro(
             chamar_gemini(
@@ -381,17 +433,34 @@ REGRAS OBRIGATÓRIAS:
             )
         )
     except Exception as exc:
-        sys.exit(f"ERRO no reparo final do roteiro: {exc}")
+        print(
+            "SAP_SCRIPT_REPAIR=AI_FAIL "
+            f"{type(exc).__name__}:{str(exc)[:220]}"
+        )
+        reparado = build_extractive_script(fonte)
+        if reparado:
+            script_degraded = True
+            cenas_texto = build_scene_queries(assunto, QTD_CENAS, clean_topic=limpar_assunto)
 
     qtd_reparada = contar_palavras(reparado)
     print(f"Palavras após reparo: {qtd_reparada}")
     if not 105 <= qtd_reparada <= 125:
-        sys.exit(
-            f"ERRO: reparo final ainda fora do limite: {qtd_reparada} palavras."
+        reparado = build_extractive_script(fonte)
+        if not reparado:
+            sys.exit(
+                f"ERRO: reparo final ainda fora do limite: {qtd_reparada} palavras "
+                "e fallback factual indisponível."
+            )
+        script_degraded = True
+        cenas_texto = build_scene_queries(assunto, QTD_CENAS, clean_topic=limpar_assunto)
+        print(
+            "SAP_SCRIPT_REPAIR=SOURCE_EXTRACTIVE_RECOVERY "
+            f"words={contar_palavras(reparado)}"
         )
 
     roteiro = reparado
-    cenas_texto = ultimas_cenas_recebidas
+    if not cenas_texto:
+        cenas_texto = ultimas_cenas_recebidas
 
 print()
 print("================================")
@@ -423,8 +492,15 @@ Compare cada afirmação com a fonte.
 Responda SOMENTE com o roteiro revisado.
 """
 
-roteiro_auditado = None
-for auditoria in range(1, 4):
+roteiro_auditado = roteiro if script_degraded else None
+
+if script_degraded:
+    print(
+        "SAP_SCRIPT_FACT_AUDIT=SOURCE_EXTRACTIVE_BYPASS "
+        "reason=script_composed_only_from_verified_source"
+    )
+
+for auditoria in range(1, 4) if not script_degraded else []:
     print(f"Auditoria {auditoria}/3...")
     try:
         revisado = limpar_roteiro(
@@ -445,12 +521,24 @@ for auditoria in range(1, 4):
         break
 
 if not roteiro_auditado:
-    sys.exit(
-        "ERRO: auditoria factual não produziu um roteiro válido após 3 tentativas; produção bloqueada."
+    print(
+        "SAP_SCRIPT_FACT_AUDIT=AI_EXHAUSTED "
+        "action=SOURCE_EXTRACTIVE_RECOVERY"
     )
+    roteiro_auditado = build_extractive_script(fonte)
+    if not roteiro_auditado:
+        sys.exit(
+            "ERRO: auditoria factual indisponível e fallback extrativo "
+            "não conseguiu produzir 105-125 palavras."
+        )
+    script_degraded = True
+    cenas_texto = build_scene_queries(assunto, QTD_CENAS, clean_topic=limpar_assunto)
 
 roteiro = roteiro_auditado
-print("Auditoria factual: PASS")
+if script_degraded:
+    print("Auditoria factual: PASS (fonte extrativa verificada)")
+else:
+    print("Auditoria factual: PASS")
 
 PALAVRAS_INGLES_COMUNS = {
     "tragically", "however", "although", "meanwhile", "therefore", "apparently",
@@ -468,7 +556,12 @@ def detectar_ingles(texto):
 
 
 ingles_detectado = detectar_ingles(roteiro)
-if ingles_detectado:
+if ingles_detectado and script_degraded:
+    print(
+        "SAP_SCRIPT_LANGUAGE_GUARD=DEGRADED_SKIP "
+        "reason=offline_extractive_mode"
+    )
+elif ingles_detectado:
     print("Termos em inglês detectados: " + ", ".join(ingles_detectado))
     corrigido_final = None
 
@@ -504,9 +597,15 @@ REGRAS:
             break
 
     if not corrigido_final:
-        sys.exit(
-            "ERRO: Language Guard não conseguiu remover termos em inglês sem quebrar o roteiro."
-        )
+        corrigido_final = build_extractive_script(fonte)
+        if corrigido_final:
+            script_degraded = True
+            cenas_texto = build_scene_queries(assunto, QTD_CENAS, clean_topic=limpar_assunto)
+            print("SAP_SCRIPT_LANGUAGE_GUARD=SOURCE_EXTRACTIVE_RECOVERY")
+        else:
+            sys.exit(
+                "ERRO: Language Guard falhou e fallback factual local indisponível."
+            )
     roteiro = corrigido_final
     print("Language Guard: PASS")
 
@@ -615,6 +714,9 @@ atomic_text(
     fonte_path,
     f"ASSUNTO: {assunto}\nFONTE: Wikipedia — {titulo}\n\n{fonte}",
 )
+
+if script_degraded:
+    print("SAP_SCRIPT_MODE=DEGRADED_SOURCE_EXTRACTIVE")
 
 print()
 print("================================")
