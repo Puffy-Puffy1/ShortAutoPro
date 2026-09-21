@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 import media_external_resilience as resilience
@@ -74,6 +75,13 @@ class MediaExternalResilienceTests(unittest.TestCase):
         self.assertEqual(reason, "CORRUPT")
         self.assertGreater(remaining, 0)
 
+
+    def test_lock_file_failure_does_not_kill_stage6_control_plane(self):
+        with mock.patch("media_external_resilience.open", side_effect=OSError("read-only cache")):
+            allowed, reason, remaining = resilience.provider_gate("pexels_video")
+        self.assertTrue(allowed)
+        self.assertEqual(reason, "CLOSED")
+        self.assertEqual(remaining, 0.0)
 
     def test_download_resource_miss_does_not_poison_provider_circuit(self):
         class Response:
