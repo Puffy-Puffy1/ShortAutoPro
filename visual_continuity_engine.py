@@ -58,28 +58,139 @@ def field(scene: dict[str, Any], *names: str) -> str:
     return ""
 
 
-def continuity_pair(prev: dict[str, Any], cur: dict[str, Any]) -> tuple[float, dict[str, float], list[str]]:
-    subject = jaccard(field(prev, "main_subject", "must_have"), field(cur, "main_subject", "must_have"))
-    location = jaccard(field(prev, "location", "environment"), field(cur, "location", "environment"))
-    era = jaccard(field(prev, "era"), field(cur, "era"))
-    mood = jaccard(field(prev, "emotion", "mood"), field(cur, "emotion", "mood"))
-    query = jaccard(field(prev, "query"), field(cur, "query"))
-    same_context = max(subject, location, era) >= 0.34
+def _pair_value(prev: dict[str, Any], cur: dict[str, Any], *names: str) -> tuple[str, str, float | None]:
+    left = field(prev, *names)
+    right = field(cur, *names)
+    if not left or not right:
+        return left, right, None
+    return left, right, jaccard(left, right)
 
-    # Same narrative context should preserve anchors; context changes should not
-    # be punished for healthy visual diversity.
-    if same_context:
-        score = 42*subject + 25*location + 13*era + 10*mood + 10*min(query, 0.75)/0.75
-    else:
-        diversity = 1.0 - min(1.0, query)
-        score = 70 + 20*diversity + 10*(1.0 if norm(prev.get("shot_type")) != norm(cur.get("shot_type")) else 0.0)
-    score = round(max(0.0, min(100.0, score)), 1)
+
+def _semantic_component(similarity: float | None) -> float | None:
+    """Map sparse lexical overlap to a continuity confidence score.
+
+    Scene metadata is intentionally compact and often uses different wording
+    for the same visual anchor. Missing metadata is UNKNOWN, not evidence of a
+    continuity failure.
+    """
+    if similarity is None:
+        return None
+    if similarity >= 0.60:
+        return 100.0
+    if similarity >= 0.34:
+        return 88.0
+    if similarity >= 0.18:
+        return 72.0
+    if similarity > 0:
+        return 58.0
+    return 25.0
+
+
+def continuity_pair(prev: dict[str, Any], cur: dict[str, Any]) -> tuple[float, dict[str, Any], list[str]]:
+    dimensions = {
+        "subject": _pair_value(prev, cur, "continuity_anchor", "main_subject", "entity", "entities", "must_have"),
+        "location": _pair_value(prev, cur, "location", "environment", "setting"),
+        "era": _pair_value(prev, cur, "era", "time_period", "time_context"),
+        "event": _pair_value(prev, cur, "event", "story_event", "narrative_event"),
+        "style": _pair_value(prev, cur, "visual_style", "style", "aesthetic"),
+        "mood": _pair_value(prev, cur, "emotion", "mood"),
+        "query": _pair_value(prev, cur, "query"),
+    }
+    raw = {name: item[2] for name, item in dimensions.items()}
+    semantic = {
+        name: _semantic_component(value)
+        for name, value in raw.items()
+        if name != "query"
+    }
+
+    context_candidates = [
+        raw.get("subject"),
+        raw.get("location"),
+        raw.get("era"),
+        raw.get("event"),
+    ]
+    same_context = any(
+        value is not None and value >= 0.34
+        for value in context_candidates
+    )
+
     issues: list[str] = []
-    if same_context and subject < 0.2: issues.append("subject_anchor_lost")
-    if same_context and location < 0.12 and (field(prev,"location") or field(cur,"location")): issues.append("location_anchor_lost")
-    if same_context and era < 0.12 and (field(prev,"era") or field(cur,"era")): issues.append("era_anchor_lost")
-    if query > 0.82 and norm(prev.get("shot_type")) == norm(cur.get("shot_type")): issues.append("visual_repetition_risk")
-    return score, {"subject":round(subject*100,1),"location":round(location*100,1),"era":round(era*100,1),"mood":round(mood*100,1),"query":round(query*100,1)}, issues
+    available: dict[str, float] = {
+        name: value
+        for name, value in semantic.items()
+        if value is not None
+    }
+
+    if same_context:
+        weights = {
+            "subject": 36.0,
+            "location": 22.0,
+            "era": 12.0,
+            "event": 14.0,
+            "style": 8.0,
+            "mood": 8.0,
+        }
+        weight_sum = sum(weights[name] for name in available)
+        if weight_sum:
+            score = sum(available[name] * weights[name] for name in available) / weight_sum
+        else:
+            score = 70.0
+
+        # Only penalize a semantic break when both sides actually provided
+        # evidence for that dimension. Missing metadata remains uncertainty.
+        for name, threshold in (
+            ("subject", 0.18),
+            ("location", 0.12),
+            ("era", 0.12),
+            ("event", 0.12),
+        ):
+            value = raw.get(name)
+            if value is not None and value < threshold:
+                issues.append(f"{name}_anchor_lost")
+    else:
+        query = raw.get("query")
+        diversity = 1.0 - min(1.0, query) if query is not None else 0.5
+        score = 72.0 + 16.0 * diversity
+
+        # Healthy context changes benefit from a deliberate shot change.
+        previous_shot = norm(prev.get("shot_type"))
+        current_shot = norm(cur.get("shot_type"))
+        if previous_shot and current_shot and previous_shot != current_shot:
+            score += 6.0
+
+    query = raw.get("query")
+    previous_shot = norm(prev.get("shot_type"))
+    current_shot = norm(cur.get("shot_type"))
+    if (
+        query is not None
+        and query > 0.82
+        and previous_shot
+        and current_shot
+        and previous_shot == current_shot
+    ):
+        issues.append("visual_repetition_risk")
+        score -= 10.0
+
+    score = round(max(0.0, min(100.0, score)), 1)
+    components: dict[str, Any] = {}
+    for name, item in dimensions.items():
+        similarity = item[2]
+        components[name] = None if similarity is None else round(similarity * 100, 1)
+    components["known_dimensions"] = sum(1 for value in raw.values() if value is not None)
+    components["same_context"] = same_context
+    return score, components, issues
+
+
+def quality_tier(score: float) -> str:
+    if score < 50:
+        return "FAIL"
+    if score < 65:
+        return "REVIEW"
+    if score < 80:
+        return "ACCEPTABLE"
+    if score < 90:
+        return "GOOD"
+    return "EXCELLENT"
 
 
 def main() -> int:
@@ -93,13 +204,34 @@ def main() -> int:
             scores.append(score); all_issues.extend(f"scene_{i+1}:{x}" for x in issues)
             scenes[i]["visual_continuity_from_previous"] = score
         avg = round(sum(scores)/len(scores),1)
-        data["visual_continuity"]={"version":"1.0","score":avg,"status":"PASS" if avg>=70 else "REVIEW"}
+        tier = quality_tier(avg)
+        low_pairs = [
+            item for item in pairs
+            if float(item.get("score", 0) or 0) < 65
+        ]
+        continuity = {
+            "version": "1.1",
+            "score": avg,
+            "status": tier,
+            "blocking": tier == "FAIL",
+            "low_pairs": [f"{item['from']}->{item['to']}" for item in low_pairs],
+        }
+        data["visual_continuity"] = continuity
         atomic(SCENE_MAP,data)
-        atomic(REPORT,{"short_id":SHORT_ID,"version":"1.0","visual_continuity_score":avg,"status":"PASS" if avg>=70 else "REVIEW","issues":all_issues,"pairs":pairs})
+        atomic(REPORT,{
+            "short_id":SHORT_ID,
+            "version":"1.1",
+            "visual_continuity_score":avg,
+            "status":tier,
+            "blocking": tier == "FAIL",
+            "issues":all_issues,
+            "low_pairs": low_pairs,
+            "pairs":pairs,
+        })
     except Exception as exc:
         print(f"ERRO VISUAL CONTINUITY: {exc}"); return 1
     print(f"VISUAL CONTINUITY SCORE: {avg}/100")
-    print("VISUAL CONTINUITY: PASS" if avg>=70 else "VISUAL CONTINUITY: REVIEW")
-    return 0
+    print(f"VISUAL CONTINUITY: {tier}")
+    return 1 if tier == "FAIL" else 0
 
 if __name__ == "__main__": raise SystemExit(main())
