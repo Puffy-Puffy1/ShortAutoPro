@@ -20,7 +20,7 @@ import re
 import json
 import hashlib
 import tempfile
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
+from concurrent.futures import ThreadPoolExecutor, wait
 import threading
 import requests
 from requests.adapters import HTTPAdapter
@@ -2889,37 +2889,19 @@ def buscar_todos_candidatos(
                 for name, job in provider_jobs
             }
 
-            _provider_deadline = (
-                time.monotonic()
-                + _PROVIDER_RESULT_TIMEOUT
+            _done, _not_done = wait(
+                tuple(futures.values()),
+                timeout=_PROVIDER_RESULT_TIMEOUT,
             )
 
+            # Collect by provider name only after the shared wait. A slow first
+            # provider must never hide a fast provider that already completed.
             for name, _ in provider_jobs:
+                future = futures[name]
 
-                try:
-                    _provider_remaining = max(
-                        0.0,
-                        _provider_deadline
-                        - time.monotonic()
-                    )
-
-                    if _provider_remaining <= 0:
-                        raise FuturesTimeoutError()
-
-                    provider_results[
-                        name
-                    ] = list(
-                        futures[
-                            name
-                        ].result(
-                            timeout=_provider_remaining
-                        )
-                        or []
-                    )
-
-                except FuturesTimeoutError:
+                if future not in _done:
                     provider_results[name] = []
-                    futures[name].cancel()
+                    future.cancel()
 
                     _sap_note_provider_event(
                         name,
@@ -2930,6 +2912,13 @@ def buscar_todos_candidatos(
                         "SAP_MEDIA_PROVIDER_TIMEOUT "
                         f"provider={name} "
                         f"round_deadline={_PROVIDER_RESULT_TIMEOUT:.1f}s"
+                    )
+                    continue
+
+                try:
+                    provider_results[name] = list(
+                        future.result()
+                        or []
                     )
 
                 except Exception as exc:
@@ -6772,10 +6761,10 @@ for numero, cena in enumerate(
                     f"{type(e).__name__}: "
                     f"{str(e)[:120]}"
                 )
-            _vse42_cleanup_scene_sibling(destino)
-            _vse42_commit_safe(escolhido)
-        _vse42_cleanup_scene_sibling(destino)
-        _vse42_commit_safe(escolhido)
+
+            if sucesso:
+                _vse42_cleanup_scene_sibling(destino)
+                _vse42_commit_safe(escolhido)
 
 
     # =================================
