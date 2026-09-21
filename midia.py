@@ -31,6 +31,7 @@ from subprocess_guard import run_group
 from runtime_config import env_float, env_int
 from media_must_priority import prioritize as _sap_prioritize_must
 from media_provenance_capture_v1 import write_provenance as _sap_write_provenance
+from media_emergency_fallback import create_editorial_reuse
 
 from wikimedia_source import (
     buscar_wikimedia_fotos,
@@ -144,12 +145,12 @@ except ValueError:
 
 try:
     _MEDIA_API_TIMEOUT = float(
-        os.getenv("SAP_MEDIA_API_TIMEOUT", "10") or 10
+        os.getenv("SAP_MEDIA_API_TIMEOUT", "6") or 6
     )
 except (TypeError, ValueError):
-    _MEDIA_API_TIMEOUT = 10.0
+    _MEDIA_API_TIMEOUT = 6.0
 
-_MEDIA_API_TIMEOUT = max(4.0, min(_MEDIA_API_TIMEOUT, 30.0))
+_MEDIA_API_TIMEOUT = max(3.0, min(_MEDIA_API_TIMEOUT, 12.0))
 
 
 try:
@@ -163,12 +164,12 @@ _PROVIDER_WORKERS = max(2, min(_PROVIDER_WORKERS, 6))
 
 try:
     _PROVIDER_RESULT_TIMEOUT = float(
-        os.getenv("SAP_MEDIA_PROVIDER_RESULT_TIMEOUT", "12") or 12
+        os.getenv("SAP_MEDIA_PROVIDER_RESULT_TIMEOUT", "8") or 8
     )
 except (TypeError, ValueError):
-    _PROVIDER_RESULT_TIMEOUT = 12.0
+    _PROVIDER_RESULT_TIMEOUT = 8.0
 
-_PROVIDER_RESULT_TIMEOUT = max(6.0, min(_PROVIDER_RESULT_TIMEOUT, 25.0))
+_PROVIDER_RESULT_TIMEOUT = max(5.0, min(_PROVIDER_RESULT_TIMEOUT, 12.0))
 
 _PROVIDER_EXECUTOR = ThreadPoolExecutor(
     max_workers=_PROVIDER_WORKERS
@@ -4675,8 +4676,8 @@ videos_total = 0
 fotos_total = 0
 missing_scenes = []
 resolved_scene_numbers = set(resume_cached_media)
-_scene_budget_seconds = env_float("SAP_MEDIA_SCENE_BUDGET_SECONDS", 75.0, 30.0, 180.0)
-_scene_retry_min_seconds = env_float("SAP_MEDIA_SCENE_MIN_RETRY_SECONDS", 14.0, 5.0, 30.0)
+_scene_budget_seconds = env_float("SAP_MEDIA_SCENE_BUDGET_SECONDS", 28.0, 15.0, 60.0)
+_scene_retry_min_seconds = env_float("SAP_MEDIA_SCENE_MIN_RETRY_SECONDS", 6.0, 3.0, 15.0)
 
 descricao_anterior = ""
 
@@ -4702,7 +4703,8 @@ contagem = {
     "Coverr": 0,
     "Wikimedia": 0,
     "Local": 0,
-    "ResumeCache": 0
+    "ResumeCache": 0,
+    "EditorialReuse": 0
 }
 
 
@@ -5674,7 +5676,7 @@ for numero, cena in enumerate(
             _alt_seen.add(_alt_key)
             _alt_clean.append(_alt)
 
-        _retry_budget = env_int("SAP_MEDIA_SIMPLIFIED_RETRY_MAX", 3, 1, 5)
+        _retry_budget = env_int("SAP_MEDIA_SIMPLIFIED_RETRY_MAX", 1, 0, 2)
 
         alternativas = _alt_clean[
             :_retry_budget
@@ -6231,6 +6233,41 @@ for numero, cena in enumerate(
         _vse42_commit_safe(escolhido)
 
 
+    # =================================
+    # EMERGENCY EDITORIAL COMPLETION
+    # =================================
+    # Normal acquisition and local verified assets already failed. At this
+    # point, prefer a clearly labeled derivative of an already accepted scene
+    # over leaving the production incomplete. This path makes no factual
+    # identity claim and does not weaken normal MUST/evidence validation.
+    if not sucesso:
+        try:
+            _editorial = create_editorial_reuse(
+                SAIDA_DIR,
+                numero,
+            )
+        except Exception as _editorial_exc:
+            _editorial = None
+            print(
+                "SAP_MEDIA_EDITORIAL_REUSE=FAIL_OPEN "
+                f"scene={numero} "
+                f"{type(_editorial_exc).__name__}:"
+                f"{str(_editorial_exc)[:140]}"
+            )
+
+        if _editorial:
+            destino = str(_editorial.get("local_path", "") or "")
+            if destino and os.path.isfile(destino):
+                escolhido = _editorial
+                sucesso = True
+                print(
+                    "SAP_MEDIA_EDITORIAL_REUSE=COMPLETED "
+                    f"scene={numero} "
+                    f"source_scene={_editorial.get('source_scene','?')} "
+                    "truth_claim=NONE"
+                )
+
+
     if sucesso:
 
         fonte = escolhido[
@@ -6489,6 +6526,11 @@ print(
 print(
     f"ResumeCache: "
     f"{contagem['ResumeCache']}"
+)
+
+print(
+    f"EditorialReuse: "
+    f"{contagem['EditorialReuse']}"
 )
 
 print(
