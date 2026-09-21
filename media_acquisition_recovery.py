@@ -151,11 +151,11 @@ def _rescue_budget() -> int:
     Five preserves the previously certified behavior. The environment override
     is useful on constrained/mobile runs without changing validation policy.
     """
-    raw = os.getenv("SAP_MUST_RESCUE_MAX_QUERIES", "5")
+    raw = os.getenv("SAP_MUST_RESCUE_MAX_QUERIES", "2")
     try:
         value = int(raw)
     except (TypeError, ValueError):
-        value = 5
+        value = 2
     return max(1, min(value, 8))
 
 
