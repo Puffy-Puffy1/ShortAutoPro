@@ -72,8 +72,43 @@ class EvidenceGuardTests(unittest.TestCase):
             ["ocean"],
             "environment",
         )
-        self.assertFalse(result["allowed"])
+        # The query must never upgrade this to CASE_DIRECT. The asset may,
+        # however, be used honestly as generic illustrative ocean context
+        # because its own metadata proves the requested visual concept.
+        self.assertTrue(result["allowed"])
+        self.assertEqual(result["class"], "ILLUSTRATIVE_CONTEXT")
         self.assertNotEqual(result["class"], "CASE_DIRECT")
+
+    def test_generic_wikimedia_does_not_bypass_identity_guard(self):
+        result = evidence_guard.avaliar_evidencia(
+            {
+                "fonte": "Wikimedia",
+                "titulo": "Portrait photograph of unknown man",
+                "wiki_anchor_ok": True,
+                "wiki_query_overlap": 0.9,
+            },
+            "Frederick Valentich",
+            "A pilot disappeared during a flight",
+            ["pilot"],
+            "human_context",
+        )
+        self.assertFalse(result["allowed"])
+        self.assertEqual(result["class"], "RISKY_IDENTITY")
+
+    def test_illustrative_context_requires_metadata_evidence(self):
+        result = evidence_guard.avaliar_evidencia(
+            {
+                "fonte": "Wikimedia",
+                "titulo": "Unrelated generic landscape",
+                "wiki_anchor_ok": False,
+                "wiki_query_overlap": 0.0,
+            },
+            "Mary Celeste",
+            "The vessel crossed the Atlantic",
+            ["ocean"],
+            "environment",
+        )
+        self.assertFalse(result["allowed"])
 
 
 if __name__ == "__main__":

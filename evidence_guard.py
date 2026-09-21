@@ -138,6 +138,16 @@ CONTEXT_MODES = {
     "environment"
 }
 
+# Wikimedia can safely be used as illustrative context in these modes when
+# the asset metadata itself proves the requested visual concept. This is
+# intentionally narrower than CONTEXT_MODES: locations, transport, maps and
+# architecture can imply a specific factual place/object and remain strict.
+ILLUSTRATIVE_CONTEXT_MODES = {
+    "environment",
+    "object",
+    "abstract_context",
+}
+
 
 DOCUMENT_MODES = {
     "document",
@@ -823,6 +833,80 @@ def avaliar_evidencia(
                 "hits"
             ]
         )
+
+
+    # =================================================
+    # SAFE ILLUSTRATIVE CONTEXT
+    # =================================================
+    #
+    # Stock-first scenes must still be able to use the keyless Wikimedia
+    # engine when paid/keyed stock providers are unavailable or empty.
+    # We allow this only for non-identity illustrative modes, and only when
+    # the asset metadata itself proves the requested visual concept.
+    # The search query is never accepted as evidence by itself.
+    # =================================================
+
+    if mode in ILLUSTRATIVE_CONTEXT_MODES:
+
+        try:
+            wiki_query_overlap = float(
+                candidato.get(
+                    "wiki_query_overlap",
+                    0.0
+                )
+                or 0.0
+            )
+        except (TypeError, ValueError):
+            wiki_query_overlap = 0.0
+
+        wiki_anchor_ok = bool(
+            candidato.get(
+                "wiki_anchor_ok",
+                False
+            )
+        )
+
+        metadata_proves_visual = (
+            cobertura_must >= 1.0
+            or (
+                cobertura_must >= 0.50
+                and wiki_anchor_ok
+            )
+            or (
+                not must_have
+                and wiki_anchor_ok
+                and wiki_query_overlap >= 0.45
+            )
+        )
+
+        if metadata_proves_visual:
+
+            bonus = 12.0
+
+            if cobertura_must >= 1.0:
+                bonus += 8.0
+
+            if wiki_anchor_ok:
+                bonus += 5.0
+
+            return resultado(
+                "ILLUSTRATIVE_CONTEXT",
+                bonus,
+                True,
+                topic_overlap,
+                segment_overlap,
+                cobertura_must,
+                "generic_wikimedia_metadata_proves_visual_context",
+                topic[
+                    "hits"
+                ],
+                topic[
+                    "required"
+                ],
+                seg[
+                    "hits"
+                ]
+            )
 
 
     # =================================================

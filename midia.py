@@ -2496,10 +2496,19 @@ def buscar_todos_candidatos(
 
     provider_jobs = []
 
-    # Respect the route chosen by source_router. Stock-first scenes should not
-    # pay Wikimedia's multi-query latency on every search. Documentary/mixed
-    # routes keep Wikimedia in the first pass.
-    if rota_fonte.get("route") != "stock_first":
+    # Respect the route chosen by source_router, but never defer the only
+    # credential-free engine. A stock-first fast path is valid only when at
+    # least one configured stock provider can actually be queried.
+    _stock_provider_ready = bool(
+        (USAR_PEXELS and PEXELS_KEY)
+        or (USAR_PIXABAY and PIXABAY_KEY)
+        or (USAR_COVERR and COVERR_KEY)
+    )
+
+    if (
+        rota_fonte.get("route") != "stock_first"
+        or not _stock_provider_ready
+    ):
         provider_jobs.append(
             (
                 "wikimedia",
@@ -2513,6 +2522,13 @@ def buscar_todos_candidatos(
                 )
             )
         )
+
+        if rota_fonte.get("route") == "stock_first":
+            print(
+                "SAP_SOURCE_ROUTE_FASTPATH=BYPASS "
+                "reason=NO_USABLE_STOCK_CREDENTIALS "
+                "wikimedia=PRIMARY_KEYLESS"
+            )
     else:
         print(
             "SAP_SOURCE_ROUTE_FASTPATH=STOCK_FIRST "
@@ -6458,6 +6474,11 @@ print(
 print(
     f"Coverr: "
     f"{contagem['Coverr']}"
+)
+
+print(
+    f"Wikimedia: "
+    f"{contagem['Wikimedia']}"
 )
 
 print(
