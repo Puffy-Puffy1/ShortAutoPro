@@ -183,6 +183,9 @@ _DOWNLOAD_MAX_MB = env_int(
     "SAP_MEDIA_DOWNLOAD_MAX_MB", 120, 10, 300
 )
 _DOWNLOAD_MAX_BYTES = _DOWNLOAD_MAX_MB * 1024 * 1024
+_DOWNLOAD_MAX_PIXELS = env_int(
+    "SAP_MEDIA_DOWNLOAD_MAX_PIXELS", 50_000_000, 2_000_000, 120_000_000
+)
 
 _HTTP_SESSIONS = {}
 _HTTP_SESSIONS_LOCK = threading.Lock()
@@ -1214,6 +1217,7 @@ def baixar(
     download_provider = _sap_infer_download_provider(url)
     failure_reason = "UNKNOWN"
     response_status = None
+    r = None
 
     try:
         if not url:
@@ -1248,9 +1252,12 @@ def baixar(
             headers=headers
         )
         response_status = getattr(r, "status_code", None)
+        event = _sap_note_provider_response(
+            download_provider,
+            r,
+        )
 
         if not r.ok:
-            event = _sap_note_provider_response(download_provider, r)
             failure_reason = (
                 f"HTTP_{response_status}"
                 if response_status in {403, 404, 410, 429}
@@ -1361,10 +1368,20 @@ def baixar(
             failure_reason = "CORRUPT"
             raise RuntimeError("dimensões inválidas")
 
-        if largura * altura < 320 * 180:
+        pixels = largura * altura
+
+        if pixels < 320 * 180:
             failure_reason = "TOO_SMALL"
             raise RuntimeError(
                 f"mídia abaixo do piso técnico: {largura}x{altura}"
+            )
+
+        if pixels > _DOWNLOAD_MAX_PIXELS:
+            failure_reason = "TOO_LARGE"
+            raise RuntimeError(
+                "mídia excede teto de pixels para runtime móvel: "
+                f"{largura}x{altura} pixels={pixels} "
+                f"limit={_DOWNLOAD_MAX_PIXELS}"
             )
 
         os.replace(temporario, destino)
@@ -1376,14 +1393,19 @@ def baixar(
         return True
 
     except Exception as e:
-        event = _sap_note_provider_exception(
-            download_provider,
-            e,
-        )
-
         if failure_reason == "UNKNOWN":
+            event = _sap_note_provider_exception(
+                download_provider,
+                e,
+            )
             if event in {"TIMEOUT", "NETWORK"}:
                 failure_reason = event
+        elif failure_reason in {"TIMEOUT", "NETWORK"}:
+            _sap_note_provider_event(
+                download_provider,
+                failure_reason,
+                detail=f"{type(e).__name__}:{str(e)[:120]}",
+            )
 
         if (
             url
@@ -1415,6 +1437,13 @@ def baixar(
                     pass
 
         return False
+
+    finally:
+        if r is not None:
+            try:
+                r.close()
+            except Exception:
+                pass
 
 
 # ==================================================
@@ -1688,6 +1717,98 @@ def _sap_provider_diag_v1(
     except Exception:
         pass
 
+def _sap_provider_json_list_v2(provider, response, key):
+    """Validate provider HTTP + JSON shape before any provider-specific parsing."""
+    if response is None:
+        _sap_note_provider_event(
+            provider,
+            "MALFORMED",
+            detail="missing_response",
+        )
+        return None
+
+    event = _sap_note_provider_response(
+        provider,
+        response,
+    )
+
+    if not getattr(response, "ok", False):
+        print(
+            "SAP_PROVIDER_SCHEMA=HTTP_REJECT "
+            f"provider={provider} "
+            f"http={getattr(response, 'status_code', None)} "
+            f"event={event}"
+        )
+        return None
+
+    try:
+        payload = response.json()
+    except Exception as exc:
+        _sap_note_provider_event(
+            provider,
+            "MALFORMED",
+            detail=f"json:{type(exc).__name__}:{str(exc)[:100]}",
+        )
+        print(
+            "SAP_PROVIDER_SCHEMA=MALFORMED_JSON "
+            f"provider={provider} "
+            f"{type(exc).__name__}:{str(exc)[:120]}"
+        )
+        return None
+
+    if not isinstance(payload, dict):
+        _sap_note_provider_event(
+            provider,
+            "MALFORMED",
+            detail=f"root={type(payload).__name__}",
+        )
+        print(
+            "SAP_PROVIDER_SCHEMA=MALFORMED_ROOT "
+            f"provider={provider} type={type(payload).__name__}"
+        )
+        return None
+
+    items = payload.get(key, [])
+    if items is None:
+        items = []
+
+    if not isinstance(items, list):
+        _sap_note_provider_event(
+            provider,
+            "MALFORMED",
+            detail=f"{key}={type(items).__name__}",
+        )
+        print(
+            "SAP_PROVIDER_SCHEMA=MALFORMED_ITEMS "
+            f"provider={provider} key={key} "
+            f"type={type(items).__name__}"
+        )
+        return None
+
+    valid = [
+        item
+        for item in items
+        if isinstance(item, dict)
+    ]
+
+    if items and not valid:
+        _sap_note_provider_event(
+            provider,
+            "MALFORMED",
+            detail=f"{key}=no_dict_items",
+        )
+        return None
+
+    if len(valid) != len(items):
+        print(
+            "SAP_PROVIDER_SCHEMA=PARTIAL_ITEMS "
+            f"provider={provider} "
+            f"valid={len(valid)}/{len(items)}"
+        )
+
+    return valid
+
+
 def pexels_video(
     busca,
     must_have,
@@ -1718,16 +1839,17 @@ def pexels_video(
         _sap_provider_diag_v1('pexels_video', 'EXCEPTION', line=1123, exc=_sap_provider_exc_v1, response=locals().get('r'))
         return []
 
-    if not r.ok:
-        _sap_provider_diag_v1('pexels_video', 'EMPTY_RETURN', line=1127, response=locals().get('r'))
+    _items = _sap_provider_json_list_v2(
+        "pexels_video",
+        r,
+        "videos",
+    )
+    if _items is None:
         return []
 
     saida = []
 
-    for item in r.json().get(
-        "videos",
-        []
-    ):
+    for item in _items:
 
         ident = item.get("id")
 
@@ -1756,6 +1878,7 @@ def pexels_video(
         )
 
         melhor_variante = None
+        variantes = []
 
         for arq in item.get(
             "video_files",
@@ -1804,6 +1927,8 @@ def pexels_video(
                 "_variant_height": h,
             }
 
+            variantes.append(candidato_variante)
+
             if (
                 melhor_variante is None
                 or (
@@ -1820,6 +1945,21 @@ def pexels_video(
                 melhor_variante = candidato_variante
 
         if melhor_variante is not None:
+            ordenadas = sorted(
+                variantes,
+                key=lambda x: (
+                    x.get("score", -999),
+                    int(x.get("_variant_width", 0) or 0)
+                    * int(x.get("_variant_height", 0) or 0),
+                ),
+                reverse=True,
+            )
+            melhor_variante["_download_variants"] = [
+                x.get("url")
+                for x in ordenadas
+                if x.get("url")
+                and x.get("url") != melhor_variante.get("url")
+            ][:3]
             saida.append(
                 melhor_variante
             )
@@ -1862,16 +2002,17 @@ def pexels_foto(
         _sap_provider_diag_v1('pexels_foto', 'EXCEPTION', line=1241, exc=_sap_provider_exc_v1, response=locals().get('r'))
         return []
 
-    if not r.ok:
-        _sap_provider_diag_v1('pexels_foto', 'EMPTY_RETURN', line=1245, response=locals().get('r'))
+    _items = _sap_provider_json_list_v2(
+        "pexels_foto",
+        r,
+        "photos",
+    )
+    if _items is None:
         return []
 
     saida = []
 
-    for item in r.json().get(
-        "photos",
-        []
-    ):
+    for item in _items:
 
         ident = item.get("id")
 
@@ -1896,15 +2037,21 @@ def pexels_foto(
             {}
         )
 
-        url = (
-            src.get("portrait")
-            or src.get("large2x")
-            or src.get("large")
-            or src.get("original")
-        )
+        urls = []
+        for _url in (
+            src.get("portrait"),
+            src.get("large2x"),
+            src.get("large"),
+            src.get("original"),
+        ):
+            _url = str(_url or "").strip()
+            if _url and _url not in urls:
+                urls.append(_url)
 
-        if not url:
+        if not urls:
             continue
+
+        url = urls[0]
 
         w = item.get(
             "width"
@@ -1936,7 +2083,8 @@ def pexels_foto(
                 "url": url,
                 "fonte": "Pexels",
                 "tipo": "foto",
-                "descricao": descricao
+                "descricao": descricao,
+                "_download_variants": urls[1:4],
             }
         )
 
@@ -1977,16 +2125,17 @@ def pixabay_video(
         _sap_provider_diag_v1('pixabay_video', 'EXCEPTION', line=1352, exc=_sap_provider_exc_v1, response=locals().get('r'))
         return []
 
-    if not r.ok:
-        _sap_provider_diag_v1('pixabay_video', 'EMPTY_RETURN', line=1356, response=locals().get('r'))
+    _items = _sap_provider_json_list_v2(
+        "pixabay_video",
+        r,
+        "hits",
+    )
+    if _items is None:
         return []
 
     saida = []
 
-    for item in r.json().get(
-        "hits",
-        []
-    ):
+    for item in _items:
 
         ident = item.get("id")
 
@@ -2012,6 +2161,7 @@ def pixabay_video(
         )
 
         melhor_variante = None
+        variantes = []
 
         for chave in [
             "large",
@@ -2067,6 +2217,8 @@ def pixabay_video(
                 "_variant_height": h,
             }
 
+            variantes.append(candidato_variante)
+
             if (
                 melhor_variante is None
                 or (
@@ -2083,6 +2235,21 @@ def pixabay_video(
                 melhor_variante = candidato_variante
 
         if melhor_variante is not None:
+            ordenadas = sorted(
+                variantes,
+                key=lambda x: (
+                    x.get("score", -999),
+                    int(x.get("_variant_width", 0) or 0)
+                    * int(x.get("_variant_height", 0) or 0),
+                ),
+                reverse=True,
+            )
+            melhor_variante["_download_variants"] = [
+                x.get("url")
+                for x in ordenadas
+                if x.get("url")
+                and x.get("url") != melhor_variante.get("url")
+            ][:3]
             saida.append(
                 melhor_variante
             )
@@ -2125,16 +2292,17 @@ def pixabay_foto(
         _sap_provider_diag_v1('pixabay_foto', 'EXCEPTION', line=1474, exc=_sap_provider_exc_v1, response=locals().get('r'))
         return []
 
-    if not r.ok:
-        _sap_provider_diag_v1('pixabay_foto', 'EMPTY_RETURN', line=1478, response=locals().get('r'))
+    _items = _sap_provider_json_list_v2(
+        "pixabay_foto",
+        r,
+        "hits",
+    )
+    if _items is None:
         return []
 
     saida = []
 
-    for item in r.json().get(
-        "hits",
-        []
-    ):
+    for item in _items:
 
         ident = item.get("id")
 
@@ -2154,13 +2322,19 @@ def pixabay_foto(
             )
         )
 
-        url = (
-            item.get("largeImageURL")
-            or item.get("webformatURL")
-        )
+        urls = []
+        for _url in (
+            item.get("largeImageURL"),
+            item.get("webformatURL"),
+        ):
+            _url = str(_url or "").strip()
+            if _url and _url not in urls:
+                urls.append(_url)
 
-        if not url:
+        if not urls:
             continue
+
+        url = urls[0]
 
         w = item.get(
             "imageWidth"
@@ -2192,7 +2366,8 @@ def pixabay_foto(
                 "url": url,
                 "fonte": "Pixabay",
                 "tipo": "foto",
-                "descricao": descricao
+                "descricao": descricao,
+                "_download_variants": urls[1:3],
             }
         )
 
@@ -2235,16 +2410,17 @@ def coverr_video(
         _sap_provider_diag_v1('coverr_video', 'EXCEPTION', line=1580, exc=_sap_provider_exc_v1, response=locals().get('r'))
         return []
 
-    if not r.ok:
-        _sap_provider_diag_v1('coverr_video', 'EMPTY_RETURN', line=1584, response=locals().get('r'))
+    _items = _sap_provider_json_list_v2(
+        "coverr_video",
+        r,
+        "hits",
+    )
+    if _items is None:
         return []
 
     saida = []
 
-    for item in r.json().get(
-        "hits",
-        []
-    ):
+    for item in _items:
 
         ident = (
             item.get("id")
@@ -2280,36 +2456,47 @@ def coverr_video(
         ):
             continue
 
+        valid_urls = []
         for _, url in urls.items():
-
-            if not isinstance(
-                url,
-                str
-            ):
+            if not isinstance(url, str):
                 continue
+            url = url.strip()
+            if url and url not in valid_urls:
+                valid_urls.append(url)
 
-            score = rel
+        if not valid_urls:
+            continue
 
-            if ".mp4" in url.lower():
-                score += 8
+        valid_urls.sort(
+            key=lambda value: (
+                1 if ".mp4" in value.lower() else 0,
+                len(value),
+            ),
+            reverse=True,
+        )
 
-            score += penalidade_usado(
-                "Coverr",
-                ident
-            )
+        score = rel
+        if ".mp4" in valid_urls[0].lower():
+            score += 8
 
-            saida.append(
-                {
-                    "score": score,
-                    "must_hits": must_hits,
-                    "avoid_hits": avoid_hits,
-                    "id": ident,
-                    "url": url,
-                    "fonte": "Coverr",
-                    "tipo": "vídeo",
-                    "descricao": descricao
-                }
-            )
+        score += penalidade_usado(
+            "Coverr",
+            ident
+        )
+
+        saida.append(
+            {
+                "score": score,
+                "must_hits": must_hits,
+                "avoid_hits": avoid_hits,
+                "id": ident,
+                "url": valid_urls[0],
+                "fonte": "Coverr",
+                "tipo": "vídeo",
+                "descricao": descricao,
+                "_download_variants": valid_urls[1:4],
+            }
+        )
 
     _sap_note_provider_items("coverr_video", saida)
     return saida
@@ -4481,6 +4668,26 @@ def _sap_professional_media_accept_v1(candidato, destino):
         pass
     return False
 
+def _sap_candidate_download_urls_v2(candidato):
+    if not isinstance(candidato, dict):
+        return []
+
+    raw = [candidato.get("url")]
+    variants = candidato.get("_download_variants", [])
+    if isinstance(variants, (list, tuple)):
+        raw.extend(variants)
+
+    urls = []
+    for value in raw:
+        if isinstance(value, dict):
+            value = value.get("url") or value.get("link")
+        value = str(value or "").strip()
+        if value and value not in urls:
+            urls.append(value)
+
+    return urls[:4]
+
+
 def baixar_candidato_5_2(
     candidato,
     numero,
@@ -4527,14 +4734,28 @@ def baixar_candidato_5_2(
         )
 
 
-    ok = baixar(
-        candidato.get(
-            "url",
-            ""
-        ),
-        destino,
-        candidato=candidato,
+    ok = False
+    urls = _sap_candidate_download_urls_v2(
+        candidato
     )
+
+    for _variant_index, _url in enumerate(urls):
+        if _variant_index:
+            print(
+                "    DOWNLOAD VARIANT RETRY: "
+                f"{_variant_index + 1}/{len(urls)}"
+            )
+
+        ok = baixar(
+            _url,
+            destino,
+            candidato=candidato,
+        )
+
+        if ok:
+            candidato["_download_url_used"] = _url
+            candidato["_download_variant_index"] = _variant_index
+            break
 
     if ok:
         ok = _sap_professional_media_accept_v1(
@@ -4897,6 +5118,71 @@ except Exception as _vg4x_bridge_error:
         + str(_vg4x_bridge_error)
     )
 
+
+
+# ==================================================
+# STAGE 6 CANONICAL RUNTIME CONSOLIDATION
+# ==================================================
+
+try:
+    from media_acquisition_recovery import (
+        install as _sap_install_acquisition_recovery,
+    )
+
+    _SAP_ACQUISITION_RECOVERY = (
+        _sap_install_acquisition_recovery(
+            globals()
+        )
+    )
+
+except Exception as _sap_acq_install_error:
+    _SAP_ACQUISITION_RECOVERY = {
+        "installed": False,
+        "error": (
+            f"{type(_sap_acq_install_error).__name__}:"
+            f"{str(_sap_acq_install_error)[:160]}"
+        ),
+    }
+    print(
+        "SAP_MEDIA_ACQUISITION_RECOVERY=INSTALL_FAIL "
+        + _SAP_ACQUISITION_RECOVERY["error"]
+    )
+
+
+try:
+    from media_strict_must_guard import (
+        install as _sap_install_strict_must_guard,
+    )
+
+    _SAP_STRICT_MUST_GUARD = (
+        _sap_install_strict_must_guard(
+            globals()
+        )
+    )
+
+except Exception as _sap_must_install_error:
+    _SAP_STRICT_MUST_GUARD = {
+        "installed": False,
+        "download": False,
+        "error": (
+            f"{type(_sap_must_install_error).__name__}:"
+            f"{str(_sap_must_install_error)[:160]}"
+        ),
+    }
+    print(
+        "SAP_STRICT_MUST_GUARD=INSTALL_FAIL "
+        + _SAP_STRICT_MUST_GUARD["error"]
+    )
+
+
+if not _SAP_STRICT_MUST_GUARD.get(
+    "download",
+    False,
+):
+    raise RuntimeError(
+        "Stage 6 strict-MUST download guard unavailable; "
+        "refusing semantic downgrade"
+    )
 
 
 # ==================================================
