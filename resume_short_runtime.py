@@ -308,6 +308,15 @@ def final_gates(sid: str) -> int:
 
 
 def render_tail(sid: str) -> None:
+    # Refresh the selected-media continuity report so older valid checkpoints
+    # can migrate into the hardened Stage 6 contract before expensive encode.
+    run_python(
+        sid,
+        "SELECTED VISUAL CONTINUITY",
+        "visual_continuity_engine.py",
+        "--selected",
+    )
+    run_python(sid, "RENDER PRE-FLIGHT", "render_preflight.py")
     run_python(sid, "PROFESSIONAL MULTI-BEAT ASSEMBLER", "video_professional.py")
     run_python(sid, "FINAL RENDER V6 PROFESSIONAL", "v6_professional.py")
     if not render_ok(sid):
