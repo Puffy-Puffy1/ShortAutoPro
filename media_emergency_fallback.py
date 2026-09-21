@@ -178,31 +178,45 @@ def _similarity(first: str, second: str) -> float:
     return sum(a == b for a, b in zip(first, second)) / len(first)
 
 
-def _conflict(
+def _fingerprints(
     root: Path,
+    exclude: Path,
+) -> list[tuple[str, str, str]]:
+    out: list[tuple[str, str, str]] = []
+    for other in sorted(root.iterdir()):
+        if (
+            other == exclude
+            or not other.is_file()
+            or other.suffix.lower() not in MEDIA_EXTS
+            or _scene_number(other) is None
+        ):
+            continue
+        out.append(
+            (
+                other.name,
+                _sha256(other),
+                _visual_hash(other),
+            )
+        )
+    return out
+
+
+def _conflict(
     destination: Path,
+    fingerprints: list[tuple[str, str, str]],
 ) -> tuple[bool, str]:
     current_sha = _sha256(destination)
     current_visual = _visual_hash(destination)
     if not current_sha:
         return True, "HASH_FAILED"
 
-    for other in sorted(root.iterdir()):
-        if (
-            other == destination
-            or not other.is_file()
-            or other.suffix.lower() not in MEDIA_EXTS
-            or _scene_number(other) is None
-        ):
-            continue
-        other_sha = _sha256(other)
+    for name, other_sha, other_visual in fingerprints:
         if other_sha and current_sha == other_sha:
-            return True, f"EXACT:{other.name}"
+            return True, f"EXACT:{name}"
 
-        other_visual = _visual_hash(other)
         similarity = _similarity(current_visual, other_visual)
         if similarity >= NEAR_DUPLICATE_THRESHOLD:
-            return True, f"NEAR:{other.name}:{similarity:.3f}"
+            return True, f"NEAR:{name}:{similarity:.3f}"
 
     return False, ""
 
@@ -320,6 +334,7 @@ def create_editorial_reuse(
     root.mkdir(parents=True, exist_ok=True)
     destination = root / f"scene_{int(scene_number):02d}.jpg"
     sources = available_sources(root, int(scene_number))
+    fingerprints = _fingerprints(root, destination)
 
     # Try several distinct layouts and source choices. Each generated file is
     # checked against every existing scene using the same near-duplicate
@@ -360,7 +375,7 @@ def create_editorial_reuse(
             except OSError:
                 continue
 
-            conflict, reason = _conflict(root, destination)
+            conflict, reason = _conflict(destination, fingerprints)
             if conflict:
                 print(
                     "SAP_MEDIA_EDITORIAL_VARIANT_REJECTED "
@@ -415,7 +430,7 @@ def create_editorial_reuse(
         except OSError:
             continue
 
-        conflict, reason = _conflict(root, destination)
+        conflict, reason = _conflict(destination, fingerprints)
         if conflict:
             print(
                 "SAP_MEDIA_EDITORIAL_VARIANT_REJECTED "
