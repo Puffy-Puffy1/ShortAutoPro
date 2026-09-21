@@ -308,6 +308,7 @@ def final_gates(sid: str) -> int:
 
 
 def render_tail(sid: str) -> None:
+    run_python(sid, "STAGE 6 PRE-RENDER CHECK", "production_supervisor.py", "--pre-render")
     run_python(sid, "PROFESSIONAL MULTI-BEAT ASSEMBLER", "video_professional.py")
     run_python(sid, "FINAL RENDER V6 PROFESSIONAL", "v6_professional.py")
     if not render_ok(sid):
@@ -340,6 +341,7 @@ def _resume_locked(sid: str, point: str) -> int:
         if rank <= 3:
             render_tail(sid)
         elif rank <= 4:
+            run_python(sid, "STAGE 6 PRE-RENDER CHECK", "production_supervisor.py", "--pre-render")
             run_python(sid, "FINAL RENDER V6 PROFESSIONAL", "v6_professional.py")
             if not render_ok(sid):
                 raise RuntimeError("renderer terminou sem artefato técnico válido")
