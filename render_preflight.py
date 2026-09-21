@@ -21,7 +21,15 @@ from typing import Any
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
 SID = os.getenv("SHORT_ID", date.today().isoformat()).strip()
-EXPECTED = max(6, min(20, int(os.getenv("SHORT_QTD_CENAS", "12") or 12)))
+def expected_scenes() -> int:
+    try:
+        value = int(os.getenv("SHORT_QTD_CENAS", "12") or 12)
+    except (TypeError, ValueError):
+        value = 12
+    return max(6, min(20, value))
+
+
+EXPECTED = expected_scenes()
 
 R = BASE / "roteiros"
 MEDIA_DIR = BASE / "imagens" / f"short_{SID}"
@@ -117,10 +125,11 @@ def ass_seconds(value: str) -> float | None:
         return None
 
 
-def primary_media() -> dict[int, Path]:
+def primary_media() -> tuple[dict[int, Path], set[int]]:
     result: dict[int, Path] = {}
+    duplicates: set[int] = set()
     if not MEDIA_DIR.is_dir():
-        return result
+        return result, duplicates
     for path in MEDIA_DIR.iterdir():
         if not path.is_file() or path.suffix.lower() not in MEDIA_EXTS:
             continue
@@ -129,10 +138,10 @@ def primary_media() -> dict[int, Path]:
             continue
         number = int(match.group(1))
         if number in result:
-            result[number] = Path("")
+            duplicates.add(number)
         else:
             result[number] = path
-    return result
+    return result, duplicates
 
 
 def writable_directory(path: Path) -> bool:
@@ -182,17 +191,18 @@ def main() -> int:
     if len(pro_scenes) != EXPECTED:
         blockers.append(f"professional_edit_plan_count:{len(pro_scenes)}/{EXPECTED}")
 
-    media = primary_media()
+    media, duplicate_media = primary_media()
     checks["media"] = {
         "count": len(media),
         "scenes": sorted(media),
+        "duplicates": sorted(duplicate_media),
     }
     for number in range(1, EXPECTED + 1):
         path = media.get(number)
         if path is None:
             blockers.append(f"asset_missing:scene_{number:02d}")
             continue
-        if not str(path):
+        if number in duplicate_media:
             blockers.append(f"asset_ambiguous:scene_{number:02d}")
             continue
         try:
@@ -311,7 +321,7 @@ def main() -> int:
         media_bytes = sum(
             path.stat().st_size
             for path in media.values()
-            if str(path) and path.is_file()
+            if path.is_file()
         )
     except OSError:
         media_bytes = 0
