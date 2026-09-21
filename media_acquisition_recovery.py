@@ -16,8 +16,12 @@ import time
 from typing import Any
 
 import media_must_verifier as mustv
+from media_resilience import (
+    cache_query_result,
+    get_cached_query,
+)
 
-VERSION = "1.9"
+VERSION = "2.0"
 
 
 def _must_list(value: Any) -> list[str]:
@@ -269,8 +273,60 @@ def _wrap_pool(namespace: dict[str, Any]) -> bool:
             )
             return copy.deepcopy(cache[key])
 
+        persistent_payload = {
+            "query": " ".join(str(busca or "").split()),
+            "must": list(key[1]),
+            "avoid": list(key[2]),
+            "segment": key[3],
+            "visual_mode": key[4],
+        }
+        persistent, persistent_state = get_cached_query(
+            "canonical_pool",
+            persistent_payload,
+            allow_stale=False,
+        )
+        if persistent is not None:
+            stats["hits"] += 1
+            cache[key] = copy.deepcopy(persistent)
+            print(
+                "SAP_MEDIA_PERSISTENT_CACHE="
+                f"{persistent_state} candidates={len(persistent)} "
+                f"query={str(busca or '')[:100]}"
+            )
+            return copy.deepcopy(persistent)
+
         stats["misses"] += 1
-        result = list(provider_search(busca, must_have, avoid, segmento, visual_mode) or [])
+        result = list(
+            provider_search(
+                busca,
+                must_have,
+                avoid,
+                segmento,
+                visual_mode,
+            )
+            or []
+        )
+
+        if result:
+            cache_query_result(
+                "canonical_pool",
+                persistent_payload,
+                result,
+            )
+        else:
+            stale, stale_state = get_cached_query(
+                "canonical_pool",
+                persistent_payload,
+                allow_stale=True,
+            )
+            if stale:
+                print(
+                    "SAP_MEDIA_PERSISTENT_CACHE="
+                    f"{stale_state} candidates={len(stale)} "
+                    "reason=LIVE_POOL_EMPTY"
+                )
+                result = list(stale)
+
         cache[key] = copy.deepcopy(result)
         return result
 
