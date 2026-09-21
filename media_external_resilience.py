@@ -109,20 +109,44 @@ def _lock_path() -> Path:
 
 @contextmanager
 def _process_lock():
-    """Serialize state transactions across cron/manual ShortAutoPro processes."""
-    STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    handle = open(_lock_path(), "a+", encoding="utf-8")
+    """Serialize state transactions across cron/manual ShortAutoPro processes.
+
+    Persistence is an optimization/safety aid, not a reason to kill Stage 6.
+    If the cache/lock path is temporarily unavailable, retain the in-process
+    RLock and continue without cross-process persistence.
+    """
+    handle = None
     try:
+        STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        handle = open(_lock_path(), "a+", encoding="utf-8")
         if fcntl is not None:
             fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
-        yield
-    finally:
-        if fcntl is not None:
+    except OSError as exc:
+        if handle is not None:
             try:
-                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+                handle.close()
             except OSError:
                 pass
-        handle.close()
+        print(
+            "SAP_MEDIA_RESILIENCE_STATE=LOCK_FAIL_OPEN "
+            f"{type(exc).__name__}:{str(exc)[:100]}"
+        )
+        yield
+        return
+
+    try:
+        yield
+    finally:
+        if handle is not None:
+            if fcntl is not None:
+                try:
+                    fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+                except OSError:
+                    pass
+            try:
+                handle.close()
+            except OSError:
+                pass
 
 
 def _safe_float(value: Any, default: float = 0.0) -> float:
