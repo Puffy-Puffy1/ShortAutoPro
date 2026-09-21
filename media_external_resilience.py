@@ -180,7 +180,10 @@ def _cleanup(state: dict[str, Any]) -> None:
     if len(bad) > MAX_BAD_ASSETS:
         ordered = sorted(
             bad,
-            key=lambda key: float((bad.get(key) or {}).get("last_seen", 0.0) or 0.0),
+            key=lambda key: _safe_float(
+                (bad.get(key) or {}).get("last_seen", 0.0),
+                0.0,
+            ),
         )
         for key in ordered[:len(bad) - MAX_BAD_ASSETS]:
             bad.pop(key, None)
