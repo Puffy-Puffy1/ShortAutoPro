@@ -66,20 +66,14 @@ class MediaAcquisitionRecoveryTests(unittest.TestCase):
         )
         self.assertEqual(calls, ["cell house metal tiers"])
 
-    def test_coverr_circuit_opens_after_two_empty_returns(self):
-        calls = []
-
+    def test_provider_circuit_has_single_external_authority(self):
         def fake_coverr(*args, **kwargs):
-            calls.append(args)
             return []
 
         namespace = {"coverr_video": fake_coverr}
-        recovery.install(namespace)
-        wrapped = namespace["coverr_video"]
-        self.assertEqual(wrapped("one", [], []), [])
-        self.assertEqual(wrapped("two", [], []), [])
-        self.assertEqual(wrapped("three", [], []), [])
-        self.assertEqual(len(calls), 2)
+        result = recovery.install(namespace)
+        self.assertIs(namespace["coverr_video"], fake_coverr)
+        self.assertEqual(result["provider_circuit"], "media_external_resilience")
 
     def test_identical_acquisition_calls_use_cache_and_return_isolated_copy(self):
         calls = []
@@ -111,7 +105,7 @@ class MediaAcquisitionRecoveryTests(unittest.TestCase):
         with patch.dict(os.environ, {"SAP_MUST_RESCUE_MAX_QUERIES": "999"}, clear=False):
             self.assertEqual(recovery._rescue_budget(), 8)
         with patch.dict(os.environ, {"SAP_MUST_RESCUE_MAX_QUERIES": "invalid"}, clear=False):
-            self.assertEqual(recovery._rescue_budget(), 5)
+            self.assertEqual(recovery._rescue_budget(), 2)
 
 
 if __name__ == "__main__":
