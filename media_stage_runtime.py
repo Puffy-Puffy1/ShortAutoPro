@@ -75,8 +75,8 @@ def round_env(round_index: int) -> dict[str, str]:
     # Keep recovery bounded on mobile. The provider layer already runs
     # concurrently, so escalating to 30-45s makes hard scenes dominate the
     # entire Short production without improving acceptance rules.
-    provider_timeout = (8, 10, 12)[min(round_index, 2)]
-    wiki_deadline = (8, 10, 12)[min(round_index, 2)]
+    provider_timeout = (6, 8, 10)[min(round_index, 2)]
+    wiki_deadline = (6, 8, 10)[min(round_index, 2)]
 
     env["SAP_STOCK_RESCUE_MAX_QUERIES"] = str(rescue_budget)
     env["SAP_MUST_RESCUE_MAX_QUERIES"] = str(rescue_budget)
@@ -139,11 +139,11 @@ def round_timeout_seconds() -> tuple[int, int]:
         remaining = len(pending)
     else:
         remaining = max(1, expected - current_completed_hint())
-    base = env_int("SAP_MEDIA_ROUND_TIMEOUT", 120, 45, 300)
-    scene_budget = env_float("SAP_MEDIA_SCENE_BUDGET_SECONDS", 28.0, 15.0, 60.0)
-    grace = env_int("SAP_MEDIA_ROUND_GRACE_SECONDS", 20, 10, 60)
+    base = env_int("SAP_MEDIA_ROUND_TIMEOUT", 90, 30, 180)
+    scene_budget = env_float("SAP_MEDIA_SCENE_BUDGET_SECONDS", 18.0, 10.0, 35.0)
+    grace = env_int("SAP_MEDIA_ROUND_GRACE_SECONDS", 15, 5, 30)
     dynamic = int(remaining * scene_budget + grace)
-    return max(45, min(max(base, dynamic), 300)), remaining
+    return max(30, min(max(base, dynamic), 180)), remaining
 
 
 def main() -> int:
@@ -176,7 +176,7 @@ def main() -> int:
             "MEDIA_STAGE_RUNTIME=BUDGET "
             f"round={round_index + 1} remaining={remaining_hint} "
             f"timeout={round_timeout}s "
-            f"scene_budget={env_float('SAP_MEDIA_SCENE_BUDGET_SECONDS', 28.0, 15.0, 60.0):.0f}s"
+            f"scene_budget={env_float('SAP_MEDIA_SCENE_BUDGET_SECONDS', 18.0, 10.0, 35.0):.0f}s"
         )
 
         previous_report = report_signature()
