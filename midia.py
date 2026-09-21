@@ -32,6 +32,17 @@ from runtime_config import env_float, env_int
 from media_must_priority import prioritize as _sap_prioritize_must
 from media_provenance_capture_v1 import write_provenance as _sap_write_provenance
 from media_emergency_fallback import create_editorial_reuse
+from media_external_resilience import (
+    provider_gate as _sap_provider_gate,
+    note_provider_event as _sap_note_provider_event,
+    note_response as _sap_note_provider_response,
+    note_exception as _sap_note_provider_exception,
+    note_items as _sap_note_provider_items,
+    asset_blocked as _sap_asset_blocked,
+    mark_asset_bad as _sap_mark_asset_bad,
+    filter_quarantined as _sap_filter_quarantined,
+    infer_download_provider as _sap_infer_download_provider,
+)
 
 from wikimedia_source import (
     buscar_wikimedia_fotos,
@@ -161,6 +172,17 @@ except (TypeError, ValueError):
     _PROVIDER_RESULT_TIMEOUT = 6.0
 
 _PROVIDER_RESULT_TIMEOUT = max(4.0, min(_PROVIDER_RESULT_TIMEOUT, 10.0))
+
+_DOWNLOAD_READ_TIMEOUT = env_float(
+    "SAP_MEDIA_DOWNLOAD_READ_TIMEOUT", 15.0, 5.0, 30.0
+)
+_DOWNLOAD_WALL_TIMEOUT = env_float(
+    "SAP_MEDIA_DOWNLOAD_WALL_SECONDS", 45.0, 15.0, 120.0
+)
+_DOWNLOAD_MAX_MB = env_int(
+    "SAP_MEDIA_DOWNLOAD_MAX_MB", 120, 10, 300
+)
+_DOWNLOAD_MAX_BYTES = _DOWNLOAD_MAX_MB * 1024 * 1024
 
 _HTTP_SESSIONS = {}
 _HTTP_SESSIONS_LOCK = threading.Lock()
@@ -1182,110 +1204,131 @@ def avaliar_relevancia(
 def baixar(
     url,
     destino,
-    timeout=120
+    timeout=120,
+    candidato=None
 ):
-
-    temporario = (
-        destino
-        + ".part"
-    )
+    temporario = destino + ".part"
+    candidato = candidato if isinstance(candidato, dict) else {}
+    candidate_provider = str(candidato.get("fonte", "") or "")
+    asset_id = str(candidato.get("id", "") or "")
+    download_provider = _sap_infer_download_provider(url)
+    failure_reason = "UNKNOWN"
+    response_status = None
 
     try:
-
         if not url:
-            raise RuntimeError(
-                "URL vazia"
-            )
+            raise RuntimeError("URL vazia")
 
-        if os.path.exists(
-            temporario
-        ):
-            os.remove(
-                temporario
+        blocked, reason, remaining = _sap_asset_blocked(
+            url,
+            provider=candidate_provider,
+            asset_id=asset_id,
+        )
+        if blocked:
+            print(
+                "    DOWNLOAD SKIP: ASSET_QUARANTINED "
+                f"reason={reason} remaining={remaining:.0f}s"
             )
+            return False
+
+        if os.path.exists(temporario):
+            os.remove(temporario)
 
         headers = {
-            "User-Agent":
-                "ShortAutoPro/5.2 "
-                "DocumentaryMediaClient/1.0",
-
-            "Accept":
-                "image/*,video/*,"
-                "application/octet-stream;q=0.9,*/*;q=0.5"
+            "User-Agent": "ShortAutoPro/5.2 DocumentaryMediaClient/1.0",
+            "Accept": "image/*,video/*,application/octet-stream;q=0.9,*/*;q=0.5",
         }
 
+        request_started = time.monotonic()
         r = _sap_http_session("download").get(
             url,
-            timeout=timeout,
+            timeout=(min(6.0, _MEDIA_API_TIMEOUT), _DOWNLOAD_READ_TIMEOUT),
             stream=True,
             allow_redirects=True,
             headers=headers
         )
+        response_status = getattr(r, "status_code", None)
 
-        r.raise_for_status()
+        if not r.ok:
+            event = _sap_note_provider_response(download_provider, r)
+            failure_reason = (
+                f"HTTP_{response_status}"
+                if response_status in {403, 404, 410, 429}
+                else event
+            )
+            if response_status in {403, 404, 410, 429}:
+                _sap_mark_asset_bad(
+                    url,
+                    provider=candidate_provider,
+                    asset_id=asset_id,
+                    reason=failure_reason,
+                    status=response_status,
+                )
+            r.raise_for_status()
 
         content_type = (
-            r.headers.get(
-                "Content-Type",
-                ""
-            )
+            r.headers.get("Content-Type", "")
             .split(";")[0]
             .strip()
             .lower()
         )
 
         if (
-            content_type.startswith(
-                "text/"
-            )
-            or content_type
-            in {
-                "application/json",
-                "application/xml"
-            }
+            content_type.startswith("text/")
+            or content_type in {"application/json", "application/xml"}
         ):
+            failure_reason = "CONTENT_TYPE"
+            raise RuntimeError(f"content-type inválido: {content_type}")
+
+        try:
+            announced = int(r.headers.get("Content-Length") or 0)
+        except (TypeError, ValueError):
+            announced = 0
+
+        if announced > _DOWNLOAD_MAX_BYTES:
+            failure_reason = "TOO_LARGE"
             raise RuntimeError(
-                f"content-type inválido: "
-                f"{content_type}"
+                f"arquivo excede limite: {announced} > {_DOWNLOAD_MAX_BYTES}"
             )
 
-        with open(
-            temporario,
-            "wb"
-        ) as f:
+        total_bytes = 0
+        with open(temporario, "wb") as f:
+            for bloco in r.iter_content(chunk_size=256 * 1024):
+                if not bloco:
+                    continue
 
-            for bloco in r.iter_content(
-                chunk_size=256 * 1024
-            ):
-
-                if bloco:
-                    f.write(
-                        bloco
+                if time.monotonic() - request_started > _DOWNLOAD_WALL_TIMEOUT:
+                    failure_reason = "TIMEOUT"
+                    raise TimeoutError(
+                        f"download excedeu {_DOWNLOAD_WALL_TIMEOUT:.0f}s"
                     )
 
+                total_bytes += len(bloco)
+                if total_bytes > _DOWNLOAD_MAX_BYTES:
+                    failure_reason = "TOO_LARGE"
+                    raise RuntimeError(
+                        f"download excedeu {_DOWNLOAD_MAX_MB}MB"
+                    )
+
+                f.write(bloco)
+
+            f.flush()
+            os.fsync(f.fileno())
+
         if (
-            not os.path.exists(
-                temporario
-            )
-            or os.path.getsize(
-                temporario
-            ) <= 1000
+            not os.path.exists(temporario)
+            or os.path.getsize(temporario) <= 1000
         ):
-            raise RuntimeError(
-                "arquivo vazio ou muito pequeno"
-            )
+            failure_reason = "TOO_SMALL"
+            raise RuntimeError("arquivo vazio ou muito pequeno")
 
         probe = run_group(
             [
                 "ffprobe",
-                "-v",
-                "error",
-                "-select_streams",
-                "v:0",
-                "-show_entries",
-                "stream=width,height",
-                "-of",
-                "json",
+                "-v", "error",
+                "-select_streams", "v:0",
+                "-show_entries", "stream=width,height",
+                "-of", "json",
                 temporario
             ],
             stdout=subprocess.PIPE,
@@ -1295,79 +1338,79 @@ def baixar(
         )
 
         if probe.returncode != 0:
+            failure_reason = "PROBE_FAIL"
+            raise RuntimeError("arquivo visual rejeitado pelo ffprobe")
+
+        try:
+            dados = json.loads(probe.stdout)
+        except Exception as exc:
+            failure_reason = "CORRUPT"
             raise RuntimeError(
-                "arquivo visual rejeitado pelo ffprobe"
-            )
+                f"ffprobe retornou JSON inválido: {type(exc).__name__}"
+            ) from exc
 
-        dados = json.loads(
-            probe.stdout
-        )
-
-        streams = dados.get(
-            "streams",
-            []
-        )
-
+        streams = dados.get("streams", [])
         if not streams:
-            raise RuntimeError(
-                "arquivo sem stream visual"
-            )
+            failure_reason = "CORRUPT"
+            raise RuntimeError("arquivo sem stream visual")
 
-        largura = int(
-            streams[0].get(
-                "width",
-                0
-            )
-            or 0
-        )
-
-        altura = int(
-            streams[0].get(
-                "height",
-                0
-            )
-            or 0
-        )
+        largura = int(streams[0].get("width", 0) or 0)
+        altura = int(streams[0].get("height", 0) or 0)
 
         if largura <= 0 or altura <= 0:
-            raise RuntimeError(
-                "dimensões inválidas"
-            )
+            failure_reason = "CORRUPT"
+            raise RuntimeError("dimensões inválidas")
 
         if largura * altura < 320 * 180:
+            failure_reason = "TOO_SMALL"
             raise RuntimeError(
                 f"mídia abaixo do piso técnico: {largura}x{altura}"
             )
 
-        os.replace(
-            temporario,
-            destino
+        os.replace(temporario, destino)
+        _sap_note_provider_event(
+            download_provider,
+            "SUCCESS",
+            item_count=1,
         )
-
         return True
 
     except Exception as e:
-
-        print(
-            f"    DOWNLOAD FAIL: "
-            f"{type(e).__name__}: "
-            f"{str(e)[:180]}"
+        event = _sap_note_provider_exception(
+            download_provider,
+            e,
         )
 
-        for arquivo in [
-            temporario,
-            destino
-        ]:
+        if failure_reason == "UNKNOWN":
+            if event in {"TIMEOUT", "NETWORK"}:
+                failure_reason = event
 
-            if os.path.exists(
-                arquivo
-            ):
+        if (
+            url
+            and failure_reason
+            in {
+                "HTTP_403", "HTTP_404", "HTTP_410", "HTTP_429",
+                "TIMEOUT", "NETWORK", "CONTENT_TYPE", "TOO_SMALL",
+                "TOO_LARGE", "CORRUPT", "PROBE_FAIL",
+            }
+        ):
+            _sap_mark_asset_bad(
+                url,
+                provider=candidate_provider,
+                asset_id=asset_id,
+                reason=failure_reason,
+                status=response_status,
+            )
 
+        print(
+            f"    DOWNLOAD FAIL: {type(e).__name__}: "
+            f"{str(e)[:180]} reason={failure_reason}"
+        )
+
+        for arquivo in [temporario, destino]:
+            if os.path.exists(arquivo):
                 try:
-                    os.remove(
-                        arquivo
-                    )
-
+                    os.remove(arquivo)
                 except Exception:
                     pass
 
@@ -1593,6 +1636,20 @@ def _sap_provider_diag_v1(
     response=None,
 ):
     try:
+        try:
+            if exc is not None:
+                _sap_note_provider_exception(
+                    provider,
+                    exc,
+                )
+            elif response is not None:
+                _sap_note_provider_response(
+                    provider,
+                    response,
+                )
+        except Exception:
+            pass
+
         parts = [
             "SAP_PROVIDER_DIAG",
             f"provider={provider}",
@@ -1767,6 +1824,7 @@ def pexels_video(
                 melhor_variante
             )
 
+    _sap_note_provider_items("pexels_video", saida)
     return saida
 
 
@@ -1882,6 +1940,7 @@ def pexels_foto(
             }
         )
 
+    _sap_note_provider_items("pexels_foto", saida)
     return saida
 
 
@@ -2028,6 +2087,7 @@ def pixabay_video(
                 melhor_variante
             )
 
+    _sap_note_provider_items("pixabay_video", saida)
     return saida
 
 
@@ -2136,6 +2196,7 @@ def pixabay_foto(
             }
         )
 
+    _sap_note_provider_items("pixabay_foto", saida)
     return saida
 
 
@@ -2250,6 +2311,7 @@ def coverr_video(
                 }
             )
 
+    _sap_note_provider_items("coverr_video", saida)
     return saida
 
 
@@ -2582,6 +2644,38 @@ def buscar_todos_candidatos(
             )
         )
 
+    _provider_jobs_ready = []
+
+    for (
+        _provider_name,
+        _provider_job,
+    ) in provider_jobs:
+
+        (
+            _allowed,
+            _reason,
+            _remaining,
+        ) = _sap_provider_gate(
+            _provider_name
+        )
+
+        if not _allowed:
+            print(
+                "SAP_MEDIA_PROVIDER_CIRCUIT=SKIP "
+                f"provider={_provider_name} "
+                f"reason={_reason} "
+                f"remaining={_remaining:.1f}s"
+            )
+            continue
+
+        _provider_jobs_ready.append(
+            (
+                _provider_name,
+                _provider_job,
+            )
+        )
+
+    provider_jobs = _provider_jobs_ready
     provider_results = {}
 
     if (
@@ -2639,6 +2733,12 @@ def buscar_todos_candidatos(
                 except FuturesTimeoutError:
                     provider_results[name] = []
                     futures[name].cancel()
+
+                    _sap_note_provider_event(
+                        name,
+                        "TIMEOUT",
+                    )
+
                     print(
                         "SAP_MEDIA_PROVIDER_TIMEOUT "
                         f"provider={name} "
@@ -2650,6 +2750,11 @@ def buscar_todos_candidatos(
                     provider_results[
                         name
                     ] = []
+
+                    _sap_note_provider_exception(
+                        name,
+                        exc,
+                    )
 
                     print(
                         "SAP_MEDIA_PROVIDER_FAIL_OPEN "
@@ -2702,6 +2807,11 @@ def buscar_todos_candidatos(
                     name
                 ] = []
 
+                _sap_note_provider_exception(
+                    name,
+                    exc,
+                )
+
                 print(
                     "SAP_MEDIA_PROVIDER_FAIL_OPEN "
                     f"provider={name} "
@@ -2741,17 +2851,41 @@ def buscar_todos_candidatos(
                 f"reason=NO_STRICT_STOCK_MATCH stock_candidates={len(stock_candidates)}"
             )
             try:
-                provider_results["wikimedia"] = list(
-                    buscar_wikimedia_fotos(
-                        busca,
-                        must_have,
-                        avoid,
-                        assunto=ASSUNTO,
-                        segmento=segmento,
-                        visual_mode=visual_mode,
-                    )
-                    or []
+                (
+                    _wiki_allowed,
+                    _wiki_reason,
+                    _wiki_remaining,
+                ) = _sap_provider_gate(
+                    "wikimedia"
                 )
+
+                if not _wiki_allowed:
+                    print(
+                        "SAP_SOURCE_ROUTE_RESCUE=SKIPPED "
+                        f"reason=CIRCUIT_OPEN "
+                        f"detail={_wiki_reason} "
+                        f"remaining={_wiki_remaining:.1f}s"
+                    )
+
+                    provider_results[
+                        "wikimedia"
+                    ] = []
+
+                else:
+                    provider_results[
+                        "wikimedia"
+                    ] = list(
+                        buscar_wikimedia_fotos(
+                            busca,
+                            must_have,
+                            avoid,
+                            assunto=ASSUNTO,
+                            segmento=segmento,
+                            visual_mode=visual_mode,
+                        )
+                        or []
+                    )
+
             except Exception as exc:
                 provider_results["wikimedia"] = []
                 print(
@@ -2847,6 +2981,89 @@ def buscar_todos_candidatos(
                 []
             )
         )
+
+    todos = _sap_filter_quarantined(
+        todos
+    )
+
+    # Reliable metadata that proves zero explicit MUST anchors is rejected
+    # before download. Partial matches still reach the canonical strict guard,
+    # which continues to require full explicit-MUST coverage.
+    if must_have:
+
+        try:
+
+            import media_must_verifier as _sap_mustv_runtime
+
+            _semantic = []
+
+            for _candidate in todos:
+
+                _verified = (
+                    _sap_mustv_runtime
+                    .verified_must(
+                        _candidate,
+                        {
+                            "must_have":
+                                must_have
+                        },
+                    )
+                )
+
+                _total = int(
+                    _verified.get(
+                        "total",
+                        0
+                    )
+                    or 0
+                )
+
+                _hits = int(
+                    _verified.get(
+                        "hits",
+                        0
+                    )
+                    or 0
+                )
+
+                _candidate[
+                    "_stage6_verified_must_hits"
+                ] = _hits
+
+                _candidate[
+                    "_stage6_verified_must_total"
+                ] = _total
+
+                if (
+                    _total
+                    and _hits == 0
+                    and metadata_confiavel(
+                        _candidate
+                    )
+                ):
+
+                    print(
+                        "SAP_MEDIA_SEMANTIC_REJECT "
+                        f"source={_candidate.get('fonte', '?')} "
+                        f"id={_candidate.get('id', '?')} "
+                        "reason=ZERO_VERIFIED_MUST"
+                    )
+
+                    continue
+
+                _semantic.append(
+                    _candidate
+                )
+
+            todos = _semantic
+
+        except Exception as _semantic_exc:
+
+            print(
+                "SAP_MEDIA_SEMANTIC_TRIAGE=FAIL_OPEN "
+                f"{type(_semantic_exc).__name__}:"
+                f"{str(_semantic_exc)[:120]}"
+            )
 
     return todos
 
@@ -4285,7 +4502,8 @@ def baixar_candidato_5_2(
             "url",
             ""
         ),
-        destino
+        destino,
+        candidato=candidato,
     )
 
     if ok:
