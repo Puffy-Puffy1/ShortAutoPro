@@ -21,7 +21,7 @@ class MediaRootCauseRegressionTests(unittest.TestCase):
         text = (ROOT / "media_acquisition_recovery.py").read_text(encoding="utf-8")
         self.assertIn("INITIAL_PROVIDER_STALL", text)
         self.assertIn("initial_elapsed", text)
-        self.assertIn('VERSION = "1.9"', text)
+        self.assertIn('VERSION = "2.0"', text)
 
     def test_editorial_fallback_self_checks_duplicates(self):
         text = (ROOT / "media_emergency_fallback.py").read_text(encoding="utf-8")
