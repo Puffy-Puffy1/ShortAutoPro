@@ -145,12 +145,12 @@ except ValueError:
 
 try:
     _MEDIA_API_TIMEOUT = float(
-        os.getenv("SAP_MEDIA_API_TIMEOUT", "6") or 6
+        os.getenv("SAP_MEDIA_API_TIMEOUT", "5") or 5
     )
 except (TypeError, ValueError):
-    _MEDIA_API_TIMEOUT = 6.0
+    _MEDIA_API_TIMEOUT = 5.0
 
-_MEDIA_API_TIMEOUT = max(3.0, min(_MEDIA_API_TIMEOUT, 12.0))
+_MEDIA_API_TIMEOUT = max(3.0, min(_MEDIA_API_TIMEOUT, 8.0))
 
 
 try:
@@ -164,12 +164,12 @@ _PROVIDER_WORKERS = max(2, min(_PROVIDER_WORKERS, 6))
 
 try:
     _PROVIDER_RESULT_TIMEOUT = float(
-        os.getenv("SAP_MEDIA_PROVIDER_RESULT_TIMEOUT", "8") or 8
+        os.getenv("SAP_MEDIA_PROVIDER_RESULT_TIMEOUT", "6") or 6
     )
 except (TypeError, ValueError):
-    _PROVIDER_RESULT_TIMEOUT = 8.0
+    _PROVIDER_RESULT_TIMEOUT = 6.0
 
-_PROVIDER_RESULT_TIMEOUT = max(5.0, min(_PROVIDER_RESULT_TIMEOUT, 12.0))
+_PROVIDER_RESULT_TIMEOUT = max(4.0, min(_PROVIDER_RESULT_TIMEOUT, 10.0))
 
 _PROVIDER_EXECUTOR = ThreadPoolExecutor(
     max_workers=_PROVIDER_WORKERS
@@ -4676,8 +4676,8 @@ videos_total = 0
 fotos_total = 0
 missing_scenes = []
 resolved_scene_numbers = set(resume_cached_media)
-_scene_budget_seconds = env_float("SAP_MEDIA_SCENE_BUDGET_SECONDS", 28.0, 15.0, 60.0)
-_scene_retry_min_seconds = env_float("SAP_MEDIA_SCENE_MIN_RETRY_SECONDS", 6.0, 3.0, 15.0)
+_scene_budget_seconds = env_float("SAP_MEDIA_SCENE_BUDGET_SECONDS", 18.0, 10.0, 35.0)
+_scene_retry_min_seconds = env_float("SAP_MEDIA_SCENE_MIN_RETRY_SECONDS", 4.0, 2.0, 10.0)
 
 descricao_anterior = ""
 
@@ -5676,7 +5676,7 @@ for numero, cena in enumerate(
             _alt_seen.add(_alt_key)
             _alt_clean.append(_alt)
 
-        _retry_budget = env_int("SAP_MEDIA_SIMPLIFIED_RETRY_MAX", 1, 0, 2)
+        _retry_budget = env_int("SAP_MEDIA_SIMPLIFIED_RETRY_MAX", 0, 0, 1)
 
         alternativas = _alt_clean[
             :_retry_budget
