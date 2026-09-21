@@ -53,6 +53,8 @@ def classify_exception(exc: Any) -> str:
     text = (type(exc).__name__ + " " + str(exc or "")).lower()
     if "timeout" in text:
         return "TIMEOUT"
+    if any(x in text for x in ("jsondecode", "decodeerror", "invalid json", "malformed")):
+        return "MALFORMED"
     if any(x in text for x in ("connection", "dns", "name resolution", "network", "socket", "ssl", "tls", "proxy", "chunkedencoding")):
         return "NETWORK"
     return "UNKNOWN"
@@ -141,7 +143,17 @@ def note_provider_event(provider: Any, event: str, *, status=None, retry_after=N
     now = time.time()
     with _LOCK:
         state = _load()
-        item = state["providers"].setdefault(family, {"consecutive_failures": 0, "empty_streak": 0, "open_until": 0.0, "open_reason": "", "successes": 0, "failures": 0, "empties": 0})
+        item = state["providers"].get(family)
+        if not isinstance(item, dict):
+            item = {}
+            state["providers"][family] = item
+        item.setdefault("consecutive_failures", 0)
+        item.setdefault("empty_streak", 0)
+        item.setdefault("open_until", 0.0)
+        item.setdefault("open_reason", "")
+        item.setdefault("successes", 0)
+        item.setdefault("failures", 0)
+        item.setdefault("empties", 0)
         item["last_event"] = event
         item["last_status"] = int(status) if str(status or "").isdigit() else None
         item["last_detail"] = str(detail or "")[:160]
@@ -149,22 +161,22 @@ def note_provider_event(provider: Any, event: str, *, status=None, retry_after=N
         if item_count is not None:
             item["last_item_count"] = max(0, int(item_count))
         if event == "SUCCESS":
-            item["successes"] += 1
+            item["successes"] = int(item.get("successes", 0) or 0) + 1
             item["consecutive_failures"] = 0
             item["empty_streak"] = 0
             item["open_until"] = 0.0
             item["open_reason"] = ""
             item["last_success"] = now
         elif event == "EMPTY":
-            item["empties"] += 1
-            item["empty_streak"] += 1
+            item["empties"] = int(item.get("empties", 0) or 0) + 1
+            item["empty_streak"] = int(item.get("empty_streak", 0) or 0) + 1
             item["consecutive_failures"] = 0
             if item["empty_streak"] >= THRESHOLDS["EMPTY"]:
                 item["open_until"] = now + COOLDOWNS["EMPTY"]
                 item["open_reason"] = "EMPTY"
         else:
-            item["failures"] += 1
-            item["consecutive_failures"] += 1
+            item["failures"] = int(item.get("failures", 0) or 0) + 1
+            item["consecutive_failures"] = int(item.get("consecutive_failures", 0) or 0) + 1
             item["empty_streak"] = 0
             threshold = THRESHOLDS.get(event, 2)
             if item["consecutive_failures"] >= threshold:
@@ -203,7 +215,12 @@ def note_items(provider: Any, items: Any):
 
 
 def _asset_key(url: Any, provider: Any = "", asset_id: Any = ""):
-    raw = "|".join((provider_family(provider), str(asset_id or ""), str(url or "")))
+    family = provider_family(provider)
+    stable_id = str(asset_id or "").strip()
+    if stable_id:
+        raw = f"{family}|id:{stable_id}"
+    else:
+        raw = f"{family}|url:{str(url or '').strip()}"
     return hashlib.sha256(raw.encode("utf-8", errors="ignore")).hexdigest()
 
 
