@@ -171,10 +171,6 @@ except (TypeError, ValueError):
 
 _PROVIDER_RESULT_TIMEOUT = max(4.0, min(_PROVIDER_RESULT_TIMEOUT, 10.0))
 
-_PROVIDER_EXECUTOR = ThreadPoolExecutor(
-    max_workers=_PROVIDER_WORKERS
-)
-
 _HTTP_SESSIONS = {}
 _HTTP_SESSIONS_LOCK = threading.Lock()
 
@@ -2537,9 +2533,8 @@ def buscar_todos_candidatos(
         )
 
     if USAR_VIDEOS:
-
-        provider_jobs.extend(
-            [
+        if USAR_PEXELS and PEXELS_KEY:
+            provider_jobs.append(
                 (
                     "pexels_video",
                     lambda: pexels_video(
@@ -2547,7 +2542,10 @@ def buscar_todos_candidatos(
                         must_have,
                         avoid
                     )
-                ),
+                )
+            )
+        if USAR_PIXABAY and PIXABAY_KEY:
+            provider_jobs.append(
                 (
                     "pixabay_video",
                     lambda: pixabay_video(
@@ -2555,7 +2553,10 @@ def buscar_todos_candidatos(
                         must_have,
                         avoid
                     )
-                ),
+                )
+            )
+        if USAR_COVERR and COVERR_KEY:
+            provider_jobs.append(
                 (
                     "coverr_video",
                     lambda: coverr_video(
@@ -2563,12 +2564,11 @@ def buscar_todos_candidatos(
                         must_have,
                         avoid
                     )
-                ),
-            ]
-        )
+                )
+            )
 
-    provider_jobs.extend(
-        [
+    if USAR_PEXELS and PEXELS_KEY:
+        provider_jobs.append(
             (
                 "pexels_foto",
                 lambda: pexels_foto(
@@ -2576,7 +2576,11 @@ def buscar_todos_candidatos(
                     must_have,
                     avoid
                 )
-            ),
+            )
+        )
+
+    if USAR_PIXABAY and PIXABAY_KEY:
+        provider_jobs.append(
             (
                 "pixabay_foto",
                 lambda: pixabay_foto(
@@ -2584,9 +2588,8 @@ def buscar_todos_candidatos(
                     must_have,
                     avoid
                 )
-            ),
-        ]
-    )
+            )
+        )
 
     provider_results = {}
 
@@ -2601,20 +2604,19 @@ def buscar_todos_candidatos(
             f"providers={len(provider_jobs)}"
         )
 
+        _executor = None
         try:
-
+            # A fresh executor per acquisition prevents slow/stuck futures from
+            # poisoning later scenes. cancel() cannot stop a running request, so
+            # a process-wide pool eventually starves after repeated timeouts.
+            _executor = ThreadPoolExecutor(
+                max_workers=min(max_workers, len(provider_jobs))
+            )
             futures = {
-                name: _PROVIDER_EXECUTOR.submit(
-                    job
-                )
-                for name, job
-                in provider_jobs
+                name: _executor.submit(job)
+                for name, job in provider_jobs
             }
 
-            # Coleta na ordem canônica dos providers, mas com UM
-            # deadline compartilhado por rodada. Sem isso, cada Future podia
-            # consumir o timeout inteiro e transformar uma rodada paralela em
-            # vários timeouts somados.
             _provider_deadline = (
                 time.monotonic()
                 + _PROVIDER_RESULT_TIMEOUT
@@ -2674,6 +2676,18 @@ def buscar_todos_candidatos(
             )
 
             provider_results = {}
+
+        finally:
+            if _executor is not None:
+                try:
+                    _executor.shutdown(
+                        wait=False,
+                        cancel_futures=True,
+                    )
+                except TypeError:
+                    _executor.shutdown(wait=False)
+                except Exception:
+                    pass
 
     if not provider_results:
 
