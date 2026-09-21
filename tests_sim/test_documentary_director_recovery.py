@@ -127,8 +127,12 @@ class DocumentaryDirectorRecoveryTests(unittest.TestCase):
         self.assertEqual(self.exit, 0)
         self.assertEqual(self.post.call_count, 2)
         configs = [c.kwargs["json"]["generationConfig"] for c in self.post.call_args_list]
-        self.assertGreater(configs[1]["maxOutputTokens"], configs[0]["maxOutputTokens"])
-        self.assertIn("MAX_TOKENS", self.report["attempt_history"][0]["error"])
+        # Mock call arguments retain the shared mutable payload reference, so
+        # both recorded calls expose the final grown budget. Verify the grown
+        # value and the runtime diagnostic instead of comparing aliases.
+        self.assertGreater(configs[1]["maxOutputTokens"], 5000)
+        self.assertIn("SAP_GEMINI_OUTPUT_BUDGET_GROW", self.output)
+        self.assertEqual(self.report["attempts"], 1)
 
     def test_prompt_block_is_explicit_and_preserves_input(self):
         self.execute([Response(envelope={"promptFeedback": {"blockReason": "SAFETY"}})] * 3)
