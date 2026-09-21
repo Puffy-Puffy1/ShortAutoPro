@@ -3,9 +3,8 @@
 
 This module does not relax validation. It only broadens provider retrieval when
 the first acquisition pool contains no asset that can prove every explicit
-MUST requirement. It also prevents repeated Coverr calls after persistent empty
-responses in the same run and caches identical acquisition calls so layered
-query-expansion/retry logic does not hit the same providers twice.
+MUST requirement. Provider health/circuit state is owned by
+media_external_resilience; this module only caches and expands acquisition.
 """
 from __future__ import annotations
 
@@ -17,7 +16,7 @@ from typing import Any
 
 import media_must_verifier as mustv
 
-VERSION = "1.9"
+VERSION = "2.0"
 
 
 def _must_list(value: Any) -> list[str]:
@@ -149,8 +148,8 @@ def _rescue_queries(
 def _rescue_budget() -> int:
     """Return a bounded per-scene rescue-query budget.
 
-    Five preserves the previously certified behavior. The environment override
-    is useful on constrained/mobile runs without changing validation policy.
+    Two keeps direct mobile runs bounded. Recovery rounds may raise this value
+    explicitly without changing validation policy.
     """
     raw = os.getenv("SAP_MUST_RESCUE_MAX_QUERIES", "2")
     try:
@@ -182,33 +181,6 @@ def _cache_key(
         " ".join(str(visual_mode or "").split()).casefold(),
     )
 
-
-def _wrap_coverr(namespace: dict[str, Any]) -> bool:
-    original = namespace.get("coverr_video")
-    if not callable(original) or getattr(original, "_sap_acquisition_recovery", False):
-        return False
-
-    state = {"empty": 0, "open": False}
-
-    @functools.wraps(original)
-    def wrapped(*args, **kwargs):
-        if state["open"]:
-            print("SAP_COVERR_CIRCUIT=OPEN reason=PERSISTENT_EMPTY_RETURN")
-            return []
-        result = original(*args, **kwargs)
-        items = list(result or [])
-        if items:
-            state["empty"] = 0
-            return items
-        state["empty"] += 1
-        if state["empty"] >= 2:
-            state["open"] = True
-            print("SAP_COVERR_CIRCUIT=TRIPPED empty_returns=2")
-        return items
-
-    wrapped._sap_acquisition_recovery = True
-    namespace["coverr_video"] = wrapped
-    return True
 
 
 def _wrap_pool(namespace: dict[str, Any]) -> bool:
@@ -400,14 +372,14 @@ def install(namespace: dict[str, Any]) -> dict[str, Any]:
     result = {
         "version": VERSION,
         "installed": True,
-        "coverr_circuit": _wrap_coverr(namespace),
+        "provider_circuit": "media_external_resilience",
         "must_pool_rescue": _wrap_pool(namespace),
         "rescue_budget": _rescue_budget(),
         "policy": "RETRIEVE_MORE_NEVER_RELAX_MUST",
     }
     print(
         "SAP_MEDIA_ACQUISITION_RECOVERY=INSTALLED "
-        f"version={VERSION} coverr={result['coverr_circuit']} "
+        f"version={VERSION} provider_circuit={result['provider_circuit']} "
         f"must_rescue={result['must_pool_rescue']} budget={result['rescue_budget']}"
     )
     return result
