@@ -19,17 +19,12 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-import requests
+from gemini_runtime import generate_text
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
 SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat()).strip()
 API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite").strip()
-try:
-    GEMINI_TIMEOUT = float(os.getenv("SAP_GEMINI_TIMEOUT", "75") or 75)
-except (TypeError, ValueError):
-    GEMINI_TIMEOUT = 75.0
-GEMINI_TIMEOUT = max(20.0, min(GEMINI_TIMEOUT, 120.0))
 R = BASE / "roteiros"
 MAPA = R / f"scene_map_{SHORT_ID}.json"
 BACKUP = R / f"scene_map_pre_visual_{SHORT_ID}.json"
@@ -172,31 +167,24 @@ EXATAMENTE {QTD_CENAS} cenas.
 def call_ai(scenes: list[dict[str, Any]]) -> dict[str, Any] | None:
     if not API_KEY:
         return None
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent"
-    payload = {
-        "contents": [{"parts": [{"text": build_prompt(scenes)}]}],
-        "generationConfig": {"temperature": 0.18, "maxOutputTokens": 6500},
-    }
-    for attempt in range(1, 4):
-        try:
-            response = requests.post(
-                url,
-                headers={"Content-Type": "application/json", "x-goog-api-key": API_KEY},
-                json=payload,
-                timeout=GEMINI_TIMEOUT,
-            )
-            if response.ok:
-                text = response.json()["candidates"][0]["content"]["parts"][0]["text"]
-                text = str(text).replace("```json", "").replace("```", "").strip()
-                data = json.loads(text)
-                return data if isinstance(data, dict) else None
-            if response.status_code not in {429, 500, 502, 503, 504}:
-                break
-        except Exception:
-            pass
-        if attempt < 3:
-            time.sleep(4 * attempt)
-    return None
+    try:
+        text = generate_text(
+            build_prompt(scenes),
+            temperature=0.18,
+            max_output_tokens=6500,
+            response_mime_type="application/json",
+            component="Visual Director",
+            api_key=API_KEY,
+        )
+        text = str(text).replace("```json", "").replace("```", "").strip()
+        data = json.loads(text)
+        return data if isinstance(data, dict) else None
+    except Exception as exc:
+        print(
+            "VISUAL_DIRECTOR_AI=FAIL_OPEN "
+            f"{type(exc).__name__}:{str(exc)[:180]}"
+        )
+        return None
 
 
 def safe_scene(original: dict[str, Any], proposal: dict[str, Any] | None) -> tuple[dict[str, Any], dict[str, Any]]:
