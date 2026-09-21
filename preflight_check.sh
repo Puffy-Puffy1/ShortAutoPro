@@ -66,7 +66,7 @@ done
 ARQUIVOS=(
     main.py runtime_config.py subprocess_guard.py production_profiler.py production_doctor.py profile_run.sh resume_short_runtime.py finalize_short.sh
     topic_engine_runtime.py topic_engine.py topic_memory.py topic_reserve.py topic_index.py wiki_client.py source_identity.py script_fallback.py
-    script_runtime.py roteiro.py used_topic.py hook_engine.py hook_runtime.py narrative_director.py cold_open_director.py
+    script_runtime.py roteiro.py used_topic.py hook_engine.py hook_runtime.py narrative_director.py cold_open_director.py media_emergency_fallback.py
     scene_director.py scene_truth_refiner_6_7.py documentary_director.py visual_director.py
     visual_shot_bridge.py visual_shot_policy.py visual_editorial_policy.py
     visual_risk_guard.py editorial_continuity.py visual_continuity_engine.py scene_lossless_repair.py post_script_truth_lock.py
@@ -208,6 +208,7 @@ else
 import importlib
 for name in (
     "script_fallback",
+    "media_emergency_fallback",
     "subtitle_alignment",
     "subtitle_style_policy",
     "visual_shot_policy",
