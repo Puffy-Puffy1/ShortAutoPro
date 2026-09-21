@@ -111,5 +111,32 @@ class ProductionSupervisorHardeningTests(unittest.TestCase):
             self.assertIn("media_duplicate_scene:1", report["critical"])
 
 
+    def test_pre_render_blocks_missing_audio_and_subtitles_before_ffmpeg_render(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            prepare(base)
+            result = subprocess.run(
+                [sys.executable, str(SCRIPT), "--pre-render"],
+                cwd=str(REPO),
+                env=env_for(base),
+                capture_output=True,
+                text=True,
+                timeout=20,
+            )
+            self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+            report = json.loads(
+                (base / "roteiros" / "stage6_preflight_case.json").read_text(encoding="utf-8")
+            )
+            self.assertIn("audio_missing_or_invalid", report["critical"])
+            self.assertIn("subtitles_missing_or_invalid", report["critical"])
+            self.assertEqual(report["mode"], "PRE_RENDER")
+
+    def test_canonical_pipeline_runs_pre_render_gate_before_assembler(self):
+        main_text = (REPO / "main.py").read_text(encoding="utf-8")
+        gate = main_text.index('"8C - STAGE 6 PRE-RENDER CHECK"')
+        assembler = main_text.index('"9 - PROFESSIONAL MULTI-BEAT ASSEMBLER"')
+        self.assertLess(gate, assembler)
+        self.assertIn('"production_supervisor.py", "--pre-render"', main_text)
+
 if __name__ == "__main__":
     unittest.main()
