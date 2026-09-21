@@ -82,5 +82,18 @@ class StrictMustGuardTests(unittest.TestCase):
             self.assertEqual(guard._verified_hits(ns, candidate), (0, 2))
 
 
+    def test_install_is_idempotent_and_reports_existing_guards_active(self):
+        ns = self.namespace()
+        first = guard.install(ns)
+        wrapped_download = ns["baixar_candidato_5_2"]
+        second = guard.install(ns)
+
+        self.assertTrue(first["download"])
+        self.assertTrue(second["download"])
+        self.assertTrue(second["failover"])
+        self.assertTrue(second["local"])
+        self.assertIs(ns["baixar_candidato_5_2"], wrapped_download)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
