@@ -3013,6 +3013,16 @@ def buscar_todos_candidatos(
                 except FuturesTimeoutError:
                     provider_results[name] = []
                     futures[name].cancel()
+                    _base_provider = str(name).split("_", 1)[0].casefold()
+                    if _base_provider in {"pexels", "pixabay", "coverr", "wikimedia"}:
+                        try:
+                            _sap_record_provider_result(
+                                _base_provider,
+                                ok=False,
+                                reason="timeout",
+                            )
+                        except Exception:
+                            pass
                     print(
                         "SAP_MEDIA_PROVIDER_TIMEOUT "
                         f"provider={name} "
