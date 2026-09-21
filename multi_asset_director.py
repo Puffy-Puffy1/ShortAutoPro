@@ -12,7 +12,7 @@ from subprocess_guard import run_group
 from runtime_config import env_float, env_int
 BASE=Path(os.getenv("SHORTAUTOPRO_BASE",os.path.expanduser("~/ShortAutoPro"))).resolve();SID=os.getenv("SHORT_ID",date.today().isoformat()).strip();R=BASE/"roteiros";MAP=R/f"scene_map_{SID}.json";PLAN=R/f"pro_edit_plan_{SID}.json";OUT=R/f"multi_asset_{SID}.json";DIR=BASE/"imagens"/f"short_{SID}_secondary"
 MAX_ASSET_BYTES=env_int("SAP_MULTI_ASSET_MAX_BYTES",40*1024*1024,2*1024*1024,100*1024*1024)
-MAX_DOWNLOAD_SECONDS=env_float("SAP_MULTI_ASSET_DOWNLOAD_SECONDS",45.0,10.0,120.0)
+MAX_DOWNLOAD_SECONDS=env_float("SAP_MULTI_ASSET_DOWNLOAD_SECONDS",20.0,8.0,60.0)
 def load(p:Path)->dict[str,Any]:
  try:x=json.loads(p.read_text(encoding="utf-8"));return x if isinstance(x,dict) else {}
  except Exception:return {}
@@ -30,7 +30,7 @@ def download(url:str,dest:Path)->bool:
  try:
   started=time.monotonic()
   read_timeout=max(5.0,min(20.0,MAX_DOWNLOAD_SECONDS))
-  with requests.get(url,stream=True,timeout=(10,read_timeout),headers={"User-Agent":"ShortAutoPro/3.0"}) as r:
+  with requests.get(url,stream=True,timeout=(5,read_timeout),headers={"User-Agent":"ShortAutoPro/3.0"}) as r:
    if not r.ok:return False
    try:declared=int(r.headers.get("Content-Length") or 0)
    except (TypeError,ValueError):declared=0
@@ -59,7 +59,7 @@ def main()->int:
  topic=""
  for p in (R/f"used_topic_{SID}.txt",R/f"topic_{SID}.txt"):
   if p.is_file():topic=p.read_text(encoding="utf-8").strip();break
- DIR.mkdir(parents=True,exist_ok=True);max_secondary=env_int("SAP_MULTI_ASSET_MAX",4,0,6);chosen=[]
+ DIR.mkdir(parents=True,exist_ok=True);max_secondary=env_int("SAP_MULTI_ASSET_MAX",2,0,4);chosen=[]
  priorities=[]
  for i,s in enumerate(scenes,1):
   role=str(s.get("narrative_role","")).lower();segment=str(s.get("segment",''));primary_photo=any((BASE/"imagens"/f"short_{SID}").glob(f"scene_{i:02d}.*"));importance=(3 if role in {"evidence","reveal","turn","climax","payoff"} else 0)+(1 if len(segment.split())>=16 else 0)
