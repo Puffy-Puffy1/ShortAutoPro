@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -52,6 +53,121 @@ def atomic(path: Path, payload: Any) -> None:
         except OSError:
             pass
         raise
+
+
+def quality_snapshot(sid: str, scenes: list[int]) -> dict[str, Any]:
+    visual = load(R / f"visual_score_{sid}.json")
+    continuity = load(R / f"visual_continuity_{sid}.json")
+    media = load(R / f"media_quality_{sid}.json")
+    rows = visual.get("scenes", []) if isinstance(visual.get("scenes"), list) else []
+    wanted = set(int(x) for x in scenes)
+    selected_scores = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        try:
+            number = int(row.get("scene"))
+            score = float(row.get("visual_score", 0) or 0)
+        except (TypeError, ValueError):
+            continue
+        if number in wanted:
+            selected_scores.append(score)
+    target_visual = (
+        sum(selected_scores) / len(selected_scores)
+        if selected_scores
+        else float(visual.get("visual_score", 0) or 0)
+    )
+    continuity_score = float(continuity.get("visual_continuity_score", 0) or 0)
+    repair_scenes = continuity.get("repair_scenes", []) if isinstance(continuity.get("repair_scenes"), list) else []
+    weak_scenes = visual.get("weak_scenes", []) if isinstance(visual.get("weak_scenes"), list) else []
+    return {
+        "objective": round(0.60 * target_visual + 0.40 * continuity_score, 3),
+        "target_visual": round(target_visual, 3),
+        "continuity": round(continuity_score, 3),
+        "repair_count": len(repair_scenes),
+        "weak_count": len(weak_scenes),
+        "media_status": str(media.get("status", "")).upper(),
+    }
+
+
+def backup_targeted_media(sid: str, scenes: list[int]) -> dict[str, Any]:
+    temp_root = BASE / "temp"
+    temp_root.mkdir(parents=True, exist_ok=True)
+    backup_dir = Path(tempfile.mkdtemp(prefix=f"repair_{sid}_", dir=str(temp_root)))
+    media_dir = BASE / "imagens" / f"short_{sid}"
+    media_backup = backup_dir / "media"
+    media_backup.mkdir(parents=True, exist_ok=True)
+    saved_media = []
+    for number in sorted(set(int(x) for x in scenes)):
+        for path in media_dir.glob(f"scene_{number:02d}.*"):
+            if path.is_file():
+                target = media_backup / path.name
+                shutil.copy2(path, target)
+                saved_media.append(path.name)
+
+    tracked = [
+        R / f"media_quality_{sid}.json",
+        R / f"visual_score_{sid}.json",
+        R / f"visual_continuity_{sid}.json",
+        R / f"visual_intelligence_6_{sid}.json",
+        media_dir / ".editorial_reuse_index.json",
+    ]
+    report_backup = backup_dir / "reports"
+    report_backup.mkdir(parents=True, exist_ok=True)
+    reports: list[dict[str, Any]] = []
+    for index, path in enumerate(tracked):
+        existed = path.is_file()
+        copy_name = f"{index:02d}_{path.name}"
+        if existed:
+            shutil.copy2(path, report_backup / copy_name)
+        reports.append({
+            "path": str(path),
+            "existed": existed,
+            "copy": copy_name,
+        })
+    return {
+        "dir": str(backup_dir),
+        "media_dir": str(media_dir),
+        "media": saved_media,
+        "reports": reports,
+        "scenes": sorted(set(int(x) for x in scenes)),
+    }
+
+
+def restore_targeted_media(snapshot: dict[str, Any]) -> None:
+    backup_dir = Path(str(snapshot["dir"]))
+    media_dir = Path(str(snapshot["media_dir"]))
+    media_backup = backup_dir / "media"
+    for number in snapshot.get("scenes", []):
+        for path in media_dir.glob(f"scene_{int(number):02d}.*"):
+            if path.is_file():
+                path.unlink()
+    for path in media_backup.iterdir():
+        if path.is_file():
+            shutil.copy2(path, media_dir / path.name)
+
+    report_backup = backup_dir / "reports"
+    for item in snapshot.get("reports", []):
+        if not isinstance(item, dict):
+            continue
+        path = Path(str(item.get("path", "")))
+        existed = bool(item.get("existed"))
+        copy_name = str(item.get("copy", ""))
+        if existed:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(report_backup / copy_name, path)
+        else:
+            try:
+                path.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+
+def discard_backup(snapshot: dict[str, Any]) -> None:
+    try:
+        shutil.rmtree(str(snapshot.get("dir", "")), ignore_errors=True)
+    except Exception:
+        pass
 
 
 def plan(sid: str) -> dict[str, Any]:
@@ -217,11 +333,17 @@ def execute(sid: str, max_cycles: int) -> tuple[int, dict[str, Any]]:
             action_log = {"id": action["id"], "reason": action["reason"], "commands": [], "status": "PASS"}
             action_env = env.copy()
             force_scenes = action.get("force_scenes", [])
+            transaction = None
+            before_quality = None
             if isinstance(force_scenes, list) and force_scenes:
+                force_scenes = sorted(set(int(x) for x in force_scenes))
                 action_env["SAP_MEDIA_FORCE_SCENES"] = ",".join(
-                    str(int(x)) for x in force_scenes
+                    str(x) for x in force_scenes
                 )
                 action_log["force_scenes"] = list(force_scenes)
+                before_quality = quality_snapshot(sid, force_scenes)
+                transaction = backup_targeted_media(sid, force_scenes)
+                action_log["quality_before"] = before_quality
             for command in action["commands"]:
                 command_name = Path(str(command[1] if len(command) > 1 else command[0])).name
                 if command_name in {"video_professional.py", "v6_professional.py", "audio_finalizer.py"}:
@@ -258,6 +380,39 @@ def execute(sid: str, max_cycles: int) -> tuple[int, dict[str, Any]]:
                 if returncode not in {0, 20}:
                     action_log["status"] = "FAIL"
                     break
+
+            if transaction is not None:
+                if action_log["status"] == "PASS":
+                    after_quality = quality_snapshot(sid, force_scenes)
+                    action_log["quality_after"] = after_quality
+                    min_gain = float(os.getenv("SAP_REPAIR_MIN_QUALITY_GAIN", "1.5") or 1.5)
+                    improved = (
+                        after_quality["media_status"] == "PASS"
+                        and (
+                            after_quality["objective"] >= before_quality["objective"] + min_gain
+                            or after_quality["repair_count"] < before_quality["repair_count"]
+                            or after_quality["weak_count"] < before_quality["weak_count"]
+                        )
+                    )
+                    if improved:
+                        action_log["acceptance"] = "IMPROVED"
+                        discard_backup(transaction)
+                    else:
+                        restore_targeted_media(transaction)
+                        discard_backup(transaction)
+                        action_log["status"] = "REVERTED"
+                        action_log["acceptance"] = "NO_MEASURED_IMPROVEMENT"
+                        print(
+                            "SHORTAUTO_REPAIR=REVERTED "
+                            f"action={action['id']} scenes={','.join(map(str, force_scenes))} "
+                            f"before={before_quality['objective']:.1f} "
+                            f"after={after_quality['objective']:.1f}"
+                        )
+                else:
+                    restore_targeted_media(transaction)
+                    discard_backup(transaction)
+                    action_log["acceptance"] = "COMMAND_FAILED_ROLLBACK"
+
             cycle_log["actions"].append(action_log)
             if action_log["status"] == "FAIL":
                 history.append(cycle_log)
