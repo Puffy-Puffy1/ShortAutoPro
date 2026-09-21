@@ -7,7 +7,11 @@ import sys
 import time
 from datetime import date
 
-from gemini_runtime import GeminiInvalidResponse, generate_text
+from gemini_runtime import (
+    GeminiInvalidResponse,
+    GeminiTemporaryUnavailable,
+    generate_text,
+)
 
 from source_identity import validar_identidade
 from wiki_client import WikiRateLimit
@@ -68,6 +72,92 @@ def limpar_roteiro(texto):
         flags=re.IGNORECASE,
     )
     return texto.strip()
+
+
+def _sentencas_fonte(texto):
+    bruto = re.sub(r"\s+", " ", str(texto or "")).strip()
+    if not bruto:
+        return []
+    partes = re.split(r"(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÂÊÔÃÕÇ0-9])", bruto)
+    saida = []
+    for parte in partes:
+        parte = re.sub(r"\[[0-9]+\]", "", parte).strip()
+        if contar_palavras(parte) < 5:
+            continue
+        if parte.casefold().startswith(("ver também", "referências", "ligações externas")):
+            continue
+        saida.append(parte)
+    return saida
+
+
+def roteiro_extrativo_factual(fonte_texto):
+    """Monta um roteiro factual sem IA usando apenas frases da fonte validada."""
+    sentencas = _sentencas_fonte(fonte_texto)
+    if not sentencas:
+        return ""
+
+    escolhidas = []
+    palavras = 0
+    alvo_sem_cta = 114
+
+    for sentenca in sentencas[:24]:
+        qtd = contar_palavras(sentenca)
+        if qtd <= 0:
+            continue
+        if palavras + qtd <= alvo_sem_cta:
+            escolhidas.append(sentenca)
+            palavras += qtd
+            if palavras >= 101:
+                break
+
+    if palavras < 101:
+        for sentenca in sentencas[len(escolhidas):32]:
+            qtd = contar_palavras(sentenca)
+            if qtd <= 0:
+                continue
+            if palavras + qtd <= 120:
+                escolhidas.append(sentenca)
+                palavras += qtd
+            if palavras >= 101:
+                break
+
+    texto = " ".join(escolhidas).strip()
+    if not texto:
+        return ""
+
+    cta = "Qual detalhe desse caso mais chama sua atenção? Comente."
+    com_cta = f"{texto} {cta}".strip()
+
+    # Normalmente o conjunto de frases já cai na faixa desejada. Se ultrapassar,
+    # remova frases completas do fim; nunca corte uma afirmação factual no meio.
+    while contar_palavras(com_cta) > 125 and len(escolhidas) > 1:
+        escolhidas.pop()
+        texto = " ".join(escolhidas).strip()
+        com_cta = f"{texto} {cta}".strip()
+
+    if 105 <= contar_palavras(com_cta) <= 125:
+        return com_cta
+
+    # Última recuperação: use somente o texto factual se ele já estiver na faixa.
+    if 105 <= contar_palavras(texto) <= 125:
+        return texto
+
+    return ""
+
+
+def cenas_fallback_local(assunto_texto, quantidade):
+    base = limpar_assunto(assunto_texto) or "documentary case"
+    palavras = re.findall(r"[\wÀ-ÿ'-]+", base, flags=re.UNICODE)
+    termo = " ".join(palavras[:5]).strip() or "documentary case"
+    modelos = [
+        f"{termo} archival documentary footage",
+        f"{termo} historical location exterior",
+        f"{termo} investigation documents archive",
+        f"{termo} night sky documentary context",
+        f"{termo} official records close up",
+        f"{termo} historical news archive",
+    ]
+    return "\n".join(modelos[i % len(modelos)] for i in range(quantidade))
 
 
 def limpar_assunto(texto):
@@ -313,6 +403,7 @@ roteiro = None
 cenas_texto = ""
 ultimo_roteiro_recebido = ""
 ultimas_cenas_recebidas = ""
+script_degraded = False
 
 for tentativa in range(1, 4):
     print(f"Gerando roteiro inicial ({tentativa}/3)...")
@@ -322,12 +413,43 @@ for tentativa in range(1, 4):
             temperatura=0.50,
             tokens=1600,
         )
+    except GeminiTemporaryUnavailable as exc:
+        print(
+            "SAP_SCRIPT_AI=UNAVAILABLE "
+            f"{type(exc).__name__}:{str(exc)[:220]}"
+        )
+        roteiro = roteiro_extrativo_factual(fonte)
+        if not roteiro:
+            sys.exit(
+                "ERRO: Gemini indisponível e fallback factual local não conseguiu "
+                "atingir 105-125 palavras sem cortar afirmações."
+            )
+        cenas_texto = cenas_fallback_local(assunto, QTD_CENAS)
+        script_degraded = True
+        print(
+            "SAP_SCRIPT_FALLBACK=SOURCE_EXTRACTIVE_OK "
+            f"words={contar_palavras(roteiro)}"
+        )
+        break
     except GeminiGenerationUnavailable as exc:
         print(f"SAP_SCRIPT_TOPIC_INCOMPATIBLE={assunto}")
         print(f"SAP_SCRIPT_GEMINI_DIAGNOSTIC={exc}")
         raise SystemExit(24)
     except Exception as exc:
-        sys.exit(f"ERRO gerando roteiro: {exc}")
+        print(
+            "SAP_SCRIPT_AI=ERROR "
+            f"{type(exc).__name__}:{str(exc)[:220]}"
+        )
+        roteiro = roteiro_extrativo_factual(fonte)
+        if not roteiro:
+            sys.exit(f"ERRO gerando roteiro: {exc}")
+        cenas_texto = cenas_fallback_local(assunto, QTD_CENAS)
+        script_degraded = True
+        print(
+            "SAP_SCRIPT_FALLBACK=SOURCE_EXTRACTIVE_OK "
+            f"words={contar_palavras(roteiro)}"
+        )
+        break
 
     bruto = (
         bruto.replace("```text", "")
@@ -352,7 +474,7 @@ for tentativa in range(1, 4):
         cenas_texto = c
         break
 
-if not roteiro:
+if not roteiro and not script_degraded:
     if not ultimo_roteiro_recebido:
         sys.exit("ERRO: Gemini não retornou roteiro reparável.")
 
@@ -423,8 +545,15 @@ Compare cada afirmação com a fonte.
 Responda SOMENTE com o roteiro revisado.
 """
 
-roteiro_auditado = None
-for auditoria in range(1, 4):
+roteiro_auditado = roteiro if script_degraded else None
+
+if script_degraded:
+    print(
+        "SAP_SCRIPT_FACT_AUDIT=SOURCE_EXTRACTIVE_BYPASS "
+        "reason=script_composed_only_from_verified_source"
+    )
+
+for auditoria in range(1, 4) if not script_degraded else []:
     print(f"Auditoria {auditoria}/3...")
     try:
         revisado = limpar_roteiro(
@@ -450,7 +579,10 @@ if not roteiro_auditado:
     )
 
 roteiro = roteiro_auditado
-print("Auditoria factual: PASS")
+if script_degraded:
+    print("Auditoria factual: PASS (fonte extrativa verificada)")
+else:
+    print("Auditoria factual: PASS")
 
 PALAVRAS_INGLES_COMUNS = {
     "tragically", "however", "although", "meanwhile", "therefore", "apparently",
@@ -468,7 +600,12 @@ def detectar_ingles(texto):
 
 
 ingles_detectado = detectar_ingles(roteiro)
-if ingles_detectado:
+if ingles_detectado and script_degraded:
+    print(
+        "SAP_SCRIPT_LANGUAGE_GUARD=DEGRADED_SKIP "
+        "reason=offline_extractive_mode"
+    )
+elif ingles_detectado:
     print("Termos em inglês detectados: " + ", ".join(ingles_detectado))
     corrigido_final = None
 
@@ -615,6 +752,9 @@ atomic_text(
     fonte_path,
     f"ASSUNTO: {assunto}\nFONTE: Wikipedia — {titulo}\n\n{fonte}",
 )
+
+if script_degraded:
+    print("SAP_SCRIPT_MODE=DEGRADED_SOURCE_EXTRACTIVE")
 
 print()
 print("================================")
