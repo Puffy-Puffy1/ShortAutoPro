@@ -472,10 +472,9 @@ for cena_original in cenas:
         sys.exit(f"ERRO: cena {numero} ficou sem query válida.")
 
     must = limpar_lista(novo.get("must_have", []), 3)
-    if not must:
-        must = limpar_lista(cena_original.get("must_have", []), 3)
-    if not must:
-        sys.exit(f"ERRO: cena {numero} ficou sem must_have.")
+    original_must = limpar_lista(cena_original.get("must_have", []), 3)
+    if not must and original_must:
+        must = original_must
 
     avoid = limpar_lista(novo.get("avoid", []), 5)
     if len(avoid) < 2:
