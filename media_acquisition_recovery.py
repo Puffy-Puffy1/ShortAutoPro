@@ -185,8 +185,10 @@ def _cache_key(
 
 def _wrap_pool(namespace: dict[str, Any]) -> bool:
     original = namespace.get("buscar_todos_candidatos")
-    if not callable(original) or getattr(original, "_sap_acquisition_recovery", False):
+    if not callable(original):
         return False
+    if getattr(original, "_sap_acquisition_recovery", False):
+        return True
 
     # Collapse the entire search-wrapper chain for recovery queries.
     # Provider-level wrappers remain active because the base function resolves
