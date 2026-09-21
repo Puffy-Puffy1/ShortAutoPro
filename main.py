@@ -446,10 +446,55 @@ def repair_cycle(p: Pipeline) -> None:
         allow_codes={0, 20},
     )
     if code == 20:
-        print("REPAIR ENGINE=HOLD; mantendo gates rígidos e seguindo para revalidação canônica.")
-    p.run("REPAIR - MULTI-ASSET", "multi_asset_director.py", retries=1)
-    p.run("REPAIR - SOUND PLAN", "sound_design_engine.py")
-    assemble_and_render(p)
+        print(
+            "REPAIR ENGINE=HOLD; mantendo gates rígidos e "
+            "seguindo para revalidação canônica."
+        )
+
+    repair_report = BASE / "reports" / "repair" / f"repair_{p.sid}.json"
+    performed: set[str] = set()
+    try:
+        data = json.loads(repair_report.read_text(encoding="utf-8"))
+        history = data.get("history", []) if isinstance(data, dict) else []
+        for cycle in history if isinstance(history, list) else []:
+            if not isinstance(cycle, dict):
+                continue
+            for action in cycle.get("actions", []) if isinstance(cycle.get("actions"), list) else []:
+                if not isinstance(action, dict):
+                    continue
+                if str(action.get("status", "")).upper() == "PASS":
+                    action_id = str(action.get("id", "") or "").strip()
+                    if action_id:
+                        performed.add(action_id)
+    except Exception as exc:
+        print(
+            "REPAIR_ACTION_HISTORY=UNAVAILABLE "
+            f"{type(exc).__name__}:{str(exc)[:140]}"
+        )
+
+    rerender_actions = {
+        "media_reacquire",
+        "media_quality_refresh",
+        "retention_repair",
+        "professional_edit_repair",
+        "caption_repair",
+    }
+
+    if performed.intersection(rerender_actions):
+        print(
+            "REPAIR_RERENDER=YES actions="
+            + ",".join(sorted(performed))
+        )
+        p.run("REPAIR - MULTI-ASSET", "multi_asset_director.py")
+        p.run("REPAIR - SOUND PLAN", "sound_design_engine.py")
+        assemble_and_render(p)
+    else:
+        print(
+            "REPAIR_RERENDER=NO actions="
+            + (",".join(sorted(performed)) or "none")
+        )
+        # audio_remaster mutates the final MP4 in place; rebuilding here would
+        # discard that correction. Final gates below will revalidate it.
 
 
 def export(p: Pipeline) -> Path:
