@@ -128,6 +128,8 @@ def analyze_final_video(path: Path) -> dict[str, Any]:
         "blur_detector_available": "blurdetect" in available_filters(),
         "crop_detector_available": "cropdetect" in available_filters(),
         "single_pass": True,
+        "scan_ok": False,
+        "scan_error": None,
     }
     if not path.is_file():
         return measurements
@@ -184,14 +186,27 @@ def analyze_final_video(path: Path) -> dict[str, Any]:
             check=False,
         )
         stderr = result.stderr or ""
+        if result.returncode != 0:
+            measurements["single_pass"] = False
+            measurements["scan_error"] = (
+                f"ffmpeg_returncode={result.returncode}:"
+                + stderr[-320:]
+            )
+            print(
+                "VISUAL_QA_VIDEO_SCAN=FAIL "
+                f"returncode={result.returncode}"
+            )
+            return measurements
     except Exception as exc:
         print(
-            "VISUAL_QA_VIDEO_SCAN=FAIL_OPEN "
+            "VISUAL_QA_VIDEO_SCAN=FAIL "
             f"{type(exc).__name__}:{str(exc)[:160]}"
         )
         measurements["single_pass"] = False
+        measurements["scan_error"] = f"{type(exc).__name__}:{str(exc)[:320]}"
         return measurements
 
+    measurements["scan_ok"] = True
     measurements["black_seconds"] = round(
         sum(
             float(value)
@@ -349,6 +364,8 @@ def main() -> int:
         issues.append("final_video_missing")
 
     measurements = analyze_final_video(VIDEO)
+    if VIDEO.is_file() and not bool(measurements.get("scan_ok")):
+        issues.append("final_video_scan_failed")
     black = float(measurements["black_seconds"] or 0.0)
     crop = measurements["cropdetect"]
     blur = measurements["blur_metric"]
@@ -407,7 +424,7 @@ def main() -> int:
     print(
         f"VISUAL QA: {status} | score={score}/100 "
         f"| issues={len(issues)} warnings={len(warnings)} "
-        "| video_scan=SINGLE_PASS"
+        f"| video_scan={'PASS' if measurements.get('scan_ok') else 'FAIL'}"
     )
     return 0 if status != "BLOCK" else 1
 
