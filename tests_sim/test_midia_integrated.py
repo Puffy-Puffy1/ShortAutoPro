@@ -19,7 +19,7 @@ class IntegratedMediaSelectorTests(unittest.TestCase):
         self.assertIn('".webp"', self.source[start:end])
 
     def test_minimum_resolution_guard_is_native(self):
-        self.assertIn("largura * altura < 320 * 180", self.source)
+        self.assertIn("pixels < 320 * 180", self.source)
         self.assertIn("mídia abaixo do piso técnico", self.source)
 
     def test_professional_media_floor_is_native(self):
@@ -34,7 +34,7 @@ class IntegratedMediaSelectorTests(unittest.TestCase):
         self.assertNotIn("        _vse42_commit_safe(escolhido)\n        break", self.source)
 
     def test_download_floor_precedes_commit_replace(self):
-        guard = self.source.index("largura * altura < 320 * 180")
+        guard = self.source.index("pixels < 320 * 180")
         replace = self.source.index("os.replace(", guard)
         self.assertLess(guard, replace)
 
