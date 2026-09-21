@@ -368,6 +368,51 @@ def _probe_duration(path: Path) -> float:
         return 0.0
 
 
+def _probe_visual_asset(path: Path):
+    if not path.is_file() or path.stat().st_size <= 0:
+        return False, "missing_or_empty"
+    if shutil.which("ffprobe") is None:
+        return False, "ffprobe_missing"
+    try:
+        import subprocess
+        from subprocess_guard import run_group
+        proc = run_group(
+            [
+                "ffprobe", "-v", "error",
+                "-show_entries", "stream=codec_type,width,height:format=duration",
+                "-of", "json", str(path),
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=15,
+        )
+        payload = json.loads(proc.stdout or "{}")
+        streams = payload.get("streams", []) if isinstance(payload, dict) else []
+        video_stream = next(
+            (
+                item for item in streams
+                if isinstance(item, dict) and item.get("codec_type") == "video"
+            ),
+            {},
+        )
+        width = int(video_stream.get("width", 0) or 0)
+        height = int(video_stream.get("height", 0) or 0)
+        if width <= 0 or height <= 0:
+            return False, "visual_stream_invalid"
+        if path.suffix.lower() == ".mp4":
+            fmt = payload.get("format", {}) if isinstance(payload, dict) else {}
+            try:
+                duration = float((fmt or {}).get("duration", 0) or 0)
+            except (TypeError, ValueError, OverflowError):
+                duration = 0.0
+            if duration <= 0:
+                return False, "video_duration_invalid"
+        return True, f"{width}x{height}"
+    except Exception as exc:
+        return False, f"{type(exc).__name__}:{str(exc)[:120]}"
+
+
 def _ass_dialogue_bounds(path: Path):
     if not path.is_file() or path.stat().st_size <= 0:
         return None
@@ -420,15 +465,24 @@ def pre_render_validate():
         critical.extend(media_errors)
 
     invalid_media = []
-    for path in media:
-        try:
-            if path.stat().st_size <= 0:
+    media_probe = {}
+    if shutil.which("ffprobe") is not None:
+        for path in media:
+            ok, detail = _probe_visual_asset(path)
+            media_probe[path.name] = {"ok": ok, "detail": detail}
+            if not ok:
                 invalid_media.append(path.name)
-        except OSError:
-            invalid_media.append(path.name)
-    checks["media_nonempty"] = not invalid_media
+    else:
+        for path in media:
+            try:
+                if path.stat().st_size <= 0:
+                    invalid_media.append(path.name)
+            except OSError:
+                invalid_media.append(path.name)
+    checks["media_content"] = not invalid_media
+    checks["media_probe"] = media_probe
     if invalid_media:
-        critical.append("media_empty_or_unreadable:" + ",".join(invalid_media))
+        critical.append("media_invalid_content:" + ",".join(invalid_media))
 
     audio = PATHS["audio"]
     audio_duration = _probe_duration(audio)
