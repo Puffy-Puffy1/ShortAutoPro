@@ -394,10 +394,15 @@ def selected_analysis(data: dict[str, Any]) -> dict[str, Any]:
     expected_numbers = [scene_number(x, index) for index, x in enumerate(scenes, 1) if isinstance(x, dict)]
     missing_assets = [number for number in expected_numbers if number not in asset_rows]
     missing_scores = [number for number in expected_numbers if number not in score_rows]
+    missing_vi6 = [number for number in expected_numbers if number not in vi_rows]
+    if str(media.get("status", "")).upper() != "PASS":
+        raise ValueError("media_quality ainda não está PASS")
     if missing_assets:
         raise ValueError("media_quality sem assets: " + ",".join(map(str, missing_assets)))
     if missing_scores:
         raise ValueError("visual_score sem cenas: " + ",".join(map(str, missing_scores)))
+    if missing_vi6:
+        raise ValueError("visual_intelligence_6 sem cenas: " + ",".join(map(str, missing_vi6)))
 
     pairs: list[dict[str, Any]] = []
     scores: list[float] = []
