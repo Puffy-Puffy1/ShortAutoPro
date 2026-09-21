@@ -9,7 +9,6 @@ import time
 from datetime import date
 
 from gemini_runtime import GeminiTemporaryUnavailable, generate_text
-from runtime_config import env_int
 from source_identity import validar_identidade
 from topic_memory import encontrar_duplicata, normalizar as normalizar_memoria
 from topic_reserve import melhor_reserva
@@ -22,6 +21,12 @@ SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat())
 TEMA = os.getenv("SHORT_TEMA", "mistérios, casos inexplicáveis e true crime")
 API_KEY = os.getenv("GEMINI_API_KEY")
 MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
+HISTORICO = os.path.join(BASE, "historico_assuntos.json")
+SAIDA = os.path.join(BASE, "roteiros", f"topic_{SHORT_ID}.txt")
+VERIFICACAO = os.path.join(BASE, "roteiros", f"topic_verified_{SHORT_ID}.json")
+REJEITADOS_RUNTIME = os.path.join(BASE, "roteiros", f"topic_rejected_{SHORT_ID}.json")
+os.makedirs(os.path.dirname(SAIDA), exist_ok=True)
+
 if not API_KEY:
     print(
         "AVISO: GEMINI_API_KEY não configurada; "
