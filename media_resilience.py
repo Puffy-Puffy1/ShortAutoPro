@@ -179,7 +179,7 @@ def record_provider_result(
             elif code in {500, 502, 503, 504} or reason in {"timeout", "network"}:
                 if failures >= 2:
                     cooldown = min(3600.0, 300.0 * (2 ** min(failures - 2, 3)))
-            elif reason == "persistent_empty" and failures >= 3:
+            elif reason == "persistent_empty" and failures >= 2:
                 cooldown = 600.0
 
             if cooldown > 0:
