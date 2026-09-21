@@ -3034,12 +3034,42 @@ def buscar_todos_candidatos(
                     "_stage6_verified_must_total"
                 ] = _total
 
+                _source_name = str(
+                    _candidate.get(
+                        "fonte",
+                        ""
+                    )
+                ).lower()
+
+                _media_type = str(
+                    _candidate.get(
+                        "tipo",
+                        ""
+                    )
+                ).lower()
+
+                _description_present = bool(
+                    str(
+                        _candidate.get(
+                            "descricao",
+                            ""
+                        )
+                        or ""
+                    ).strip()
+                )
+
+                _metadata_reliable = (
+                    _description_present
+                    and not (
+                        _source_name == "pexels"
+                        and _media_type == "vídeo"
+                    )
+                )
+
                 if (
                     _total
                     and _hits == 0
-                    and metadata_confiavel(
-                        _candidate
-                    )
+                    and _metadata_reliable
                 ):
 
                     print(
