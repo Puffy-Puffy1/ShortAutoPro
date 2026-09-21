@@ -49,8 +49,8 @@ MEDIA_EXTS = IMAGE_EXTS | VIDEO_EXTS
 _DURATION_CACHE: dict[tuple[str, int, int], float] = {}
 
 
-SCENE_TIMEOUT = env_int("SHORT_SCENE_RENDER_TIMEOUT", 300, 60, 1200)
-ASSEMBLY_TIMEOUT = env_int("SHORT_ASSEMBLY_TIMEOUT", 900, 120, 2400)
+SCENE_TIMEOUT = env_int("SHORT_SCENE_RENDER_TIMEOUT", 180, 60, 900)
+ASSEMBLY_TIMEOUT = env_int("SHORT_ASSEMBLY_TIMEOUT", 600, 120, 1800)
 
 
 def fail(message: str) -> None:
@@ -405,7 +405,10 @@ def render_scene(
     output.unlink(missing_ok=True)
     render_duration = logical + (transition_after if number < EXPECTED else 0.0)
     role = str(pro.get("narrative_role", "")).lower()
-    allow_detail = os.getenv("SAP_MULTI_BEAT_FALLBACK", "1") == "1"
+    # Re-encoding the same image into two beats plus a join is expensive on
+    # Android and adds no new source material. Keep that effect opt-in; real
+    # secondary assets still use multi-beat automatically.
+    allow_detail = os.getenv("SAP_MULTI_BEAT_FALLBACK", "0") == "1"
     fallback_detail = (
         secondary is None
         and allow_detail
