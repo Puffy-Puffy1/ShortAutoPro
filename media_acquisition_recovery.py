@@ -12,11 +12,12 @@ from __future__ import annotations
 import copy
 import functools
 import os
+import time
 from typing import Any
 
 import media_must_verifier as mustv
 
-VERSION = "1.8"
+VERSION = "1.9"
 
 
 def _must_list(value: Any) -> list[str]:
@@ -276,8 +277,41 @@ def _wrap_pool(namespace: dict[str, Any]) -> bool:
     @functools.wraps(original)
     def wrapped(busca, must_have, avoid, segmento="", visual_mode=""):
         must = _must_list(must_have)
-        initial = call_original(busca, must_have, avoid, segmento, visual_mode)
+        initial_started = time.monotonic()
+        initial = call_original(
+            busca,
+            must_have,
+            avoid,
+            segmento,
+            visual_mode,
+        )
+        initial_elapsed = time.monotonic() - initial_started
+
         if not must or any(_complete(candidate, must) for candidate in initial):
+            return initial
+
+        try:
+            provider_deadline = float(
+                os.getenv("SAP_MEDIA_PROVIDER_RESULT_TIMEOUT", "6") or 6
+            )
+        except (TypeError, ValueError):
+            provider_deadline = 6.0
+        provider_deadline = max(2.0, provider_deadline)
+
+        # If the first provider round consumed almost its whole deadline and
+        # still returned nothing, repeating near-identical rescue queries is a
+        # provider-stall problem, not a query-quality problem. Fail fast to the
+        # editorial completion layer instead of spending 2-3 more deadlines.
+        if (
+            not initial
+            and initial_elapsed >= max(2.5, provider_deadline * 0.75)
+        ):
+            print(
+                "SAP_MUST_ACQUISITION_RESCUE=SKIPPED "
+                "reason=INITIAL_PROVIDER_STALL "
+                f"elapsed={initial_elapsed:.2f}s "
+                f"deadline={provider_deadline:.2f}s"
+            )
             return initial
 
         budget = _rescue_budget()
