@@ -112,19 +112,14 @@ def fallback_local_scenes(texto, quantidade):
         # The local fallback is deliberately conservative: it preserves the
         # narration exactly and uses a generic documentary query. Later visual
         # directors can enrich the query when AI is available.
-        termos = [
-            p.lower()
-            for p in trecho_palavras
-            if len(p) >= 5
-        ][:3]
-
         cenas.append(
             {
                 "segment": trecho,
                 "query": "documentary visual context scene",
-                "must_have": termos[:2],
+                "must_have": [],
                 "avoid": ["wrong person", "unrelated event"],
                 "fallback_local": True,
+                "must_policy": "NONE_LOCAL_FALLBACK",
             }
         )
 
