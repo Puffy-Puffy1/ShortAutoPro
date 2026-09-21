@@ -302,9 +302,12 @@ def main() -> int:
 
     caption = load(CAPTION_LAYOUT)
     checks["caption_layout"] = caption.get("status")
-    if str(caption.get("status", "")).upper() == "BLOCK":
+    caption_status = str(caption.get("status", "")).upper()
+    if not caption:
+        blockers.append("caption_layout_missing")
+    elif caption_status == "BLOCK":
         blockers.append("caption_layout_block")
-    elif str(caption.get("status", "")).upper() == "REVIEW":
+    elif caption_status == "REVIEW":
         warnings.append("caption_layout_review")
 
     temp_dir = BASE / "temp" / SID
