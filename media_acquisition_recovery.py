@@ -19,6 +19,8 @@ import media_must_verifier as mustv
 from media_resilience import (
     cache_query_result,
     get_cached_query,
+    record_provider_result,
+    url_allowed,
 )
 
 VERSION = "2.0"
@@ -54,10 +56,24 @@ def _dedupe(candidates: list[Any]) -> list[Any]:
         if not isinstance(candidate, dict):
             out.append(candidate)
             continue
-        key = str(
+
+        candidate_url = str(
             candidate.get("url")
             or candidate.get("download_url")
             or candidate.get("src")
+            or ""
+        ).strip()
+        if candidate_url:
+            allowed, reason = url_allowed(candidate_url)
+            if not allowed:
+                print(
+                    "SAP_MEDIA_CANDIDATE_QUARANTINE=SKIP "
+                    f"reason={reason}"
+                )
+                continue
+
+        key = str(
+            candidate_url
             or candidate.get("id")
             or candidate.get("filename")
             or repr(sorted(candidate.items(), key=lambda kv: str(kv[0])))
@@ -207,6 +223,14 @@ def _wrap_coverr(namespace: dict[str, Any]) -> bool:
         state["empty"] += 1
         if state["empty"] >= 2:
             state["open"] = True
+            try:
+                record_provider_result(
+                    "coverr",
+                    ok=False,
+                    reason="persistent_empty",
+                )
+            except Exception:
+                pass
             print("SAP_COVERR_CIRCUIT=TRIPPED empty_returns=2")
         return items
 
@@ -271,7 +295,7 @@ def _wrap_pool(namespace: dict[str, Any]) -> bool:
                 "SAP_MEDIA_ACQUISITION_CACHE=HIT "
                 f"hits={stats['hits']} misses={stats['misses']} query={str(busca or '')}"
             )
-            return copy.deepcopy(cache[key])
+            return copy.deepcopy(_dedupe(cache[key]))
 
         persistent_payload = {
             "query": " ".join(str(busca or "").split()),
@@ -287,6 +311,7 @@ def _wrap_pool(namespace: dict[str, Any]) -> bool:
         )
         if persistent is not None:
             stats["hits"] += 1
+            persistent = _dedupe(list(persistent))
             cache[key] = copy.deepcopy(persistent)
             print(
                 "SAP_MEDIA_PERSISTENT_CACHE="
@@ -296,7 +321,7 @@ def _wrap_pool(namespace: dict[str, Any]) -> bool:
             return copy.deepcopy(persistent)
 
         stats["misses"] += 1
-        result = list(
+        result = _dedupe(list(
             provider_search(
                 busca,
                 must_have,
@@ -305,7 +330,7 @@ def _wrap_pool(namespace: dict[str, Any]) -> bool:
                 visual_mode,
             )
             or []
-        )
+        ))
 
         if result:
             cache_query_result(
@@ -325,7 +350,7 @@ def _wrap_pool(namespace: dict[str, Any]) -> bool:
                     f"{stale_state} candidates={len(stale)} "
                     "reason=LIVE_POOL_EMPTY"
                 )
-                result = list(stale)
+                result = _dedupe(list(stale))
 
         cache[key] = copy.deepcopy(result)
         return result
