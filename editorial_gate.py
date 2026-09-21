@@ -5,8 +5,10 @@ import json
 import glob
 from datetime import date
 
-BASE = os.path.expanduser(
-    "~/ShortAutoPro"
+BASE = os.path.abspath(
+    os.path.expanduser(
+        os.getenv("SHORTAUTOPRO_BASE", "~/ShortAutoPro")
+    )
 )
 
 SHORT_ID = os.getenv(
