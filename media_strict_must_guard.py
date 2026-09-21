@@ -89,8 +89,10 @@ def _diag(namespace: dict[str, Any], candidate: Any, label: str) -> None:
 
 def _wrap_failover(namespace: dict[str, Any]) -> bool:
     original = namespace.get("ordenar_failover_5_2")
-    if not callable(original) or getattr(original, "_sap_strict_must_guard", False):
+    if not callable(original):
         return False
+    if getattr(original, "_sap_strict_must_guard", False):
+        return True
 
     @functools.wraps(original)
     def wrapped(candidates, total_must, route, previous_description=""):
@@ -114,8 +116,10 @@ def _wrap_failover(namespace: dict[str, Any]) -> bool:
 
 def _wrap_reference_guard(namespace: dict[str, Any]) -> bool:
     original = namespace.get("fallback_preserva_5_2")
-    if not callable(original) or getattr(original, "_sap_strict_must_guard", False):
+    if not callable(original):
         return False
+    if getattr(original, "_sap_strict_must_guard", False):
+        return True
 
     @functools.wraps(original)
     def wrapped(candidate: Any, reference: Any):
@@ -131,8 +135,10 @@ def _wrap_reference_guard(namespace: dict[str, Any]) -> bool:
 
 def _wrap_degraded_guard(namespace: dict[str, Any]) -> bool:
     original = namespace.get("fallback_degradado_ok_5_2")
-    if not callable(original) or getattr(original, "_sap_strict_must_guard", False):
+    if not callable(original):
         return False
+    if getattr(original, "_sap_strict_must_guard", False):
+        return True
 
     @functools.wraps(original)
     def wrapped(candidate: Any, total_must: int):
@@ -148,8 +154,10 @@ def _wrap_degraded_guard(namespace: dict[str, Any]) -> bool:
 
 def _wrap_download_guard(namespace: dict[str, Any]) -> bool:
     original = namespace.get("baixar_candidato_5_2")
-    if not callable(original) or getattr(original, "_sap_strict_must_guard", False):
+    if not callable(original):
         return False
+    if getattr(original, "_sap_strict_must_guard", False):
+        return True
 
     @functools.wraps(original)
     def wrapped(candidate: Any, scene_number: int, label: str):
@@ -165,8 +173,10 @@ def _wrap_download_guard(namespace: dict[str, Any]) -> bool:
 
 def _wrap_local_guard(namespace: dict[str, Any]) -> bool:
     original = namespace.get("buscar_local")
-    if not callable(original) or getattr(original, "_sap_strict_must_guard", False):
+    if not callable(original):
         return False
+    if getattr(original, "_sap_strict_must_guard", False):
+        return True
 
     @functools.wraps(original)
     def wrapped(prefer_video: bool):
