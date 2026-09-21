@@ -7,11 +7,10 @@ import sys
 import time
 from datetime import date
 
-import requests
+from gemini_runtime import generate_text
+from runtime_config import env_int
 
-from runtime_config import env_float, env_int
-
-VERSION = "3.4"
+VERSION = "3.5"
 if __name__ == "__main__" and "--version" in sys.argv[1:]:
     print(f"DOCUMENTARY DIRECTOR - STABLE {VERSION}")
     raise SystemExit(0)
@@ -20,7 +19,6 @@ BASE = os.path.abspath(os.path.expanduser(os.getenv("SHORTAUTOPRO_BASE", "~/Shor
 SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat())
 API_KEY = os.getenv("GEMINI_API_KEY", "")
 MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
-GEMINI_TIMEOUT = env_float("SAP_GEMINI_TIMEOUT", 75.0, 20.0, 120.0)
 QTD_CENAS = env_int("SHORT_QTD_CENAS", 12, 6, 20)
 
 R = os.path.join(BASE, "roteiros")
@@ -31,8 +29,6 @@ TOPIC_FALLBACK = os.path.join(R, f"topic_{SHORT_ID}.txt")
 BACKUP = os.path.join(R, f"scene_map_pre_documentary_{SHORT_ID}.json")
 REPORT = os.path.join(R, f"documentary_director_{SHORT_ID}.json")
 
-if not API_KEY:
-    sys.exit("ERRO: GEMINI_API_KEY não configurada.")
 if not os.path.isfile(SCENE_MAP):
     sys.exit(f"ERRO: scene_map ausente: {SCENE_MAP}")
 
@@ -290,109 +286,90 @@ RESPONDA SOMENTE JSON VÁLIDO:
 EXATAMENTE {QTD_CENAS} cenas, numeradas de 1 a {QTD_CENAS}.
 """
 
-URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent"
-HEADERS = {"Content-Type": "application/json", "x-goog-api-key": API_KEY}
-payload = {
-    "contents": [{"parts": [{"text": prompt}]}],
-    "generationConfig": {"temperature": 0.20, "maxOutputTokens": env_int("SAP_DOCUMENTARY_MAX_TOKENS", 5000, 2000, 16000), "responseMimeType": "application/json"},
-}
-
 resposta = None
 ultimo_erro = ""
 ultimo_bruto = ""
 historico = []
+
 print()
 print("================================")
-print("DOCUMENTARY DIRECTOR - STABLE 3.4")
+print("DOCUMENTARY DIRECTOR - STABLE 3.5")
 print("================================")
 print()
 
+max_tokens = env_int("SAP_DOCUMENTARY_MAX_TOKENS", 5000, 2000, 16000)
+
 for tentativa in range(1, 4):
-    print(f"Documentary Director tentativa {tentativa}/3...")
-    payload_tentativa = dict(payload)
-    payload_tentativa["generationConfig"] = dict(payload["generationConfig"])
-    if "MAX_TOKENS" in ultimo_erro:
-        payload["generationConfig"]["maxOutputTokens"] = min(
-            16000, payload["generationConfig"]["maxOutputTokens"] * 2
-        )
-        payload_tentativa["generationConfig"] = dict(payload["generationConfig"])
-    ultimo_bruto = ""
-    registro = {"attempt": tentativa}
-    historico.append(registro)
+    print(f"Documentary Director contrato {tentativa}/3...")
+
+    prompt_tentativa = prompt
     if tentativa > 1:
-        correcao = (
+        prompt_tentativa += (
             "\n\nA resposta anterior foi inválida para o contrato JSON. "
             f"Motivo: {ultimo_erro}. "
             "Corrija e responda SOMENTE um objeto JSON válido, sem markdown, "
             f"com exatamente {QTD_CENAS} cenas numeradas de 1 a {QTD_CENAS}."
         )
-        payload_tentativa["contents"] = [{"parts": [{"text": prompt + correcao}]}]
+
+    registro = {"attempt": tentativa}
+    historico.append(registro)
 
     try:
-        response = requests.post(
-            URL,
-            headers=HEADERS,
-            json=payload_tentativa,
-            timeout=GEMINI_TIMEOUT,
+        bruto = generate_text(
+            prompt_tentativa,
+            temperature=0.20,
+            max_output_tokens=max_tokens,
+            response_mime_type="application/json",
+            component="Documentary Director",
+            api_key=API_KEY,
         )
-    except requests.RequestException as exc:
-        ultimo_erro = f"rede: {type(exc).__name__}"
+        ultimo_bruto = str(bruto)[:1200]
+    except Exception as exc:
+        ultimo_erro = f"{type(exc).__name__}: {str(exc)[:220]}"
         registro["error"] = ultimo_erro
-        print(f"AVISO: {ultimo_erro}")
-        if tentativa < 3:
-            time.sleep(3)
-            continue
+        print(f"AVISO Documentary Director: {ultimo_erro}")
+        # Transport/capacity failure has already exhausted the shared model
+        # chain. Repeating the same contract three times would only add delay.
         break
 
-    registro["http_status"] = response.status_code
-    if response.ok:
-        try:
-            bruto = texto_resposta_gemini(response)
-            ultimo_bruto = bruto[:1200]
-            resposta = validar_resposta_documental(extrair_objeto_json(bruto))
-            registro["status"] = "PASS"
-            break
-        except ValueError as exc:
-            ultimo_erro = str(exc)
-            registro["error"] = ultimo_erro
-            print(
-                "AVISO: resposta Gemini inválida para o contrato documental: "
-                f"{ultimo_erro}"
-            )
-            if tentativa < 3:
-                time.sleep(2)
-                continue
-            break
-
-    ultimo_erro = f"HTTP {response.status_code}"
-    registro["error"] = ultimo_erro
-    print(f"AVISO: {ultimo_erro}")
-    if response.status_code in {429, 500, 502, 503, 504} and tentativa < 3:
-        espera = 6
-        if response.status_code == 429:
-            try:
-                espera = int(response.headers.get("Retry-After") or espera)
-            except (TypeError, ValueError):
-                espera = 6
-            espera = max(2, min(espera, 30))
-        time.sleep(espera)
+    try:
+        resposta = validar_resposta_documental(
+            extrair_objeto_json(bruto)
+        )
+        registro["status"] = "PASS"
+        break
+    except ValueError as exc:
+        ultimo_erro = str(exc)
+        registro["error"] = ultimo_erro
+        print(
+            "AVISO: resposta Gemini inválida para o contrato documental: "
+            f"{ultimo_erro}"
+        )
+        if "MAX_TOKENS" in ultimo_erro:
+            max_tokens = min(16000, max_tokens * 2)
         continue
-    break
 
 if resposta is None:
-    atomic_json(REPORT, {
-        "short_id": SHORT_ID,
-        "version": "3.4",
-        "status": "BLOCK",
-        "error": ultimo_erro or "resposta inválida",
-        "raw_preview": ultimo_bruto,
-        "attempts": len(historico),
-        "attempt_history": historico,
-    })
-    sys.exit(
-        f"ERRO: Documentary Director falhou após {len(historico)} tentativa(s). "
-        f"Último motivo: {ultimo_erro or 'desconhecido'}"
+    atomic_json(
+        REPORT,
+        {
+            "short_id": SHORT_ID,
+            "version": "3.5",
+            "status": "DEGRADED",
+            "applied": False,
+            "preserved_original_scene_map": True,
+            "error": ultimo_erro or "resposta inválida",
+            "raw_preview": ultimo_bruto,
+            "attempts": len(historico),
+            "attempt_history": historico,
+        },
     )
+    print(
+        "DOCUMENTARY_DIRECTOR=DEGRADED_FAIL_OPEN "
+        "scene_map_original=PRESERVED"
+    )
+    raise SystemExit(0)
+
 
 novas = resposta["scenes"]
 
@@ -481,7 +458,7 @@ for i in range(2, len(resultado)):
 mapa_final = dict(mapa)
 mapa_final["scenes"] = resultado
 mapa_final["documentary_director"] = {
-    "version": "3.4",
+    "version": "3.5",
     "applied": True,
     "expected_scenes": QTD_CENAS,
     "visual_mode_triple_repetitions": repeticoes_mode,
@@ -491,7 +468,7 @@ mapa_final["documentary_director"] = {
 atomic_json(SCENE_MAP, mapa_final)
 atomic_json(REPORT, {
     "short_id": SHORT_ID,
-    "version": "3.4",
+    "version": "3.5",
     "status": "PASS",
     "attempts": len(historico),
     "attempt_history": historico,
