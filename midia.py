@@ -602,6 +602,33 @@ RESUME_MEDIA_ENABLED = os.getenv(
     "1"
 ) == "1"
 
+
+def _sap_parse_scene_set(raw):
+    result = set()
+    for item in str(raw or "").split(","):
+        item = item.strip()
+        if not item:
+            continue
+        try:
+            number = int(item)
+        except (TypeError, ValueError):
+            continue
+        if 1 <= number <= len(cenas):
+            result.add(number)
+    return result
+
+
+# Targeted invalidation used by bounded quality/continuity repair. Only these
+# scenes are reacquired; every other technically valid scene stays cached.
+FORCE_REFRESH_SCENES = _sap_parse_scene_set(
+    os.getenv("SAP_MEDIA_FORCE_SCENES", "")
+)
+if FORCE_REFRESH_SCENES:
+    print(
+        "SAP_MEDIA_FORCE_SCENES="
+        + ",".join(str(x) for x in sorted(FORCE_REFRESH_SCENES))
+    )
+
 MISSING_REPORT = os.path.join(
     BASE,
     "reports",
@@ -802,6 +829,9 @@ if RESUME_MEDIA_ENABLED and os.path.isfile(QUALITY_REPORT):
                     or ""
                 )
 
+                if _scene_number in FORCE_REFRESH_SCENES:
+                    continue
+
                 if (
                     _sap_probe_existing_media(
                         _path
@@ -815,19 +845,20 @@ if RESUME_MEDIA_ENABLED and os.path.isfile(QUALITY_REPORT):
                         _scene_number
                     ] = _path
 
-            if len(
-                resume_cached_media
-            ) == len(cenas):
+            _expected_cached = len(cenas) - len(FORCE_REFRESH_SCENES)
+            if len(resume_cached_media) == _expected_cached:
 
                 print(
                     "SAP_MEDIA_INCREMENTAL=QUALITY_PASS_RESTORE "
-                    f"cached={len(resume_cached_media)}"
+                    f"cached={len(resume_cached_media)} "
+                    f"refresh={','.join(map(str, sorted(FORCE_REFRESH_SCENES))) or 'none'}"
                 )
 
             else:
                 resume_cached_media.clear()
                 print(
-                    "SAP_MEDIA_INCREMENTAL=QUALITY_CACHE_INVALID"
+                    "SAP_MEDIA_INCREMENTAL=QUALITY_CACHE_INVALID "
+                    f"cached_expected={_expected_cached}"
                 )
 
     except Exception as _quality_cache_exc:
@@ -904,7 +935,10 @@ if (
                 len(cenas) + 1
             ):
 
-                if _scene_number in _missing_numbers:
+                if (
+                    _scene_number in _missing_numbers
+                    or _scene_number in FORCE_REFRESH_SCENES
+                ):
                     continue
 
                 _prefix = (
@@ -4949,6 +4983,39 @@ VI6_SHADOW = (
 
 vi6_history = []
 vi6_scenes = []
+_previous_vi6_by_scene = {}
+_vi6_report_path = os.path.join(
+    BASE,
+    "roteiros",
+    f"visual_intelligence_6_{SHORT_ID}.json",
+)
+
+# Incremental media retries must preserve the VI6 rows/history of cached scenes.
+# Without this, a retry of scene 8 can overwrite the global VI6 report with a
+# one-scene snapshot and poison downstream scoring.
+if RESUME_MEDIA_ENABLED and resume_cached_media and os.path.isfile(_vi6_report_path):
+    try:
+        with open(_vi6_report_path, "r", encoding="utf-8") as _vi6_handle:
+            _previous_vi6 = json.load(_vi6_handle)
+        _previous_rows = (
+            _previous_vi6.get("scenes", [])
+            if isinstance(_previous_vi6, dict)
+            and isinstance(_previous_vi6.get("scenes"), list)
+            else []
+        )
+        for _vi6_index, _vi6_row in enumerate(_previous_rows, start=1):
+            if not isinstance(_vi6_row, dict):
+                continue
+            try:
+                _vi6_number = int(_vi6_row.get("scene", _vi6_index))
+            except (TypeError, ValueError):
+                _vi6_number = _vi6_index
+            _previous_vi6_by_scene[_vi6_number] = _vi6_row
+    except Exception as _vi6_resume_exc:
+        print(
+            "SAP_VI6_INCREMENTAL_STATE=UNAVAILABLE "
+            f"{type(_vi6_resume_exc).__name__}:{str(_vi6_resume_exc)[:140]}"
+        )
 
 contagem = {
     "Pexels": 0,
@@ -5098,6 +5165,14 @@ for numero, cena in enumerate(
             f"type={_cached_type} "
             f"file={os.path.basename(_cached_path)}"
         )
+
+        _cached_vi6 = _previous_vi6_by_scene.get(numero)
+        if isinstance(_cached_vi6, dict):
+            vi6_scenes.append(_cached_vi6)
+            try:
+                vi6_push_history(_cached_vi6, vi6_history)
+            except Exception:
+                pass
 
         _sap_profile_record(
             "media_scene",
@@ -6731,6 +6806,30 @@ for numero, cena in enumerate(
                 _scene_delay,
                 1.0
             )
+        )
+
+
+if (VI6_SHADOW or VI6_MODE == "ACTIVE") and vi6_scenes:
+    if len(vi6_scenes) == len(cenas):
+        try:
+            vi6_path, vi6_summary = vi6_salvar_report(
+                SHORT_ID,
+                vi6_scenes,
+            )
+            print(
+                "SAP_VI6_INCREMENTAL_STATE=PERSISTED "
+                f"scenes={len(vi6_scenes)}/{len(cenas)} "
+                f"storyboard={vi6_summary.get('storyboard_score', 0)}"
+            )
+        except Exception as _vi6_final_exc:
+            print(
+                "SAP_VI6_INCREMENTAL_STATE=FAIL "
+                f"{type(_vi6_final_exc).__name__}:{str(_vi6_final_exc)[:140]}"
+            )
+    else:
+        print(
+            "SAP_VI6_INCREMENTAL_STATE=INCOMPLETE "
+            f"scenes={len(vi6_scenes)}/{len(cenas)}"
         )
 
 
