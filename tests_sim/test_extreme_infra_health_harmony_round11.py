@@ -37,7 +37,9 @@ class ExtremeInfraHealthHarmonyRound11Tests(unittest.TestCase):
     def test_remaining_core_runtime_config_is_centralized(self):
         main = (ROOT / "main.py").read_text(encoding="utf-8")
         storage = (ROOT / "storage_manager.py").read_text(encoding="utf-8")
-        self.assertIn('env_int("SAP_STAGE_TIMEOUT_SECONDS", 1800, 60, 7200)', main)
+        self.assertIn('SAP_STAGE_TIMEOUT_SECONDS', main)
+        self.assertIn('env_int("SAP_STAGE_TIMEOUT_AI_SECONDS", 240, 60, 900)', main)
+        self.assertIn('env_int("SAP_STAGE_TIMEOUT_MEDIA_SECONDS", 420, 120, 900)', main)
         self.assertIn('env_int("SHORT_STORAGE_KEEP_PROJECTS",3,1,20)', storage)
         self.assertIn('env_float("SAP_MIN_FREE_GB",1.2,0.5,20.0)', storage)
         self.assertNotIn("def bounded_int(", storage)
