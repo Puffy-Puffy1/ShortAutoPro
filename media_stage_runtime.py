@@ -14,6 +14,7 @@ import subprocess
 from subprocess_guard import run_group
 from runtime_config import env_int
 from runtime_config import env_float
+from media_resilience import resilience_snapshot
 import sys
 import time
 from datetime import date
@@ -155,6 +156,24 @@ def main() -> int:
         return 1
 
     max_rounds = env_int("SAP_MEDIA_STAGE_ROUNDS", 2, 1, 3)
+
+    try:
+        _resilience = resilience_snapshot()
+        _blob = _resilience.get("blob_cache", {})
+        print(
+            "MEDIA_RESILIENCE "
+            f"cache_items={int(_blob.get('items', 0) or 0)} "
+            f"cache_mb={float(_blob.get('bytes', 0) or 0) / (1024 * 1024):.1f} "
+            f"query_cache={int(_resilience.get('query_cache_entries', 0) or 0)} "
+            f"quarantine={int(_resilience.get('quarantined_urls', 0) or 0)} "
+            f"open_circuits={int(_resilience.get('open_circuits', 0) or 0)}"
+        )
+    except Exception as _resilience_exc:
+        print(
+            "MEDIA_RESILIENCE=FAIL_OPEN "
+            f"{type(_resilience_exc).__name__}:"
+            f"{str(_resilience_exc)[:140]}"
+        )
 
     previous_missing: set[int] | None = None
     previous_total = -1
