@@ -59,34 +59,45 @@ def plan(sid: str) -> dict[str, Any]:
     media = load(R / f"media_quality_{sid}.json")
     retention = load(R / f"retention_{sid}.json")
     visual = load(R / f"visual_score_{sid}.json")
+    continuity = load(R / f"visual_continuity_{sid}.json")
     caption = load(R / f"caption_layout_{sid}.json")
     audio = load(E / f"final_audio_{sid}.json")
     actions: list[dict[str, Any]] = []
 
     media_critical = media.get("critical", []) if isinstance(media.get("critical"), list) else []
     media_warnings = media.get("warnings", []) if isinstance(media.get("warnings"), list) else []
+    refresh_commands = [
+        [sys.executable, "media_stage_runtime.py"],
+        [sys.executable, "media_master_gate.py"],
+        [sys.executable, "visual_score_engine.py"],
+        [sys.executable, "visual_continuity_engine.py", "--selected"],
+    ]
+
     if str(media.get("status", "")).upper() == "BLOCK" or media_critical:
         actions.append({
             "id": "media_reacquire",
             "reason": "media_gate_block",
-            "commands": [
-                [sys.executable, "midia.py"],
-                [sys.executable, "media_master_gate.py"],
-                [sys.executable, "visual_score_engine.py"],
-            ],
+            "commands": refresh_commands,
             "risk": "bounded_network_retry",
         })
-    elif any(str(x).startswith("low_resolution:") for x in media_warnings):
-        actions.append({
-            "id": "media_quality_refresh",
-            "reason": "low_resolution_warning",
-            "commands": [
-                [sys.executable, "midia.py"],
-                [sys.executable, "media_master_gate.py"],
-                [sys.executable, "visual_score_engine.py"],
-            ],
-            "risk": "bounded_network_retry",
-        })
+    else:
+        low_resolution_scenes: set[int] = set()
+        for warning in media_warnings:
+            match = __import__("re").search(
+                r"low_resolution:scene_(\d+)",
+                str(warning),
+                flags=__import__("re").I,
+            )
+            if match:
+                low_resolution_scenes.add(int(match.group(1)))
+        if low_resolution_scenes:
+            actions.append({
+                "id": "media_quality_refresh",
+                "reason": "low_resolution_warning",
+                "force_scenes": sorted(low_resolution_scenes),
+                "commands": refresh_commands,
+                "risk": "bounded_network_retry",
+            })
 
     if float(retention.get("retention_score", 100) or 0) < float(retention.get("threshold", 78) or 78):
         actions.append({
@@ -97,10 +108,36 @@ def plan(sid: str) -> dict[str, Any]:
         })
 
     weak = visual.get("weak_scenes", []) if isinstance(visual.get("weak_scenes"), list) else []
-    if weak:
+    weak_numbers = sorted({
+        int(x) for x in weak
+        if str(x).isdigit() and int(x) > 0
+    })
+    continuity_targets = continuity.get("repair_scenes", []) if isinstance(continuity.get("repair_scenes"), list) else []
+    continuity_numbers = sorted({
+        int(x) for x in continuity_targets
+        if str(x).isdigit() and int(x) > 0
+    })
+
+    targeted_media = sorted(set(weak_numbers) | set(continuity_numbers))
+    has_media_action = any(str(item.get("id", "")).startswith("media_") for item in actions)
+    if targeted_media and not has_media_action:
+        actions.append({
+            "id": "visual_continuity_repair" if continuity_numbers else "media_quality_refresh",
+            "reason": (
+                "selected_continuity_repair:"
+                + ",".join(map(str, continuity_numbers))
+                if continuity_numbers
+                else "weak_visual_scenes:" + ",".join(map(str, weak_numbers))
+            ),
+            "force_scenes": targeted_media,
+            "commands": refresh_commands,
+            "risk": "bounded_targeted_media_retry",
+        })
+
+    if weak_numbers:
         actions.append({
             "id": "professional_edit_repair",
-            "reason": f"weak_visual_scenes:{','.join(map(str, weak))}",
+            "reason": f"weak_visual_scenes:{','.join(map(str, weak_numbers))}",
             "commands": [[sys.executable, "professional_edit_repair.py"]],
             "risk": "edit_plan_only",
         })
@@ -133,21 +170,27 @@ def plan(sid: str) -> dict[str, Any]:
             "commands": [[sys.executable, "retention_engine.py", "--repair"]],
             "risk": "edit_plan_only",
         })
-    if any("replace_weak_or_generic_media" in str(x) for x in release_actions) and not any(x["id"].startswith("media_") for x in actions):
-        actions.append({
+    if (
+        any("replace_weak_or_generic_media" in str(x) for x in release_actions)
+        and not any(
+            x["id"].startswith("media_") or x["id"] == "visual_continuity_repair"
+            for x in actions
+        )
+    ):
+        targets = sorted(set(weak_numbers) | set(continuity_numbers))
+        action = {
             "id": "media_reacquire",
             "reason": "release_gate_media_repair",
-            "commands": [
-                [sys.executable, "midia.py"],
-                [sys.executable, "media_master_gate.py"],
-                [sys.executable, "visual_score_engine.py"],
-            ],
+            "commands": refresh_commands,
             "risk": "bounded_network_retry",
-        })
+        }
+        if targets:
+            action["force_scenes"] = targets
+        actions.append(action)
 
     return {
         "short_id": sid,
-        "version": "REPAIR_ENGINE_1.0",
+        "version": "REPAIR_ENGINE_1.1_TARGETED_MEDIA",
         "generated_at": now(),
         "policy": {
             "max_cycles_default": 1,
@@ -172,6 +215,13 @@ def execute(sid: str, max_cycles: int) -> tuple[int, dict[str, Any]]:
         cycle_log = {"cycle": cycle, "actions": []}
         for action in proposal["actions"]:
             action_log = {"id": action["id"], "reason": action["reason"], "commands": [], "status": "PASS"}
+            action_env = env.copy()
+            force_scenes = action.get("force_scenes", [])
+            if isinstance(force_scenes, list) and force_scenes:
+                action_env["SAP_MEDIA_FORCE_SCENES"] = ",".join(
+                    str(int(x)) for x in force_scenes
+                )
+                action_log["force_scenes"] = list(force_scenes)
             for command in action["commands"]:
                 command_name = Path(str(command[1] if len(command) > 1 else command[0])).name
                 if command_name in {"video_professional.py", "v6_professional.py", "audio_finalizer.py"}:
@@ -185,7 +235,7 @@ def execute(sid: str, max_cycles: int) -> tuple[int, dict[str, Any]]:
                     proc = subprocess.run(
                         command,
                         cwd=BASE,
-                        env=env,
+                        env=action_env,
                         check=False,
                         timeout=timeout_seconds,
                     )
