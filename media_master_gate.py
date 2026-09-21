@@ -5,7 +5,13 @@ import hashlib
 import json
 import os
 import subprocess
+import time
 from datetime import date
+
+try:
+    from media_external_resilience import snapshot as _sap_provider_snapshot
+except Exception:
+    _sap_provider_snapshot = None
 
 BASE = os.path.abspath(os.path.expanduser(os.getenv("SHORTAUTOPRO_BASE", "~/ShortAutoPro")))
 SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat())
@@ -42,6 +48,27 @@ def editorial_scenes():
 
 EDITORIAL_SCENES = editorial_scenes()
 
+
+def provider_health_snapshot():
+    if not callable(_sap_provider_snapshot):
+        return {}, []
+    try:
+        providers = _sap_provider_snapshot()
+    except Exception:
+        return {}, []
+    if not isinstance(providers, dict):
+        return {}, []
+    now = time.time()
+    open_names = []
+    for name, item in providers.items():
+        if not isinstance(item, dict):
+            continue
+        if float(item.get("open_until", 0.0) or 0.0) > now:
+            open_names.append(str(name))
+    return providers, sorted(open_names)
+
+
+PROVIDER_HEALTH, OPEN_PROVIDER_CIRCUITS = provider_health_snapshot()
 
 
 def atomic_json(path, payload):
@@ -227,6 +254,12 @@ if EDITORIAL_SCENES:
         + ",".join(str(x) for x in sorted(EDITORIAL_SCENES))
     )
 
+if OPEN_PROVIDER_CIRCUITS:
+    warnings.append(
+        "provider_circuits_open="
+        + ",".join(OPEN_PROVIDER_CIRCUITS)
+    )
+
 status = "BLOCK" if critical else "PASS"
 report = {
     "short_id": SHORT_ID,
@@ -238,6 +271,8 @@ report = {
     "photos": len(files) - videos,
     "editorial_reuse_count": len(EDITORIAL_SCENES),
     "editorial_reuse_scenes": sorted(EDITORIAL_SCENES),
+    "provider_health": PROVIDER_HEALTH,
+    "provider_circuits_open": OPEN_PROVIDER_CIRCUITS,
     "critical": critical,
     "warnings": warnings,
     "assets": assets,
@@ -255,6 +290,14 @@ print(f"Mídias: {len(files)}/{QTD_CENAS}")
 print(f"Vídeos: {videos}")
 print(f"Fotos: {len(files) - videos}")
 print(f"EditorialReuse: {len(EDITORIAL_SCENES)}")
+print(
+    "Provider circuits abertos: "
+    + (
+        ",".join(OPEN_PROVIDER_CIRCUITS)
+        if OPEN_PROVIDER_CIRCUITS
+        else "0"
+    )
+)
 print()
 
 for item in warnings:
