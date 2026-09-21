@@ -1260,10 +1260,10 @@ def baixar(
         if not r.ok:
             failure_reason = (
                 f"HTTP_{response_status}"
-                if response_status in {403, 404, 410, 429}
+                if response_status in {401, 403, 404, 410, 429}
                 else event
             )
-            if response_status in {403, 404, 410, 429}:
+            if response_status in {401, 403, 404, 410, 429}:
                 _sap_mark_asset_bad(
                     url,
                     provider=candidate_provider,
@@ -1411,7 +1411,7 @@ def baixar(
             url
             and failure_reason
             in {
-                "HTTP_403", "HTTP_404", "HTTP_410", "HTTP_429",
+                "HTTP_401", "HTTP_403", "HTTP_404", "HTTP_410", "HTTP_429",
                 "TIMEOUT", "NETWORK", "CONTENT_TYPE", "TOO_SMALL",
                 "TOO_LARGE", "CORRUPT", "PROBE_FAIL",
             }
@@ -1822,7 +1822,7 @@ def pexels_video(
     try:
 
         r = _sap_http_session("pexels_video").get(
-            "https://api.pexels.com/videos/search",
+            "https://api.pexels.com/v1/videos/search",
             headers={
                 "Authorization":
                 PEXELS_KEY
