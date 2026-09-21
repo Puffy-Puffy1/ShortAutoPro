@@ -71,12 +71,12 @@ def round_env(round_index: int) -> dict[str, str]:
     env["SAP_MEDIA_INCREMENTAL"] = "1"
 
     # Increasing retrieval effort only. MUST acceptance rules are untouched.
-    rescue_budget = (1, 1, 2)[min(round_index, 2)]
+    rescue_budget = (1, 1, 2)[min(max(round_index, 0), 2)]
     # Keep recovery bounded on mobile. The provider layer already runs
     # concurrently, so escalating to 30-45s makes hard scenes dominate the
     # entire Short production without improving acceptance rules.
-    provider_timeout = (5, 6, 8)[min(round_index, 2)]
-    wiki_deadline = (5, 6, 8)[min(round_index, 2)]
+    provider_timeout = (5, 6, 8)[min(max(round_index, 0), 2)]
+    wiki_deadline = (5, 6, 8)[min(max(round_index, 0), 2)]
 
     env["SAP_STOCK_RESCUE_MAX_QUERIES"] = str(rescue_budget)
     env["SAP_MUST_RESCUE_MAX_QUERIES"] = str(rescue_budget)
@@ -258,7 +258,7 @@ def main() -> int:
         previous_total = total
 
         if round_index + 1 < max_rounds:
-            next_budget = (1, 2, 3)[min(round_index + 1, 2)]
+            next_budget = (1, 1, 2)[min(max(round_index + 1, 0), 2)]
             print(
                 "MEDIA_STAGE_RUNTIME=RETRY_MISSING_ONLY "
                 f"next_round={round_index + 2} "
