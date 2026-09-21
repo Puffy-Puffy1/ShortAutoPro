@@ -15,7 +15,11 @@ from datetime import date
 
 from source_identity import validar_identidade
 
-BASE = os.path.expanduser("~/ShortAutoPro")
+BASE = os.path.abspath(
+    os.path.expanduser(
+        os.getenv("SHORTAUTOPRO_BASE", "~/ShortAutoPro")
+    )
+)
 SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat())
 
 try:
