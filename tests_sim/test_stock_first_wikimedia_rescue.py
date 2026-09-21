@@ -22,6 +22,17 @@ class StockFirstWikimediaRescueTests(unittest.TestCase):
         self.assertIn('relaxado=False', block)
         self.assertNotIn('relaxado=True', block)
 
+    def test_stock_first_without_credentials_promotes_keyless_wikimedia(self):
+        text = (ROOT / "midia.py").read_text(encoding="utf-8")
+        self.assertIn("_stock_provider_ready = bool(", text)
+        self.assertIn("reason=NO_USABLE_STOCK_CREDENTIALS", text)
+        self.assertIn("wikimedia=PRIMARY_KEYLESS", text)
+
+    def test_summary_exposes_wikimedia_count(self):
+        text = (ROOT / "midia.py").read_text(encoding="utf-8")
+        self.assertIn('f"Wikimedia: "', text)
+        self.assertIn('contagem[\'Wikimedia\']', text)
+
     def test_easy_stock_scene_still_keeps_fast_path(self):
         text = (ROOT / "midia.py").read_text(encoding="utf-8")
         block = text[
