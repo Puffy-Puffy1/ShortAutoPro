@@ -98,17 +98,19 @@ def extrair_objeto_json(texto):
     except json.JSONDecodeError:
         decoder = json.JSONDecoder()
 
-        # First try the first object or array embedded in surrounding prose.
+        # Only the first JSON-looking root may be recovered from surrounding
+        # prose. Never jump into a nested array/object after a malformed outer
+        # document, because that can silently accept truncated model output.
         candidatos_inicio = [
             pos for pos in (limpo.find("{"), limpo.find("["))
             if pos >= 0
         ]
-        for inicio in sorted(candidatos_inicio):
+        if candidatos_inicio:
+            inicio = min(candidatos_inicio)
             try:
                 valor, _ = decoder.raw_decode(limpo, inicio)
-                break
             except json.JSONDecodeError:
-                continue
+                valor = None
 
         if valor is None:
             raise ValueError("nenhum JSON válido encontrado")
