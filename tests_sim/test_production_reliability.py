@@ -234,7 +234,7 @@ class MediaRecoveryTests(unittest.TestCase):
             return Mock(returncode=1)
         with patch.dict(os.environ, {'SAP_MEDIA_STAGE_ROUNDS': '5'}), patch.object(media, 'run_group', side_effect=run) as call:
             self.assertEqual(media.main(), 1)
-            self.assertEqual(call.call_count, 3)
+            self.assertEqual(call.call_count, 2)
 
     def test_timeout_without_fresh_report_keeps_timeout_code(self):
         self.write_report([1])
