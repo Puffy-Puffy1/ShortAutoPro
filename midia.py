@@ -154,15 +154,6 @@ _MEDIA_API_TIMEOUT = max(3.0, min(_MEDIA_API_TIMEOUT, 8.0))
 
 
 try:
-    _PROVIDER_WORKERS = int(
-        os.getenv("SAP_MEDIA_PROVIDER_WORKERS", "6") or 6
-    )
-except (TypeError, ValueError):
-    _PROVIDER_WORKERS = 6
-
-_PROVIDER_WORKERS = max(2, min(_PROVIDER_WORKERS, 6))
-
-try:
     _PROVIDER_RESULT_TIMEOUT = float(
         os.getenv("SAP_MEDIA_PROVIDER_RESULT_TIMEOUT", "6") or 6
     )
@@ -170,10 +161,6 @@ except (TypeError, ValueError):
     _PROVIDER_RESULT_TIMEOUT = 6.0
 
 _PROVIDER_RESULT_TIMEOUT = max(4.0, min(_PROVIDER_RESULT_TIMEOUT, 10.0))
-
-_PROVIDER_EXECUTOR = ThreadPoolExecutor(
-    max_workers=_PROVIDER_WORKERS
-)
 
 _HTTP_SESSIONS = {}
 _HTTP_SESSIONS_LOCK = threading.Lock()
@@ -2537,9 +2524,8 @@ def buscar_todos_candidatos(
         )
 
     if USAR_VIDEOS:
-
-        provider_jobs.extend(
-            [
+        if USAR_PEXELS and PEXELS_KEY:
+            provider_jobs.append(
                 (
                     "pexels_video",
                     lambda: pexels_video(
@@ -2547,7 +2533,10 @@ def buscar_todos_candidatos(
                         must_have,
                         avoid
                     )
-                ),
+                )
+            )
+        if USAR_PIXABAY and PIXABAY_KEY:
+            provider_jobs.append(
                 (
                     "pixabay_video",
                     lambda: pixabay_video(
@@ -2555,7 +2544,10 @@ def buscar_todos_candidatos(
                         must_have,
                         avoid
                     )
-                ),
+                )
+            )
+        if USAR_COVERR and COVERR_KEY:
+            provider_jobs.append(
                 (
                     "coverr_video",
                     lambda: coverr_video(
@@ -2563,12 +2555,11 @@ def buscar_todos_candidatos(
                         must_have,
                         avoid
                     )
-                ),
-            ]
-        )
+                )
+            )
 
-    provider_jobs.extend(
-        [
+    if USAR_PEXELS and PEXELS_KEY:
+        provider_jobs.append(
             (
                 "pexels_foto",
                 lambda: pexels_foto(
@@ -2576,7 +2567,11 @@ def buscar_todos_candidatos(
                     must_have,
                     avoid
                 )
-            ),
+            )
+        )
+
+    if USAR_PIXABAY and PIXABAY_KEY:
+        provider_jobs.append(
             (
                 "pixabay_foto",
                 lambda: pixabay_foto(
@@ -2584,9 +2579,8 @@ def buscar_todos_candidatos(
                     must_have,
                     avoid
                 )
-            ),
-        ]
-    )
+            )
+        )
 
     provider_results = {}
 
@@ -2601,20 +2595,19 @@ def buscar_todos_candidatos(
             f"providers={len(provider_jobs)}"
         )
 
+        _executor = None
         try:
-
+            # A fresh executor per acquisition prevents slow/stuck futures from
+            # poisoning later scenes. cancel() cannot stop a running request, so
+            # a process-wide pool eventually starves after repeated timeouts.
+            _executor = ThreadPoolExecutor(
+                max_workers=min(max_workers, len(provider_jobs))
+            )
             futures = {
-                name: _PROVIDER_EXECUTOR.submit(
-                    job
-                )
-                for name, job
-                in provider_jobs
+                name: _executor.submit(job)
+                for name, job in provider_jobs
             }
 
-            # Coleta na ordem canônica dos providers, mas com UM
-            # deadline compartilhado por rodada. Sem isso, cada Future podia
-            # consumir o timeout inteiro e transformar uma rodada paralela em
-            # vários timeouts somados.
             _provider_deadline = (
                 time.monotonic()
                 + _PROVIDER_RESULT_TIMEOUT
@@ -2674,6 +2667,18 @@ def buscar_todos_candidatos(
             )
 
             provider_results = {}
+
+        finally:
+            if _executor is not None:
+                try:
+                    _executor.shutdown(
+                        wait=False,
+                        cancel_futures=True,
+                    )
+                except TypeError:
+                    _executor.shutdown(wait=False)
+                except Exception:
+                    pass
 
     if not provider_results:
 
@@ -5690,12 +5695,18 @@ for numero, cena in enumerate(
             None,
         )
 
-        print(
-            "SAP_MUST_SIMPLIFIED_RETRIES=ENABLED "
-            f"scene={numero} alternatives={len(alternativas)} "
-            f"must_total={len(must_have)} "
-            f"one_shot={bool(callable(_sap_search_once))}"
-        )
+        if alternativas:
+            print(
+                "SAP_MUST_SIMPLIFIED_RETRIES=ENABLED "
+                f"scene={numero} alternatives={len(alternativas)} "
+                f"must_total={len(must_have)} "
+                f"one_shot={bool(callable(_sap_search_once))}"
+            )
+        else:
+            print(
+                "SAP_MUST_SIMPLIFIED_RETRIES=SKIPPED "
+                f"scene={numero} reason=NO_ALTERNATIVES"
+            )
 
 
         for busca_alt in alternativas:
@@ -6354,7 +6365,9 @@ for numero, cena in enumerate(
             escolhido
         )
 
-        if confiavel:
+        if escolhido.get("editorial_reuse"):
+            trust = "EDITORIAL_NON_EVIDENTIARY"
+        elif confiavel:
             trust = "HIGH"
         else:
             trust = "LOW"

@@ -71,12 +71,12 @@ def round_env(round_index: int) -> dict[str, str]:
     env["SAP_MEDIA_INCREMENTAL"] = "1"
 
     # Increasing retrieval effort only. MUST acceptance rules are untouched.
-    rescue_budget = (1, 2, 3)[min(round_index, 2)]
+    rescue_budget = (1, 1, 2)[min(round_index, 2)]
     # Keep recovery bounded on mobile. The provider layer already runs
     # concurrently, so escalating to 30-45s makes hard scenes dominate the
     # entire Short production without improving acceptance rules.
-    provider_timeout = (6, 8, 10)[min(round_index, 2)]
-    wiki_deadline = (6, 8, 10)[min(round_index, 2)]
+    provider_timeout = (5, 6, 8)[min(round_index, 2)]
+    wiki_deadline = (5, 6, 8)[min(round_index, 2)]
 
     env["SAP_STOCK_RESCUE_MAX_QUERIES"] = str(rescue_budget)
     env["SAP_MUST_RESCUE_MAX_QUERIES"] = str(rescue_budget)
@@ -139,11 +139,11 @@ def round_timeout_seconds() -> tuple[int, int]:
         remaining = len(pending)
     else:
         remaining = max(1, expected - current_completed_hint())
-    base = env_int("SAP_MEDIA_ROUND_TIMEOUT", 90, 30, 180)
-    scene_budget = env_float("SAP_MEDIA_SCENE_BUDGET_SECONDS", 18.0, 10.0, 35.0)
-    grace = env_int("SAP_MEDIA_ROUND_GRACE_SECONDS", 15, 5, 30)
+    base = env_int("SAP_MEDIA_ROUND_TIMEOUT", 75, 30, 150)
+    scene_budget = env_float("SAP_MEDIA_SCENE_BUDGET_SECONDS", 14.0, 8.0, 30.0)
+    grace = env_int("SAP_MEDIA_ROUND_GRACE_SECONDS", 10, 5, 25)
     dynamic = int(remaining * scene_budget + grace)
-    return max(30, min(max(base, dynamic), 180)), remaining
+    return max(30, min(max(base, dynamic), 150)), remaining
 
 
 def main() -> int:
@@ -176,7 +176,7 @@ def main() -> int:
             "MEDIA_STAGE_RUNTIME=BUDGET "
             f"round={round_index + 1} remaining={remaining_hint} "
             f"timeout={round_timeout}s "
-            f"scene_budget={env_float('SAP_MEDIA_SCENE_BUDGET_SECONDS', 18.0, 10.0, 35.0):.0f}s"
+            f"scene_budget={env_float('SAP_MEDIA_SCENE_BUDGET_SECONDS', 14.0, 8.0, 30.0):.0f}s"
         )
 
         previous_report = report_signature()
