@@ -387,6 +387,11 @@ def stages_before_render(p: Pipeline) -> None:
     p.run("6A0 - ASSET LIBRARY + FIRST FRAME", "shortauto_asset_library.py", "index", "--short-id", p.sid)
     p.run("6A0A - INTELLIGENCE MEDIA: SOURCE/CACHE/AGING", "shortauto_intelligence_layer.py", "media", "--short-id", p.sid)
     p.run("6A1 - MULTIDIMENSIONAL VISUAL SCORE", "visual_score_engine.py")
+    p.run(
+        "6A2 - SELECTED VISUAL CONTINUITY",
+        "visual_continuity_engine.py",
+        "--selected",
+    )
     p.run("6B - CINEMATIC MOTION DIRECTOR", "motion_director.py")
     p.run("6C - MONTAGE RHYTHM DIRECTOR", "rhythm_director.py")
     p.run("6C1 - PROFESSIONAL EDIT DIRECTOR", "professional_edit_director.py")
@@ -475,6 +480,7 @@ def repair_cycle(p: Pipeline) -> None:
     rerender_actions = {
         "media_reacquire",
         "media_quality_refresh",
+        "visual_continuity_repair",
         "retention_repair",
         "professional_edit_repair",
         "caption_repair",
