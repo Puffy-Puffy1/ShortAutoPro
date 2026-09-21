@@ -7,6 +7,14 @@ import tempfile
 import time
 import requests
 
+from media_external_resilience import (
+    provider_gate as _sap_provider_gate,
+    note_provider_event as _sap_note_provider_event,
+    note_response as _sap_note_provider_response,
+    note_exception as _sap_note_provider_exception,
+    note_items as _sap_note_provider_items,
+)
+
 from wikimedia_query_bridge import (
     gerar_buscas_commons,
     gerar_buscas_commons_ancoradas
@@ -348,90 +356,163 @@ def consultar_commons(
     limite
 ):
 
+    allowed, reason, remaining = (
+        _sap_provider_gate(
+            "wikimedia"
+        )
+    )
+
+    if not allowed:
+
+        print(
+            "SAP_WIKIMEDIA_CIRCUIT=SKIP "
+            f"reason={reason} "
+            f"remaining={remaining:.1f}s"
+        )
+
+        return []
+
     params = {
-        "action":
-            "query",
-
-        "generator":
-            "search",
-
-        "gsrsearch":
-            query,
-
-        "gsrnamespace":
-            6,
-
-        "gsrlimit":
-            limite,
-
-        "prop":
-            "imageinfo",
-
-        "iiprop":
-            "url|size|mime|extmetadata",
-
-        "iiurlwidth":
-            1200,
-
-        "format":
-            "json",
-
-        "formatversion":
-            2
+        "action": "query",
+        "generator": "search",
+        "gsrsearch": query,
+        "gsrnamespace": 6,
+        "gsrlimit": limite,
+        "prop": "imageinfo",
+        "iiprop": "url|size|mime|extmetadata",
+        "iiurlwidth": 1200,
+        "format": "json",
+        "formatversion": 2,
     }
 
-
-    r = None
     for attempt in range(2):
+
         try:
+
             r = requests.get(
                 API,
                 headers=HEADERS,
                 params=params,
-                timeout=(min(6.0, TIMEOUT), TIMEOUT)
+                timeout=(
+                    min(
+                        6.0,
+                        TIMEOUT
+                    ),
+                    TIMEOUT
+                )
             )
-        except Exception:
-            if attempt == 0:
-                time.sleep(0.8)
+
+        except Exception as exc:
+
+            event = (
+                _sap_note_provider_exception(
+                    "wikimedia",
+                    exc,
+                )
+            )
+
+            if (
+                attempt == 0
+                and event
+                in {
+                    "TIMEOUT",
+                    "NETWORK",
+                    "UNKNOWN",
+                }
+            ):
+
+                time.sleep(
+                    0.6
+                )
+
                 continue
+
             return []
 
-        if r.ok:
-            break
-
-        if r.status_code not in {429, 500, 502, 503, 504} or attempt == 1:
-            return []
-
-        wait = 1.0
-        if r.status_code == 429:
-            try:
-                wait = float(r.headers.get("Retry-After") or wait)
-            except (TypeError, ValueError):
-                wait = 1.0
-        time.sleep(max(0.5, min(wait, 4.0)))
-
-    if r is None or not r.ok:
-        return []
-
-
-    try:
-
-        return (
-            r.json()
-            .get(
-                "query",
-                {}
-            )
-            .get(
-                "pages",
-                []
+        event = (
+            _sap_note_provider_response(
+                "wikimedia",
+                r,
             )
         )
 
-    except Exception:
+        if not r.ok:
 
-        return []
+            if (
+                r.status_code
+                in {
+                    500,
+                    502,
+                    503,
+                    504,
+                }
+                and attempt == 0
+            ):
 
+                time.sleep(
+                    0.6
+                )
+
+                continue
+
+            # 401/403 and 429 open a bounded circuit immediately.
+            # 404/410 are not API-health failures but still return no page set.
+            return []
+
+        try:
+
+            payload = r.json()
+
+            pages = (
+                payload
+                .get(
+                    "query",
+                    {}
+                )
+                .get(
+                    "pages",
+                    []
+                )
+            )
+
+            if not isinstance(
+                pages,
+                list
+            ):
+
+                raise ValueError(
+                    "commons pages is not a list"
+                )
+
+        except Exception as exc:
+
+            _sap_note_provider_event(
+                "wikimedia",
+                "MALFORMED",
+                detail=(
+                    f"{type(exc).__name__}:"
+                    f"{str(exc)[:120]}"
+                ),
+            )
+
+            if attempt == 0:
+
+                time.sleep(
+                    0.4
+                )
+
+                continue
+
+            return []
+
+        _sap_note_provider_items(
+            "wikimedia",
+            pages,
+        )
+
+        return pages
+
+    return []
 
 
 # =====================================================
@@ -1149,40 +1230,58 @@ def buscar_wikimedia_fotos(
             )
 
 
+            _meta_description = limpar_html(
+                ext.get(
+                    "ImageDescription",
+                    {}
+                ).get(
+                    "value",
+                    ""
+                )
+            )
+
+            _meta_object = limpar_html(
+                ext.get(
+                    "ObjectName",
+                    {}
+                ).get(
+                    "value",
+                    ""
+                )
+            )
+
+            _meta_categories = limpar_html(
+                ext.get(
+                    "Categories",
+                    {}
+                ).get(
+                    "value",
+                    ""
+                )
+            )
+
             descricao = " ".join(
                 [
                     titulo,
-
-                    limpar_html(
-                        ext.get(
-                            "ImageDescription",
-                            {}
-                        ).get(
-                            "value",
-                            ""
-                        )
-                    ),
-
-                    limpar_html(
-                        ext.get(
-                            "ObjectName",
-                            {}
-                        ).get(
-                            "value",
-                            ""
-                        )
-                    ),
-
-                    limpar_html(
-                        ext.get(
-                            "Categories",
-                            {}
-                        ).get(
-                            "value",
-                            ""
-                        )
-                    )
+                    _meta_description,
+                    _meta_object,
+                    _meta_categories,
                 ]
+            )
+
+            _metadata_strength = sum(
+                1
+                for _meta_value
+                in (
+                    titulo,
+                    _meta_description,
+                    _meta_object,
+                    _meta_categories,
+                )
+                if str(
+                    _meta_value
+                    or ""
+                ).strip()
             )
 
 
@@ -1318,6 +1417,21 @@ def buscar_wikimedia_fotos(
 
             score += topic_bonus
             score += mode_bonus
+
+            # Metadata is evidence, not decoration. Weak Commons records stay
+            # usable only when a specific anchor already proves the match.
+            if _metadata_strength <= 1:
+                score -= 35.0
+            elif _metadata_strength == 2:
+                score -= 12.0
+            elif _metadata_strength >= 4:
+                score += 8.0
+
+            if (
+                _metadata_strength <= 1
+                and tier == "GENERIC"
+            ):
+                continue
 
 
             # Fonte documental candidata
@@ -1474,6 +1588,15 @@ def buscar_wikimedia_fotos(
 
                 "credit_page":
                     pagina,
+
+                "wiki_metadata_strength":
+                    _metadata_strength,
+
+                "wiki_metadata_weak":
+                    (
+                        _metadata_strength
+                        <= 1
+                    ),
 
                 # ---------------------------------
                 # PROVENANCE 5.4
