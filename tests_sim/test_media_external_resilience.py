@@ -135,6 +135,13 @@ class MediaExternalResilienceTests(unittest.TestCase):
         self.assertIn("SAP_MEDIA_SEMANTIC_REJECT", text)
         self.assertIn("candidato=candidato", text)
 
+    def test_preflight_and_health_require_resilience_module(self):
+        preflight = (ROOT / "preflight_check.sh").read_text(encoding="utf-8")
+        health = (ROOT / "health_check.sh").read_text(encoding="utf-8")
+        self.assertIn("media_external_resilience.py", preflight)
+        self.assertIn("media_external_resilience.py", health)
+        self.assertIn('"media_external_resilience"', health)
+
     def test_media_gate_surfaces_provider_health(self):
         text = (ROOT / "media_master_gate.py").read_text(encoding="utf-8")
         self.assertIn('"provider_health"', text)
