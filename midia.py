@@ -154,15 +154,6 @@ _MEDIA_API_TIMEOUT = max(3.0, min(_MEDIA_API_TIMEOUT, 8.0))
 
 
 try:
-    _PROVIDER_WORKERS = int(
-        os.getenv("SAP_MEDIA_PROVIDER_WORKERS", "6") or 6
-    )
-except (TypeError, ValueError):
-    _PROVIDER_WORKERS = 6
-
-_PROVIDER_WORKERS = max(2, min(_PROVIDER_WORKERS, 6))
-
-try:
     _PROVIDER_RESULT_TIMEOUT = float(
         os.getenv("SAP_MEDIA_PROVIDER_RESULT_TIMEOUT", "6") or 6
     )
@@ -5704,12 +5695,18 @@ for numero, cena in enumerate(
             None,
         )
 
-        print(
-            "SAP_MUST_SIMPLIFIED_RETRIES=ENABLED "
-            f"scene={numero} alternatives={len(alternativas)} "
-            f"must_total={len(must_have)} "
-            f"one_shot={bool(callable(_sap_search_once))}"
-        )
+        if alternativas:
+            print(
+                "SAP_MUST_SIMPLIFIED_RETRIES=ENABLED "
+                f"scene={numero} alternatives={len(alternativas)} "
+                f"must_total={len(must_have)} "
+                f"one_shot={bool(callable(_sap_search_once))}"
+            )
+        else:
+            print(
+                "SAP_MUST_SIMPLIFIED_RETRIES=SKIPPED "
+                f"scene={numero} reason=NO_ALTERNATIVES"
+            )
 
 
         for busca_alt in alternativas:
