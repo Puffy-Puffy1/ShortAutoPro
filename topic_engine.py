@@ -50,7 +50,10 @@ REJEITADOS_RUNTIME = os.path.join(BASE, "roteiros", f"topic_rejected_{SHORT_ID}.
 os.makedirs(os.path.dirname(SAIDA), exist_ok=True)
 
 if not API_KEY:
-    sys.exit("ERRO: GEMINI_API_KEY não configurada.")
+    print(
+        "AVISO: GEMINI_API_KEY não configurada; "
+        "Topic Engine usará fallback verificado sem LLM."
+    )
 
 
 def normalizar(texto):
@@ -322,6 +325,11 @@ def _extract_gemini_text(dados):
 
 
 def chamar_gemini(prompt):
+    if not API_KEY:
+        raise GeminiTemporarilyUnavailable(
+            "GEMINI_API_KEY ausente; usando recuperação verificada"
+        )
+
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {"temperature": 0.65, "maxOutputTokens": 1800},
