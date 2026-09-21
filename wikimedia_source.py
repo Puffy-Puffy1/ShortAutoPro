@@ -7,6 +7,12 @@ import tempfile
 import time
 import requests
 
+from media_resilience import (
+    cache_query_result,
+    get_cached_query,
+    provider_allowed,
+    record_provider_result,
+)
 from wikimedia_query_bridge import (
     gerar_buscas_commons,
     gerar_buscas_commons_ancoradas
@@ -15,15 +21,16 @@ from wikimedia_query_bridge import (
 
 # =====================================================
 # SHORTAUTO PRO
-# WIKIMEDIA EVIDENCE SOURCE 3.4.1
+# WIKIMEDIA EVIDENCE SOURCE 3.5
 # =====================================================
 
 API = "https://commons.wikimedia.org/w/api.php"
 
 HEADERS = {
     "User-Agent":
-        "ShortAutoPro/3.4.1 "
-        "(documentary-media-research; factual-shorts)"
+        "ShortAutoPro/3.5 "
+        "(documentary-media-research; "
+        "https://github.com/Puffy-Puffy1/ShortAutoPro)" 
 }
 
 try:
@@ -347,39 +354,50 @@ def consultar_commons(
     query,
     limite
 ):
-
-    params = {
-        "action":
-            "query",
-
-        "generator":
-            "search",
-
-        "gsrsearch":
-            query,
-
-        "gsrnamespace":
-            6,
-
-        "gsrlimit":
-            limite,
-
-        "prop":
-            "imageinfo",
-
-        "iiprop":
-            "url|size|mime|extmetadata",
-
-        "iiurlwidth":
-            1200,
-
-        "format":
-            "json",
-
-        "formatversion":
-            2
+    cache_payload = {
+        "query": " ".join(str(query or "").split()),
+        "limit": int(limite or 0),
+        "props": "url|size|mime|extmetadata",
+        "thumb_width": 1200,
     }
 
+    cached, cache_state = get_cached_query(
+        "wikimedia",
+        cache_payload,
+        allow_stale=False,
+    )
+    if cached is not None:
+        print(
+            "SAP_WIKIMEDIA_QUERY_CACHE="
+            f"{cache_state} query={cache_payload['query'][:80]}"
+        )
+        return cached
+
+    allowed, circuit_reason = provider_allowed("wikimedia")
+    if not allowed:
+        stale, stale_state = get_cached_query(
+            "wikimedia",
+            cache_payload,
+            allow_stale=True,
+        )
+        print(
+            "SAP_WIKIMEDIA_CIRCUIT=OPEN "
+            f"reason={circuit_reason} cache={stale_state}"
+        )
+        return stale or []
+
+    params = {
+        "action": "query",
+        "generator": "search",
+        "gsrsearch": query,
+        "gsrnamespace": 6,
+        "gsrlimit": limite,
+        "prop": "imageinfo",
+        "iiprop": "url|size|mime|extmetadata",
+        "iiurlwidth": 1200,
+        "format": "json",
+        "formatversion": 2,
+    }
 
     r = None
     for attempt in range(2):
@@ -388,49 +406,135 @@ def consultar_commons(
                 API,
                 headers=HEADERS,
                 params=params,
-                timeout=(min(6.0, TIMEOUT), TIMEOUT)
+                timeout=(min(4.0, TIMEOUT), min(TIMEOUT, 8.0)),
             )
-        except Exception:
+        except requests.Timeout:
+            record_provider_result(
+                "wikimedia",
+                ok=False,
+                reason="timeout",
+            )
             if attempt == 0:
-                time.sleep(0.8)
                 continue
-            return []
+            stale, stale_state = get_cached_query(
+                "wikimedia",
+                cache_payload,
+                allow_stale=True,
+            )
+            print(
+                "SAP_WIKIMEDIA_NETWORK_FALLBACK="
+                f"{stale_state} reason=timeout"
+            )
+            return stale or []
+        except requests.RequestException as exc:
+            record_provider_result(
+                "wikimedia",
+                ok=False,
+                reason="network",
+            )
+            stale, stale_state = get_cached_query(
+                "wikimedia",
+                cache_payload,
+                allow_stale=True,
+            )
+            print(
+                "SAP_WIKIMEDIA_NETWORK_FALLBACK="
+                f"{stale_state} reason={type(exc).__name__}"
+            )
+            return stale or []
 
         if r.ok:
-            break
-
-        if r.status_code not in {429, 500, 502, 503, 504} or attempt == 1:
-            return []
-
-        wait = 1.0
-        if r.status_code == 429:
             try:
-                wait = float(r.headers.get("Retry-After") or wait)
+                pages = (
+                    r.json()
+                    .get("query", {})
+                    .get("pages", [])
+                )
+                if not isinstance(pages, list):
+                    raise ValueError("pages_not_list")
+            except Exception:
+                record_provider_result(
+                    "wikimedia",
+                    ok=False,
+                    reason="invalid_json",
+                )
+                stale, stale_state = get_cached_query(
+                    "wikimedia",
+                    cache_payload,
+                    allow_stale=True,
+                )
+                print(
+                    "SAP_WIKIMEDIA_INVALID_RESPONSE_FALLBACK="
+                    f"{stale_state}"
+                )
+                return stale or []
+
+            record_provider_result(
+                "wikimedia",
+                ok=True,
+                status_code=r.status_code,
+            )
+            cache_query_result(
+                "wikimedia",
+                cache_payload,
+                pages,
+            )
+            return pages
+
+        code = int(r.status_code or 0)
+        retry_after = None
+        if code == 429:
+            try:
+                retry_after = float(r.headers.get("Retry-After") or 0)
             except (TypeError, ValueError):
-                wait = 1.0
-        time.sleep(max(0.5, min(wait, 4.0)))
+                retry_after = None
 
-    if r is None or not r.ok:
-        return []
-
-
-    try:
-
-        return (
-            r.json()
-            .get(
-                "query",
-                {}
-            )
-            .get(
-                "pages",
-                []
-            )
+        reason = (
+            "auth"
+            if code in {401, 403}
+            else "rate_limit"
+            if code == 429
+            else "server"
+            if code in {500, 502, 503, 504}
+            else f"http_{code}"
+        )
+        record_provider_result(
+            "wikimedia",
+            ok=False,
+            status_code=code,
+            reason=reason,
+            retry_after=retry_after,
         )
 
-    except Exception:
+        # Auth/rate-limit errors are not helped by immediate repeated calls.
+        if code in {401, 403, 429}:
+            stale, stale_state = get_cached_query(
+                "wikimedia",
+                cache_payload,
+                allow_stale=True,
+            )
+            print(
+                "SAP_WIKIMEDIA_HTTP_FALLBACK "
+                f"status={code} cache={stale_state}"
+            )
+            return stale or []
 
-        return []
+        if code not in {500, 502, 503, 504} or attempt == 1:
+            stale, stale_state = get_cached_query(
+                "wikimedia",
+                cache_payload,
+                allow_stale=True,
+            )
+            return stale or []
+
+        time.sleep(0.35)
+
+    stale, stale_state = get_cached_query(
+        "wikimedia",
+        cache_payload,
+        allow_stale=True,
+    )
+    return stale or []
 
 
 
@@ -1738,5 +1842,5 @@ def salvar_credito(
 if __name__ == "__main__":
 
     print(
-        "WIKIMEDIA EVIDENCE SOURCE 3.4.1: OK"
+        "WIKIMEDIA EVIDENCE SOURCE 3.5: OK"
     )
