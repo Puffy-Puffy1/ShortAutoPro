@@ -29,6 +29,8 @@ DEFAULT_SEEDS = {
     "batch_recovery.sh",
     "health_check.sh",
     "preflight_check.sh",
+    "automation/install_termux_autosync.sh",
+    "automation/termux_bridge.sh",
     "diagnostico.sh",
     "release_check.sh",
     "production_ready.sh",
