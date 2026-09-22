@@ -23,6 +23,8 @@ SUPERVISOR = BASE / "roteiros" / f"supervisor_{SHORT_ID}.json"
 VIDEO = BASE / "videos" / f"short_v6_{SHORT_ID}.mp4"
 MEDIA_DIR = BASE / "imagens" / f"short_{SHORT_ID}"
 SCENE_MAP = BASE / "roteiros" / f"scene_map_{SHORT_ID}.json"
+AUDIO = BASE / "audios" / f"short_{SHORT_ID}.mp3"
+SUBTITLE = BASE / "videos" / f"short_{SHORT_ID}.ass"
 MEDIA_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".mp4"}
 VALID_SUPERVISOR = {"EXCELLENT", "PASS", "WARNING"}
 
@@ -86,6 +88,80 @@ def ffprobe_json(path: Path):
     return data
 
 
+
+
+def media_duration(path: Path):
+    if not path.is_file():
+        raise RuntimeError(f"arquivo ausente: {path}")
+    data = ffprobe_json(path)
+    fmt = data.get("format", {}) if isinstance(data, dict) else {}
+    if not isinstance(fmt, dict):
+        raise RuntimeError(f"ffprobe sem format para {path.name}")
+    value = safe_float(fmt.get("duration"))
+    if value <= 0:
+        raise RuntimeError(f"duração inválida: {path.name}")
+    return value
+
+
+def subtitle_bounds(path: Path):
+    if not path.is_file():
+        raise RuntimeError(f"legenda ausente: {path}")
+    first = None
+    last = None
+    count = 0
+
+    def parse_ass(value):
+        h, m, rest = str(value).strip().split(":")
+        sec, cent = rest.split(".")
+        return int(h) * 3600 + int(m) * 60 + int(sec) + int(cent) / 100.0
+
+    try:
+        lines = path.read_text(encoding="utf-8", errors="strict").splitlines()
+    except Exception as exc:
+        raise RuntimeError(f"legenda UTF-8 inválida: {exc}") from exc
+
+    previous_start = -1.0
+    for line in lines:
+        if not line.startswith("Dialogue:"):
+            continue
+        parts = line.split(",", 9)
+        if len(parts) != 10:
+            raise RuntimeError("linha Dialogue ASS inválida")
+        try:
+            start = parse_ass(parts[1])
+            end = parse_ass(parts[2])
+        except Exception as exc:
+            raise RuntimeError(f"timestamp ASS inválido: {exc}") from exc
+        if start < 0 or end <= start:
+            raise RuntimeError("intervalo ASS inválido")
+        if start + 0.05 < previous_start:
+            raise RuntimeError("timestamps ASS fora de ordem")
+        previous_start = start
+        first = start if first is None else min(first, start)
+        last = end if last is None else max(last, end)
+        count += 1
+    if count == 0:
+        raise RuntimeError("legenda ASS sem Dialogue")
+    return first or 0.0, last or 0.0, count
+
+
+def decode_scan(path: Path):
+    timeout = max(60, min(300, int(safe_float(os.getenv("SAP_DECODE_SCAN_TIMEOUT", "120")) or 120)))
+    try:
+        result = subprocess.run(
+            ["ffmpeg", "-hide_banner", "-v", "error", "-i", str(path), "-f", "null", "-"],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(f"decode scan excedeu {timeout}s") from exc
+    if result.returncode != 0:
+        detail = (result.stderr or "").strip().replace("\n", " ")[:300]
+        raise RuntimeError(f"decode scan falhou: {detail or 'ffmpeg returncode != 0'}")
+
+
 def media_inventory(media_dir: Path):
     if not media_dir.is_dir():
         return []
@@ -95,7 +171,7 @@ def media_inventory(media_dir: Path):
     )
 
 
-def evaluate(video_path, media_dir, scene_map_path, supervisor_path, expected, probe_data=None):
+def evaluate(video_path, media_dir, scene_map_path, supervisor_path, expected, probe_data=None, audio_path=None, subtitle_path=None, run_decode_scan=False):
     video_path = Path(video_path)
     media_dir = Path(media_dir)
     scene_map_path = Path(scene_map_path)
@@ -215,6 +291,41 @@ def evaluate(video_path, media_dir, scene_map_path, supervisor_path, expected, p
             if map_numbers != expected_numbers:
                 errors.append("Numeração do scene_map não é sequencial.")
 
+    audio_duration = 0.0
+    subtitle_end = 0.0
+    subtitle_count = 0
+
+    if audio_path is not None:
+        try:
+            audio_duration = media_duration(Path(audio_path))
+            if duration > 0 and abs(duration - audio_duration) > 0.75:
+                errors.append(
+                    f"Sync áudio/vídeo divergente: video={duration:.2f}s audio={audio_duration:.2f}s"
+                )
+        except RuntimeError as exc:
+            errors.append(str(exc))
+
+    if subtitle_path is not None:
+        try:
+            _subtitle_start, subtitle_end, subtitle_count = subtitle_bounds(Path(subtitle_path))
+            reference_duration = audio_duration or duration
+            if reference_duration > 0 and subtitle_end > reference_duration + 0.75:
+                errors.append(
+                    f"Legenda ultrapassa duração: subtitle={subtitle_end:.2f}s ref={reference_duration:.2f}s"
+                )
+            if reference_duration > 0 and subtitle_end < max(0.0, reference_duration - 3.0):
+                warnings.append(
+                    f"Legenda termina cedo: subtitle={subtitle_end:.2f}s ref={reference_duration:.2f}s"
+                )
+        except RuntimeError as exc:
+            errors.append(str(exc))
+
+    if run_decode_scan and video_path.is_file():
+        try:
+            decode_scan(video_path)
+        except RuntimeError as exc:
+            errors.append(str(exc))
+
     supervisor = safe_json(supervisor_path)
     if supervisor is None:
         errors.append("Relatório do Production Supervisor ausente ou inválido.")
@@ -233,6 +344,9 @@ def evaluate(video_path, media_dir, scene_map_path, supervisor_path, expected, p
         "height": height,
         "fps": fps,
         "media_count": len(media),
+        "audio_duration": audio_duration,
+        "subtitle_end": subtitle_end,
+        "subtitle_count": subtitle_count,
     }
 
 
@@ -243,6 +357,9 @@ def main():
         SCENE_MAP,
         SUPERVISOR,
         QTD_CENAS,
+        audio_path=AUDIO,
+        subtitle_path=SUBTITLE,
+        run_decode_scan=True,
     )
 
     print()
@@ -255,6 +372,8 @@ def main():
     print(f"Resolução: {result['width']}x{result['height']}")
     print(f"FPS: {result['fps']:.2f}")
     print(f"Cenas físicas: {result['media_count']}/{QTD_CENAS}")
+    print(f"Áudio: {result['audio_duration']:.2f}s")
+    print(f"Legenda até: {result['subtitle_end']:.2f}s ({result['subtitle_count']} eventos)")
     print()
 
     if result["warnings"]:
