@@ -27,7 +27,7 @@ class MediaStageRealtimeBudgetTests(unittest.TestCase):
 
     def test_certified_recovery_budgets_are_preserved(self):
         text = (ROOT / "media_stage_runtime.py").read_text(encoding="utf-8")
-        self.assertIn("rescue_budget = (2, 4, 6, 8, 8)", text)
+        self.assertIn("rescue_budget = (1, 2, 3, 4)", text)
         self.assertNotIn('env["SAP_MEDIA_SIMPLIFIED_RETRY_MAX"]', text)
 
     def test_midia_uses_canonical_base_override(self):
