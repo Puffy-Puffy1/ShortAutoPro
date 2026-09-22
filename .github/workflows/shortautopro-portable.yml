@@ -98,7 +98,7 @@ jobs:
           for f in \
             main.py profile_run.sh resume_short_runtime.py \
             professional_edit_director.py professional_edit_repair.py \
-            professional_caption_director.py video_professional.py v6_professional.py \
+            professional_caption_director.py render_preflight.py video_professional.py v6_professional.py \
             visual_continuity_engine.py visual_score_engine.py multi_asset_director.py \
             retention_engine.py sound_design_engine.py speech_director.py \
             caption_layout_guard.py audio_finalizer.py visual_qa.py release_gate.py \
@@ -114,6 +114,7 @@ jobs:
           done
 
           grep -q 'PROFESSIONAL_CANONICAL' main.py
+          grep -q 'render_preflight.py' main.py
           grep -q 'video_professional.py' main.py
           grep -q 'v6_professional.py' main.py
           grep -q 'release_gate.py' main.py
