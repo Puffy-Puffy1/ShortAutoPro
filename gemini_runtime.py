@@ -58,35 +58,38 @@ def _extract_text(data: object) -> str:
     if not isinstance(data, dict):
         raise GeminiInvalidResponse("invalid_json_shape")
 
-    candidates = data.get("candidates", [])
-    if isinstance(candidates, list):
-        for candidate in candidates:
-            if not isinstance(candidate, dict):
-                continue
-            content = candidate.get("content", {})
-            parts = content.get("parts", []) if isinstance(content, dict) else []
-            if not isinstance(parts, list):
-                continue
-            chunks = [
-                str(part.get("text", "") or "").strip()
-                for part in parts
-                if isinstance(part, dict)
-                and str(part.get("text", "") or "").strip()
-            ]
-            if chunks:
-                return "\n".join(chunks).strip()
-
     feedback = data.get("promptFeedback", {})
     if isinstance(feedback, dict) and feedback.get("blockReason"):
         raise GeminiInvalidResponse(
             "prompt_block=" + str(feedback.get("blockReason"))
         )
 
-    finish_reasons = []
+    candidates = data.get("candidates", [])
+    finish_reasons: list[str] = []
     if isinstance(candidates, list):
         for candidate in candidates:
-            if isinstance(candidate, dict) and candidate.get("finishReason"):
-                finish_reasons.append(str(candidate.get("finishReason")))
+            if not isinstance(candidate, dict):
+                continue
+            finish = str(candidate.get("finishReason", "") or "").strip()
+            if finish and finish != "STOP":
+                finish_reasons.append(finish)
+                # Never consume partial/safety-stopped output as complete.
+                continue
+            content = candidate.get("content", {})
+            parts = content.get("parts", []) if isinstance(content, dict) else []
+            if not isinstance(parts, list):
+                continue
+            chunks = [
+                str(part.get("text", "") or "")
+                for part in parts
+                if isinstance(part, dict)
+                and not bool(part.get("thought"))
+                and str(part.get("text", "") or "")
+            ]
+            if chunks:
+                # Parts may split a JSON token/string; injecting newlines here
+                # corrupts otherwise valid structured output.
+                return "".join(chunks).strip()
 
     detail = (
         "finish_reason=" + ",".join(finish_reasons)
@@ -191,7 +194,18 @@ def generate_text(
                 try:
                     text = _extract_text(data)
                 except GeminiInvalidResponse as exc:
-                    invalid.append(f"{model}:{exc}")
+                    detail = str(exc)
+                    invalid.append(f"{model}:{detail}")
+                    # Replaying an identical request cannot fix a safety block
+                    # or an exhausted output-token budget. Let the caller make
+                    # a materially different decision (fallback or larger
+                    # output budget) instead of multiplying blind retries.
+                    if (
+                        "prompt_block=" in detail
+                        or "finish_reason=SAFETY" in detail
+                        or "finish_reason=MAX_TOKENS" in detail
+                    ):
+                        raise
                     if attempt < attempts:
                         time.sleep(1.0)
                         continue
