@@ -35,11 +35,14 @@ PUBLISH = R / f"publish_{SHORT_ID}.json"
 PUBLISH_INTEGRITY = R / f"publish_integrity_{SHORT_ID}.json"
 LEDGER = BASE / "credits" / f"ledger_{SHORT_ID}.json"
 VIDEO = BASE / "videos" / f"short_v6_{SHORT_ID}.mp4"
+AUDIO = BASE / "audios" / f"short_{SHORT_ID}.mp3"
+ASS = BASE / "videos" / f"short_{SHORT_ID}.ass"
+POST_RENDER = BASE / "reports" / "preflight" / f"post_render_{SHORT_ID}.json"
 LOG = BASE / "logs" / "producao" / f"short_{SHORT_ID}.log"
 MEDIA_DIR = BASE / "imagens" / f"short_{SHORT_ID}"
 INTELLIGENCE_DIR = BASE / "reports" / "intelligence"
 RENDER_IDENTITY = MANIFEST_DIR / f"{SHORT_ID}_render_identity.json"
-MEDIA_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".mp4"}
+MEDIA_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".webm", ".mkv"}
 
 
 def read_text(path: Path) -> str:
@@ -103,6 +106,48 @@ def parse_fps(value) -> float:
     except (TypeError, ValueError, ZeroDivisionError):
         return 0.0
     return result if math.isfinite(result) else 0.0
+
+
+def media_duration(info) -> float:
+    fmt = info.get("format", {}) if isinstance(info, dict) else {}
+    if not isinstance(fmt, dict):
+        return 0.0
+    return safe_float(fmt.get("duration"))
+
+
+def ass_seconds(value: str):
+    try:
+        hour, minute, rest = value.split(":")
+        second, centisecond = rest.split(".")
+        return int(hour) * 3600 + int(minute) * 60 + int(second) + int(centisecond) / 100.0
+    except Exception:
+        return None
+
+
+def inspect_subtitles(path: Path):
+    dialogues = 0
+    invalid = 0
+    last_end = 0.0
+    if not path.is_file():
+        return dialogues, invalid, last_end
+    try:
+        for line in path.read_text(encoding="utf-8", errors="strict").splitlines():
+            if not line.startswith("Dialogue:"):
+                continue
+            parts = line.split(",", 9)
+            if len(parts) != 10:
+                invalid += 1
+                continue
+            start = ass_seconds(parts[1].strip())
+            end = ass_seconds(parts[2].strip())
+            if start is None or end is None or start < 0 or end <= start:
+                invalid += 1
+                continue
+            dialogues += 1
+            last_end = max(last_end, end)
+    except Exception:
+        invalid += 1
+    return dialogues, invalid, last_end
 
 
 def ffprobe(path: Path):
@@ -222,6 +267,17 @@ def build_manifest(probe_data=None):
     video_codec_normalized = video_codec.strip().lower()
     audio_codec_normalized = audio_codec.strip().lower()
 
+    audio_info = ffprobe(AUDIO)
+    narration_duration = media_duration(audio_info)
+    av_delta = abs(duration - narration_duration) if duration > 0 and narration_duration > 0 else 9999.0
+    try:
+        sync_tolerance = float(os.getenv("SAP_AV_SYNC_TOLERANCE_SECONDS", "0.75") or 0.75)
+    except (TypeError, ValueError):
+        sync_tolerance = 0.75
+    sync_tolerance = max(0.10, min(sync_tolerance, 2.0))
+    subtitle_dialogues, subtitle_invalid, subtitle_last = inspect_subtitles(ASS)
+    post_render = read_json(POST_RENDER)
+
     media_files = media_inventory(MEDIA_DIR)
     media_numbers = []
     media_names_ok = True
@@ -277,6 +333,16 @@ def build_manifest(probe_data=None):
         "video_codec_ok": video_codec_normalized == "h264",
         "audio_exists": bool(audio_codec),
         "audio_codec_ok": audio_codec_normalized == "aac",
+        "narration_exists": narration_duration > 0,
+        "av_sync_ok": av_delta <= sync_tolerance,
+        "subtitles_exist": subtitle_dialogues > 0,
+        "subtitles_valid": subtitle_dialogues > 0 and subtitle_invalid == 0,
+        "subtitle_timing_ok": (
+            subtitle_dialogues > 0
+            and narration_duration > 0
+            and subtitle_last <= narration_duration + sync_tolerance
+        ),
+        "post_render_qa_pass": str(post_render.get("status", "")).upper() == "PASS",
         "duration_ok": 15.0 <= duration <= 180.0,
         "topic_exists": bool(topic),
         "hook_exists": bool(hook),
@@ -305,8 +371,10 @@ def build_manifest(probe_data=None):
     }
 
     manifest = {
+        "schema_version": "3.0",
+        "pipeline_version": "CONSOLIDATION_3_0",
         "short_id": SHORT_ID,
-        "created_at": datetime.now().isoformat(),
+        "created_at": datetime.now().astimezone().isoformat(timespec="seconds"),
         "status": "QUALITY_PASS" if quality_pass else "INCOMPLETE",
         "topic": topic,
         "hook": hook,
@@ -347,6 +415,25 @@ def build_manifest(probe_data=None):
             "audio_codec": audio_codec,
             "size_bytes": video_size,
             "mtime_ns": video_mtime_ns,
+        },
+        "narration": {
+            "path": str(AUDIO),
+            "duration_seconds": narration_duration,
+        },
+        "subtitles": {
+            "path": str(ASS),
+            "dialogue_count": subtitle_dialogues,
+            "invalid_events": subtitle_invalid,
+            "last_end_seconds": round(subtitle_last, 3),
+        },
+        "synchronization": {
+            "audio_video_difference_seconds": round(av_delta, 3),
+            "tolerance_seconds": sync_tolerance,
+        },
+        "post_render_qa": {
+            "path": str(POST_RENDER),
+            "status": post_render.get("status", "MISSING"),
+            "blockers": post_render.get("blockers", []),
         },
         "quality": quality,
         "intelligence": {
