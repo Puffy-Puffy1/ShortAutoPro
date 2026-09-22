@@ -63,18 +63,25 @@ def _extract_text(data: object) -> str:
         for candidate in candidates:
             if not isinstance(candidate, dict):
                 continue
+            finish = str(candidate.get("finishReason") or "").strip()
+            if finish and finish != "STOP":
+                raise GeminiInvalidResponse("finish_reason=" + finish)
             content = candidate.get("content", {})
             parts = content.get("parts", []) if isinstance(content, dict) else []
             if not isinstance(parts, list):
                 continue
             chunks = [
-                str(part.get("text", "") or "").strip()
+                str(part.get("text", "") or "")
                 for part in parts
                 if isinstance(part, dict)
-                and str(part.get("text", "") or "").strip()
+                and not part.get("thought")
+                and isinstance(part.get("text"), str)
+                and str(part.get("text") or "")
             ]
             if chunks:
-                return "\n".join(chunks).strip()
+                # Model APIs may split a single JSON string across parts.
+                # Never inject separators that can corrupt JSON string values.
+                return "".join(chunks).strip()
 
     feedback = data.get("promptFeedback", {})
     if isinstance(feedback, dict) and feedback.get("blockReason"):
@@ -203,7 +210,7 @@ def generate_text(
                 return text
 
             status = int(response.status_code or 0)
-            body = str(response.text or "")[:500]
+            body = str(getattr(response, "text", "") or "")[:500]
 
             if status in {429, 500, 502, 503, 504}:
                 transient.append(f"{model}:HTTP_{status}:{body}")
