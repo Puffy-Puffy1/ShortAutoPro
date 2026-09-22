@@ -214,13 +214,21 @@ def run_python(
         raise RuntimeError(f"arquivo ausente: {script}")
     print(f"\n--- {title} ---")
     checkpoint(script, "start", title, sid)
-    try:
-        stage_timeout = int(
-            os.getenv("SAP_STAGE_TIMEOUT_SECONDS", "1800") or 1800
+    # The child renderers have their own adaptive watchdogs. The resume
+    # controller must give heavy Stage 6 work a ceiling above those watchdogs
+    # instead of killing an otherwise healthy mobile render at 1800s.
+    if script == "v6_professional.py":
+        stage_timeout = env_int(
+            "SAP_RESUME_RENDER_STAGE_TIMEOUT", 2700, 300, 3600
         )
-    except (TypeError, ValueError):
-        stage_timeout = 1800
-    stage_timeout = max(60, min(stage_timeout, 7200))
+    elif script == "video_professional.py":
+        stage_timeout = env_int(
+            "SAP_RESUME_ASSEMBLY_STAGE_TIMEOUT", 2100, 300, 3600
+        )
+    else:
+        stage_timeout = env_int(
+            "SAP_STAGE_TIMEOUT_SECONDS", 1800, 60, 7200
+        )
     try:
         result = run_group(
             [sys.executable, str(path), *args],
