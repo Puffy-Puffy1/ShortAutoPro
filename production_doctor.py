@@ -156,6 +156,10 @@ def diagnose(sid: str) -> dict[str, Any]:
     professional = read_json(BASE / "manifests" / f"{sid}_professional.json", {})
     media = media_inventory(sid)
     missing = _missing_scenes(sid)
+    render_preflight = read_json(
+        REPORT_DIR / f"render_preflight_{sid}.json",
+        {},
+    )
     profile = profile_summary(sid)
     final_video = BASE / "videos" / f"short_v6_{sid}.mp4"
     final_ok = False
@@ -167,6 +171,19 @@ def diagnose(sid: str) -> dict[str, Any]:
         pass
 
     issues: list[dict[str, Any]] = []
+    if isinstance(render_preflight, dict) and render_preflight:
+        preflight_errors = render_preflight.get("errors", [])
+        if (
+            str(render_preflight.get("status", "")).upper() == "FAILED"
+            and isinstance(preflight_errors, list)
+        ):
+            for detail in preflight_errors[:8]:
+                issues.append({
+                    "code": "RENDER_PREFLIGHT_FAILED",
+                    "severity": "BLOCK",
+                    "detail": str(detail),
+                })
+
     if missing:
         issues.append({
             "code": "MEDIA_INCOMPLETE",
@@ -266,6 +283,7 @@ def diagnose(sid: str) -> dict[str, Any]:
         "pipeline_status": state.get("status") if isinstance(state, dict) else None,
         "media": media,
         "missing_scenes": missing,
+        "render_preflight": render_preflight,
         "profile": profile,
         "final_video": {
             "path": str(final_video),
@@ -314,6 +332,14 @@ def print_report(report: dict[str, Any]) -> None:
         print(
             f"  {row.get('category')}/{row.get('name')}: "
             f"total={row.get('total_seconds')}s max={row.get('max_seconds')}s"
+        )
+    preflight = report.get("render_preflight", {})
+    if isinstance(preflight, dict) and preflight:
+        print(
+            "RENDER PREFLIGHT: "
+            f"{preflight.get('status', 'UNKNOWN')} "
+            f"audio={preflight.get('audio_duration', 0)}s "
+            f"assets={preflight.get('valid_assets', 0)}/{preflight.get('expected_scenes', '?')}"
         )
     if report["issues"]:
         print("ISSUES:")
