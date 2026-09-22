@@ -179,17 +179,35 @@ class RunLock:
 
 
 class Pipeline:
-    def __init__(self, sid: str):
+    def __init__(self, sid: str, preserve_existing: bool = False):
         self.sid = sid
         self.state_path = STATE_DIR / f"pipeline_{sid}.json"
-        self.state = {
-            "short_id": sid,
-            "version": "CONSOLIDATION_3_0",
-            "pipeline": "PROFESSIONAL_CANONICAL",
-            "started_at": now(),
-            "status": "RUNNING",
-            "stages": [],
-        }
+        existing: dict[str, Any] = {}
+        if preserve_existing and self.state_path.is_file():
+            try:
+                raw = json.loads(self.state_path.read_text(encoding="utf-8"))
+                if isinstance(raw, dict) and str(raw.get("short_id", "")) == sid:
+                    existing = raw
+            except (OSError, json.JSONDecodeError) as exc:
+                print(
+                    "[WARNING][Pipeline][StateRecovery] "
+                    f"{type(exc).__name__}: {str(exc)[:180]}"
+                )
+        if existing:
+            self.state = existing
+            self.state.setdefault("stages", [])
+            self.state["status"] = "RUNNING"
+            self.state["resumed_at"] = now()
+            self.state["updated_at"] = now()
+        else:
+            self.state = {
+                "short_id": sid,
+                "version": "CONSOLIDATION_3_0",
+                "pipeline": "PROFESSIONAL_CANONICAL",
+                "started_at": now(),
+                "status": "RUNNING",
+                "stages": [],
+            }
         atomic_json(self.state_path, self.state)
 
     def checkpoint(self, name: str, status: str, title: str, elapsed: float | None = None) -> None:
@@ -677,7 +695,7 @@ def cli() -> int:
         if preflight != 0:
             print("RERENDER BLOCKED: render pre-flight falhou")
             return preflight
-        p = Pipeline(sid)
+        p = Pipeline(sid, preserve_existing=True)
         try:
             assemble_and_render(p)
             code = final_gates(p)
