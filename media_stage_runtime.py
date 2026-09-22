@@ -123,6 +123,154 @@ def current_completed_hint() -> int:
     return len(seen)
 
 
+def scene_contract() -> tuple[int, list[str]]:
+    """Validate the Stage 5 -> Stage 6 scene-map contract before acquisition."""
+    path = BASE / "roteiros" / f"scene_map_{SID}.json"
+    errors: list[str] = []
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return 0, ["SAP-E002:scene_map_missing"]
+    except (OSError, json.JSONDecodeError) as exc:
+        return 0, [f"SAP-E002:scene_map_invalid:{type(exc).__name__}"]
+
+    if isinstance(raw, dict):
+        scenes = next(
+            (raw.get(key) for key in ("scenes", "cenas", "items") if isinstance(raw.get(key), list)),
+            None,
+        )
+    elif isinstance(raw, list):
+        scenes = raw
+    else:
+        scenes = None
+
+    if not isinstance(scenes, list) or not scenes:
+        return 0, ["SAP-E002:scene_map_empty"]
+
+    expected = len(scenes)
+    ids: list[str] = []
+    for index, scene in enumerate(scenes, start=1):
+        if not isinstance(scene, dict):
+            errors.append(f"SAP-E002:scene_{index:02d}_not_object")
+            continue
+        raw_id = scene.get("scene_id", scene.get("id", scene.get("scene", index)))
+        scene_id = str(raw_id).strip()
+        if not scene_id:
+            errors.append(f"SAP-E002:scene_{index:02d}_empty_id")
+        else:
+            ids.append(scene_id)
+
+    if len(ids) != len(set(ids)):
+        errors.append("SAP-E002:duplicate_scene_ids")
+    return expected, errors
+
+
+def _probe_asset(path: Path) -> tuple[bool, str]:
+    """Cheap corruption/stream check used only after Stage 6 claims success."""
+    if not path.is_file():
+        return False, "missing"
+    try:
+        if path.stat().st_size <= 1000:
+            return False, "too_small"
+    except OSError:
+        return False, "stat_failed"
+
+    if path.suffix.lower() not in {".mp4", ".mov", ".webm", ".mkv"}:
+        return True, "ok"
+
+    try:
+        proc = run_group(
+            [
+                "ffprobe", "-v", "error",
+                "-select_streams", "v:0",
+                "-show_entries", "stream=codec_type,duration",
+                "-of", "json", str(path),
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=20,
+        )
+        if proc.returncode != 0:
+            return False, f"ffprobe_{proc.returncode}"
+        payload = json.loads(proc.stdout or "{}")
+        streams = payload.get("streams", []) if isinstance(payload, dict) else []
+        if not streams or streams[0].get("codec_type") != "video":
+            return False, "no_video_stream"
+    except (OSError, ValueError, json.JSONDecodeError, subprocess.TimeoutExpired) as exc:
+        return False, f"probe_{type(exc).__name__}"
+    return True, "ok"
+
+
+def validate_media_completion() -> tuple[bool, dict[str, Any]]:
+    """Fail closed: a zero exit code is not enough to certify Stage 6."""
+    expected, contract_errors = scene_contract()
+    media_dir = BASE / "imagens" / f"short_{SID}"
+    valid: set[int] = set()
+    invalid: list[dict[str, Any]] = []
+
+    if expected <= 0 or contract_errors:
+        return False, {
+            "expected": expected,
+            "valid": 0,
+            "missing": list(range(1, expected + 1)) if expected > 0 else [],
+            "invalid": invalid,
+            "errors": contract_errors,
+        }
+
+    try:
+        entries = list(media_dir.iterdir())
+    except OSError:
+        entries = []
+
+    supported = {".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".webm", ".mkv"}
+    for path in entries:
+        if path.suffix.lower() not in supported or not path.stem.startswith("scene_"):
+            continue
+        suffix = path.stem.split("_", 1)[1]
+        try:
+            number = int(suffix)
+        except ValueError:
+            continue
+        if number < 1 or number > expected:
+            continue
+        ok, reason = _probe_asset(path)
+        if ok:
+            valid.add(number)
+        else:
+            invalid.append({"scene": number, "path": str(path), "reason": reason})
+
+    missing = sorted(set(range(1, expected + 1)) - valid)
+    report = read_report()
+    report_missing = missing_numbers(report)
+    report_expected = expected_from(report)
+    report_total = total_from(report)
+    report_errors: list[str] = []
+    if report:
+        if report_expected not in {0, expected}:
+            report_errors.append(
+                f"SAP-E002:report_expected_mismatch:{report_expected}!={expected}"
+            )
+        if report_missing:
+            report_errors.append(
+                "SAP-E003:report_still_missing:" + ",".join(map(str, report_missing))
+            )
+        if report_total and report_total < expected:
+            report_errors.append(
+                f"SAP-E003:report_total_incomplete:{report_total}/{expected}"
+            )
+
+    errors = contract_errors + report_errors
+    ok = not missing and not invalid and not errors
+    return ok, {
+        "expected": expected,
+        "valid": len(valid),
+        "missing": missing,
+        "invalid": invalid,
+        "errors": errors,
+    }
+
+
 def report_signature() -> tuple[int, int, int] | None:
     try:
         stat = REPORT.stat()
@@ -153,6 +301,15 @@ def main() -> int:
     if not MIDIA.is_file():
         print(f"ERRO MEDIA STAGE: ausente {MIDIA}")
         return 1
+
+    expected, contract_errors = scene_contract()
+    if contract_errors:
+        print(
+            "MEDIA_STAGE_RUNTIME=PREFLIGHT_FAIL "
+            f"expected={expected} errors={'|'.join(contract_errors)}"
+        )
+        return 2
+    print(f"MEDIA_STAGE_RUNTIME=PREFLIGHT_PASS scenes={expected}")
 
     max_rounds = env_int("SAP_MEDIA_STAGE_ROUNDS", 2, 1, 3)
 
@@ -199,11 +356,24 @@ def main() -> int:
         elapsed = time.monotonic() - started
 
         if returncode == 0:
+            valid_completion, completion = validate_media_completion()
+            if valid_completion:
+                print(
+                    f"MEDIA_STAGE_RUNTIME=PASS round={round_index + 1} "
+                    f"scenes={completion['valid']}/{completion['expected']} "
+                    f"elapsed={elapsed:.1f}s"
+                )
+                return 0
+
+            returncode = 65
             print(
-                f"MEDIA_STAGE_RUNTIME=PASS round={round_index + 1} "
-                f"elapsed={elapsed:.1f}s"
+                "MEDIA_STAGE_RUNTIME=FALSE_SUCCESS "
+                f"round={round_index + 1} "
+                f"valid={completion['valid']}/{completion['expected']} "
+                f"missing={','.join(map(str, completion['missing'])) or '-'} "
+                f"invalid={len(completion['invalid'])} "
+                f"errors={'|'.join(completion['errors']) or '-'}"
             )
-            return 0
 
         if report_signature() == previous_report:
             print(f"MEDIA_STAGE_RUNTIME=HARD_FAIL code={returncode} reason=STALE_MISSING_REPORT")
