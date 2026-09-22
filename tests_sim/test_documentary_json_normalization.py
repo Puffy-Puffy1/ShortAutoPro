@@ -30,7 +30,7 @@ class DocumentaryJsonNormalizationContractTests(unittest.TestCase):
 
     def test_existing_must_is_preserved_when_proposal_is_empty(self):
         text = (ROOT / "documentary_director.py").read_text(encoding="utf-8")
-        self.assertIn("original_must = limpar_lista(original.get", text)
+        self.assertIn("original_must = limpar_lista(cena_original.get", text)
         self.assertIn("if not must and original_must:", text)
 
     def test_version_bumped(self):
