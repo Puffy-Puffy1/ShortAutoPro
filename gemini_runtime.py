@@ -199,6 +199,11 @@ def generate_text(
                     text = _extract_text(data)
                 except GeminiInvalidResponse as exc:
                     invalid.append(f"{model}:{exc}")
+                    # Prompt-level safety/policy blocks are deterministic for
+                    # this request. Retrying models only wastes quota and can
+                    # hide the real reason behind a later transport exception.
+                    if str(exc).startswith("prompt_block="):
+                        raise
                     if attempt < attempts:
                         time.sleep(1.0)
                         continue
