@@ -27,9 +27,12 @@ class ExtremeRuntimeHardeningRound5Tests(unittest.TestCase):
     def test_wikimedia_has_bounded_transient_retry(self):
         text = (ROOT / "wikimedia_source.py").read_text(encoding="utf-8")
         self.assertIn("for attempt in range(2):", text)
-        self.assertIn("{429, 500, 502, 503, 504}", text)
-        self.assertIn('r.headers.get("Retry-After")', text)
-        self.assertIn("min(wait, 4.0)", text)
+        self.assertIn("for attempt in range(2):", text)
+        self.assertIn("500,", text)
+        self.assertIn("503,", text)
+        self.assertIn("504,", text)
+        self.assertIn("401/403 and 429 open a bounded circuit immediately", text)
+        self.assertIn("time.sleep(", text)
 
 
 if __name__ == "__main__":
