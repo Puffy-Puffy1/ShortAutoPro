@@ -422,10 +422,53 @@ def latest_incomplete() -> str | None:
     return ordered[0].stem if ordered else None
 
 
+def rerender(sid: str) -> int:
+    """Rebuild only the canonical assembly/render tail from validated inputs."""
+    os.environ["SHORT_ID"] = sid
+    requirements = {
+        "scene_count": scene_count(sid) == expected_scenes(),
+        "media": media_ok(sid),
+        "supervisor": supervisor_ok(sid),
+        "consolidation_plan": consolidation_plan_ok(sid),
+        "audio": audio_ok(sid),
+        "captions": captions_ok(sid),
+    }
+    invalid = [name for name, ok in requirements.items() if not ok]
+    if invalid:
+        print(
+            "RERENDER_STATUS=BLOCK "
+            "reason=INVALID_CHECKPOINTS "
+            "items=" + ",".join(invalid),
+            file=sys.stderr,
+        )
+        return 20
+
+    try:
+        with canonical.RunLock(sid):
+            render_tail(sid)
+            code = final_gates(sid)
+            if code == 20 or not final_ok(sid):
+                print(
+                    "RERENDER_STATUS=REVIEW "
+                    "reason=FINAL_GATE_NOT_APPROVED",
+                    file=sys.stderr,
+                )
+                return 20
+            destination = copy_download(sid)
+            print("\nRERENDER_STATUS=PASS")
+            print("PIPELINE=PROFESSIONAL_CANONICAL")
+            print(f"Vídeo: {destination}")
+            return 0
+    except Exception as exc:
+        print(f"RERENDER_ERROR={type(exc).__name__}: {exc}", file=sys.stderr)
+        return 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Resume the canonical ShortAutoPro 3.0 pipeline")
     parser.add_argument("--short-id", default=None)
     parser.add_argument("--status", action="store_true")
+    parser.add_argument("--rerender", action="store_true")
     args = parser.parse_args()
 
     canonical.source_config()
@@ -449,6 +492,8 @@ def main() -> int:
             )
         )
         return 0
+    if args.rerender:
+        return rerender(sid)
     return resume(sid)
 
 
