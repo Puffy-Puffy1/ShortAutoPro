@@ -200,6 +200,14 @@ class MediaRecoveryTests(unittest.TestCase):
         self.report = self.base / 'report.json'
         self.script = self.base / 'midia.py'
         self.script.touch()
+        scene_dir = self.base / 'roteiros'
+        scene_dir.mkdir(parents=True, exist_ok=True)
+        (scene_dir / 'scene_map_one.json').write_text(json.dumps({
+            'scenes': [
+                {'scene_id': f'scene_{n:02d}', 'scene': n}
+                for n in range(1, 13)
+            ]
+        }))
         for key, value in dict(BASE=self.base, REPORT=self.report, SID='one', MIDIA=self.script).items():
             patcher = patch.object(media, key, value)
             patcher.start()
