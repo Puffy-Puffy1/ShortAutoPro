@@ -26,10 +26,13 @@ class ExtremeRuntimeHardeningRound5Tests(unittest.TestCase):
 
     def test_wikimedia_has_bounded_transient_retry(self):
         text = (ROOT / "wikimedia_source.py").read_text(encoding="utf-8")
+        resilience = (ROOT / "media_external_resilience.py").read_text(encoding="utf-8")
         self.assertIn("for attempt in range(2):", text)
-        self.assertIn("{429, 500, 502, 503, 504}", text)
-        self.assertIn('r.headers.get("Retry-After")', text)
-        self.assertIn("min(wait, 4.0)", text)
+        self.assertIn("500,", text)
+        self.assertIn("503,", text)
+        self.assertIn("_sap_note_provider_response", text)
+        self.assertIn('response.headers.get("Retry-After")', resilience)
+        self.assertIn('"RATE_LIMIT": 1', resilience)
 
 
 if __name__ == "__main__":
