@@ -71,12 +71,12 @@ def round_env(round_index: int) -> dict[str, str]:
     env["SAP_MEDIA_INCREMENTAL"] = "1"
 
     # Increasing retrieval effort only. MUST acceptance rules are untouched.
-    rescue_budget = (1, 1, 2)[min(round_index, 2)]
+    rescue_budget = (1, 2, 3, 4)[min(round_index, 3)]
     # Keep recovery bounded on mobile. The provider layer already runs
     # concurrently, so escalating to 30-45s makes hard scenes dominate the
     # entire Short production without improving acceptance rules.
-    provider_timeout = (5, 6, 8)[min(round_index, 2)]
-    wiki_deadline = (5, 6, 8)[min(round_index, 2)]
+    provider_timeout = (5, 7, 9, 12)[min(round_index, 3)]
+    wiki_deadline = (5, 7, 9, 12)[min(round_index, 3)]
 
     env["SAP_STOCK_RESCUE_MAX_QUERIES"] = str(rescue_budget)
     env["SAP_MUST_RESCUE_MAX_QUERIES"] = str(rescue_budget)
@@ -154,7 +154,7 @@ def main() -> int:
         print(f"ERRO MEDIA STAGE: ausente {MIDIA}")
         return 1
 
-    max_rounds = env_int("SAP_MEDIA_STAGE_ROUNDS", 2, 1, 3)
+    max_rounds = env_int("SAP_MEDIA_STAGE_ROUNDS", 3, 1, 4)
 
     previous_missing: set[int] | None = None
     previous_total = -1
@@ -237,7 +237,7 @@ def main() -> int:
                 no_progress_rounds += 1
                 action = (
                     "STOP_BOUNDED_RECOVERY"
-                    if no_progress_rounds >= 1
+                    if no_progress_rounds >= 2
                     else "ESCALATE_NEXT_ROUND"
                 )
                 print(
@@ -247,10 +247,10 @@ def main() -> int:
                     f"missing={','.join(map(str, sorted(missing)))} "
                     f"action={action}"
                 )
-                if no_progress_rounds >= 1:
+                if no_progress_rounds >= 2:
                     print(
                         "MEDIA_STAGE_RUNTIME=EARLY_STOP "
-                        "reason=ONE_NO_PROGRESS_ROUND_AFTER_RETRY"
+                        "reason=TWO_CONSECUTIVE_NO_PROGRESS_ROUNDS"
                     )
                     break
 
@@ -258,7 +258,7 @@ def main() -> int:
         previous_total = total
 
         if round_index + 1 < max_rounds:
-            next_budget = (1, 2, 3)[min(round_index + 1, 2)]
+            next_budget = (1, 2, 3, 4)[min(round_index + 1, 3)]
             print(
                 "MEDIA_STAGE_RUNTIME=RETRY_MISSING_ONLY "
                 f"next_round={round_index + 2} "
