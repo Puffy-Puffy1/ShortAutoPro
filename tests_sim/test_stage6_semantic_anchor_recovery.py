@@ -55,7 +55,7 @@ class Stage6SemanticAnchorRecoveryTests(unittest.TestCase):
     def test_stock_rescue_default_budget_is_four(self):
         text = Path("media_acquisition_recovery.py").read_text(encoding="utf-8")
         self.assertIn('SAP_STOCK_RESCUE_MAX_QUERIES", "4"', text)
-        self.assertIn('VERSION = "1.8"', text)
+        self.assertIn('VERSION = "1.9"', text)
 
     def test_rescue_queries_stay_bounded(self):
         queries = recovery._rescue_queries(
