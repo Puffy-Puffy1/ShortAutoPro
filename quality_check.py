@@ -8,6 +8,7 @@ import re
 import subprocess
 from datetime import date
 from pathlib import Path
+from subprocess_guard import run_group
 
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro")))
@@ -68,7 +69,7 @@ def parse_fps(value):
 
 def ffprobe_json(path: Path):
     try:
-        result = subprocess.run(
+        result = run_group(
             [
                 "ffprobe", "-v", "error", "-show_streams", "-show_format",
                 "-of", "json", str(path),
@@ -148,7 +149,7 @@ def subtitle_bounds(path: Path):
 def decode_scan(path: Path):
     timeout = max(60, min(300, int(safe_float(os.getenv("SAP_DECODE_SCAN_TIMEOUT", "120")) or 120)))
     try:
-        result = subprocess.run(
+        result = run_group(
             ["ffmpeg", "-hide_banner", "-v", "error", "-i", str(path), "-f", "null", "-"],
             capture_output=True,
             text=True,
