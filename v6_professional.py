@@ -245,7 +245,7 @@ def main() -> int:
     music = mood_pick(music_pool, mood, SHORT_ID + ":music") if use_music else None
     starts = scene_starts(runtime); events = sound.get("events", []) if use_sfx and isinstance(sound.get("events"), list) else []
 
-    command = ["ffmpeg", "-y", "-i", str(VIDEO_BASE), "-i", str(AUDIO)]; next_input = 2; music_input = None; sfx_inputs: list[tuple[int, dict[str, Any], str]] = []
+    command = ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", str(VIDEO_BASE), "-i", str(AUDIO)]; next_input = 2; music_input = None; sfx_inputs: list[tuple[int, dict[str, Any], str]] = []
     if music:
         music_input = next_input; command.extend(["-stream_loop", "-1", "-i", music]); next_input += 1
     generated = generate_optional_sfx() if use_sfx and not sfx_pool else None
@@ -362,28 +362,44 @@ def main() -> int:
     print()
 
     render_started = time.monotonic()
-    try:
-        render_timeout = int(
-            os.getenv("SHORT_FINAL_RENDER_TIMEOUT", "900") or 900
-        )
-    except (TypeError, ValueError):
-        render_timeout = 900
+    # Mobile rendering cost scales with narration duration. An explicit
+    # SHORT_FINAL_RENDER_TIMEOUT still wins, but the default is proportional
+    # instead of assigning the same wall-clock budget to every production.
+    raw_timeout = os.getenv("SHORT_FINAL_RENDER_TIMEOUT", "").strip()
+    if raw_timeout:
+        try:
+            render_timeout = int(raw_timeout)
+        except (TypeError, ValueError):
+            render_timeout = 0
+    else:
+        render_timeout = 0
+    if render_timeout <= 0:
+        seconds_per_output_second = 24.0 if termux_runtime() else 12.0
+        render_timeout = int(math.ceil(total * seconds_per_output_second + 120.0))
     render_timeout = max(120, min(render_timeout, 2400))
 
     try:
-        run_group(
+        render_proc = run_group(
             command,
             check=True,
             timeout=render_timeout,
+            capture_output=True,
+            text=True,
         )
-    except subprocess.TimeoutExpired:
+    except subprocess.TimeoutExpired as exc:
+        detail = str((exc.stderr or exc.output or ""))[-1800:]
         print(
             "ERRO V6 PROFESSIONAL: "
             f"render excedeu {render_timeout}s"
+            + (f" | {detail}" if detail else "")
         )
         return 124
     except subprocess.CalledProcessError as exc:
-        print(f"ERRO V6 PROFESSIONAL: ffmpeg retornou {exc.returncode}")
+        detail = str(exc.stderr or exc.output or "")[-1800:]
+        print(
+            f"ERRO V6 PROFESSIONAL: ffmpeg retornou {exc.returncode}"
+            + (f" | {detail}" if detail else "")
+        )
         return exc.returncode or 1
     if not OUTPUT.is_file() or OUTPUT.stat().st_size < 500_000: print("ERRO V6 PROFESSIONAL: saída ausente ou pequena demais"); return 1
     render_elapsed = time.monotonic() - render_started
