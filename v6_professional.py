@@ -121,6 +121,112 @@ def video_stream_info(path: Path) -> dict[str, Any]:
         return {}
 
 
+def validate_final_output(path: Path, expected_duration: float) -> tuple[bool, dict[str, Any]]:
+    """Verify the rendered artifact itself, not only its existence."""
+    result: dict[str, Any] = {"errors": []}
+    errors: list[str] = result["errors"]
+
+    try:
+        if not path.is_file() or path.stat().st_size < 500_000:
+            errors.append("SAP-E009:output_missing_or_too_small")
+            return False, result
+    except OSError as exc:
+        errors.append(f"SAP-E009:output_stat_failed:{type(exc).__name__}")
+        return False, result
+
+    try:
+        raw = check_output_group(
+            [
+                "ffprobe", "-v", "error",
+                "-show_entries",
+                "format=duration,size:stream=codec_type,codec_name,width,height,avg_frame_rate,sample_rate",
+                "-of", "json", str(path),
+            ],
+            text=True,
+            timeout=45,
+        )
+        payload = json.loads(raw)
+    except Exception as exc:
+        errors.append(f"SAP-E009:ffprobe_failed:{type(exc).__name__}")
+        return False, result
+
+    streams = payload.get("streams", []) if isinstance(payload, dict) else []
+    fmt = payload.get("format", {}) if isinstance(payload, dict) else {}
+    video = next(
+        (item for item in streams if isinstance(item, dict) and item.get("codec_type") == "video"),
+        {},
+    )
+    audio = next(
+        (item for item in streams if isinstance(item, dict) and item.get("codec_type") == "audio"),
+        {},
+    )
+
+    if not video:
+        errors.append("SAP-E009:video_stream_missing")
+    if not audio:
+        errors.append("SAP-E009:audio_stream_missing")
+    if video and video.get("codec_name") != "h264":
+        errors.append(f"SAP-E009:video_codec:{video.get('codec_name')}")
+    if audio and audio.get("codec_name") != "aac":
+        errors.append(f"SAP-E009:audio_codec:{audio.get('codec_name')}")
+    try:
+        width = int(video.get("width", 0) or 0)
+        height = int(video.get("height", 0) or 0)
+    except (TypeError, ValueError):
+        width = height = 0
+    if video and (width, height) != (1080, 1920):
+        errors.append(f"SAP-E009:resolution:{width}x{height}")
+
+    try:
+        actual_duration = float(fmt.get("duration", 0) or 0)
+    except (TypeError, ValueError, OverflowError):
+        actual_duration = 0.0
+    result["duration"] = actual_duration
+    result["expected_duration"] = expected_duration
+    tolerance = max(0.45, expected_duration * 0.02)
+    result["duration_tolerance"] = tolerance
+    if (
+        not math.isfinite(actual_duration)
+        or actual_duration <= 0
+        or abs(actual_duration - expected_duration) > tolerance
+    ):
+        errors.append(
+            f"SAP-E009:duration_mismatch:{actual_duration:.3f}/{expected_duration:.3f}"
+        )
+
+    if errors:
+        return False, result
+
+    decode_timeout = max(60, min(int(expected_duration * 4 + 30), 300))
+    try:
+        decoded = run_group(
+            [
+                "ffmpeg", "-v", "error", "-xerror",
+                "-i", str(path),
+                "-map", "0:v:0", "-map", "0:a:0",
+                "-f", "null", "-",
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+            timeout=decode_timeout,
+        )
+    except subprocess.TimeoutExpired:
+        errors.append(f"SAP-E009:decode_timeout:{decode_timeout}s")
+        return False, result
+    if decoded.returncode != 0:
+        detail = (decoded.stderr or "")[-500:].replace("\n", " ")
+        errors.append(f"SAP-E009:decode_failed:{decoded.returncode}:{detail}")
+        return False, result
+
+    result["video_codec"] = video.get("codec_name")
+    result["audio_codec"] = audio.get("codec_name")
+    result["resolution"] = f"{width}x{height}"
+    result["decode_check"] = "PASS"
+    return True, result
+
+
 def termux_runtime() -> bool:
     prefix = os.getenv("PREFIX", "")
     return (
@@ -385,7 +491,21 @@ def main() -> int:
     except subprocess.CalledProcessError as exc:
         print(f"ERRO V6 PROFESSIONAL: ffmpeg retornou {exc.returncode}")
         return exc.returncode or 1
-    if not OUTPUT.is_file() or OUTPUT.stat().st_size < 500_000: print("ERRO V6 PROFESSIONAL: saída ausente ou pequena demais"); return 1
+    output_ok, output_qa = validate_final_output(OUTPUT, total)
+    if not output_ok:
+        print(
+            "ERRO V6 PROFESSIONAL: POST-RENDER QA falhou: "
+            + " | ".join(output_qa.get("errors", []) or ["SAP-E009:unknown_output_failure"])
+        )
+        return 1
+    print(
+        "POST-RENDER QA: PASS "
+        f"| video={output_qa.get('video_codec')} "
+        f"| audio={output_qa.get('audio_codec')} "
+        f"| resolution={output_qa.get('resolution')} "
+        f"| duration={output_qa.get('duration', 0):.3f}s "
+        f"| decode={output_qa.get('decode_check')}"
+    )
     render_elapsed = time.monotonic() - render_started
     render_topic = read_text(USED_TOPIC) or read_text(TOPIC_FALLBACK)
     topic_sha = text_sha256(render_topic) if render_topic else ""
