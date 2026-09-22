@@ -36,7 +36,7 @@ class Stage6FastStrictPathTests(unittest.TestCase):
 
     def test_canonical_recovery_unwraps_legacy_vse42_search_rescue(self):
         text = (ROOT / "media_acquisition_recovery.py").read_text(encoding="utf-8")
-        self.assertIn('VERSION = "1.8"', text)
+        self.assertIn('VERSION = "1.9"', text)
         self.assertIn("_sap_query_expansion_original", text)
         self.assertIn("_sap_vse42_original", text)
         self.assertIn("__wrapped__", text)
@@ -55,12 +55,12 @@ class Stage6FastStrictPathTests(unittest.TestCase):
         self.assertIn("_provider_deadline", text)
         self.assertIn("_provider_remaining", text)
         self.assertIn("round_deadline=", text)
-        self.assertIn('SAP_MEDIA_PROVIDER_RESULT_TIMEOUT", "12"', text)
+        self.assertIn('SAP_MEDIA_PROVIDER_RESULT_TIMEOUT", "6"', text)
 
     def test_recovery_exposes_one_shot_and_mobile_budget(self):
         text = (ROOT / "media_acquisition_recovery.py").read_text(encoding="utf-8")
         self.assertIn("_sap_call_original = call_original", text)
-        self.assertIn('SAP_MUST_RESCUE_MAX_QUERIES", "5"', text)
+        self.assertIn('SAP_MUST_RESCUE_MAX_QUERIES", "2"', text)
         self.assertIn('SAP_STOCK_RESCUE_MAX_QUERIES", "4"', text)
 
     def test_strict_must_still_fail_closed(self):
