@@ -11,6 +11,7 @@ import argparse
 import json
 import math
 import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -64,6 +65,7 @@ def _ass_bounds(path: Path) -> tuple[float | None, float | None, int]:
 
     first = None
     last = None
+    previous_start = -1.0
     count = 0
     for raw in path.read_text(encoding="utf-8", errors="strict").splitlines():
         if not raw.startswith("Dialogue:"):
@@ -77,10 +79,10 @@ def _ass_bounds(path: Path) -> tuple[float | None, float | None, int]:
             raise ValueError("timestamp ASS inválido")
         if first is None:
             first = start
-        if last is not None and start + 0.05 < last:
-            # Overlap curto é aceitável; retrocesso estrutural não.
+        if start + 0.05 < previous_start:
             raise ValueError("timestamps ASS fora de ordem")
-        last = end
+        previous_start = start
+        last = end if last is None else max(last, end)
         count += 1
     return first, last, count
 
@@ -172,12 +174,11 @@ def inspect(short_id: str) -> dict[str, Any]:
         for path in sorted(media_dir.glob("scene_*")):
             if not path.is_file() or path.suffix.lower() not in MEDIA_EXTS:
                 continue
-            stem = path.stem
-            try:
-                number = int(stem.split("_", 1)[1])
-            except (IndexError, ValueError):
+            match = re.match(r"^scene_(\d+)", path.name, flags=re.IGNORECASE)
+            if not match:
                 errors.append(f"asset com nome inválido: {path.name}")
                 continue
+            number = int(match.group(1))
             if number in media_by_scene:
                 errors.append(f"asset duplicado para cena {number:02d}")
                 continue
