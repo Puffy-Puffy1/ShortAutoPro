@@ -4,6 +4,9 @@
 # Installs a safe 10-minute cron job that runs automation/termux_bridge.sh.
 # Existing project: ~/ShortAutoPro
 # Sync branch: termux-stable
+#
+# Important: tracked repository files are invoked with "bash" and their
+# executable bit is never changed locally, keeping the Git working tree clean.
 
 set -euo pipefail
 
@@ -36,7 +39,6 @@ if ! command -v crond >/dev/null 2>&1 || ! command -v crontab >/dev/null 2>&1; t
 fi
 
 mkdir -p "$STATE_DIR"
-chmod +x "$BRIDGE"
 
 TMP_CRON="$(mktemp)"
 trap 'rm -f "$TMP_CRON"' EXIT
