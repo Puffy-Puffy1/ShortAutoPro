@@ -399,16 +399,17 @@ def stages_before_render(p: Pipeline) -> None:
     p.run("6E - FINAL EDITORIAL GATE", "editorial_gate.py")
 
     p.run("6F - SPEECH DIRECTOR", "speech_director.py")
-    p.run("7 - VOZ PIPER", "audio.py", retries=1)
-    p.run("8 - WHISPER + LEGENDA DINÂMICA", "legenda_dinamica.py", retries=1)
+    p.run("7 - VOZ PIPER", "audio.py")
+    p.run("8 - WHISPER + LEGENDA DINÂMICA", "legenda_dinamica.py")
     p.run("8A - PROFESSIONAL CAPTION DIRECTOR", "professional_caption_director.py")
     p.run("8A1 - CAPTION SAFE-ZONE GUARD", "caption_layout_guard.py")
     p.run("8B - EVOLUTION CAPTION AUDIT", "shortautopro_evolution.py", "caption-audit")
 
 
 def assemble_and_render(p: Pipeline) -> None:
+    p.run("8C - RENDER PRE-FLIGHT", "render_preflight.py", "--short-id", p.sid)
     p.run("9 - PROFESSIONAL MULTI-BEAT ASSEMBLER", "video_professional.py")
-    p.run("10 - FINAL RENDER V6 PROFESSIONAL", "v6_professional.py", retries=1)
+    p.run("10 - FINAL RENDER V6 PROFESSIONAL", "v6_professional.py")
     final = BASE / "videos" / f"short_v6_{p.sid}.mp4"
     if not final.is_file() or final.stat().st_size < 500_000:
         raise RuntimeError(f"vídeo final ausente/inválido: {final}")
@@ -589,6 +590,12 @@ def cli() -> int:
     resume.add_argument("--short-id", default=None)
     resume.add_argument("--status", action="store_true")
     sub.add_parser("audit")
+    validate = sub.add_parser("validate")
+    validate.add_argument("--short-id", default=None)
+    diagnose = sub.add_parser("diagnose")
+    diagnose.add_argument("--short-id", default=None)
+    rerender = sub.add_parser("rerender")
+    rerender.add_argument("--short-id", required=True)
     production = sub.add_parser("production")
     production.add_argument("production_args", nargs=argparse.REMAINDER)
     storage = sub.add_parser("storage")
@@ -625,6 +632,51 @@ def cli() -> int:
         return run_control(command)
     if command_name == "audit":
         return run_control([sys.executable, str(BASE / "tools" / "repo_audit.py")])
+    if command_name == "validate":
+        sid = (args.short_id or os.getenv("SHORT_ID", "")).strip()
+        if not sid:
+            print("ERRO: informe --short-id ou SHORT_ID")
+            return 2
+        os.environ["SHORT_ID"] = sid
+        return run_control([
+            sys.executable,
+            str(BASE / "render_preflight.py"),
+            "--short-id", sid,
+        ])
+    if command_name == "diagnose":
+        command = [sys.executable, str(BASE / "production_doctor.py")]
+        if args.short_id:
+            command.extend(["--short-id", args.short_id])
+        return run_control(command)
+    if command_name == "rerender":
+        sid = args.short_id.strip()
+        os.environ["SHORT_ID"] = sid
+        preflight = run_control([
+            sys.executable,
+            str(BASE / "render_preflight.py"),
+            "--short-id", sid,
+        ])
+        if preflight != 0:
+            print("RERENDER BLOCKED: render pre-flight falhou")
+            return preflight
+        p = Pipeline(sid)
+        try:
+            assemble_and_render(p)
+            code = final_gates(p)
+            if code == 20:
+                repair_cycle(p)
+                code = final_gates(p)
+            if code != 0:
+                p.finish("FAILED")
+                return code
+            p.checkpoint("rerender", "pass", "Rerender canônico")
+            p.finish("SUCCESS")
+            return 0
+        except Exception as exc:
+            p.checkpoint("rerender", "fail", "Rerender canônico")
+            p.finish("FAILED")
+            print(f"RERENDER BLOCKED: {exc}")
+            return 1
     if command_name == "production":
         command = [
             sys.executable,
