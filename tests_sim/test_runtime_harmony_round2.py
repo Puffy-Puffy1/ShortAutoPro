@@ -31,9 +31,12 @@ class RuntimeHarmonyRound2Tests(unittest.TestCase):
         self.assertNotIn("subprocess.check_output(", text)
 
     def test_gemini_429_respects_retry_after(self):
+        runtime = (ROOT / "gemini_runtime.py").read_text(encoding="utf-8")
+        self.assertIn("Retry-After", runtime)
+        self.assertIn("min(wait, 12)", runtime)
         for name in ("topic_engine.py", "publish_pack.py", "hook_engine.py"):
             text = (ROOT / name).read_text(encoding="utf-8")
-            self.assertIn("Retry-After", text, name)
+            self.assertIn("gemini_runtime", text, name)
 
 
 if __name__ == "__main__":
