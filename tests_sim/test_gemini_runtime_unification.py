@@ -56,6 +56,59 @@ class GeminiRuntimeTests(unittest.TestCase):
         self.assertIn("model-a", post.call_args_list[0].args[0])
         self.assertIn("model-b", post.call_args_list[1].args[0])
 
+
+    @patch("gemini_runtime.time.sleep", return_value=None)
+    @patch("gemini_runtime.requests.post")
+    def test_429_respects_capped_retry_after(self, post, sleep):
+        limited = self._response(429, "rate limit")
+        limited.headers = {"Retry-After": "99999"}
+        post.side_effect = [
+            limited,
+            self._response(
+                200,
+                payload={"candidates": [{"content": {"parts": [{"text": "ok"}]}}]},
+            ),
+        ]
+        with patch.dict(
+            os.environ,
+            {
+                "GEMINI_API_KEY": "test-key",
+                "SAP_GEMINI_ATTEMPTS_PER_MODEL": "2",
+            },
+            clear=False,
+        ):
+            result = gemini_runtime.generate_text(
+                "hello", models=["model-a"], component="Test"
+            )
+        self.assertEqual(result, "ok")
+        self.assertEqual(post.call_count, 2)
+        self.assertTrue(sleep.called)
+        self.assertLessEqual(sleep.call_args.args[0], 12)
+
+    @patch("gemini_runtime.time.sleep", return_value=None)
+    @patch("gemini_runtime.requests.post")
+    def test_http_200_without_usable_candidate_retries(self, post, _sleep):
+        post.side_effect = [
+            self._response(200, payload={"candidates": []}),
+            self._response(
+                200,
+                payload={"candidates": [{"content": {"parts": [{"text": "ok"}]}}]},
+            ),
+        ]
+        with patch.dict(
+            os.environ,
+            {
+                "GEMINI_API_KEY": "test-key",
+                "SAP_GEMINI_ATTEMPTS_PER_MODEL": "2",
+            },
+            clear=False,
+        ):
+            result = gemini_runtime.generate_text(
+                "hello", models=["model-a"], component="Test"
+            )
+        self.assertEqual(result, "ok")
+        self.assertEqual(post.call_count, 2)
+
     def test_missing_key_is_typed_temporary_failure(self):
         with patch.dict(os.environ, {"GEMINI_API_KEY": ""}, clear=False):
             with self.assertRaises(gemini_runtime.GeminiTemporaryUnavailable):
