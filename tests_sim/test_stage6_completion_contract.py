@@ -57,6 +57,13 @@ class Stage6CompletionContractTests(unittest.TestCase):
             self.assertEqual(detail["valid"], 2)
             self.assertEqual(detail["missing"], [3])
 
+    def test_runtime_contains_false_success_recovery_path(self):
+        text = (Path(__file__).resolve().parents[1] / "media_stage_runtime.py").read_text(encoding="utf-8")
+        self.assertIn("MEDIA_STAGE_RUNTIME=FALSE_SUCCESS", text)
+        self.assertIn("completion_override", text)
+        self.assertIn("invalid_scenes", text)
+        self.assertIn("MEDIA_STAGE_RUNTIME=RETRY_MISSING_ONLY", text)
+
     def test_complete_assets_pass(self):
         with tempfile.TemporaryDirectory() as tmp:
             base = Path(tmp)

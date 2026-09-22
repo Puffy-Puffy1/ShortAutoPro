@@ -354,6 +354,7 @@ def main() -> int:
             )
 
         elapsed = time.monotonic() - started
+        completion_override: dict[str, Any] | None = None
 
         if returncode == 0:
             valid_completion, completion = validate_media_completion()
@@ -366,6 +367,7 @@ def main() -> int:
                 return 0
 
             returncode = 65
+            completion_override = completion
             print(
                 "MEDIA_STAGE_RUNTIME=FALSE_SUCCESS "
                 f"round={round_index + 1} "
@@ -375,13 +377,25 @@ def main() -> int:
                 f"errors={'|'.join(completion['errors']) or '-'}"
             )
 
-        if report_signature() == previous_report:
-            print(f"MEDIA_STAGE_RUNTIME=HARD_FAIL code={returncode} reason=STALE_MISSING_REPORT")
-            return returncode or 1
-        report = read_report()
-        missing = set(missing_numbers(report))
-        total = total_from(report)
-        expected = expected_from(report)
+        if completion_override is None:
+            if report_signature() == previous_report:
+                print(f"MEDIA_STAGE_RUNTIME=HARD_FAIL code={returncode} reason=STALE_MISSING_REPORT")
+                return returncode or 1
+            report = read_report()
+            missing = set(missing_numbers(report))
+            total = total_from(report)
+            expected = expected_from(report)
+        else:
+            report = read_report()
+            missing = set(completion_override.get("missing", []))
+            invalid_scenes = {
+                int(item.get("scene"))
+                for item in completion_override.get("invalid", [])
+                if isinstance(item, dict) and item.get("scene") is not None
+            }
+            missing.update(invalid_scenes)
+            total = int(completion_override.get("valid", 0) or 0)
+            expected = int(completion_override.get("expected", 0) or 0)
 
         print(
             "MEDIA_STAGE_RUNTIME=PARTIAL "
