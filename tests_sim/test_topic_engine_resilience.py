@@ -6,17 +6,16 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class TopicEngineResilienceTests(unittest.TestCase):
     def test_model_chain_rotates_after_transient_capacity_errors(self):
-        text = (ROOT / "topic_engine.py").read_text(encoding="utf-8")
-        self.assertIn("MODEL_CHAIN", text)
+        text = (ROOT / "gemini_runtime.py").read_text(encoding="utf-8")
+        self.assertIn("_model_chain", text)
         self.assertIn('"gemini-3.1-flash-lite"', text)
         self.assertIn('"gemini-3.5-flash"', text)
-        self.assertIn("TOPIC_ENGINE_TRANSIENT=", text)
-        self.assertIn("action=MODEL_FAILOVER", text)
+        self.assertIn("SAP_GEMINI_FAILOVER", text)
 
     def test_timeout_is_bounded_for_mobile_runtime(self):
-        text = (ROOT / "topic_engine.py").read_text(encoding="utf-8")
+        text = (ROOT / "gemini_runtime.py").read_text(encoding="utf-8")
         self.assertIn(
-            'GEMINI_TIMEOUT = env_float("SAP_GEMINI_TIMEOUT", 28.0, 8.0, 60.0)',
+            'env_float("SAP_GEMINI_TIMEOUT", 28.0, 8.0, 60.0)',
             text,
         )
         self.assertNotIn('SAP_GEMINI_TIMEOUT", "75"', text)
@@ -29,9 +28,11 @@ class TopicEngineResilienceTests(unittest.TestCase):
         self.assertIn("local_wikipedia_verified", text)
 
     def test_missing_api_key_no_longer_blocks_pipeline(self):
-        text = (ROOT / "topic_engine.py").read_text(encoding="utf-8")
-        self.assertIn("GEMINI_API_KEY ausente; usando recuperação verificada", text)
-        self.assertNotIn('sys.exit("ERRO: GEMINI_API_KEY não configurada.")', text)
+        topic = (ROOT / "topic_engine.py").read_text(encoding="utf-8")
+        runtime = (ROOT / "gemini_runtime.py").read_text(encoding="utf-8")
+        self.assertIn("GeminiTemporaryUnavailable", topic)
+        self.assertIn("GEMINI_API_KEY ausente", runtime)
+        self.assertNotIn('sys.exit("ERRO: GEMINI_API_KEY não configurada.")', topic)
 
     def test_degraded_mode_exits_success_after_writing_artifacts(self):
         text = (ROOT / "topic_engine.py").read_text(encoding="utf-8")
