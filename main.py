@@ -469,7 +469,7 @@ def pre_render_repair(p: Pipeline) -> None:
 def assemble_and_render(p: Pipeline) -> None:
     p.run("8C - STAGE 6 / RENDER PRE-FLIGHT", "render_preflight.py")
     p.run("9 - PROFESSIONAL MULTI-BEAT ASSEMBLER", "video_professional.py")
-    p.run("10 - FINAL RENDER V6 PROFESSIONAL", "v6_professional.py", retries=1)
+    # Do not blindly replay the same expensive encoder command. Stage 6 is\n    # preflighted/repaired before this point; a render failure is preserved as\n    # evidence instead of being hidden by an identical retry.\n    p.run("10 - FINAL RENDER V6 PROFESSIONAL", "v6_professional.py")
     final = BASE / "videos" / f"short_v6_{p.sid}.mp4"
     if not final.is_file() or final.stat().st_size < 500_000:
         raise RuntimeError(f"vídeo final ausente/inválido: {final}")
