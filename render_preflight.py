@@ -15,6 +15,8 @@ import re
 import shutil
 import subprocess
 import tempfile
+
+from subprocess_guard import run_group
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -55,7 +57,7 @@ def _read_json(path: Path) -> dict[str, Any]:
 
 
 def _duration(path: Path) -> float:
-    result = subprocess.run(
+    result = run_group(
         [
             "ffprobe", "-v", "error",
             "-show_entries", "format=duration",
@@ -109,7 +111,7 @@ def _ass_bounds(path: Path) -> tuple[float | None, float | None, int]:
 
 
 def _probe_media(path: Path) -> None:
-    result = subprocess.run(
+    result = run_group(
         [
             "ffprobe", "-v", "error",
             "-show_entries", "stream=codec_type,width,height:format=format_name,duration,size",
