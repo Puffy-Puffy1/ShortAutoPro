@@ -53,11 +53,12 @@ class RuntimeHardeningTests(unittest.TestCase):
         self.assertNotIn("active=active_ids()\n  for p in remove:", text)
 
 
-    def test_hook_retries_incomplete_successful_gemini_response(self):
-        text = (ROOT / "hook_engine.py").read_text(encoding="utf-8")
-        self.assertIn("resposta Gemini incompleta", text)
-        self.assertIn('r.headers.get("Retry-After")', text)
-        self.assertIn("if tentativa == 4:", text)
+    def test_hook_uses_shared_resilient_gemini_runtime(self):
+        hook = (ROOT / "hook_engine.py").read_text(encoding="utf-8")
+        runtime = (ROOT / "gemini_runtime.py").read_text(encoding="utf-8")
+        self.assertIn("from gemini_runtime import generate_text", hook)
+        self.assertIn("GeminiInvalidResponse", runtime)
+        self.assertIn("SAP_GEMINI_FAILOVER", runtime)
 
     def test_secondary_asset_download_has_total_size_cap(self):
         text = (ROOT / "multi_asset_director.py").read_text(encoding="utf-8")
