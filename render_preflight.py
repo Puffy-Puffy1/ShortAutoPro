@@ -14,6 +14,8 @@ import os
 import re
 import shutil
 import subprocess
+import tempfile
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +23,25 @@ from runtime_config import env_int
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
 MEDIA_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".webm", ".mkv"}
+REPORT_DIR = BASE / "reports" / "production"
+
+
+def _atomic_json(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle, ensure_ascii=False, indent=2)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp, path)
+    except Exception:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -254,6 +275,8 @@ def inspect(short_id: str) -> dict[str, Any]:
     status = "READY" if not errors else "FAILED"
     return {
         "short_id": short_id,
+        "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+        "version": "RENDER_PREFLIGHT_1.0",
         "status": status,
         "expected_scenes": expected,
         "valid_assets": len(media_by_scene),
@@ -295,6 +318,11 @@ def main() -> int:
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
     report = inspect(args.short_id.strip())
+    if report.get("short_id"):
+        _atomic_json(
+            REPORT_DIR / f"render_preflight_{report['short_id']}.json",
+            report,
+        )
     if args.json:
         print(json.dumps(report, ensure_ascii=False, indent=2))
     else:
