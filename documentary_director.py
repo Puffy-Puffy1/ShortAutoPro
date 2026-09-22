@@ -98,20 +98,25 @@ def extrair_objeto_json(texto):
     except json.JSONDecodeError:
         decoder = json.JSONDecoder()
 
-        # First try the first object or array embedded in surrounding prose.
+        # If the payload already starts like JSON, a parse failure means the
+        # outer document is malformed/truncated. Never salvage a nested array
+        # or object from inside that broken envelope.
+        if limpo.startswith(("{", "[")):
+            raise ValueError("JSON externo inválido ou truncado")
+
+        # Surrounding prose is recoverable, but decode only the earliest JSON
+        # value so a malformed outer value cannot be bypassed by a nested one.
         candidatos_inicio = [
             pos for pos in (limpo.find("{"), limpo.find("["))
             if pos >= 0
         ]
-        for inicio in sorted(candidatos_inicio):
-            try:
-                valor, _ = decoder.raw_decode(limpo, inicio)
-                break
-            except json.JSONDecodeError:
-                continue
-
-        if valor is None:
+        if not candidatos_inicio:
             raise ValueError("nenhum JSON válido encontrado")
+        inicio = min(candidatos_inicio)
+        try:
+            valor, _ = decoder.raw_decode(limpo, inicio)
+        except json.JSONDecodeError as exc:
+            raise ValueError("nenhum JSON válido encontrado") from exc
 
     # Gemini sometimes returns the scenes array directly even when the prompt
     # requested {"scenes":[...]}. That shape is losslessly recoverable.
