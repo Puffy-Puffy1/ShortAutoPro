@@ -98,6 +98,32 @@ class Stage6ContinuityContractTests(unittest.TestCase):
         )
         self.assertEqual(duplicate_chosen, 5)
 
+    def test_canonical_stage6_has_pre_and_post_render_contracts(self):
+        from pathlib import Path
+        root = Path(__file__).resolve().parents[1]
+        main = (root / "main.py").read_text(encoding="utf-8")
+        preflight = (root / "render_preflight.py").read_text(encoding="utf-8")
+        renderer = (root / "v6_professional.py").read_text(encoding="utf-8")
+        self.assertIn('"8C - STAGE 6 / RENDER PRE-FLIGHT"', main)
+        self.assertIn('"10.2 - POST-RENDER CONTRACT"', main)
+        self.assertNotIn('"v6_professional.py", retries=1', main)
+        self.assertIn("--post-render", preflight)
+        self.assertIn("audio_video_duration_mismatch", preflight)
+        self.assertIn('"ffmpeg", "-hide_banner", "-v", "error"', preflight)
+        self.assertIn("capture_output=True", renderer)
+        self.assertIn("SHORT_FINAL_RENDER_TIMEOUT", renderer)
+
+    def test_operational_modes_are_canonical_wrappers(self):
+        from pathlib import Path
+        root = Path(__file__).resolve().parents[1]
+        main = (root / "main.py").read_text(encoding="utf-8")
+        resume = (root / "resume_short_runtime.py").read_text(encoding="utf-8")
+        for command in ('"rerender"', '"validate"', '"repair"', '"diagnose"'):
+            self.assertIn(command, main)
+        self.assertIn("def rerender(sid: str)", resume)
+        self.assertIn("INVALID_CHECKPOINTS", resume)
+        self.assertIn("render_tail(sid)", resume)
+
 
 if __name__ == "__main__":
     unittest.main()
