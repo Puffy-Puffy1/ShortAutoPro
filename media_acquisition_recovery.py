@@ -149,8 +149,8 @@ def _rescue_queries(
 def _rescue_budget() -> int:
     """Return a bounded per-scene rescue-query budget.
 
-    Five preserves the previously certified behavior. The environment override
-    is useful on constrained/mobile runs without changing validation policy.
+    Two is the current mobile-safe default. The environment override remains
+    bounded and does not change strict MUST validation policy.
     """
     raw = os.getenv("SAP_MUST_RESCUE_MAX_QUERIES", "2")
     try:
