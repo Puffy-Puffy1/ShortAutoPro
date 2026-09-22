@@ -13,12 +13,14 @@ class ScriptGenerationRecoveryTests(unittest.TestCase):
         self.assertIn('"script_runtime.py"', text)
         self.assertNotIn('p.run("2 - ROTEIRO + PESQUISA FACTUAL", "roteiro.py"', text)
 
-    def test_roteiro_retries_http_200_without_candidates(self):
+    def test_roteiro_recovers_invalid_gemini_without_blind_transport_retry(self):
         text = Path("roteiro.py").read_text(encoding="utf-8")
-        self.assertIn("Gemini HTTP 200 sem texto utilizável", text)
-        self.assertIn("Tentando novamente com o mesmo prompt", text)
+        runtime = Path("gemini_runtime.py").read_text(encoding="utf-8")
         self.assertIn("GeminiGenerationUnavailable", text)
-        self.assertIn("raise SystemExit(24)", text)
+        self.assertIn("SAP_SCRIPT_AI=INVALID_RESPONSE", text)
+        self.assertIn("build_extractive_script", text)
+        self.assertIn("no_usable_candidates", runtime)
+        self.assertIn("SAP_GEMINI_ATTEMPTS_PER_MODEL", runtime)
 
     def test_roteiro_prompt_requires_non_graphic_documentary_treatment(self):
         text = Path("roteiro.py").read_text(encoding="utf-8")
