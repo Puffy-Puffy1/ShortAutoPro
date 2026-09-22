@@ -201,8 +201,11 @@ class Pipeline:
         atomic_json(self.state_path, self.state)
         try:
             evo.checkpoint(name, status, title, self.sid)
-        except Exception:
-            pass
+        except Exception as exc:
+            print(
+                "[WARNING][Pipeline][Checkpoint] "
+                f"{name}: {type(exc).__name__}: {str(exc)[:180]}"
+            )
 
     def finish(self, status: str) -> None:
         self.state["status"] = status
@@ -210,8 +213,11 @@ class Pipeline:
         atomic_json(self.state_path, self.state)
         try:
             evo.finish_production(status, self.sid)
-        except Exception:
-            pass
+        except Exception as exc:
+            print(
+                "[WARNING][Pipeline][FinishTelemetry] "
+                f"{type(exc).__name__}: {str(exc)[:180]}"
+            )
 
     def _stage_timeout_seconds(self, file: str) -> int:
         """Return a bounded timeout appropriate for the production stage."""
@@ -296,8 +302,11 @@ class Pipeline:
                         title=title,
                         timeout_seconds=stage_timeout,
                     )
-                except Exception:
-                    pass
+                except Exception as profile_exc:
+                    print(
+                        "[WARNING][Profiler][TimeoutRecord] "
+                        f"{file}: {type(profile_exc).__name__}: {str(profile_exc)[:180]}"
+                    )
                 raise RuntimeError(
                     f"{file} excedeu timeout de {stage_timeout}s"
                 ) from exc
@@ -313,8 +322,11 @@ class Pipeline:
                         status="pass",
                         title=title,
                     )
-                except Exception:
-                    pass
+                except Exception as profile_exc:
+                    print(
+                        "[WARNING][Profiler][PassRecord] "
+                        f"{file}: {type(profile_exc).__name__}: {str(profile_exc)[:180]}"
+                    )
                 print(f"ETAPA OK: {elapsed:.1f}s")
                 return last
             if attempt < retries:
@@ -332,8 +344,11 @@ class Pipeline:
                 title=title,
                 returncode=last,
             )
-        except Exception:
-            pass
+        except Exception as profile_exc:
+            print(
+                "[WARNING][Profiler][FailRecord] "
+                f"{file}: {type(profile_exc).__name__}: {str(profile_exc)[:180]}"
+            )
         raise subprocess.CalledProcessError(last, cmd)
 
 
@@ -539,8 +554,11 @@ def run_pipeline() -> int:
     with RunLock(sid):
         try:
             production_profiler.begin_run(sid)
-        except Exception:
-            pass
+        except Exception as exc:
+            print(
+                "[WARNING][Profiler][BeginRun] "
+                f"{type(exc).__name__}: {str(exc)[:180]}"
+            )
         p = Pipeline(sid)
         print("\n==============================================")
         print(" SHORTAUTOPRO CONSOLIDATION 3.0 - MAIN.PY")
