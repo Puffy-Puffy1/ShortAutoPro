@@ -229,7 +229,10 @@ class MediaRecoveryTests(unittest.TestCase):
         def run(*args, **kwargs):
             self.write_report([1])
             return Mock(returncode=1)
-        with patch.object(media, 'run_group', side_effect=[None]) as call:
+        with patch.object(media, 'run_group', side_effect=[None]) as call, \
+             patch.object(media, 'validate_media_completion', return_value=(True, {
+                 'valid': 12, 'expected': 12, 'missing': [], 'invalid': [], 'errors': []
+             })):
             def attempt(*args, **kwargs):
                 return run() if call.call_count == 1 else Mock(returncode=0)
             call.side_effect = attempt
