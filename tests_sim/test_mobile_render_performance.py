@@ -8,7 +8,8 @@ class MobileRenderPerformanceTests(unittest.TestCase):
     def test_single_image_multi_beat_is_opt_in(self):
         text = (ROOT / "video_professional.py").read_text(encoding="utf-8")
         self.assertIn('SAP_MULTI_BEAT_FALLBACK", "0"', text)
-        self.assertIn("real secondary assets still use multi-beat automatically", text)
+        self.assertIn("secondary is not None", text)
+        self.assertIn("source_asset_count", text)
 
     def test_scene_and_assembly_timeouts_are_bounded(self):
         text = (ROOT / "video_professional.py").read_text(encoding="utf-8")
