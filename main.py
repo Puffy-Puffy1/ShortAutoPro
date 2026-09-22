@@ -655,6 +655,17 @@ def cli() -> int:
     resume = sub.add_parser("resume")
     resume.add_argument("--short-id", default=None)
     resume.add_argument("--status", action="store_true")
+    rerender = sub.add_parser("rerender")
+    rerender.add_argument("--short-id", required=True)
+    validate = sub.add_parser("validate")
+    validate.add_argument("--short-id", required=True)
+    validate.add_argument("--post-render", action="store_true")
+    repair = sub.add_parser("repair")
+    repair.add_argument("--short-id", required=True)
+    repair.add_argument("--max-cycles", type=int, default=1)
+    diagnose = sub.add_parser("diagnose")
+    diagnose.add_argument("--short-id", default=None)
+    diagnose.add_argument("--json", action="store_true")
     sub.add_parser("audit")
     production = sub.add_parser("production")
     production.add_argument("production_args", nargs=argparse.REMAINDER)
@@ -689,6 +700,40 @@ def cli() -> int:
             command.extend(["--short-id", args.short_id])
         if args.status:
             command.append("--status")
+        return run_control(command)
+    if command_name == "rerender":
+        os.environ["SHORT_ID"] = args.short_id
+        return run_control([
+            sys.executable,
+            str(BASE / "resume_short_runtime.py"),
+            "--short-id",
+            args.short_id,
+            "--rerender",
+        ])
+    if command_name == "validate":
+        os.environ["SHORT_ID"] = args.short_id
+        command = [sys.executable, str(BASE / "render_preflight.py")]
+        if args.post_render:
+            command.append("--post-render")
+        return run_control(command)
+    if command_name == "repair":
+        os.environ["SHORT_ID"] = args.short_id
+        return run_control([
+            sys.executable,
+            str(BASE / "shortauto_repair_engine.py"),
+            "--short-id",
+            args.short_id,
+            "--execute",
+            "--max-cycles",
+            str(max(1, min(args.max_cycles, 2))),
+        ])
+    if command_name == "diagnose":
+        command = [sys.executable, str(BASE / "production_doctor.py")]
+        if args.short_id:
+            os.environ["SHORT_ID"] = args.short_id
+            command.extend(["--short-id", args.short_id])
+        if args.json:
+            command.append("--json")
         return run_control(command)
     if command_name == "audit":
         return run_control([sys.executable, str(BASE / "tools" / "repo_audit.py")])
