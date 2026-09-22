@@ -8,7 +8,7 @@ import media_stage_runtime as stage
 
 class MediaStageResilienceTests(unittest.TestCase):
     def test_round_env_escalates_both_rescue_budgets(self):
-        expected = [2, 4, 6, 8]
+        expected = [1, 1, 2, 2]
         for index, budget in enumerate(expected):
             env = stage.round_env(index)
             self.assertEqual(int(env["SAP_STOCK_RESCUE_MAX_QUERIES"]), budget)
@@ -51,16 +51,16 @@ class MediaStageResilienceTests(unittest.TestCase):
         self.assertIn("documents", joined)
 
     def test_recovery_version_incremented(self):
-        self.assertEqual(recovery.VERSION, "1.8")
+        self.assertEqual(recovery.VERSION, "1.9")
 
     def test_stage_does_not_abort_on_first_no_progress_contract(self):
         text = open("media_stage_runtime.py", encoding="utf-8").read()
         self.assertIn("ESCALATE_NEXT_ROUND", text)
         self.assertIn("STOP_BOUNDED_RECOVERY", text)
-        self.assertIn("no_progress_rounds >= 2", text)
-        self.assertIn("TWO_CONSECUTIVE_NO_PROGRESS_ROUNDS", text)
+        self.assertIn("no_progress_rounds >= 1", text)
+        self.assertIn("ONE_NO_PROGRESS_ROUND_AFTER_RETRY", text)
         self.assertNotIn("reason=NO_PROGRESS", text)
-        self.assertIn('env_int("SAP_MEDIA_STAGE_ROUNDS", 4, 1, 5)', text)
+        self.assertIn('env_int("SAP_MEDIA_STAGE_ROUNDS", 2, 1, 3)', text)
 
 
 if __name__ == "__main__":
