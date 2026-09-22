@@ -12,11 +12,12 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class ProductionSpeedToolsTests(unittest.TestCase):
-    def test_media_uses_persistent_provider_executor(self):
+    def test_media_uses_isolated_bounded_provider_executor(self):
         text = (ROOT / "midia.py").read_text(encoding="utf-8")
-        self.assertIn("_PROVIDER_EXECUTOR = ThreadPoolExecutor", text)
-        self.assertIn("_PROVIDER_EXECUTOR.submit(", text)
-        self.assertNotIn("with ThreadPoolExecutor(", text)
+        self.assertIn("_executor = ThreadPoolExecutor(", text)
+        self.assertIn("_executor.submit(", text)
+        self.assertIn("_executor.shutdown(", text)
+        self.assertIn("cancel_futures=True", text)
 
     def test_media_uses_named_persistent_http_sessions(self):
         text = (ROOT / "midia.py").read_text(encoding="utf-8")
