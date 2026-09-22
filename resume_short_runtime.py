@@ -322,6 +322,7 @@ def render_tail(sid: str) -> None:
     if not render_ok(sid):
         raise RuntimeError("renderer terminou sem artefato técnico válido")
     run_python(sid, "FINAL AUDIO MASTER", "audio_finalizer.py")
+    run_python(sid, "POST-RENDER CONTRACT", "render_preflight.py", "--post-render")
     run_python(sid, "VISUAL QA", "visual_qa.py")
 
 
@@ -353,9 +354,11 @@ def _resume_locked(sid: str, point: str) -> int:
             if not render_ok(sid):
                 raise RuntimeError("renderer terminou sem artefato técnico válido")
             run_python(sid, "FINAL AUDIO MASTER", "audio_finalizer.py")
+            run_python(sid, "POST-RENDER CONTRACT", "render_preflight.py", "--post-render")
             run_python(sid, "VISUAL QA", "visual_qa.py")
         else:
             run_python(sid, "FINAL AUDIO MASTER", "audio_finalizer.py")
+            run_python(sid, "POST-RENDER CONTRACT", "render_preflight.py", "--post-render")
             run_python(sid, "VISUAL QA", "visual_qa.py")
 
         code = final_gates(sid)
