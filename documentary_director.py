@@ -7,7 +7,7 @@ import sys
 import time
 from datetime import date
 
-from gemini_runtime import generate_text
+from gemini_runtime import (\n    GeminiInvalidResponse,\n    GeminiRuntimeError,\n    GeminiTemporaryUnavailable,\n    generate_text,\n)
 from runtime_config import env_int
 
 VERSION = "3.6"
@@ -376,12 +376,37 @@ for tentativa in range(1, 4):
             api_key=API_KEY,
         )
         ultimo_bruto = str(bruto)[:1200]
+    except GeminiInvalidResponse as exc:
+        ultimo_erro = f"{type(exc).__name__}: {str(exc)[:220]}"
+        registro["error"] = ultimo_erro
+        print(f"AVISO Documentary Director: {ultimo_erro}")
+        if "MAX_TOKENS" in str(exc) and tentativa < 3:
+            previous_budget = max_tokens
+            max_tokens = min(16000, max_tokens * 2)
+            registro["repair"] = {
+                "action": "increase_output_budget",
+                "from": previous_budget,
+                "to": max_tokens,
+            }
+            print(
+                "DOCUMENTARY_DIRECTOR_RETRY=TOKEN_BUDGET_REPAIR "
+                f"from={previous_budget} to={max_tokens}"
+            )
+            continue
+        # Safety/prompt blocks and other runtime-invalid envelopes are not
+        # repaired by replaying the identical request.
+        break
+    except (GeminiTemporaryUnavailable, GeminiRuntimeError) as exc:
+        ultimo_erro = f"{type(exc).__name__}: {str(exc)[:220]}"
+        registro["error"] = ultimo_erro
+        print(f"AVISO Documentary Director: {ultimo_erro}")
+        # Transport/capacity/auth failure has already been handled by the
+        # shared runtime. Preserve the existing map instead of multiplying it.
+        break
     except Exception as exc:
         ultimo_erro = f"{type(exc).__name__}: {str(exc)[:220]}"
         registro["error"] = ultimo_erro
         print(f"AVISO Documentary Director: {ultimo_erro}")
-        # Transport/capacity failure has already exhausted the shared model
-        # chain. Repeating the same contract three times would only add delay.
         break
 
     try:
