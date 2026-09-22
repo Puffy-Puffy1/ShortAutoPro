@@ -23,7 +23,7 @@ class ExtremeConfigHarmonyRound10Tests(unittest.TestCase):
         expectations = {
             "main.py": 'env_int("SAP_CONTROL_COMMAND_TIMEOUT", 7200, 300, 21600)',
             "media_stage_runtime.py": 'env_int("SAP_MEDIA_STAGE_ROUNDS", 2, 1, 3)',
-            "video_professional.py": 'env_int("SHORT_SCENE_RENDER_TIMEOUT", 300, 60, 1200)',
+            "video_professional.py": 'env_int("SHORT_SCENE_RENDER_TIMEOUT", 180, 60, 900)',
             "v6_professional.py": 'env_int("SAP_RENDER_THREADS", 0, 0, 8)',
             "resume_short_runtime.py": 'env_int("SAP_RESUME_FULL_RERUN_TIMEOUT", 7200, 600, 21600)',
             "production_center.py": 'env_int("SAP_CONTROL_COMMAND_TIMEOUT", 7200, 300, 21600)',
