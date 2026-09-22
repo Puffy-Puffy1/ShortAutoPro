@@ -8,6 +8,7 @@ quality states that can still be reviewed by the canonical release gates.
 """
 from __future__ import annotations
 
+import argparse
 import json
 import math
 import os
@@ -42,6 +43,9 @@ VISUAL_SCORE = R / f"visual_score_{SID}.json"
 CONTINUITY = R / f"visual_continuity_{SID}.json"
 CAPTION_LAYOUT = R / f"caption_layout_{SID}.json"
 OUT = BASE / "reports" / "preflight" / f"render_preflight_{SID}.json"
+POST_OUT = BASE / "reports" / "preflight" / f"post_render_{SID}.json"
+FINAL_VIDEO = BASE / "videos" / f"short_v6_{SID}.mp4"
+FINAL_AUDIO_REPORT = BASE / "reports" / "evolution" / f"final_audio_{SID}.json"
 
 MEDIA_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".webm", ".mkv"}
 
@@ -105,6 +109,20 @@ def duration(info: dict[str, Any]) -> float:
     return value if math.isfinite(value) else 0.0
 
 
+def parse_fps(value: Any) -> float:
+    raw = str(value or "0/1")
+    try:
+        if "/" in raw:
+            numerator, denominator = raw.split("/", 1)
+            den = float(denominator)
+            result = float(numerator) / den if den else 0.0
+        else:
+            result = float(raw)
+    except (TypeError, ValueError, ZeroDivisionError):
+        return 0.0
+    return result if math.isfinite(result) else 0.0
+
+
 def scene_number(item: dict[str, Any], fallback: int) -> int:
     for key in ("scene", "scene_id", "id", "number"):
         try:
@@ -155,7 +173,7 @@ def writable_directory(path: Path) -> bool:
         return False
 
 
-def main() -> int:
+def pre_render_main() -> int:
     blockers: list[str] = []
     warnings: list[str] = []
     checks: dict[str, Any] = {}
@@ -380,6 +398,195 @@ def main() -> int:
     print()
     print(f"PRE-FLIGHT: {status}")
     return 0 if status == "READY" else 1
+
+
+def post_render_main() -> int:
+    blockers: list[str] = []
+    warnings: list[str] = []
+    checks: dict[str, Any] = {}
+
+    info = ffprobe(FINAL_VIDEO) if FINAL_VIDEO.is_file() else {}
+    streams = info.get("streams", []) if isinstance(info.get("streams"), list) else []
+    video_stream = next(
+        (row for row in streams if isinstance(row, dict) and row.get("codec_type") == "video"),
+        {},
+    )
+    audio_stream = next(
+        (row for row in streams if isinstance(row, dict) and row.get("codec_type") == "audio"),
+        {},
+    )
+    video_duration = duration(info)
+    narration_info = ffprobe(AUDIO) if AUDIO.is_file() else {}
+    narration_duration = duration(narration_info)
+    fps = parse_fps(video_stream.get("avg_frame_rate"))
+    try:
+        final_size = FINAL_VIDEO.stat().st_size
+    except OSError:
+        final_size = 0
+
+    checks["file"] = {
+        "path": str(FINAL_VIDEO),
+        "exists": FINAL_VIDEO.is_file(),
+        "size_bytes": final_size,
+    }
+    checks["video_stream"] = {
+        "codec": video_stream.get("codec_name"),
+        "width": video_stream.get("width"),
+        "height": video_stream.get("height"),
+        "fps": round(fps, 3),
+    }
+    checks["audio_stream"] = {
+        "codec": audio_stream.get("codec_name"),
+        "sample_rate": audio_stream.get("sample_rate"),
+    }
+
+    if not FINAL_VIDEO.is_file() or final_size < 500_000:
+        blockers.append("final_video_missing_or_too_small")
+    if not video_stream:
+        blockers.append("final_video_stream_missing")
+    else:
+        if str(video_stream.get("codec_name", "")).lower() != "h264":
+            blockers.append("final_video_codec_not_h264")
+        if int(video_stream.get("width", 0) or 0) != 1080 or int(video_stream.get("height", 0) or 0) != 1920:
+            blockers.append("final_resolution_not_1080x1920")
+        if not 29.0 <= fps <= 31.0:
+            blockers.append(f"final_fps_invalid:{fps:.3f}")
+    if not audio_stream:
+        blockers.append("final_audio_stream_missing")
+    elif str(audio_stream.get("codec_name", "")).lower() != "aac":
+        blockers.append("final_audio_codec_not_aac")
+
+    try:
+        tolerance = float(os.getenv("SAP_AV_SYNC_TOLERANCE_SECONDS", "0.75") or 0.75)
+    except (TypeError, ValueError):
+        tolerance = 0.75
+    tolerance = max(0.10, min(tolerance, 2.0))
+    delta = abs(video_duration - narration_duration) if video_duration > 0 and narration_duration > 0 else 9999.0
+    checks["timing"] = {
+        "video_duration": round(video_duration, 3),
+        "narration_duration": round(narration_duration, 3),
+        "difference": round(delta, 3),
+        "tolerance": tolerance,
+    }
+    if video_duration <= 0:
+        blockers.append("final_video_duration_invalid")
+    if narration_duration <= 0:
+        blockers.append("narration_duration_invalid")
+    if delta > tolerance:
+        blockers.append(
+            f"audio_video_duration_mismatch:{delta:.3f}>{tolerance:.3f}"
+        )
+
+    dialogue_count = 0
+    subtitle_last = 0.0
+    subtitle_invalid = 0
+    if ASS.is_file():
+        try:
+            for line in ASS.read_text(encoding="utf-8", errors="strict").splitlines():
+                if not line.startswith("Dialogue:"):
+                    continue
+                parts = line.split(",", 9)
+                if len(parts) != 10:
+                    subtitle_invalid += 1
+                    continue
+                start = ass_seconds(parts[1].strip())
+                end = ass_seconds(parts[2].strip())
+                if start is None or end is None or start < 0 or end <= start:
+                    subtitle_invalid += 1
+                    continue
+                dialogue_count += 1
+                subtitle_last = max(subtitle_last, end)
+        except Exception:
+            subtitle_invalid += 1
+    checks["subtitles"] = {
+        "exists": ASS.is_file(),
+        "dialogues": dialogue_count,
+        "invalid": subtitle_invalid,
+        "last_end": round(subtitle_last, 3),
+    }
+    if not ASS.is_file() or dialogue_count <= 0 or subtitle_invalid:
+        blockers.append("final_subtitle_source_invalid")
+    elif narration_duration > 0 and subtitle_last > narration_duration + tolerance:
+        blockers.append("final_subtitle_timing_exceeds_narration")
+
+    audio_report = load(FINAL_AUDIO_REPORT)
+    checks["audio_master"] = {
+        "status": audio_report.get("status"),
+        "report": str(FINAL_AUDIO_REPORT),
+    }
+    if audio_report and str(audio_report.get("status", "")).upper() == "BLOCK":
+        blockers.append("audio_master_block")
+
+    decode_ok = False
+    decode_error = ""
+    if FINAL_VIDEO.is_file() and final_size >= 500_000:
+        decode_timeout = max(60, min(600, int(max(video_duration, 1.0) * 4 + 60)))
+        try:
+            proc = subprocess.run(
+                [
+                    "ffmpeg", "-hide_banner", "-v", "error",
+                    "-i", str(FINAL_VIDEO),
+                    "-map", "0:v:0", "-map", "0:a:0?",
+                    "-f", "null", "-",
+                ],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=decode_timeout,
+                check=False,
+            )
+            decode_ok = proc.returncode == 0
+            decode_error = (proc.stderr or "")[-1800:]
+        except subprocess.TimeoutExpired as exc:
+            decode_error = f"decode_timeout:{decode_timeout}s:{str(exc.stderr or '')[-800:]}"
+        except Exception as exc:
+            decode_error = f"{type(exc).__name__}:{str(exc)[:800]}"
+    checks["decode"] = {
+        "ok": decode_ok,
+        "error": decode_error or None,
+    }
+    if not decode_ok:
+        blockers.append("final_video_decode_failed")
+
+    status = "PASS" if not blockers else "BLOCK"
+    payload = {
+        "short_id": SID,
+        "version": "POST_RENDER_QA_1.0",
+        "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+        "status": status,
+        "checks": checks,
+        "warnings": warnings,
+        "blockers": blockers,
+    }
+    atomic(POST_OUT, payload)
+
+    print()
+    print("================================")
+    print("POST RENDER QA")
+    print("================================")
+    print(f"File .................... {'OK' if FINAL_VIDEO.is_file() and final_size >= 500_000 else 'FAIL'}")
+    print(f"Video stream ............ {'OK' if video_stream else 'FAIL'}")
+    print(f"Audio stream ............ {'OK' if audio_stream else 'FAIL'}")
+    print(f"Resolution .............. {video_stream.get('width', '?')}x{video_stream.get('height', '?')}")
+    print(f"FPS ..................... {fps:.3f}")
+    print(f"Duration delta .......... {delta:.3f}s")
+    print(f"Subtitle source ......... {'OK' if dialogue_count and not subtitle_invalid else 'FAIL'}")
+    print(f"Decode verification ..... {'OK' if decode_ok else 'FAIL'}")
+    if blockers:
+        print("Blockers ................ " + ",".join(blockers))
+    print(f"RESULT: {status}")
+    return 0 if status == "PASS" else 1
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="ShortAutoPro render contract")
+    parser.add_argument(
+        "--post-render",
+        action="store_true",
+        help="validate the encoded final artifact instead of pre-render inputs",
+    )
+    args = parser.parse_args()
+    return post_render_main() if args.post_render else pre_render_main()
 
 
 if __name__ == "__main__":
