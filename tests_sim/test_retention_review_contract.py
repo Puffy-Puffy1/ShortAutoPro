@@ -40,6 +40,8 @@ class RetentionReviewContractTests(unittest.TestCase):
         calls = []
 
         class FakePipeline:
+            sid = "case"
+
             def run(self, title, script, *args, **kwargs):
                 calls.append((title, script, args, kwargs))
                 if script == "retention_engine.py":
