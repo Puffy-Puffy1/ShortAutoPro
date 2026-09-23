@@ -119,9 +119,21 @@ def _visual_quality_state(short_id: str) -> dict[str, Any]:
     except (TypeError, ValueError):
         score = 100.0
     minimum_score = env_int("SAP_PRE_RENDER_VISUAL_SCORE_MIN", 62, 40, 90)
-    confidence = str(data.get("measurement_confidence", "HIGH") or "HIGH").upper()
-    canonical_coverage = float(data.get("canonical_coverage", 1.0) or 0.0)
-    # Shadow-only visual metadata cannot prove that the committed media is weak.
+    version = str(data.get("version", "") or "")
+    has_canonical_contract = (
+        "CANONICAL" in version.upper()
+        or "measurement_confidence" in data
+        or "canonical_coverage" in data
+    )
+    confidence = str(
+        data.get("measurement_confidence", "LOW" if not has_canonical_contract else "HIGH")
+        or ("LOW" if not has_canonical_contract else "HIGH")
+    ).upper()
+    canonical_coverage = float(
+        data.get("canonical_coverage", 0.0 if not has_canonical_contract else 1.0)
+        or 0.0
+    )
+    # Shadow-only or legacy visual metadata cannot prove that committed media is weak.
     # Fail closed only when canonical commit evidence is sufficiently complete.
     authoritative = confidence == "HIGH" and canonical_coverage >= 0.75
     needs = authoritative and (len(weak) >= trigger or score < minimum_score)
