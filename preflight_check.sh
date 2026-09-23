@@ -27,7 +27,7 @@ erro() { echo "ERRO   $1"; ERROS=$((ERROS + 1)); }
 
 echo
 echo "======================================"
-echo " SHORTAUTO PRO - PREFLIGHT CHECK 3.0.2"
+echo " SHORTAUTO PRO - PREFLIGHT CHECK 3.0.3"
 echo "======================================"
 echo
 
@@ -62,9 +62,9 @@ for cmd in python ffmpeg ffprobe piper bash; do
     fi
 done
 
-# Somente componentes do pipeline canônico 3.0.2 e utilitários operacionais ativos.
+# Somente componentes do pipeline canônico 3.0.3 e utilitários operacionais ativos.
 ARQUIVOS=(
-    main.py runtime_config.py subprocess_guard.py production_profiler.py production_doctor.py profile_run.sh resume_short_runtime.py finalize_short.sh
+    main.py runtime_config.py subprocess_guard.py production_profiler.py production_doctor.py production_watchdog.py production_health.py production_recovery.py render_preflight.py profile_run.sh resume_short_runtime.py finalize_short.sh tools/deploy_smoke.py
     topic_engine_runtime.py topic_engine.py topic_memory.py topic_reserve.py topic_index.py wiki_client.py source_identity.py gemini_runtime.py script_fallback.py
     script_runtime.py roteiro.py used_topic.py hook_engine.py hook_runtime.py narrative_director.py cold_open_director.py media_emergency_fallback.py
     scene_director.py scene_truth_refiner_6_7.py documentary_director.py visual_director.py
@@ -180,7 +180,7 @@ else
     done
     
     PY_FILES=(
-        main.py runtime_config.py subprocess_guard.py production_profiler.py production_doctor.py resume_short_runtime.py topic_engine_runtime.py topic_engine.py topic_memory.py topic_reserve.py topic_index.py wiki_client.py source_identity.py gemini_runtime.py script_fallback.py media_emergency_fallback.py
+        main.py runtime_config.py subprocess_guard.py production_profiler.py production_doctor.py production_watchdog.py production_health.py production_recovery.py render_preflight.py tools/deploy_smoke.py resume_short_runtime.py topic_engine_runtime.py topic_engine.py topic_memory.py topic_reserve.py topic_index.py wiki_client.py source_identity.py gemini_runtime.py script_fallback.py media_emergency_fallback.py
         script_runtime.py roteiro.py used_topic.py hook_engine.py hook_runtime.py narrative_director.py cold_open_director.py
         scene_director.py scene_truth_refiner_6_7.py documentary_director.py visual_director.py visual_shot_bridge.py
         visual_shot_policy.py visual_editorial_policy.py visual_risk_guard.py editorial_continuity.py visual_continuity_engine.py
@@ -229,13 +229,17 @@ for name in (
     "visual_score_engine",
     "retention_engine",
     "sound_design_engine",
+    "render_preflight",
+    "production_recovery",
+    "production_watchdog",
+    "production_health",
 ):
     importlib.import_module(name)
 PY
     ); then
-        ok "imports runtime críticos 3.0.2"
+        ok "imports runtime críticos 3.0.3"
     else
-        erro "dependência/import runtime crítico 3.0.2 quebrado"
+        erro "dependência/import runtime crítico 3.0.3 quebrado"
     fi
     
     
@@ -244,6 +248,16 @@ PY
         printf '%s\n' "$CODE_HEAD" > "$CODE_CACHE" 2>/dev/null || true
         ok "cache de validação de código atualizado"
     fi
+fi
+
+if [ -f "$BASE/tools/deploy_smoke.py" ]; then
+    if python "$BASE/tools/deploy_smoke.py"; then
+        ok "deploy smoke semântico"
+    else
+        erro "deploy smoke semântico falhou"
+    fi
+else
+    erro "tools/deploy_smoke.py ausente"
 fi
 
 echo
@@ -255,7 +269,7 @@ echo "Avisos: $AVISOS"
 echo
 
 if [ "$ERROS" -eq 0 ]; then
-    echo "STATUS: PRONTO PARA PRODUÇÃO 3.0.2"
+    echo "STATUS: PRONTO PARA PRODUÇÃO 3.0.3"
     exit 0
 fi
 

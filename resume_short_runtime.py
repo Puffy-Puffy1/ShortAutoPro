@@ -11,6 +11,7 @@ import argparse
 import json
 import math
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -67,14 +68,12 @@ def media_ok(sid: str) -> bool:
         for path in folder.iterdir():
             if path.suffix.lower() not in {".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".webm", ".mkv"}:
                 continue
-            if not path.stem.startswith("scene_"):
+            match = re.match(r"^scene_(\d+)", path.name, flags=re.IGNORECASE)
+            if not match:
                 continue
-            try:
-                number = int(path.stem.split("_", 1)[1])
-                if 1 <= number <= expected and nonempty(path, 1001):
-                    valid.add(number)
-            except ValueError:
-                continue
+            number = int(match.group(1))
+            if 1 <= number <= expected and nonempty(path, 1001):
+                valid.add(number)
     except OSError:
         return False
     return valid == set(range(1, expected + 1))
