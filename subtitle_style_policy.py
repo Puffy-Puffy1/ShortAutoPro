@@ -73,7 +73,9 @@ def group_timed_words(timed_words):
             continue
         if len(current) < 4 and len(nxt) >= 3:
             current.append(nxt.pop(0))
-        elif len(current) > 2:
+        elif len(current) > 2 and len(nxt) < 4:
+            # Never grow the next caption beyond the policy maximum. A 5-word
+            # group makes validate_grouping() reject an otherwise lossless alignment.
             nxt.insert(0, current.pop())
     return [group for group in result if group]
 
