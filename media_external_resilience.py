@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-VERSION = "1.0"
+VERSION = "1.1"
 BASE = Path(os.path.abspath(os.path.expanduser(os.getenv("SHORTAUTOPRO_BASE", "~/ShortAutoPro"))))
 STATE_FILE = BASE / "cache" / "media_resilience" / "state.json"
 _LOCK = threading.RLock()
@@ -26,8 +26,8 @@ ALIASES = {
     "pixabay_video": "pixabay", "pixabay_foto": "pixabay",
     "coverr_video": "coverr", "wikimedia_api": "wikimedia",
 }
-THRESHOLDS = {"AUTH": 1, "RATE_LIMIT": 1, "SERVER": 2, "NETWORK": 2, "TIMEOUT": 2, "MALFORMED": 2, "EMPTY": 4}
-COOLDOWNS = {"AUTH": 900.0, "RATE_LIMIT": 60.0, "SERVER": 45.0, "NETWORK": 30.0, "TIMEOUT": 30.0, "MALFORMED": 60.0, "EMPTY": 20.0}
+THRESHOLDS = {"AUTH": 1, "RATE_LIMIT": 1, "SERVER": 2, "NETWORK": 2, "TIMEOUT": 2, "MALFORMED": 2}
+COOLDOWNS = {"AUTH": 900.0, "RATE_LIMIT": 60.0, "SERVER": 45.0, "NETWORK": 30.0, "TIMEOUT": 30.0, "MALFORMED": 60.0}
 ASSET_TTL = {"HTTP_403": 1800.0, "HTTP_404": 604800.0, "HTTP_410": 604800.0, "HTTP_429": 900.0, "TIMEOUT": 600.0, "NETWORK": 600.0, "CONTENT_TYPE": 86400.0, "TOO_SMALL": 86400.0, "TOO_LARGE": 86400.0, "CORRUPT": 86400.0, "PROBE_FAIL": 86400.0, "REMOVED": 604800.0, "UNKNOWN": 900.0}
 
 
@@ -127,6 +127,15 @@ def provider_gate(provider: Any):
         item = state["providers"].get(family, {})
         now = time.time()
         until = float(item.get("open_until", 0.0) or 0.0) if isinstance(item, dict) else 0.0
+        # EMPTY was used by v1.0 as a provider-health circuit. Empty search
+        # results are query-specific, not proof that the provider is unhealthy.
+        # Clear persisted legacy EMPTY circuits immediately so a previous narrow
+        # query cannot suppress Wikimedia/stock for later scenes.
+        if isinstance(item, dict) and item.get("open_reason") == "EMPTY":
+            item["open_until"] = 0.0
+            item["open_reason"] = ""
+            until = 0.0
+            _save(state)
         if until > now:
             return False, str(item.get("open_reason", "OPEN")), until - now
         if until and isinstance(item, dict):
@@ -168,19 +177,21 @@ def note_provider_event(provider: Any, event: str, *, status=None, retry_after=N
             item["open_reason"] = ""
             item["last_success"] = now
         elif event == "HTTP_SUCCESS":
-            # Transport/API health recovered, but do not erase EMPTY streak.
-            # The parsed result will separately call note_items().
             item["consecutive_failures"] = 0
-            if item.get("open_reason") != "EMPTY":
+            # Successful transport proves provider health. Search-result
+            # emptiness is recorded separately but never opens a health circuit.
+            if item.get("open_reason") == "EMPTY":
                 item["open_until"] = 0.0
                 item["open_reason"] = ""
         elif event == "EMPTY":
             item["empties"] = int(item.get("empties", 0) or 0) + 1
             item["empty_streak"] = int(item.get("empty_streak", 0) or 0) + 1
             item["consecutive_failures"] = 0
-            if item["empty_streak"] >= THRESHOLDS["EMPTY"]:
-                item["open_until"] = now + COOLDOWNS["EMPTY"]
-                item["open_reason"] = "EMPTY"
+            # EMPTY is a valid response to a particular semantic query. Do not
+            # disable the provider for unrelated later scenes.
+            if item.get("open_reason") == "EMPTY":
+                item["open_until"] = 0.0
+                item["open_reason"] = ""
         else:
             item["failures"] = int(item.get("failures", 0) or 0) + 1
             item["consecutive_failures"] = int(item.get("consecutive_failures", 0) or 0) + 1
