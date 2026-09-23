@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import tempfile
 from datetime import datetime
 from pathlib import Path
@@ -93,10 +94,10 @@ def media_inventory(sid: str) -> dict[str, Any]:
     for path in sorted(root.glob("scene_*")):
         if not path.is_file():
             continue
-        try:
-            number = int(path.stem.split("_", 1)[1])
-        except Exception:
+        match = re.match(r"^scene_(\d+)", path.name, flags=re.IGNORECASE)
+        if not match:
             continue
+        number = int(match.group(1))
         scenes.append(number)
         if path.suffix.lower() == ".mp4":
             videos += 1
