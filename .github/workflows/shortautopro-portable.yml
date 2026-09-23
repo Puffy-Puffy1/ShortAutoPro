@@ -117,7 +117,8 @@ jobs:
             tests_sim.test_production_watchdog_health \
             tests_sim.test_visual_query_guard \
             tests_sim.test_rendered_visual_diversity \
-            tests_sim.test_canonical_visual_score
+            tests_sim.test_canonical_visual_score \
+            tests_sim.test_retention_review_contract
           echo "PORTABLE_STAGE6_GATE=PASS"
 
       - name: JSON Integrity Audit
