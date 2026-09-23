@@ -71,11 +71,17 @@ def plan(sid: str) -> dict[str, Any]:
             "id": "media_reacquire",
             "reason": "media_gate_block",
             "commands": [
+                [sys.executable, "visual_query_guard.py"],
+                [sys.executable, "visual_media_refresh.py"],
                 [sys.executable, "media_stage_runtime.py"],
                 [sys.executable, "media_master_gate.py"],
                 [sys.executable, "visual_score_engine.py"],
+                [sys.executable, "motion_director.py"],
+                [sys.executable, "rhythm_director.py"],
+                [sys.executable, "professional_edit_director.py"],
+                [sys.executable, "professional_edit_repair.py"],
             ],
-            "risk": "bounded_network_retry",
+            "risk": "bounded_media_reacquisition",
         })
     elif any(str(x).startswith("low_resolution:") for x in media_warnings):
         actions.append({
@@ -172,16 +178,22 @@ def plan(sid: str) -> dict[str, Any]:
             "id": "media_reacquire",
             "reason": "release_gate_media_repair",
             "commands": [
-                [sys.executable, "midia.py"],
+                [sys.executable, "visual_query_guard.py"],
+                [sys.executable, "visual_media_refresh.py"],
+                [sys.executable, "media_stage_runtime.py"],
                 [sys.executable, "media_master_gate.py"],
                 [sys.executable, "visual_score_engine.py"],
+                [sys.executable, "motion_director.py"],
+                [sys.executable, "rhythm_director.py"],
+                [sys.executable, "professional_edit_director.py"],
+                [sys.executable, "professional_edit_repair.py"],
             ],
-            "risk": "bounded_network_retry",
+            "risk": "bounded_media_reacquisition",
         })
 
     return {
         "short_id": sid,
-        "version": "REPAIR_ENGINE_1.0",
+        "version": "REPAIR_ENGINE_1.1_VISUAL_REACQUIRE",
         "generated_at": now(),
         "policy": {
             "max_cycles_default": 1,
