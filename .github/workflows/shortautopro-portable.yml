@@ -103,7 +103,8 @@ jobs:
             tests_sim.test_subtitle_alignment \
             tests_sim.test_termux_bridge_deploy \
             tests_sim.test_termux_stable_promotion \
-            tests_sim.test_render_preflight
+            tests_sim.test_render_preflight \
+            tests_sim.test_media_two_pass_recovery
           echo "PORTABLE_STAGE6_GATE=PASS"
 
       - name: JSON Integrity Audit
