@@ -29,6 +29,7 @@ venv/
 logs/
 tmp/
 temp/
+temp_v3/
 cache/
 .cache/
 *.tmp
