@@ -134,6 +134,14 @@ while IFS= read -r -d '' file; do
     fi
 done < <(git ls-files -z '*.sh')
 
+if [ ! -f "tools/deploy_smoke.py" ]; then
+    rollback "deploy_smoke_missing"
+fi
+if ! python tools/deploy_smoke.py; then
+    rollback "deploy_smoke_failed"
+fi
+log "DEPLOY_SMOKE=PASS"
+
 NEW_COMMIT="$(git rev-parse HEAD)"
 printf '%s\n' "$NEW_COMMIT" > "$LAST_OK_FILE"
 
