@@ -25,6 +25,7 @@ FORBIDDEN_RELATIVE = (
     Path("limpar_storage.sh"),
     Path("tools/apply_consolidation_1_0.py"),
     Path("_arquivo_historico"),
+    Path("temp_v3"),
 )
 
 
