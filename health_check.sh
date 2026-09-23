@@ -20,7 +20,7 @@ fi
 
 echo
 echo "======================================"
-echo " SHORTAUTO PRO - HEALTH CHECK 3.0.2"
+echo " SHORTAUTO PRO - HEALTH CHECK 3.0.3"
 echo "======================================"
 echo
 
@@ -47,7 +47,7 @@ checar_arquivo() {
 }
 
 ARQUIVOS=(
-    config.sh main.py runtime_config.py subprocess_guard.py production_profiler.py production_doctor.py profile_run.sh resume_short_runtime.py resume_after_semantic_fix.py
+    config.sh main.py runtime_config.py subprocess_guard.py production_profiler.py production_doctor.py production_watchdog.py production_health.py production_recovery.py render_preflight.py tools/deploy_smoke.py profile_run.sh resume_short_runtime.py resume_after_semantic_fix.py
     topic_engine_runtime.py topic_engine.py topic_memory.py topic_reserve.py topic_index.py wiki_client.py source_identity.py gemini_runtime.py script_fallback.py
     script_runtime.py roteiro.py used_topic.py hook_engine.py hook_runtime.py narrative_director.py cold_open_director.py media_emergency_fallback.py
     scene_director.py scene_truth_refiner_6_7.py documentary_director.py visual_director.py
@@ -119,7 +119,7 @@ if [ -x "$WHISPER_CLI" ]; then echo "OK  Whisper CLI"; else echo "ERRO  Whisper 
 if [ -f "$WHISPER_MODEL" ]; then echo "OK  Whisper model"; else echo "ERRO  Whisper model ausente: $WHISPER_MODEL"; ERROS=$((ERROS + 1)); fi
 
 if [ "$CODE_CACHE_HIT" -eq 1 ]; then
-    echo "OK  imports runtime críticos 3.0.2 (cache commit $CODE_HEAD)"
+    echo "OK  imports runtime críticos 3.0.3 (cache commit $CODE_HEAD)"
 else
     # Import-only smoke test para dependências internas sem disparar produção.
     if (
@@ -156,13 +156,17 @@ for name in (
     "shortauto_asset_library",
     "shortauto_repair_engine",
     "shortauto_intelligence_layer",
+    "render_preflight",
+    "production_recovery",
+    "production_watchdog",
+    "production_health",
 ):
     importlib.import_module(name)
 PY
     ); then
-        echo "OK  imports runtime críticos 3.0.2"
+        echo "OK  imports runtime críticos 3.0.3"
     else
-        echo "ERRO  imports runtime críticos 3.0.2"
+        echo "ERRO  imports runtime críticos 3.0.3"
         ERROS=$((ERROS + 1))
     fi
     
@@ -172,7 +176,7 @@ echo
 echo "--------------------------------------"
 
 if [ "$ERROS" -eq 0 ]; then
-    echo "STATUS: SAUDÁVEL 3.0.2"
+    echo "STATUS: SAUDÁVEL 3.0.3"
     exit 0
 fi
 
