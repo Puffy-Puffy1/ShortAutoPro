@@ -23,7 +23,7 @@ class GeneralProductionOptimizationTests(unittest.TestCase):
         text = (ROOT / "health_check.sh").read_text(encoding="utf-8")
         self.assertIn("preflight_code_cache.txt", text)
         self.assertIn("CODE_CACHE_HIT", text)
-        self.assertIn("imports runtime críticos 3.0.2 (cache commit", text)
+        self.assertIn("imports runtime críticos 3.0.3 (cache commit", text)
 
     def test_professional_quality_reuses_fresh_audio_measurement(self):
         text = (ROOT / "professional_quality_gate.py").read_text(encoding="utf-8")
