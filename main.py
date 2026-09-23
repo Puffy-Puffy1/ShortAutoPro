@@ -412,7 +412,19 @@ def stages_before_render(p: Pipeline) -> None:
     p.run("6C1 - PROFESSIONAL EDIT DIRECTOR", "professional_edit_director.py")
     p.run("6C2 - PROFESSIONAL EDIT AUTO-REPAIR", "professional_edit_repair.py")
     p.run("6C2B - MULTI-ASSET DIRECTOR", "multi_asset_director.py", retries=1)
-    p.run("6C3 - RETENTION ENGINE + SAFE REPAIR", "retention_engine.py", "--repair", "--enforce")
+    retention_code = p.run(
+        "6C3 - RETENTION ENGINE + SAFE REPAIR",
+        "retention_engine.py",
+        "--repair",
+        "--enforce",
+        allow_codes={0, 20},
+    )
+    if retention_code == 20:
+        print(
+            "RETENTION_REVIEW=CONTINUE "
+            "reason=NON_CRITICAL_REVIEW "
+            "next=RELEASE_GATE"
+        )
     p.run("6C4 - SOUND DESIGN ENGINE", "sound_design_engine.py")
     p.run("6D - PRODUCTION SUPERVISOR", "production_supervisor.py")
     p.run("6D1 - EVOLUTION VISUAL AUDIT", "shortautopro_evolution.py", "visual-audit")

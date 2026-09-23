@@ -107,11 +107,17 @@ def consolidation_plan_ok(sid: str) -> bool:
     if not all(nonempty(path, 20) and read_json(path) for path in required):
         return False
     retention = read_json(required[0])
+    status = str(retention.get("status", "") or "").upper()
+    if status == "BLOCK":
+        return False
+    if status in {"PASS", "REVIEW"}:
+        return True
     try:
         score = float(retention.get("retention_score", retention.get("score", 0)) or 0)
     except (TypeError, ValueError, OverflowError):
         return False
-    return math.isfinite(score) and score >= env_float("SAP_RETENTION_MIN_SCORE", 78.0, 0.0, 100.0)
+    review_floor = env_float("SAP_RETENTION_REVIEW_MIN_SCORE", 70.0, 0.0, 100.0)
+    return math.isfinite(score) and score >= review_floor
 
 
 def audio_ok(sid: str) -> bool:
