@@ -24,6 +24,11 @@ class TermuxBridgeDeployTests(unittest.TestCase):
         self.assertIn('git reset --hard "$OLD_COMMIT"', self.bridge)
         self.assertIn("ROLLBACK=PASS", self.bridge)
 
+    def test_bridge_runs_semantic_deploy_smoke_before_accepting_commit(self):
+        self.assertIn("python tools/deploy_smoke.py", self.bridge)
+        self.assertIn('rollback "deploy_smoke_failed"', self.bridge)
+        self.assertIn("DEPLOY_SMOKE=PASS", self.bridge)
+
     def test_installer_preserves_existing_crontab(self):
         self.assertIn("crontab.before_bridge.txt", self.installer)
         self.assertIn('grep -vF "$CRON_TAG"', self.installer)
