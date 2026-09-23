@@ -39,6 +39,7 @@ DEFAULT_SEEDS = {
     "longform_runtime.py",
     "tools/map_active_graph.py",
     "tools/repo_audit.py",
+    "tools/deploy_smoke.py",
 }
 
 FILE_REF_RE = re.compile(r"(?<![A-Za-z0-9_./-])([A-Za-z0-9_.-]+\.(?:py|sh))(?![A-Za-z0-9_.-])")
