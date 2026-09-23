@@ -59,6 +59,7 @@ def plan(sid: str) -> dict[str, Any]:
     media = load(R / f"media_quality_{sid}.json")
     retention = load(R / f"retention_{sid}.json")
     visual = load(R / f"visual_score_{sid}.json")
+    vqa = load(E / f"visual_qa_{sid}.json")
     caption = load(R / f"caption_layout_{sid}.json")
     audio = load(E / f"final_audio_{sid}.json")
     actions: list[dict[str, Any]] = []
@@ -70,7 +71,7 @@ def plan(sid: str) -> dict[str, Any]:
             "id": "media_reacquire",
             "reason": "media_gate_block",
             "commands": [
-                [sys.executable, "midia.py"],
+                [sys.executable, "media_stage_runtime.py"],
                 [sys.executable, "media_master_gate.py"],
                 [sys.executable, "visual_score_engine.py"],
             ],
@@ -81,11 +82,17 @@ def plan(sid: str) -> dict[str, Any]:
             "id": "media_quality_refresh",
             "reason": "low_resolution_warning",
             "commands": [
-                [sys.executable, "midia.py"],
+                [sys.executable, "visual_query_guard.py"],
+                [sys.executable, "visual_media_refresh.py"],
+                [sys.executable, "media_stage_runtime.py"],
                 [sys.executable, "media_master_gate.py"],
                 [sys.executable, "visual_score_engine.py"],
+                [sys.executable, "motion_director.py"],
+                [sys.executable, "rhythm_director.py"],
+                [sys.executable, "professional_edit_director.py"],
+                [sys.executable, "professional_edit_repair.py"],
             ],
-            "risk": "bounded_network_retry",
+            "risk": "bounded_media_reacquisition",
         })
 
     if float(retention.get("retention_score", 100) or 0) < float(retention.get("threshold", 78) or 78):
@@ -97,12 +104,39 @@ def plan(sid: str) -> dict[str, Any]:
         })
 
     weak = visual.get("weak_scenes", []) if isinstance(visual.get("weak_scenes"), list) else []
-    if weak:
+    diversity = (
+        vqa.get("measurements", {}).get("scene_diversity", {})
+        if isinstance(vqa.get("measurements"), dict)
+        else {}
+    )
+    diversity_low = (
+        bool(diversity.get("available"))
+        and str(diversity.get("status", "")).upper() == "REVIEW"
+    )
+    if (weak or diversity_low) and not any(x["id"].startswith("media_") for x in actions):
+        reason_parts = []
+        if weak:
+            reason_parts.append(f"weak_visual_scenes:{','.join(map(str, weak))}")
+        if diversity_low:
+            reason_parts.append(
+                "render_diversity_low:"
+                f"unique={diversity.get('unique_visual_clusters')}/{diversity.get('expected_scenes')}"
+            )
         actions.append({
-            "id": "professional_edit_repair",
-            "reason": f"weak_visual_scenes:{','.join(map(str, weak))}",
-            "commands": [[sys.executable, "professional_edit_repair.py"]],
-            "risk": "edit_plan_only",
+            "id": "media_reacquire",
+            "reason": "|".join(reason_parts),
+            "commands": [
+                [sys.executable, "visual_query_guard.py"],
+                [sys.executable, "visual_media_refresh.py"],
+                [sys.executable, "media_stage_runtime.py"],
+                [sys.executable, "media_master_gate.py"],
+                [sys.executable, "visual_score_engine.py"],
+                [sys.executable, "motion_director.py"],
+                [sys.executable, "rhythm_director.py"],
+                [sys.executable, "professional_edit_director.py"],
+                [sys.executable, "professional_edit_repair.py"],
+            ],
+            "risk": "bounded_media_reacquisition",
         })
 
     caption_status = str(caption.get("status", "")).upper()
