@@ -1,0 +1,52 @@
+import json
+import tempfile
+import unittest
+from pathlib import Path
+from unittest import mock
+
+import visual_qa
+
+
+class RenderedVisualDiversityTests(unittest.TestCase):
+    def test_frame_mad_distinguishes_large_visual_change(self):
+        black = bytes([0] * (24 * 24 * 3))
+        white = bytes([255] * (24 * 24 * 3))
+        self.assertEqual(visual_qa._frame_mad(black, black), 0.0)
+        self.assertGreater(visual_qa._frame_mad(black, white), 0.95)
+
+    def test_three_visual_clusters_across_twelve_scenes_is_review(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            runtime = base / "runtime.json"
+            runtime.write_text(json.dumps({"durations": [3.0] * 12}), encoding="utf-8")
+            video = base / "video.mp4"
+            video.write_bytes(b"x")
+            frames = []
+            for value in ([20] * 4 + [120] * 4 + [230] * 4):
+                frames.append(bytes([value] * (24 * 24 * 3)))
+            with mock.patch.object(visual_qa, "RUNTIME", runtime), \
+                 mock.patch.object(visual_qa, "_frame_sample", side_effect=frames):
+                result = visual_qa.analyze_scene_diversity(video)
+            self.assertTrue(result["available"])
+            self.assertEqual(result["unique_visual_clusters"], 3)
+            self.assertEqual(result["status"], "REVIEW")
+            self.assertLess(result["change_ratio"], 0.55)
+
+    def test_distinct_scene_samples_pass(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            runtime = base / "runtime.json"
+            runtime.write_text(json.dumps({"durations": [3.0] * 12}), encoding="utf-8")
+            video = base / "video.mp4"
+            video.write_bytes(b"x")
+            frames = [bytes([min(255, i * 20)] * (24 * 24 * 3)) for i in range(12)]
+            with mock.patch.object(visual_qa, "RUNTIME", runtime), \
+                 mock.patch.object(visual_qa, "_frame_sample", side_effect=frames):
+                result = visual_qa.analyze_scene_diversity(video)
+            self.assertTrue(result["available"])
+            self.assertGreaterEqual(result["unique_visual_clusters"], 7)
+            self.assertEqual(result["status"], "PASS")
+
+
+if __name__ == "__main__":
+    unittest.main()
