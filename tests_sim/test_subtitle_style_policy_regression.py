@@ -14,7 +14,7 @@ class SubtitleStylePolicyRegressionTests(unittest.TestCase):
     def test_rebalance_never_creates_five_word_group(self):
         # The first group ends in a dangling connector while the following
         # group is already at the 4-word policy maximum.
-        words = ["história", "de", "um", "grupo", "muito", "bem", "preparado", "agora"]
+        words = ["eles", "fugiram", "para", "a", "ilha", "sob", "névoa", "fria"]
         groups = group_timed_words(timed(words))
 
         self.assertTrue(validate_grouping(groups, len(words)))
