@@ -31,8 +31,8 @@ class MediaTwoPassRecoveryTests(unittest.TestCase):
 
     def test_runtime_preserves_first_pass_then_targeted_recovery(self):
         text = Path("media_stage_runtime.py").read_text(encoding="utf-8")
-        self.assertIn("SAP_MEDIA_STAGE_RUNTIME=RECOVERY_PASS", text)
-        self.assertIn("SAP_MEDIA_RECOVERY_PASS", text)
+        self.assertIn("SAP_MEDIA_RECOVERY_ROUND", text)
+        self.assertIn("SAP_MEDIA_INCREMENTAL", text)
         self.assertIn("SAP_MUST_RESCUE_MAX_QUERIES", text)
         self.assertIn("SAP_STOCK_RESCUE_MAX_QUERIES", text)
         self.assertIn("acquisition_missing_", text)
