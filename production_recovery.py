@@ -83,7 +83,10 @@ def _run(short_id: str, script: str, *args: str, timeout: int | None = None) -> 
 
 def _append_action(actions: list[dict[str, Any]], result: dict[str, Any]) -> bool:
     actions.append(result)
-    return int(result.get("returncode", 1) or 1) == 0
+    try:
+        return int(result.get("returncode", 1)) == 0
+    except (TypeError, ValueError):
+        return False
 
 
 def _repair_media(short_id: str, actions: list[dict[str, Any]]) -> bool:
