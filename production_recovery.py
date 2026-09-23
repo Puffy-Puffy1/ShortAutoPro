@@ -119,10 +119,30 @@ def _visual_quality_state(short_id: str) -> dict[str, Any]:
     except (TypeError, ValueError):
         score = 100.0
     minimum_score = env_int("SAP_PRE_RENDER_VISUAL_SCORE_MIN", 62, 40, 90)
-    needs = len(weak) >= trigger or score < minimum_score
+    version = str(data.get("version", "") or "")
+    has_canonical_contract = (
+        "CANONICAL" in version.upper()
+        or "measurement_confidence" in data
+        or "canonical_coverage" in data
+    )
+    confidence = str(
+        data.get("measurement_confidence", "LOW" if not has_canonical_contract else "HIGH")
+        or ("LOW" if not has_canonical_contract else "HIGH")
+    ).upper()
+    canonical_coverage = float(
+        data.get("canonical_coverage", 0.0 if not has_canonical_contract else 1.0)
+        or 0.0
+    )
+    # Shadow-only or legacy visual metadata cannot prove that committed media is weak.
+    # Fail closed only when canonical commit evidence is sufficiently complete.
+    authoritative = confidence == "HIGH" and canonical_coverage >= 0.75
+    needs = authoritative and (len(weak) >= trigger or score < minimum_score)
     return {
         "available": True,
         "needs_repair": needs,
+        "authoritative": authoritative,
+        "measurement_confidence": confidence,
+        "canonical_coverage": canonical_coverage,
         "weak_count": len(weak),
         "weak_scenes": weak,
         "scene_count": scene_count,
@@ -205,7 +225,7 @@ def repair(short_id: str) -> dict[str, Any]:
         result = {
             "short_id": sid,
             "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
-            "version": "PRE_RENDER_RECOVERY_1.1_VISUAL_QUALITY",
+            "version": "PRE_RENDER_RECOVERY_1.2_CANONICAL_VISUAL",
             "status": "READY",
             "reason": "no_repair_needed",
             "before": before,
