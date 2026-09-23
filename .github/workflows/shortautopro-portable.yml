@@ -84,6 +84,72 @@ jobs:
           python -m unittest discover -s tests_sim -p "test_*.py" -v
           echo "PORTABLE_SIM_TESTS=PASS"
 
+      - name: Critical Stage 6 Regression Gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest -v \
+            tests_sim.test_stage6_completion_contract \
+            tests_sim.test_stage6_anchor_timeout_id_fix \
+            tests_sim.test_stage6_early_must_recovery \
+            tests_sim.test_stage6_fast_strict_path \
+            tests_sim.test_stage6_recovery_unwrap \
+            tests_sim.test_stage6_semantic_anchor_recovery \
+            tests_sim.test_media_stage_runtime \
+            tests_sim.test_media_stage_resilience \
+            tests_sim.test_media_strict_must_guard \
+            tests_sim.test_final_render_contract \
+            tests_sim.test_mobile_render_performance \
+            tests_sim.test_subtitle_alignment \
+            tests_sim.test_termux_bridge_deploy \
+            tests_sim.test_termux_stable_promotion
+          echo "PORTABLE_STAGE6_GATE=PASS"
+
+      - name: JSON Integrity Audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          failures = []
+          for path in pathlib.Path(".").rglob("*.json"):
+              if any(part in {".git", "__pycache__"} for part in path.parts):
+                  continue
+              try:
+                  with path.open("r", encoding="utf-8") as handle:
+                      json.load(handle)
+              except Exception as exc:
+                  failures.append(f"{path}: {exc}")
+
+          if failures:
+              print("JSON_INTEGRITY=FAIL")
+              print("\n".join(failures))
+              sys.exit(1)
+          print("JSON_INTEGRITY=PASS")
+          PY
+
+      - name: FFmpeg Synthetic End-to-End Render
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          ffmpeg -hide_banner -loglevel error -y \
+            -f lavfi -i "color=c=black:s=360x640:r=30:d=1.5" \
+            -f lavfi -i "sine=frequency=880:sample_rate=48000:duration=1.5" \
+            -vf "zoompan=z='min(zoom+0.0015,1.05)':d=1:s=360x640:fps=30" \
+            -af "loudnorm=I=-16:LRA=11:TP=-1.5" \
+            -c:v libx264 -pix_fmt yuv420p -c:a aac -shortest "$tmp/e2e.mp4"
+          ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height \
+            -of default=nw=1 "$tmp/e2e.mp4"
+          ffprobe -v error -select_streams a:0 -show_entries stream=codec_name \
+            -of default=nw=1 "$tmp/e2e.mp4"
+          test -s "$tmp/e2e.mp4"
+          echo "PORTABLE_FFMPEG_E2E=PASS"
+
       - name: Bash Syntax Audit
         shell: bash
         run: |
