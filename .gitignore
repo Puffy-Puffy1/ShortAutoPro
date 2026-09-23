@@ -175,6 +175,11 @@ manifests/source_provenance_live/
 # =========================
 # ESTADO LOCAL DE PRODUÇÃO
 # =========================
+queue/batch_state.json
+queue/.batch_recovery.lock
+queue/.batch_recovery.lockdir/
+reports/performance/
+reports/production/
 historico_assuntos.json
 historico_assuntos.json.lock
 

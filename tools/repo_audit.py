@@ -78,6 +78,11 @@ REQUIRED = {
 }
 
 REQUIRED_IGNORE_RULES = {
+    "queue/batch_state.json",
+    "queue/.batch_recovery.lock",
+    "queue/.batch_recovery.lockdir/",
+    "reports/performance/",
+    "reports/production/",
     "_arquivo_historico/",
     "*.pre_segment_fix",
     "imagens/short_*/",
