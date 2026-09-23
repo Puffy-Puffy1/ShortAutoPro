@@ -167,6 +167,37 @@ def _number(value: Any, default: float = 0.0) -> float:
         return default
 
 
+def _candidate_provider(candidate: Any) -> str:
+    if isinstance(candidate, dict):
+        value = (
+            candidate.get("fonte")
+            or candidate.get("provider")
+            or candidate.get("source")
+        )
+        if value:
+            return str(value).strip().lower()
+    return str(vse.provider(candidate) or "unknown").strip().lower()
+
+
+def _candidate_media_type(candidate: Any) -> str:
+    if isinstance(candidate, dict):
+        value = candidate.get("tipo") or candidate.get("media_type") or candidate.get("type")
+        if value:
+            return str(value).strip().lower()
+    return str(vse.media_type(candidate) or "unknown").strip().lower()
+
+
+def _candidate_key(candidate: Any) -> str:
+    provider = _candidate_provider(candidate)
+    if isinstance(candidate, dict):
+        for key in ("id", "asset_id", "photo_id", "video_id", "source_url", "url", "path"):
+            value = candidate.get(key)
+            if value not in (None, ""):
+                return f"{provider}:{str(value).strip()}"
+    value = str(vse.candidate_key(candidate) or "").strip()
+    return value or f"{provider}:{_candidate_media_type(candidate)}:unknown"
+
+
 def _apply_verified_must(result: dict[str, Any], candidate: Any, scene: Any) -> dict[str, Any]:
     """Make real asset evidence authoritative for explicit MUST requirements."""
     check = verified_must(candidate, scene)
@@ -282,10 +313,10 @@ def note_commit_runtime(candidate: Any, ctx: Any = None) -> None:
     scored = _score(candidate, scene, state)
 
     values = {
-        "providers": vse.provider(candidate),
+        "providers": _candidate_provider(candidate),
         "groups": vse.source_group(candidate),
-        "types": vse.media_type(candidate),
-        "keys": vse.candidate_key(candidate),
+        "types": _candidate_media_type(candidate),
+        "keys": _candidate_key(candidate),
     }
 
     scene_number = 0
@@ -315,9 +346,9 @@ def note_commit_runtime(candidate: Any, ctx: Any = None) -> None:
         segment = _context_value(ctx, ("segmento", "texto", "segment")) if isinstance(ctx, dict) else ""
         record = {
             "scene": scene_number,
-            "provider": candidate_dict.get("fonte") or vse.provider(candidate),
-            "media_type": candidate_dict.get("tipo") or vse.media_type(candidate),
-            "candidate_key": vse.candidate_key(candidate),
+            "provider": candidate_dict.get("fonte") or _candidate_provider(candidate),
+            "media_type": candidate_dict.get("tipo") or _candidate_media_type(candidate),
+            "candidate_key": _candidate_key(candidate),
             "description": str(description or ""),
             "query": str(query or scene.get("visual_query") or ""),
             "segment": str(segment or scene.get("texto") or ""),
