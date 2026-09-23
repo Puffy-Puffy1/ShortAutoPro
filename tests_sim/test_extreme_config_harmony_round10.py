@@ -40,7 +40,7 @@ class ExtremeConfigHarmonyRound10Tests(unittest.TestCase):
 
     def test_media_runtime_uses_shared_parser_for_round_timeout(self):
         text = (ROOT / "media_stage_runtime.py").read_text(encoding="utf-8")
-        self.assertIn('env_int("SAP_MEDIA_ROUND_TIMEOUT", 75, 30, 150)', text)
+        self.assertIn('env_int("SAP_MEDIA_ROUND_TIMEOUT", 45, 20, 150)', text)
 
 
 if __name__ == "__main__":

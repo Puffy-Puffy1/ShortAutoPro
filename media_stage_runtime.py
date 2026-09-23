@@ -287,11 +287,11 @@ def round_timeout_seconds() -> tuple[int, int]:
         remaining = len(pending)
     else:
         remaining = max(1, expected - current_completed_hint())
-    base = env_int("SAP_MEDIA_ROUND_TIMEOUT", 75, 30, 150)
-    scene_budget = env_float("SAP_MEDIA_SCENE_BUDGET_SECONDS", 14.0, 8.0, 30.0)
-    grace = env_int("SAP_MEDIA_ROUND_GRACE_SECONDS", 10, 5, 25)
+    base = env_int("SAP_MEDIA_ROUND_TIMEOUT", 45, 20, 150)
+    scene_budget = env_float("SAP_MEDIA_SCENE_BUDGET_SECONDS", 12.0, 6.0, 30.0)
+    grace = env_int("SAP_MEDIA_ROUND_GRACE_SECONDS", 8, 4, 25)
     dynamic = int(remaining * scene_budget + grace)
-    return max(30, min(max(base, dynamic), 150)), remaining
+    return max(20, min(max(base, dynamic), 150)), remaining
 
 
 def main() -> int:
@@ -333,7 +333,7 @@ def main() -> int:
             "MEDIA_STAGE_RUNTIME=BUDGET "
             f"round={round_index + 1} remaining={remaining_hint} "
             f"timeout={round_timeout}s "
-            f"scene_budget={env_float('SAP_MEDIA_SCENE_BUDGET_SECONDS', 14.0, 8.0, 30.0):.0f}s"
+            f"scene_budget={env_float('SAP_MEDIA_SCENE_BUDGET_SECONDS', 12.0, 6.0, 30.0):.0f}s"
         )
 
         previous_report = report_signature()
