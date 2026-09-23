@@ -53,13 +53,16 @@ class PreRenderResilienceTests(unittest.TestCase):
 
     def test_main_certifies_render_inputs_before_renderer(self):
         text = (Path(__file__).resolve().parents[1] / "main.py").read_text(encoding="utf-8")
-        recovery_pos = text.index('"production_recovery.py"')
-        preflight_pos = text.index('"render_preflight.py"')
-        renderer_pos = text.index('"video_professional.py"')
+        start = text.index("def assemble_and_render")
+        end = text.index("\ndef final_gates", start)
+        block = text[start:end]
+        recovery_pos = block.index('"production_recovery.py"')
+        preflight_pos = block.index('"render_preflight.py"')
+        renderer_pos = block.index('"video_professional.py"')
         self.assertLess(recovery_pos, renderer_pos)
         self.assertLess(preflight_pos, renderer_pos)
         self.assertIn("production_watchdog.record_heartbeat", text)
-        self.assertIn('"production_health.py"', text)
+        self.assertIn('"production_health.py"', block)
 
 
 if __name__ == "__main__":
