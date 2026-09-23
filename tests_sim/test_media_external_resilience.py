@@ -43,7 +43,8 @@ class MediaExternalResilienceTests(unittest.TestCase):
         self.assertEqual(reason, "RATE_LIMIT")
         self.assertGreater(remaining, 100)
 
-    def test_persistent_empty_results_open_short_circuit(self):
+    def test_persistent_empty_results_do_not_poison_provider_health(self):
+        """Empty results are query-specific, not evidence of provider outage."""
         class Response:
             status_code = 200
             headers = {}
@@ -53,9 +54,9 @@ class MediaExternalResilienceTests(unittest.TestCase):
             resilience.note_items("pexels_foto", [])
 
         allowed, reason, remaining = resilience.provider_gate("pexels_video")
-        self.assertFalse(allowed)
-        self.assertEqual(reason, "EMPTY")
-        self.assertGreater(remaining, 0)
+        self.assertTrue(allowed)
+        self.assertIsNone(reason)
+        self.assertEqual(remaining, 0)
 
     def test_bad_asset_is_quarantined_by_provider_and_id(self):
         url = "https://example.test/media/a.jpg?signed=secret"
