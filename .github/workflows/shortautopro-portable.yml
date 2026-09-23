@@ -76,6 +76,13 @@ jobs:
           python -m compileall -q .
           echo "PORTABLE_PYTHON_COMPILE=PASS"
 
+      - name: Deployment Semantic Smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tools/deploy_smoke.py
+          echo "PORTABLE_DEPLOY_SMOKE=PASS"
+
       - name: Simulated Regression Tests
         shell: bash
         run: |
@@ -104,7 +111,10 @@ jobs:
             tests_sim.test_termux_bridge_deploy \
             tests_sim.test_termux_stable_promotion \
             tests_sim.test_render_preflight \
-            tests_sim.test_media_two_pass_recovery
+            tests_sim.test_media_two_pass_recovery \
+            tests_sim.test_pre_render_resilience \
+            tests_sim.test_resume_media_suffix \
+            tests_sim.test_production_watchdog_health
           echo "PORTABLE_STAGE6_GATE=PASS"
 
       - name: JSON Integrity Audit
@@ -170,7 +180,8 @@ jobs:
             visual_continuity_engine.py visual_score_engine.py multi_asset_director.py \
             retention_engine.py sound_design_engine.py speech_director.py \
             caption_layout_guard.py audio_finalizer.py visual_qa.py release_gate.py \
-            storage_manager.py professional_quality_gate.py; do
+            render_preflight.py production_recovery.py production_watchdog.py production_health.py \
+            tools/deploy_smoke.py storage_manager.py professional_quality_gate.py; do
             test -f "$f"
           done
 
@@ -185,6 +196,9 @@ jobs:
           grep -q 'video_professional.py' main.py
           grep -q 'v6_professional.py' main.py
           grep -q 'release_gate.py' main.py
+          grep -q 'production_recovery.py' main.py
+          grep -q 'render_preflight.py' main.py
+          grep -q 'production_watchdog.record_heartbeat' main.py
           grep -q 'MAIN="$BASE/main.py"' profile_run.sh
           ! grep -q 'STANDARD_ROLLBACK' main.py
           ! grep -q 'SAP_PRO_EDIT' main.py
