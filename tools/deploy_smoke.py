@@ -13,6 +13,8 @@ REQUIRED = (
     "production_recovery.py",
     "production_watchdog.py",
     "production_health.py",
+    "visual_query_guard.py",
+    "visual_media_refresh.py",
     "resume_short_runtime.py",
     "media_stage_runtime.py",
     "video_professional.py",
@@ -61,6 +63,7 @@ def main() -> int:
     contracts = (
         '"render_preflight.py"',
         '"production_recovery.py"',
+        '"visual_query_guard.py"',
         "PROFESSIONAL_CANONICAL",
         '"video_professional.py"',
         '"v6_professional.py"',

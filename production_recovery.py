@@ -89,8 +89,53 @@ def _append_action(actions: list[dict[str, Any]], result: dict[str, Any]) -> boo
         return False
 
 
+def _visual_quality_state(short_id: str) -> dict[str, Any]:
+    path = BASE / "roteiros" / f"visual_score_{short_id}.json"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {
+            "available": False,
+            "needs_repair": False,
+            "weak_count": 0,
+            "scene_count": 0,
+            "visual_score": None,
+        }
+    if not isinstance(data, dict):
+        return {
+            "available": False,
+            "needs_repair": False,
+            "weak_count": 0,
+            "scene_count": 0,
+            "visual_score": None,
+        }
+    weak = data.get("weak_scenes", []) if isinstance(data.get("weak_scenes"), list) else []
+    scenes = data.get("scenes", []) if isinstance(data.get("scenes"), list) else []
+    scene_count = len(scenes) or max(len(weak), 1)
+    trigger_default = max(4, int((scene_count * 3 + 3) // 4))
+    trigger = env_int("SAP_PRE_RENDER_WEAK_SCENES_TRIGGER", trigger_default, 2, 20)
+    try:
+        score = float(data.get("visual_score", 100.0) or 100.0)
+    except (TypeError, ValueError):
+        score = 100.0
+    minimum_score = env_int("SAP_PRE_RENDER_VISUAL_SCORE_MIN", 62, 40, 90)
+    needs = len(weak) >= trigger or score < minimum_score
+    return {
+        "available": True,
+        "needs_repair": needs,
+        "weak_count": len(weak),
+        "weak_scenes": weak,
+        "scene_count": scene_count,
+        "trigger": trigger,
+        "visual_score": score,
+        "minimum_score": minimum_score,
+    }
+
+
 def _repair_media(short_id: str, actions: list[dict[str, Any]]) -> bool:
     sequence: list[tuple[str, tuple[str, ...]]] = [
+        ("visual_query_guard.py", ()),
+        ("visual_media_refresh.py", ()),
         ("media_stage_runtime.py", ()),
         ("media_master_gate.py", ()),
         ("visual_score_engine.py", ()),
@@ -153,17 +198,20 @@ def repair(short_id: str) -> dict[str, Any]:
 
     render_preflight.BASE = BASE
     before = render_preflight.inspect(sid)
+    visual_before = _visual_quality_state(sid)
     actions: list[dict[str, Any]] = []
 
-    if before.get("status") == "READY":
+    if before.get("status") == "READY" and not visual_before.get("needs_repair"):
         result = {
             "short_id": sid,
             "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
-            "version": "PRE_RENDER_RECOVERY_1.0",
+            "version": "PRE_RENDER_RECOVERY_1.1_VISUAL_QUALITY",
             "status": "READY",
             "reason": "no_repair_needed",
             "before": before,
             "after": before,
+            "visual_before": visual_before,
+            "visual_after": visual_before,
             "actions": actions,
         }
         _atomic_json(REPORT_DIR / f"recovery_{sid}.json", result)
@@ -179,7 +227,9 @@ def repair(short_id: str) -> dict[str, Any]:
 
     failed = False
     if not nonrepairable:
-        if checks.get("assets") is False:
+        if visual_before.get("needs_repair"):
+            failed = not _repair_media(sid, actions)
+        elif checks.get("assets") is False:
             failed = not _repair_media(sid, actions)
         elif checks.get("edit_plan") is False:
             failed = not _repair_edit_plan(sid, actions)
@@ -192,6 +242,7 @@ def repair(short_id: str) -> dict[str, Any]:
             failed = not _repair_captions(sid, actions)
 
     after = render_preflight.inspect(sid)
+    visual_after = _visual_quality_state(sid)
     if nonrepairable:
         status = "BLOCKED"
         reason = "nonrepairable_preflight:" + ",".join(sorted(set(nonrepairable)))
@@ -201,6 +252,13 @@ def repair(short_id: str) -> dict[str, Any]:
     elif after.get("status") != "READY":
         status = "BLOCKED"
         reason = "preflight_still_failed"
+    elif visual_after.get("needs_repair"):
+        status = "BLOCKED"
+        reason = (
+            "visual_quality_still_low:"
+            f"weak={visual_after.get('weak_count')}/{visual_after.get('scene_count')}:"
+            f"score={visual_after.get('visual_score')}"
+        )
     else:
         status = "RECOVERED"
         reason = "preflight_ready_after_repair"
@@ -213,6 +271,8 @@ def repair(short_id: str) -> dict[str, Any]:
         "reason": reason,
         "before": before,
         "after": after,
+        "visual_before": visual_before,
+        "visual_after": visual_after,
         "actions": actions,
     }
     _atomic_json(REPORT_DIR / f"recovery_{sid}.json", result)

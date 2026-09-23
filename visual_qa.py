@@ -18,7 +18,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from runtime_config import env_int
+from runtime_config import env_float, env_int
 from subprocess_guard import check_output_group, run_group
 
 BASE = Path(
@@ -29,6 +29,7 @@ MEDIA = BASE / "imagens" / f"short_{SID}"
 VIDEO = BASE / "videos" / f"short_v6_{SID}.mp4"
 MAP = BASE / "roteiros" / f"scene_map_{SID}.json"
 VSCORE = BASE / "roteiros" / f"visual_score_{SID}.json"
+RUNTIME = BASE / "roteiros" / f"pro_edit_runtime_{SID}.json"
 OUT = BASE / "reports" / "evolution" / f"visual_qa_{SID}.json"
 
 
@@ -234,6 +235,118 @@ def analyze_final_video(path: Path) -> dict[str, Any]:
     return measurements
 
 
+
+def _frame_sample(path: Path, timestamp: float) -> bytes:
+    """Sample the background-dominant upper frame area for diversity checks."""
+    return check_output_group(
+        [
+            "ffmpeg", "-hide_banner", "-loglevel", "error",
+            "-ss", f"{max(0.0, timestamp):.3f}", "-i", str(path),
+            "-frames:v", "1",
+            "-vf", "crop=iw:ih*0.62:0:0,scale=24:24:flags=area,format=rgb24",
+            "-f", "rawvideo", "-",
+        ],
+        timeout=25,
+        stderr=subprocess.DEVNULL,
+    )
+
+
+def _frame_mad(a: bytes, b: bytes) -> float:
+    if not a or not b or len(a) != len(b):
+        return 1.0
+    return sum(abs(x - y) for x, y in zip(a, b)) / (255.0 * len(a))
+
+
+def analyze_scene_diversity(path: Path) -> dict[str, Any]:
+    runtime = load(RUNTIME)
+    raw_durations = runtime.get("durations", []) if isinstance(runtime.get("durations"), list) else []
+    durations: list[float] = []
+    for value in raw_durations:
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            number = 0.0
+        if number > 0:
+            durations.append(number)
+    expected = env_int("SHORT_QTD_CENAS", 12, 6, 20)
+    if len(durations) != expected or not path.is_file():
+        return {
+            "available": False,
+            "reason": "runtime_durations_missing_or_invalid",
+            "expected_scenes": expected,
+            "sampled_scenes": 0,
+        }
+
+    timestamps: list[float] = []
+    cursor = 0.0
+    for duration_value in durations:
+        timestamps.append(cursor + max(0.15, duration_value * 0.50))
+        cursor += duration_value
+
+    frames: list[bytes] = []
+    try:
+        for timestamp in timestamps:
+            raw = _frame_sample(path, timestamp)
+            if not isinstance(raw, (bytes, bytearray)) or len(raw) < 24 * 24 * 3:
+                raise ValueError("short_frame")
+            frames.append(bytes(raw[:24 * 24 * 3]))
+    except Exception as exc:
+        return {
+            "available": False,
+            "reason": f"sampling_failed:{type(exc).__name__}",
+            "expected_scenes": expected,
+            "sampled_scenes": len(frames),
+        }
+
+    threshold = env_float("SAP_VISUAL_CHANGE_MAD_MIN", 0.045, 0.015, 0.18)
+    consecutive = [
+        round(_frame_mad(frames[i - 1], frames[i]), 4)
+        for i in range(1, len(frames))
+    ]
+    changes = sum(1 for value in consecutive if value >= threshold)
+
+    representatives: list[bytes] = []
+    cluster_ids: list[int] = []
+    for frame in frames:
+        cluster = None
+        for index, rep in enumerate(representatives):
+            if _frame_mad(frame, rep) < threshold:
+                cluster = index
+                break
+        if cluster is None:
+            representatives.append(frame)
+            cluster = len(representatives) - 1
+        cluster_ids.append(cluster)
+
+    unique = len(representatives)
+    unique_ratio = unique / max(1, expected)
+    change_ratio = changes / max(1, expected - 1)
+    minimum_unique = max(4, int(round(expected * 0.58)))
+    minimum_change_ratio = env_float("SAP_VISUAL_CHANGE_RATIO_MIN", 0.55, 0.25, 0.90)
+
+    if unique < minimum_unique or change_ratio < minimum_change_ratio:
+        status = "REVIEW"
+    else:
+        status = "PASS"
+
+    return {
+        "available": True,
+        "status": status,
+        "expected_scenes": expected,
+        "sampled_scenes": len(frames),
+        "unique_visual_clusters": unique,
+        "unique_ratio": round(unique_ratio, 3),
+        "scene_changes": changes,
+        "change_ratio": round(change_ratio, 3),
+        "minimum_unique_clusters": minimum_unique,
+        "minimum_change_ratio": minimum_change_ratio,
+        "mad_threshold": threshold,
+        "consecutive_mad": consecutive,
+        "cluster_ids": cluster_ids,
+        "timestamps": [round(x, 3) for x in timestamps],
+    }
+
+
 def main() -> int:
     issues: list[str] = []
     warnings: list[str] = []
@@ -349,9 +462,29 @@ def main() -> int:
         issues.append("final_video_missing")
 
     measurements = analyze_final_video(VIDEO)
+    diversity = analyze_scene_diversity(VIDEO)
+    measurements["scene_diversity"] = diversity
     black = float(measurements["black_seconds"] or 0.0)
     crop = measurements["cropdetect"]
     blur = measurements["blur_metric"]
+
+    diversity_penalty = 0.0
+    if diversity.get("available"):
+        unique_ratio = float(diversity.get("unique_ratio", 0.0) or 0.0)
+        change_ratio = float(diversity.get("change_ratio", 0.0) or 0.0)
+        if str(diversity.get("status", "")).upper() == "REVIEW":
+            warnings.append(
+                "visual_diversity_low:"
+                f"unique={diversity.get('unique_visual_clusters')}/{diversity.get('expected_scenes')}:"
+                f"change_ratio={change_ratio:.3f}"
+            )
+            diversity_penalty = min(
+                42.0,
+                max(0.0, (0.70 - unique_ratio) * 55.0)
+                + max(0.0, (0.65 - change_ratio) * 45.0),
+            )
+    else:
+        warnings.append("visual_diversity_measurement_unavailable")
 
     if black > 0.22:
         issues.append(f"black_frames_seconds:{black:.3f}")
@@ -370,7 +503,7 @@ def main() -> int:
             0,
             min(
                 100,
-                100.0 - len(issues) * 18.0 - len(warnings) * 2.5,
+                100.0 - len(issues) * 18.0 - len(warnings) * 2.5 - diversity_penalty,
             ),
         ),
         1,
@@ -385,7 +518,7 @@ def main() -> int:
 
     payload = {
         "short_id": SID,
-        "version": "1.2",
+        "version": "1.3_VISUAL_DIVERSITY",
         "visual_qa_score": score,
         "status": status,
         "issues": issues,

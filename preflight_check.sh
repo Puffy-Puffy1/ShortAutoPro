@@ -67,7 +67,7 @@ ARQUIVOS=(
     main.py runtime_config.py subprocess_guard.py production_profiler.py production_doctor.py production_watchdog.py production_health.py production_recovery.py render_preflight.py profile_run.sh resume_short_runtime.py finalize_short.sh tools/deploy_smoke.py
     topic_engine_runtime.py topic_engine.py topic_memory.py topic_reserve.py topic_index.py wiki_client.py source_identity.py gemini_runtime.py script_fallback.py
     script_runtime.py roteiro.py used_topic.py hook_engine.py hook_runtime.py narrative_director.py cold_open_director.py media_emergency_fallback.py
-    scene_director.py scene_truth_refiner_6_7.py documentary_director.py visual_director.py
+    scene_director.py scene_truth_refiner_6_7.py documentary_director.py visual_director.py visual_query_guard.py visual_media_refresh.py
     visual_shot_bridge.py visual_shot_policy.py visual_editorial_policy.py
     visual_risk_guard.py editorial_continuity.py visual_continuity_engine.py scene_lossless_repair.py post_script_truth_lock.py
     semantic_integrity_gate.py wikimedia_source.py wikimedia_query_bridge.py source_router.py evidence_guard.py
@@ -182,7 +182,7 @@ else
     PY_FILES=(
         main.py runtime_config.py subprocess_guard.py production_profiler.py production_doctor.py production_watchdog.py production_health.py production_recovery.py render_preflight.py tools/deploy_smoke.py resume_short_runtime.py topic_engine_runtime.py topic_engine.py topic_memory.py topic_reserve.py topic_index.py wiki_client.py source_identity.py gemini_runtime.py script_fallback.py media_emergency_fallback.py
         script_runtime.py roteiro.py used_topic.py hook_engine.py hook_runtime.py narrative_director.py cold_open_director.py
-        scene_director.py scene_truth_refiner_6_7.py documentary_director.py visual_director.py visual_shot_bridge.py
+        scene_director.py scene_truth_refiner_6_7.py documentary_director.py visual_director.py visual_query_guard.py visual_media_refresh.py visual_shot_bridge.py
         visual_shot_policy.py visual_editorial_policy.py visual_risk_guard.py editorial_continuity.py visual_continuity_engine.py
         scene_lossless_repair.py post_script_truth_lock.py semantic_integrity_gate.py wikimedia_source.py wikimedia_query_bridge.py
         source_router.py evidence_guard.py media_stage_runtime.py midia.py media_runtime_adapter_v1.py media_runtime_adapter_v2.py media_must_verifier.py media_must_priority.py media_strict_must_guard.py media_acquisition_recovery.py vg4x_bridge.py visual_engine_unified.py
@@ -227,6 +227,8 @@ for name in (
     "vi6_9_runtime_policy",
     "visual_continuity_engine",
     "visual_score_engine",
+    "visual_query_guard",
+    "visual_media_refresh",
     "retention_engine",
     "sound_design_engine",
     "render_preflight",

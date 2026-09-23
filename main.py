@@ -393,6 +393,7 @@ def stages_before_render(p: Pipeline) -> None:
     p.run("5B - AI VISUAL DIRECTOR", "visual_director.py", retries=1)
     p.run("5B0 - DIRECTOR AI PROVENANCE + VISUAL INTENT", "shortauto_director_ai.py")
     p.run("5B0A - INTELLIGENCE SCENE: ENTITY/TIME/GEO/VISUAL ROLES", "shortauto_intelligence_layer.py", "scene", "--short-id", p.sid)
+    p.run("5B0B - VISUAL QUERY SPECIFICITY GUARD", "visual_query_guard.py")
     p.run("5B1 - HUMANIZED SHOT GRAMMAR", "visual_shot_bridge.py")
     p.run("5C - FACTUAL VISUAL RISK GUARD", "visual_risk_guard.py")
     p.run("5D - EDITORIAL CONTINUITY GUARD", "editorial_continuity.py")
