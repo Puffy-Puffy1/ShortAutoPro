@@ -59,6 +59,7 @@ def scene_assets(number: int) -> list[Path]:
 
 def choose_targets() -> tuple[list[int], dict[str, Any]]:
     visual = load(R / f"visual_score_{SID}.json")
+    media_quality = load(R / f"media_quality_{SID}.json")
     vqa = load(E / f"visual_qa_{SID}.json")
     weak = [int(x) for x in visual.get("weak_scenes", []) if str(x).isdigit()]
     rows = visual.get("scenes", []) if isinstance(visual.get("scenes"), list) else []
@@ -91,8 +92,23 @@ def choose_targets() -> tuple[list[int], dict[str, Any]]:
         else:
             first_by_cluster[cluster] = idx
 
+    media_targets: list[int] = []
+    media_items = []
+    if isinstance(media_quality.get("critical"), list):
+        media_items.extend(str(x) for x in media_quality.get("critical", []))
+    if isinstance(media_quality.get("warnings"), list):
+        media_items.extend(str(x) for x in media_quality.get("warnings", []))
+    for item in media_items:
+        for match in __import__("re").findall(r"scene_(\\d{2})", item):
+            try:
+                scene = int(match)
+            except ValueError:
+                continue
+            if scene not in media_targets:
+                media_targets.append(scene)
+
     priority: list[int] = []
-    for scene in duplicate_cluster_scenes:
+    for scene in duplicate_cluster_scenes + media_targets:
         if scene not in priority:
             priority.append(scene)
     for scene in sorted(set(weak), key=lambda x: (scores.get(x, 100.0), x)):
@@ -104,6 +120,7 @@ def choose_targets() -> tuple[list[int], dict[str, Any]]:
     return targets, {
         "weak_scenes": weak,
         "duplicate_cluster_scenes": duplicate_cluster_scenes,
+        "media_quality_targets": media_targets,
         "visual_scores": scores,
         "max_refresh": max_refresh,
     }
