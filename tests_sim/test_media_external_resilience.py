@@ -55,7 +55,8 @@ class MediaExternalResilienceTests(unittest.TestCase):
 
         allowed, reason, remaining = resilience.provider_gate("pexels_video")
         self.assertTrue(allowed)
-        self.assertIsNone(reason)
+        # provider_gate uses CLOSED as its explicit healthy-state reason.
+        self.assertEqual(reason, "CLOSED")
         self.assertEqual(remaining, 0)
 
     def test_bad_asset_is_quarantined_by_provider_and_id(self):
