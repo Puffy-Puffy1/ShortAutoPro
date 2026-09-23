@@ -114,7 +114,9 @@ jobs:
             tests_sim.test_media_two_pass_recovery \
             tests_sim.test_pre_render_resilience \
             tests_sim.test_resume_media_suffix \
-            tests_sim.test_production_watchdog_health
+            tests_sim.test_production_watchdog_health \
+            tests_sim.test_visual_query_guard \
+            tests_sim.test_rendered_visual_diversity
           echo "PORTABLE_STAGE6_GATE=PASS"
 
       - name: JSON Integrity Audit
@@ -177,7 +179,7 @@ jobs:
             main.py profile_run.sh resume_short_runtime.py \
             professional_edit_director.py professional_edit_repair.py \
             professional_caption_director.py video_professional.py v6_professional.py \
-            visual_continuity_engine.py visual_score_engine.py multi_asset_director.py \
+            visual_continuity_engine.py visual_score_engine.py visual_query_guard.py visual_media_refresh.py multi_asset_director.py \
             retention_engine.py sound_design_engine.py speech_director.py \
             caption_layout_guard.py audio_finalizer.py visual_qa.py release_gate.py \
             render_preflight.py production_recovery.py production_watchdog.py production_health.py \
@@ -197,6 +199,7 @@ jobs:
           grep -q 'v6_professional.py' main.py
           grep -q 'release_gate.py' main.py
           grep -q 'production_recovery.py' main.py
+          grep -q 'visual_query_guard.py' main.py
           grep -q 'render_preflight.py' main.py
           grep -q 'production_watchdog.record_heartbeat' main.py
           grep -q 'MAIN="$BASE/main.py"' profile_run.sh
