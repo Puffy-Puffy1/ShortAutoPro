@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ShortAutoPro canonical entrypoint — Consolidation 3.0.
+"""ShortAutoPro canonical entrypoint — Consolidation 3.0.3.
 
 Official Short flow:
   tema -> roteiro -> cenas -> midia -> audio -> legenda -> edicao -> QA -> exportacao
@@ -26,6 +26,7 @@ from typing import Any
 
 import shortautopro_evolution as evo
 import production_profiler
+import production_watchdog
 from subprocess_guard import run_group
 from runtime_config import env_int
 
@@ -184,13 +185,18 @@ class Pipeline:
         self.state_path = STATE_DIR / f"pipeline_{sid}.json"
         self.state = {
             "short_id": sid,
-            "version": "CONSOLIDATION_3_0",
+            "version": "CONSOLIDATION_3_0_3",
             "pipeline": "PROFESSIONAL_CANONICAL",
             "started_at": now(),
+            "updated_at": now(),
+            "heartbeat_at": now(),
+            "current_stage": "pipeline",
+            "last_stage_status": "start",
             "status": "RUNNING",
             "stages": [],
         }
         atomic_json(self.state_path, self.state)
+        production_watchdog.record_heartbeat(self.state)
 
     def checkpoint(self, name: str, status: str, title: str, elapsed: float | None = None) -> None:
         entry = {"stage": name, "title": title, "status": status, "at": now()}
@@ -198,7 +204,11 @@ class Pipeline:
             entry["elapsed_seconds"] = round(elapsed, 3)
         self.state["stages"].append(entry)
         self.state["updated_at"] = now()
+        self.state["heartbeat_at"] = self.state["updated_at"]
+        self.state["current_stage"] = name
+        self.state["last_stage_status"] = status
         atomic_json(self.state_path, self.state)
+        production_watchdog.record_heartbeat(self.state)
         try:
             evo.checkpoint(name, status, title, self.sid)
         except Exception:
@@ -207,7 +217,12 @@ class Pipeline:
     def finish(self, status: str) -> None:
         self.state["status"] = status
         self.state["finished_at"] = now()
+        self.state["updated_at"] = self.state["finished_at"]
+        self.state["heartbeat_at"] = self.state["finished_at"]
+        self.state["current_stage"] = "pipeline"
+        self.state["last_stage_status"] = status.lower()
         atomic_json(self.state_path, self.state)
+        production_watchdog.record_heartbeat(self.state)
         try:
             evo.finish_production(status, self.sid)
         except Exception:
@@ -407,6 +422,24 @@ def stages_before_render(p: Pipeline) -> None:
 
 
 def assemble_and_render(p: Pipeline) -> None:
+    # Fail closed before expensive FFmpeg work. The bounded recovery module
+    # repairs only artifacts proven invalid by render_preflight and then this
+    # second gate independently certifies the exact render inputs.
+    p.run(
+        "8C - PRE-RENDER VALIDATION + BOUNDED AUTO-RECOVERY",
+        "production_recovery.py",
+        "--short-id", p.sid,
+    )
+    p.run(
+        "8D - RENDER PREFLIGHT CERTIFICATION",
+        "render_preflight.py",
+        "--short-id", p.sid,
+    )
+    p.run(
+        "8E - PRODUCTION HEALTH SNAPSHOT",
+        "production_health.py",
+        "--short-id", p.sid, "--phase", "pre_render",
+    )
     p.run("9 - PROFESSIONAL MULTI-BEAT ASSEMBLER", "video_professional.py")
     p.run("10 - FINAL RENDER V6 PROFESSIONAL", "v6_professional.py", retries=1)
     final = BASE / "videos" / f"short_v6_{p.sid}.mp4"
@@ -542,7 +575,7 @@ def run_pipeline() -> int:
             pass
         p = Pipeline(sid)
         print("\n==============================================")
-        print(" SHORTAUTOPRO CONSOLIDATION 3.0 - MAIN.PY")
+        print(" SHORTAUTOPRO CONSOLIDATION 3.0.3 - MAIN.PY")
         print("==============================================")
         print(f"ID: {sid}")
         print("FLUXO: tema -> roteiro -> cenas -> midia -> audio -> legenda -> edicao -> QA -> exportacao")
@@ -556,12 +589,17 @@ def run_pipeline() -> int:
                 code = final_gates(p)
                 if code == 20:
                     raise RuntimeError("Release Gate ainda requer reparo após ciclo automático")
+            p.run(
+                "12F - FINAL PRODUCTION HEALTH",
+                "production_health.py",
+                "--short-id", p.sid, "--phase", "final",
+            )
             destination = export(p)
             p.run("STORAGE CLEANUP", "storage_manager.py", "cleanup", "--execute")
-            p.checkpoint("pipeline", "pass", "ShortAutoPro Consolidation 3.0")
+            p.checkpoint("pipeline", "pass", "ShortAutoPro Consolidation 3.0.3")
             p.finish("SUCCESS")
         except Exception as exc:
-            p.checkpoint("pipeline", "fail", "ShortAutoPro Consolidation 3.0")
+            p.checkpoint("pipeline", "fail", "ShortAutoPro Consolidation 3.0.3")
             p.finish("FAILED")
             print(f"\nPIPELINE BLOCKED: {exc}")
             return 1
