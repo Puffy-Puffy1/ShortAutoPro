@@ -256,6 +256,10 @@ class Pipeline:
         if name == "media_stage_runtime.py":
             return env_int("SAP_STAGE_TIMEOUT_MEDIA_SECONDS", 420, 120, 900)
 
+        # Pre-render recovery may rerun media plus downstream planning once.
+        if name == "production_recovery.py":
+            return env_int("SAP_STAGE_TIMEOUT_RECOVERY_SECONDS", 1800, 300, 3600)
+
         # Encoding/rendering legitimately needs more headroom on Android.
         if name in {
             "video_professional.py",
