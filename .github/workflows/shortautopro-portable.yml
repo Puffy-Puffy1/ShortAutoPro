@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
   pull_request:
     branches: [main]
+  workflow_dispatch:
     paths:
       - "**.py"
       - "**.sh"
@@ -102,7 +103,8 @@ jobs:
             tests_sim.test_mobile_render_performance \
             tests_sim.test_subtitle_alignment \
             tests_sim.test_termux_bridge_deploy \
-            tests_sim.test_termux_stable_promotion
+            tests_sim.test_termux_stable_promotion \
+            tests_sim.test_render_preflight
           echo "PORTABLE_STAGE6_GATE=PASS"
 
       - name: JSON Integrity Audit
