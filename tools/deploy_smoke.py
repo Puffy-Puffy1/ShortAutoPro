@@ -73,6 +73,17 @@ def main() -> int:
         if token not in main_text:
             fail(f"main_contract:{token}")
 
+    if "RETENTION_REVIEW=CONTINUE" not in main_text:
+        fail("main_retention_review_contract")
+
+    recovery_text = (ROOT / "production_recovery.py").read_text(encoding="utf-8")
+    if '("retention_engine.py", ("--repair", "--enforce"))' in recovery_text:
+        fail("recovery_retention_review_is_fatal")
+
+    resume_text = (ROOT / "resume_short_runtime.py").read_text(encoding="utf-8")
+    if 'status in {"PASS", "REVIEW"}' not in resume_text:
+        fail("resume_retention_review_contract")
+
     bridge = (ROOT / "automation" / "termux_bridge.sh").read_text(encoding="utf-8")
     if 'BRANCH="${SAP_BRIDGE_BRANCH:-termux-stable}"' not in bridge:
         fail("bridge_branch_contract")
