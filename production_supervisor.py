@@ -259,6 +259,28 @@ def evaluate(topic, script, source_text, scene_map, motion):
         warnings.append(f"visual_modes_only_{unique_modes}")
         score -= 6
 
+    media_quality = read_json(
+        ROTEIROS / f"media_quality_{SHORT_ID}.json"
+    )
+    if not media_quality:
+        critical.append("media_quality_report_missing")
+        score -= 20
+    else:
+        if str(media_quality.get("status", "")).upper() != "PASS":
+            critical.append("media_quality_not_pass")
+            score -= 20
+        neutral_editorial = (
+            media_quality.get("neutral_editorial_scenes", [])
+            if isinstance(media_quality.get("neutral_editorial_scenes"), list)
+            else []
+        )
+        if neutral_editorial:
+            critical.append(
+                "neutral_editorial_scenes="
+                + ",".join(map(str, neutral_editorial))
+            )
+            score -= 30
+
     media, media_errors = media_inventory()
     if media_errors:
         critical.extend(media_errors)
@@ -316,7 +338,7 @@ def evaluate(topic, script, source_text, scene_map, motion):
 
     return {
         "short_id": SHORT_ID,
-        "version": "5.2",
+        "version": "5.3_VISUAL_CONTENT_INTEGRITY",
         "topic": topic,
         "wiki_title": wiki_title,
         "score": score,
