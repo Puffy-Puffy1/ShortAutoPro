@@ -104,5 +104,114 @@ class Stage6TimeoutResumeTests(unittest.TestCase):
             self.assertEqual(resume.boundary("case"), "post_scene_plan")
 
 
+
+    def test_completed_short_with_neutral_placeholder_returns_to_stage6(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            sid = "legacy_visual"
+            media = base / "imagens" / f"short_{sid}"
+            r = base / "roteiros"
+            media.mkdir(parents=True)
+            r.mkdir(parents=True)
+
+            for number in range(1, 7):
+                (media / f"scene_{number:02d}.jpg").write_bytes(b"x" * 2048)
+            (media / ".editorial_reuse_index.json").write_text(
+                json.dumps({
+                    "version": "2.0",
+                    "scenes": {
+                        "1": {
+                            "source_scene": None,
+                            "variant": 0,
+                            "neutral_slate": True,
+                        }
+                    },
+                }),
+                encoding="utf-8",
+            )
+            (r / f"media_quality_{sid}.json").write_text(
+                json.dumps({"status": "PASS", "critical": []}),
+                encoding="utf-8",
+            )
+
+            with (
+                mock.patch.object(resume, "BASE", base),
+                mock.patch.dict(os.environ, {"SHORT_QTD_CENAS": "6"}, clear=False),
+            ):
+                self.assertFalse(resume.media_integrity_ok(sid))
+
+            with (
+                mock.patch.object(resume, "render_ok", return_value=True),
+                mock.patch.object(resume, "final_ok", return_value=False),
+                mock.patch.object(resume, "pre_media_plan_ok", return_value=True),
+                mock.patch.object(resume, "media_integrity_ok", return_value=False),
+            ):
+                self.assertEqual(resume.boundary(sid), "post_scene_plan")
+
+    def test_final_ok_requires_new_visual_integrity_contract(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            sid = "certified"
+            manifests = base / "manifests"
+            evolution = base / "reports" / "evolution"
+            manifests.mkdir(parents=True)
+            evolution.mkdir(parents=True)
+
+            flags = {
+                "media_gate_pass": True,
+                "neutral_editorial_absent": True,
+                "visual_qa_present": True,
+                "visual_qa_not_blocked": True,
+                "rendered_content_verified": True,
+            }
+            (manifests / f"{sid}.json").write_text(
+                json.dumps({"quality": flags}),
+                encoding="utf-8",
+            )
+            (manifests / f"{sid}_quality.json").write_text(
+                json.dumps({"approved": True}),
+                encoding="utf-8",
+            )
+            (evolution / f"visual_qa_{sid}.json").write_text(
+                json.dumps({
+                    "status": "PASS",
+                    "measurements": {
+                        "rendered_content": {
+                            "available": True,
+                            "scene_timeline_available": True,
+                            "opening_blank": False,
+                            "blank_scenes": [],
+                        }
+                    },
+                }),
+                encoding="utf-8",
+            )
+
+            (manifests / f"{sid}_release.json").write_text(
+                json.dumps({
+                    "version": "RELEASE_GATE_1.5_INPUT_CHAIN",
+                    "decision": "PUBLISH",
+                }),
+                encoding="utf-8",
+            )
+            with (
+                mock.patch.object(resume, "BASE", base),
+                mock.patch.object(resume, "media_integrity_ok", return_value=True),
+            ):
+                self.assertFalse(resume.final_ok(sid, render_valid=True))
+
+            (manifests / f"{sid}_release.json").write_text(
+                json.dumps({
+                    "version": "RELEASE_GATE_1.6_VISUAL_CONTENT_INTEGRITY",
+                    "decision": "PUBLISH",
+                }),
+                encoding="utf-8",
+            )
+            with (
+                mock.patch.object(resume, "BASE", base),
+                mock.patch.object(resume, "media_integrity_ok", return_value=True),
+            ):
+                self.assertTrue(resume.final_ok(sid, render_valid=True))
+
 if __name__ == "__main__":
     unittest.main()
