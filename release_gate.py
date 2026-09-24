@@ -71,6 +71,7 @@ def main()->int:
  if vqa and (
   not isinstance(rendered_content,dict)
   or not rendered_content.get("available")
+  or not rendered_content.get("scene_timeline_available")
   or rendered_content.get("opening_blank")
   or rendered_content.get("blank_scenes")
  ):critical.append("rendered_visual_content_not_verified")
