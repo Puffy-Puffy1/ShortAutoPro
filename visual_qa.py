@@ -648,6 +648,8 @@ def main() -> int:
         warnings.append("visual_diversity_measurement_unavailable")
 
     if rendered_content.get("available"):
+        if not rendered_content.get("scene_timeline_available"):
+            issues.append("rendered_scene_timeline_unavailable")
         if rendered_content.get("opening_blank"):
             issues.append("blank_opening_frame")
         for number in rendered_content.get("blank_scenes", []):
