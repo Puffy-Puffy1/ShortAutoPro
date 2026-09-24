@@ -11,7 +11,7 @@ class ExtremeReleaseChainHarmonyRound13Tests(unittest.TestCase):
         self.assertIn('FINAL_QUALITY=M/f"{SID}_quality.json"', text)
         self.assertIn('"production_manifest_sha256":file_sha(PRODUCTION_MANIFEST)', text)
         self.assertIn('"final_quality_sha256":file_sha(FINAL_QUALITY)', text)
-        self.assertIn('"version":"RELEASE_GATE_1.5_INPUT_CHAIN"', text)
+        self.assertIn('"version":"RELEASE_GATE_1.6_VISUAL_CONTENT_INTEGRITY"', text)
 
     def test_release_guard_rejects_stale_manifest_or_quality_chain(self):
         text = (ROOT / "release_artifact_guard.py").read_text(encoding="utf-8")
