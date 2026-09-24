@@ -8,6 +8,8 @@ import subprocess
 import time
 from datetime import date
 
+from media_emergency_fallback import editorial_scene_metadata
+
 try:
     from media_external_resilience import snapshot as _sap_provider_snapshot
 except Exception:
@@ -28,25 +30,27 @@ EXTS = {".jpg", ".jpeg", ".png", ".webp", ".mp4"}
 EDITORIAL_INDEX = os.path.join(MEDIA_DIR, ".editorial_reuse_index.json")
 
 
-def editorial_scenes():
+def editorial_metadata():
     try:
-        with open(EDITORIAL_INDEX, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        scenes = data.get("scenes", {}) if isinstance(data, dict) else {}
-        if not isinstance(scenes, dict):
-            return set()
-        out = set()
-        for key in scenes:
-            try:
-                out.add(int(key))
-            except (TypeError, ValueError):
-                pass
-        return out
+        return editorial_scene_metadata(__import__("pathlib").Path(MEDIA_DIR))
     except Exception:
-        return set()
+        return {}
 
 
-EDITORIAL_SCENES = editorial_scenes()
+EDITORIAL_METADATA = editorial_metadata()
+EDITORIAL_SCENES = set(EDITORIAL_METADATA)
+NEUTRAL_EDITORIAL_SCENES = {
+    number
+    for number, meta in EDITORIAL_METADATA.items()
+    if bool(meta.get("neutral_slate"))
+}
+try:
+    EDITORIAL_REUSE_LIMIT = int(
+        os.getenv("SAP_MEDIA_EDITORIAL_REUSE_MAX_SCENES", "3") or 3
+    )
+except (TypeError, ValueError):
+    EDITORIAL_REUSE_LIMIT = 3
+EDITORIAL_REUSE_LIMIT = max(0, min(6, EDITORIAL_REUSE_LIMIT))
 
 
 def provider_health_snapshot():
@@ -184,6 +188,15 @@ critical = []
 warnings = []
 assets = []
 
+if NEUTRAL_EDITORIAL_SCENES:
+    for number in sorted(NEUTRAL_EDITORIAL_SCENES):
+        critical.append(f"neutral_editorial_scene_{number:02d}")
+
+if len(EDITORIAL_SCENES) > EDITORIAL_REUSE_LIMIT:
+    critical.append(
+        f"editorial_reuse_excess={len(EDITORIAL_SCENES)}/{EDITORIAL_REUSE_LIMIT}"
+    )
+
 if len(files) != QTD_CENAS:
     critical.append(f"media_count={len(files)}")
 
@@ -253,6 +266,11 @@ if EDITORIAL_SCENES:
         "editorial_reuse_scenes="
         + ",".join(str(x) for x in sorted(EDITORIAL_SCENES))
     )
+if NEUTRAL_EDITORIAL_SCENES:
+    warnings.append(
+        "neutral_editorial_scenes="
+        + ",".join(str(x) for x in sorted(NEUTRAL_EDITORIAL_SCENES))
+    )
 
 if OPEN_PROVIDER_CIRCUITS:
     warnings.append(
@@ -263,7 +281,7 @@ if OPEN_PROVIDER_CIRCUITS:
 status = "BLOCK" if critical else "PASS"
 report = {
     "short_id": SHORT_ID,
-    "version": "5.2",
+    "version": "5.3_VISUAL_CONTENT_INTEGRITY",
     "status": status,
     "expected_media_count": QTD_CENAS,
     "media_count": len(files),
@@ -271,6 +289,9 @@ report = {
     "photos": len(files) - videos,
     "editorial_reuse_count": len(EDITORIAL_SCENES),
     "editorial_reuse_scenes": sorted(EDITORIAL_SCENES),
+    "neutral_editorial_count": len(NEUTRAL_EDITORIAL_SCENES),
+    "neutral_editorial_scenes": sorted(NEUTRAL_EDITORIAL_SCENES),
+    "editorial_reuse_limit": EDITORIAL_REUSE_LIMIT,
     "provider_health": PROVIDER_HEALTH,
     "provider_circuits_open": OPEN_PROVIDER_CIRCUITS,
     "critical": critical,
@@ -289,7 +310,11 @@ print()
 print(f"Mídias: {len(files)}/{QTD_CENAS}")
 print(f"Vídeos: {videos}")
 print(f"Fotos: {len(files) - videos}")
-print(f"EditorialReuse: {len(EDITORIAL_SCENES)}")
+print(
+    f"EditorialReuse: {len(EDITORIAL_SCENES)} "
+    f"(neutral={len(NEUTRAL_EDITORIAL_SCENES)} "
+    f"limit={EDITORIAL_REUSE_LIMIT})"
+)
 print(
     "Provider circuits abertos: "
     + (

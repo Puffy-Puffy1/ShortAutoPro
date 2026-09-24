@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from runtime_config import env_float, env_int
+from media_emergency_fallback import editorial_scene_metadata
 from subprocess_guard import check_output_group, run_group
 
 BASE = Path(
@@ -257,6 +258,141 @@ def _frame_mad(a: bytes, b: bytes) -> float:
     return sum(abs(x - y) for x, y in zip(a, b)) / (255.0 * len(a))
 
 
+def _frame_content_stats(raw: bytes) -> dict[str, Any]:
+    """Conservative blank-frame classifier for the caption-free upper region."""
+    if not raw:
+        return {
+            "available": False,
+            "mean": 0.0,
+            "stddev": 0.0,
+            "dark_ratio": 1.0,
+            "blank": True,
+        }
+
+    pixels = [
+        (raw[i] + raw[i + 1] + raw[i + 2]) / 3.0
+        for i in range(0, len(raw) - 2, 3)
+    ]
+    if not pixels:
+        return {
+            "available": False,
+            "mean": 0.0,
+            "stddev": 0.0,
+            "dark_ratio": 1.0,
+            "blank": True,
+        }
+
+    mean = sum(pixels) / len(pixels)
+    variance = sum((value - mean) ** 2 for value in pixels) / len(pixels)
+    stddev = variance ** 0.5
+    dark_ratio = sum(1 for value in pixels if value <= 18.0) / len(pixels)
+    dynamic = max(pixels) - min(pixels)
+
+    # Conservative thresholds avoid classifying legitimate dark/night imagery
+    # as blank while still catching an actually empty render.
+    blank = (
+        mean <= 6.0
+        or (
+            mean <= 12.0
+            and stddev <= 7.0
+            and dark_ratio >= 0.985
+            and dynamic <= 34.0
+        )
+    )
+    return {
+        "available": True,
+        "mean": round(mean, 3),
+        "stddev": round(stddev, 3),
+        "dark_ratio": round(dark_ratio, 4),
+        "dynamic_range": round(dynamic, 3),
+        "blank": bool(blank),
+    }
+
+
+def analyze_rendered_content(
+    path: Path,
+    diversity: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Verify opening and per-scene pixels in the rendered timeline itself."""
+    runtime = load(RUNTIME)
+    raw_durations = (
+        runtime.get("durations", [])
+        if isinstance(runtime.get("durations"), list)
+        else []
+    )
+    expected = env_int("SHORT_QTD_CENAS", 12, 6, 20)
+    durations: list[float] = []
+    for raw in raw_durations:
+        try:
+            value = float(raw)
+        except (TypeError, ValueError):
+            value = 0.0
+        if value > 0:
+            durations.append(value)
+
+    if not path.is_file():
+        return {"available": False, "reason": "video_missing"}
+
+    samples: list[dict[str, Any]] = []
+    try:
+        opening_raw = _frame_sample(path, 0.15)
+        samples.append({
+            "kind": "opening",
+            "scene": 1,
+            "timestamp": 0.15,
+            **_frame_content_stats(opening_raw),
+        })
+
+        reused = (
+            diversity.get("content_samples", [])
+            if isinstance(diversity, dict)
+            and isinstance(diversity.get("content_samples"), list)
+            else []
+        )
+        if len(reused) == expected:
+            for item in reused:
+                if not isinstance(item, dict):
+                    continue
+                samples.append({
+                    "kind": "scene_midpoint",
+                    **item,
+                })
+        elif len(durations) == expected:
+            cursor = 0.0
+            for number, scene_duration in enumerate(durations, 1):
+                max_inside = max(0.18, scene_duration - 0.08)
+                timestamp = cursor + min(max(0.18, scene_duration * 0.50), max_inside)
+                raw = _frame_sample(path, timestamp)
+                samples.append({
+                    "kind": "scene_midpoint",
+                    "scene": number,
+                    "timestamp": round(timestamp, 3),
+                    **_frame_content_stats(raw),
+                })
+                cursor += scene_duration
+    except Exception as exc:
+        return {
+            "available": False,
+            "reason": f"sampling_failed:{type(exc).__name__}",
+            "samples": samples,
+        }
+
+    opening_blank = bool(samples and samples[0].get("blank"))
+    blank_scenes = sorted({
+        int(item.get("scene", 0) or 0)
+        for item in samples
+        if item.get("kind") == "scene_midpoint" and item.get("blank")
+    })
+    return {
+        "available": True,
+        "opening_blank": opening_blank,
+        "blank_scenes": blank_scenes,
+        "expected_scenes": expected,
+        "scene_timeline_available": len(durations) == expected,
+        "samples": samples,
+    }
+
+
 def analyze_scene_diversity(path: Path) -> dict[str, Any]:
     runtime = load(RUNTIME)
     raw_durations = runtime.get("durations", []) if isinstance(runtime.get("durations"), list) else []
@@ -344,6 +480,14 @@ def analyze_scene_diversity(path: Path) -> dict[str, Any]:
         "consecutive_mad": consecutive,
         "cluster_ids": cluster_ids,
         "timestamps": [round(x, 3) for x in timestamps],
+        "content_samples": [
+            {
+                "scene": index,
+                "timestamp": round(timestamps[index - 1], 3),
+                **_frame_content_stats(frame),
+            }
+            for index, frame in enumerate(frames, 1)
+        ],
     }
 
 
@@ -365,6 +509,21 @@ def main() -> int:
         if isinstance(vscore.get("scenes"), list)
         else []
     )
+
+    try:
+        editorial_meta = editorial_scene_metadata(MEDIA)
+    except Exception:
+        editorial_meta = {}
+    neutral_editorial = sorted(
+        number
+        for number, meta in editorial_meta.items()
+        if bool(meta.get("neutral_slate"))
+    )
+    if neutral_editorial:
+        issues.append(
+            "neutral_editorial_scenes:"
+            + ",".join(map(str, neutral_editorial))
+        )
 
     if not MEDIA.is_dir():
         issues.append("media_directory_missing")
@@ -463,7 +622,9 @@ def main() -> int:
 
     measurements = analyze_final_video(VIDEO)
     diversity = analyze_scene_diversity(VIDEO)
+    rendered_content = analyze_rendered_content(VIDEO, diversity)
     measurements["scene_diversity"] = diversity
+    measurements["rendered_content"] = rendered_content
     black = float(measurements["black_seconds"] or 0.0)
     crop = measurements["cropdetect"]
     blur = measurements["blur_metric"]
@@ -485,6 +646,21 @@ def main() -> int:
             )
     else:
         warnings.append("visual_diversity_measurement_unavailable")
+
+    if rendered_content.get("available"):
+        if not rendered_content.get("scene_timeline_available"):
+            issues.append("rendered_scene_timeline_unavailable")
+        if rendered_content.get("opening_blank"):
+            issues.append("blank_opening_frame")
+        for number in rendered_content.get("blank_scenes", []):
+            marker = f"render_blank_scene_{int(number):02d}"
+            if marker not in issues:
+                issues.append(marker)
+    else:
+        warnings.append(
+            "rendered_content_measurement_unavailable:"
+            + str(rendered_content.get("reason", "unknown"))
+        )
 
     if black > 0.22:
         issues.append(f"black_frames_seconds:{black:.3f}")
@@ -518,7 +694,7 @@ def main() -> int:
 
     payload = {
         "short_id": SID,
-        "version": "1.3_VISUAL_DIVERSITY",
+        "version": "1.4_RENDERED_CONTENT_INTEGRITY",
         "visual_qa_score": score,
         "status": status,
         "issues": issues,

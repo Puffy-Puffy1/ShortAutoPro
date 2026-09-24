@@ -17,6 +17,8 @@ class MediaFastCompletionContractTests(unittest.TestCase):
         text = (ROOT / "midia.py").read_text(encoding="utf-8")
         self.assertIn("create_editorial_reuse", text)
         self.assertIn("SAP_MEDIA_EDITORIAL_REUSE=COMPLETED", text)
+        self.assertIn('SAP_MEDIA_INROUND_EDITORIAL", "0"', text)
+        self.assertIn("allow_neutral=False", text)
         self.assertIn('\"EditorialReuse\": 0', text)
 
     def test_emergency_fallback_never_claims_evidence(self):
@@ -24,6 +26,8 @@ class MediaFastCompletionContractTests(unittest.TestCase):
         self.assertIn('\"truth_claim\": \"NONE\"', text)
         self.assertIn("neutral generated editorial slate", text)
         self.assertIn("editorial derivative of accepted primary production media", text)
+        self.assertIn("allow_neutral: bool = True", text)
+        self.assertIn("SAP_MEDIA_EDITORIAL_NEUTRAL=DISABLED", text)
 
     def test_local_scene_fallback_does_not_invent_musts(self):
         text = (ROOT / "scene_director.py").read_text(encoding="utf-8")

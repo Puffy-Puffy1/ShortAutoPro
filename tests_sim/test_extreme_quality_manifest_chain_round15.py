@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 class ExtremeQualityManifestChainRound15Tests(unittest.TestCase):
     def test_final_quality_records_manifest_fingerprint(self):
         text = (ROOT / "final_quality.py").read_text(encoding="utf-8")
-        self.assertIn("FINAL_QUALITY_2.6_MANIFEST_CHAIN", text)
+        self.assertIn("FINAL_QUALITY_2.7_VISUAL_CONTENT_CHAIN", text)
         self.assertIn('"production_manifest_sha256": file_sha256(MANIFEST)', text)
         self.assertIn("def file_sha256(", text)
 

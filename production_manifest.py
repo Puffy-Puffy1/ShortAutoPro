@@ -39,6 +39,8 @@ LOG = BASE / "logs" / "producao" / f"short_{SHORT_ID}.log"
 MEDIA_DIR = BASE / "imagens" / f"short_{SHORT_ID}"
 INTELLIGENCE_DIR = BASE / "reports" / "intelligence"
 RENDER_IDENTITY = MANIFEST_DIR / f"{SHORT_ID}_render_identity.json"
+MEDIA_QUALITY = R / f"media_quality_{SHORT_ID}.json"
+VISUAL_QA = BASE / "reports" / "evolution" / f"visual_qa_{SHORT_ID}.json"
 MEDIA_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".mp4"}
 
 
@@ -206,6 +208,8 @@ def build_manifest(probe_data=None):
     render_identity = read_json(RENDER_IDENTITY)
     ledger = read_json(LEDGER)
     scene_map = read_json(SCENE_MAP)
+    media_quality = read_json(MEDIA_QUALITY)
+    visual_qa = read_json(VISUAL_QA)
     intelligence = {
         phase: read_json(INTELLIGENCE_DIR / f"{phase}_{SHORT_ID}.json")
         for phase in ("pre", "scene", "media", "final")
@@ -264,6 +268,40 @@ def build_manifest(probe_data=None):
     except OSError:
         video_exists = False
 
+    media_critical = (
+        media_quality.get("critical", [])
+        if isinstance(media_quality.get("critical"), list)
+        else []
+    )
+    neutral_editorial = (
+        media_quality.get("neutral_editorial_scenes", [])
+        if isinstance(media_quality.get("neutral_editorial_scenes"), list)
+        else []
+    )
+    media_gate_pass = (
+        bool(media_quality)
+        and str(media_quality.get("status", "")).upper() == "PASS"
+        and not media_critical
+        and not neutral_editorial
+    )
+    vqa_status = str(visual_qa.get("status", "") or "").upper()
+    rendered_content = (
+        visual_qa.get("measurements", {}).get("rendered_content", {})
+        if isinstance(visual_qa.get("measurements"), dict)
+        else {}
+    )
+    rendered_content_verified = (
+        bool(rendered_content)
+        and bool(rendered_content.get("available"))
+        and bool(rendered_content.get("scene_timeline_available"))
+        and not bool(rendered_content.get("opening_blank"))
+        and not (
+            rendered_content.get("blank_scenes", [])
+            if isinstance(rendered_content.get("blank_scenes"), list)
+            else []
+        )
+    )
+
     quality = {
         "video_exists": video_exists,
         "v6_only": True,
@@ -272,6 +310,11 @@ def build_manifest(probe_data=None):
         "scene_map_numbering_ok": scene_map_numbering_ok,
         "physical_scene_count": len(media_files),
         "media_numbering_ok": media_numbering_ok,
+        "media_gate_pass": media_gate_pass,
+        "neutral_editorial_absent": not neutral_editorial,
+        "visual_qa_present": bool(visual_qa),
+        "visual_qa_not_blocked": vqa_status in {"PASS", "REVIEW"},
+        "rendered_content_verified": rendered_content_verified,
         "resolution_ok": width == 1080 and height == 1920,
         "fps_ok": 29.0 <= fps <= 31.0,
         "video_codec_ok": video_codec_normalized == "h264",
@@ -335,6 +378,14 @@ def build_manifest(probe_data=None):
             "count": len(scenes),
             "physical_count": len(media_files),
             "items": scenes,
+        },
+        "visual_integrity": {
+            "media_quality_path": str(MEDIA_QUALITY),
+            "media_quality_status": media_quality.get("status"),
+            "neutral_editorial_scenes": neutral_editorial,
+            "visual_qa_path": str(VISUAL_QA),
+            "visual_qa_status": visual_qa.get("status"),
+            "rendered_content": rendered_content,
         },
         "video": {
             "path": str(VIDEO),

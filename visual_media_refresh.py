@@ -16,6 +16,10 @@ from pathlib import Path
 from typing import Any
 
 from runtime_config import env_int
+from media_emergency_fallback import (
+    editorial_scene_metadata,
+    clear_editorial_scene,
+)
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
 SID = os.getenv("SHORT_ID", date.today().isoformat()).strip()
@@ -61,6 +65,24 @@ def choose_targets() -> tuple[list[int], dict[str, Any]]:
     visual = load(R / f"visual_score_{SID}.json")
     media_quality = load(R / f"media_quality_{SID}.json")
     vqa = load(E / f"visual_qa_{SID}.json")
+    try:
+        editorial_meta = editorial_scene_metadata(MEDIA)
+    except Exception:
+        editorial_meta = {}
+    neutral_editorial = sorted(
+        number
+        for number, meta in editorial_meta.items()
+        if bool(meta.get("neutral_slate"))
+    )
+    editorial_scenes = sorted(editorial_meta)
+    editorial_limit = env_int(
+        "SAP_MEDIA_EDITORIAL_REUSE_MAX_SCENES", 3, 0, 6
+    )
+    excessive_editorial = (
+        editorial_scenes[editorial_limit:]
+        if len(editorial_scenes) > editorial_limit
+        else []
+    )
     weak = [int(x) for x in visual.get("weak_scenes", []) if str(x).isdigit()]
     rows = visual.get("scenes", []) if isinstance(visual.get("scenes"), list) else []
     scores: dict[int, float] = {}
@@ -108,19 +130,27 @@ def choose_targets() -> tuple[list[int], dict[str, Any]]:
                 media_targets.append(scene)
 
     priority: list[int] = []
-    for scene in duplicate_cluster_scenes + media_targets:
+    # Placeholders are always first-priority repair targets. Excess source-based
+    # editorial reuse beyond the configured limit is also reacquired.
+    for scene in neutral_editorial + excessive_editorial + duplicate_cluster_scenes + media_targets:
         if scene not in priority:
             priority.append(scene)
     for scene in sorted(set(weak), key=lambda x: (scores.get(x, 100.0), x)):
         if scene not in priority:
             priority.append(scene)
 
-    max_refresh = env_int("SAP_VISUAL_REFRESH_MAX_SCENES", 6, 1, 12)
+    configured_refresh = env_int("SAP_VISUAL_REFRESH_MAX_SCENES", 6, 1, 12)
+    mandatory_refresh = len(set(neutral_editorial + excessive_editorial))
+    max_refresh = max(configured_refresh, mandatory_refresh)
+    max_refresh = min(12, max_refresh)
     targets = priority[:max_refresh]
     return targets, {
         "weak_scenes": weak,
         "duplicate_cluster_scenes": duplicate_cluster_scenes,
         "media_quality_targets": media_targets,
+        "neutral_editorial_scenes": neutral_editorial,
+        "excessive_editorial_scenes": excessive_editorial,
+        "editorial_reuse_limit": editorial_limit,
         "visual_scores": scores,
         "max_refresh": max_refresh,
     }
@@ -158,6 +188,10 @@ def main() -> int:
             destination = backup_dir / path.name
             shutil.move(str(path), str(destination))
             moved.append({"scene": str(scene), "from": str(path), "backup": str(destination)})
+        try:
+            clear_editorial_scene(MEDIA, scene)
+        except Exception:
+            pass
 
     payload = {
         "short_id": SID,

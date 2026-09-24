@@ -95,6 +95,30 @@ class ProductionManifestTests(unittest.TestCase):
             (credits / "ledger_case.json").write_text(
                 json.dumps({"short_id": "case"}), encoding="utf-8"
             )
+            (r / "media_quality_case.json").write_text(
+                json.dumps({
+                    "status": "PASS",
+                    "critical": [],
+                    "neutral_editorial_scenes": [],
+                }),
+                encoding="utf-8",
+            )
+            evolution = base / "reports" / "evolution"
+            evolution.mkdir(parents=True, exist_ok=True)
+            (evolution / "visual_qa_case.json").write_text(
+                json.dumps({
+                    "status": "PASS",
+                    "measurements": {
+                        "rendered_content": {
+                            "available": True,
+                            "scene_timeline_available": True,
+                            "opening_blank": False,
+                            "blank_scenes": [],
+                        }
+                    },
+                }),
+                encoding="utf-8",
+            )
             for i in range(1, 7):
                 suffix = ".webp" if i == 1 else ".jpg"
                 (media / f"scene_{i:02d}{suffix}").write_bytes(b"asset")

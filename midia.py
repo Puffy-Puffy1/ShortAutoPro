@@ -25,13 +25,18 @@ import threading
 import requests
 from requests.adapters import HTTPAdapter
 from datetime import date
+from pathlib import Path
 
 from production_profiler import record as _sap_profile_record
 from subprocess_guard import run_group
 from runtime_config import env_float, env_int
 from media_must_priority import prioritize as _sap_prioritize_must
 from media_provenance_capture_v1 import write_provenance as _sap_write_provenance
-from media_emergency_fallback import create_editorial_reuse
+from media_emergency_fallback import (
+    create_editorial_reuse,
+    neutral_slate_scene_numbers,
+    clear_editorial_scene,
+)
 from media_external_resilience import (
     provider_gate as _sap_provider_gate,
     note_provider_event as _sap_note_provider_event,
@@ -617,6 +622,16 @@ QUALITY_REPORT = os.path.join(
 
 resume_cached_media = {}
 
+try:
+    _neutral_editorial_scenes = neutral_slate_scene_numbers(Path(SAIDA_DIR))
+except Exception as _neutral_index_exc:
+    _neutral_editorial_scenes = set()
+    print(
+        "SAP_MEDIA_INCREMENTAL=EDITORIAL_INDEX_FAIL_OPEN "
+        f"{type(_neutral_index_exc).__name__}:"
+        f"{str(_neutral_index_exc)[:120]}"
+    )
+
 
 def _sap_atomic_media_checkpoint(total, missing_scenes, pending_scenes, *, phase):
     os.makedirs(os.path.dirname(MISSING_REPORT), exist_ok=True)
@@ -789,6 +804,13 @@ if RESUME_MEDIA_ENABLED and os.path.isfile(QUALITY_REPORT):
                     _match.group(1)
                 )
 
+                if _scene_number in _neutral_editorial_scenes:
+                    print(
+                        "SAP_MEDIA_INCREMENTAL=REJECT_NEUTRAL_CACHE "
+                        f"scene={_scene_number} source=quality_report"
+                    )
+                    continue
+
                 _path = os.path.join(
                     SAIDA_DIR,
                     _filename
@@ -815,20 +837,24 @@ if RESUME_MEDIA_ENABLED and os.path.isfile(QUALITY_REPORT):
                         _scene_number
                     ] = _path
 
-            if len(
-                resume_cached_media
-            ) == len(cenas):
-
+            if len(resume_cached_media) == len(cenas):
                 print(
                     "SAP_MEDIA_INCREMENTAL=QUALITY_PASS_RESTORE "
                     f"cached={len(resume_cached_media)}"
                 )
-
-            else:
-                resume_cached_media.clear()
+            elif resume_cached_media:
                 print(
-                    "SAP_MEDIA_INCREMENTAL=QUALITY_CACHE_INVALID"
+                    "SAP_MEDIA_INCREMENTAL=QUALITY_PARTIAL_RESTORE "
+                    f"cached={len(resume_cached_media)}/{len(cenas)} "
+                    "missing_or_placeholder="
+                    + ",".join(
+                        str(n)
+                        for n in range(1, len(cenas) + 1)
+                        if n not in resume_cached_media
+                    )
                 )
+            else:
+                print("SAP_MEDIA_INCREMENTAL=QUALITY_CACHE_INVALID")
 
     except Exception as _quality_cache_exc:
 
@@ -904,7 +930,15 @@ if (
                 len(cenas) + 1
             ):
 
-                if _scene_number in _missing_numbers:
+                if (
+                    _scene_number in _missing_numbers
+                    or _scene_number in _neutral_editorial_scenes
+                ):
+                    if _scene_number in _neutral_editorial_scenes:
+                        print(
+                            "SAP_MEDIA_INCREMENTAL=REJECT_NEUTRAL_CACHE "
+                            f"scene={_scene_number} source=missing_report"
+                        )
                     continue
 
                 _prefix = (
@@ -5809,12 +5843,6 @@ for numero, cena in enumerate(
 
                 sucesso = True
                 escolhido = candidato
-                # SHORTAUTOPRO VISUAL UNIFIED V5 COMMIT
-                try:
-                    from visual_engine_unified import note_commit_runtime as _sap_visual_commit
-                    _sap_visual_commit(candidato, locals())
-                except Exception as _sap_visual_commit_error:
-                    print(f"VISUAL_UNIFIED_COMMIT=FAIL_OPEN {type(_sap_visual_commit_error).__name__}: {_sap_visual_commit_error}")
                 # Primeiro download válido vence.
                 # Impede foto -> vídeo ou vídeo -> foto depois do sucesso.
                 destino = destino_teste
@@ -6416,115 +6444,109 @@ for numero, cena in enumerate(
             < VIDEO_META
         )
 
-
         if origem:
 
             ext = os.path.splitext(
                 origem
             )[1].lower()
 
-
-            destino = os.path.join(
+            destino_local = os.path.join(
                 SAIDA_DIR,
                 f"scene_{numero:02d}{ext}"
             )
-
 
             try:
 
                 shutil.copy2(
                     origem,
-                    destino
+                    destino_local
                 )
 
-
-                sucesso = True
-
                 escolhido = {
-                    "fonte":
-                        "Local",
-
-                    "tipo":
-                        (
-                            "vídeo"
-                            if ext == ".mp4"
-                            else "foto"
-                        ),
-
-                    "score":
-                        0,
-
-                    "must_hits":
-                        0,
-
-                    "avoid_hits":
-                        0,
-
-                    "descricao":
-                        os.path.basename(
-                            origem
-                        ),
-
-                    "id":
-                        os.path.basename(
-                            origem
-                        )
+                    "fonte": "Local",
+                    "tipo": (
+                        "vídeo"
+                        if ext == ".mp4"
+                        else "foto"
+                    ),
+                    "score": 0,
+                    "must_hits": 0,
+                    "avoid_hits": 0,
+                    "descricao": os.path.basename(origem),
+                    "id": os.path.basename(origem)
                 }
 
+                destino = destino_local
+                sucesso = True
+
+                _vse42_cleanup_scene_sibling(destino)
+                _vse42_commit_safe(escolhido)
 
                 print(
                     "  FALLBACK LOCAL: OK"
                 )
 
-
             except Exception as e:
 
                 sucesso = False
+                destino = None
 
                 print(
                     f"  FALLBACK LOCAL FAIL: "
                     f"{type(e).__name__}: "
                     f"{str(e)[:120]}"
                 )
-            _vse42_cleanup_scene_sibling(destino)
-            _vse42_commit_safe(escolhido)
-        _vse42_cleanup_scene_sibling(destino)
-        _vse42_commit_safe(escolhido)
 
 
     # =================================
     # EMERGENCY EDITORIAL COMPLETION
     # =================================
-    # Normal acquisition and local verified assets already failed. At this
-    # point, prefer a clearly labeled derivative of an already accepted scene
-    # over leaving the production incomplete. This path makes no factual
-    # identity claim and does not weaken normal MUST/evidence validation.
+    # Production no longer creates generated neutral slates inside each scene.
+    # Early sequential failures must remain missing so later recovery can retry
+    # the provider stack. Optional source-based editorial reuse remains available
+    # only when a REAL accepted source already exists.
     if not sucesso:
-        try:
-            _editorial = create_editorial_reuse(
-                SAIDA_DIR,
-                numero,
-            )
-        except Exception as _editorial_exc:
-            _editorial = None
-            print(
-                "SAP_MEDIA_EDITORIAL_REUSE=FAIL_OPEN "
-                f"scene={numero} "
-                f"{type(_editorial_exc).__name__}:"
-                f"{str(_editorial_exc)[:140]}"
-            )
 
-        if _editorial:
-            destino = str(_editorial.get("local_path", "") or "")
-            if destino and os.path.isfile(destino):
-                escolhido = _editorial
-                sucesso = True
-                print(
-                    "SAP_MEDIA_EDITORIAL_REUSE=COMPLETED "
-                    f"scene={numero} "
-                    f"source_scene={_editorial.get('source_scene','?')} "
-                    "truth_claim=NONE"
+        _allow_inround_editorial = (
+            os.getenv("SAP_MEDIA_INROUND_EDITORIAL", "0") == "1"
+        )
+
+        if _allow_inround_editorial:
+            try:
+                _editorial = create_editorial_reuse(
+                    SAIDA_DIR,
+                    numero,
+                    allow_neutral=False,
                 )
+            except Exception as _editorial_exc:
+                _editorial = None
+                print(
+                    "SAP_MEDIA_EDITORIAL_REUSE=FAIL_OPEN "
+                    f"scene={numero} "
+                    f"{type(_editorial_exc).__name__}:"
+                    f"{str(_editorial_exc)[:140]}"
+                )
+
+            if _editorial:
+                destino = str(_editorial.get("local_path", "") or "")
+                if (
+                    destino
+                    and os.path.isfile(destino)
+                    and not _editorial.get("neutral_slate")
+                ):
+                    escolhido = _editorial
+                    sucesso = True
+                    print(
+                        "SAP_MEDIA_EDITORIAL_REUSE=COMPLETED "
+                        f"scene={numero} "
+                        f"source_scene={_editorial.get('source_scene','?')} "
+                        "truth_claim=NONE neutral=NO"
+                    )
+        else:
+            print(
+                "SAP_MEDIA_EDITORIAL_REUSE=DEFERRED "
+                f"scene={numero} reason=RETRY_REAL_MEDIA_FIRST"
+            )
 
 
     if sucesso:
@@ -6550,6 +6572,35 @@ for numero, cena in enumerate(
         else:
             fotos_total += 1
 
+
+        # Every successful path (primary, retry, degraded, local or editorial)
+        # must update the same canonical commit ledger. Previously only the first
+        # download path did this, which made fallback-heavy productions invisible
+        # to visual scoring and recovery.
+        try:
+            from visual_engine_unified import note_commit_runtime as _sap_visual_commit
+            _sap_visual_commit(escolhido, locals())
+        except Exception as _sap_visual_commit_error:
+            print(
+                "VISUAL_UNIFIED_COMMIT=FAIL_OPEN "
+                f"{type(_sap_visual_commit_error).__name__}: "
+                f"{str(_sap_visual_commit_error)[:160]}"
+            )
+
+        if not escolhido.get("editorial_reuse"):
+            try:
+                if clear_editorial_scene(SAIDA_DIR, numero):
+                    print(
+                        "SAP_MEDIA_EDITORIAL_INDEX=CLEARED "
+                        f"scene={numero} replacement=REAL_MEDIA"
+                    )
+            except Exception as _editorial_clear_exc:
+                print(
+                    "SAP_MEDIA_EDITORIAL_INDEX=CLEAR_FAIL_OPEN "
+                    f"scene={numero} "
+                    f"{type(_editorial_clear_exc).__name__}:"
+                    f"{str(_editorial_clear_exc)[:120]}"
+                )
 
         try:
             _sap_write_provenance(
