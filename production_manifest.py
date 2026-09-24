@@ -293,6 +293,7 @@ def build_manifest(probe_data=None):
     rendered_content_verified = (
         bool(rendered_content)
         and bool(rendered_content.get("available"))
+        and bool(rendered_content.get("scene_timeline_available"))
         and not bool(rendered_content.get("opening_blank"))
         and not (
             rendered_content.get("blank_scenes", [])
