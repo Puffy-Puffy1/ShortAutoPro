@@ -98,8 +98,12 @@ class ResumeReliabilityTests(unittest.TestCase):
         folder.mkdir()
         (folder / 'scene_map_existing.json').write_text('{}')
         def launch(command, **kwargs):
+            self.assertEqual(command[-2:], ['run', '--reuse-short-id'])
             with patch.dict(os.environ, kwargs['env']):
-                self.assertEqual(pipeline.allocate_id(), 'existing')
+                self.assertEqual(
+                    pipeline.allocate_id(reuse_existing=True),
+                    'existing',
+                )
             return subprocess.CompletedProcess(command, 0)
         with patch.object(resume, 'run_group', side_effect=launch):
             self.assertEqual(resume.full_rerun('existing'), 0)

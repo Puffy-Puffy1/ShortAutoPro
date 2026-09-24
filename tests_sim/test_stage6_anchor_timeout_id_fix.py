@@ -49,7 +49,7 @@ class Stage6AnchorTimeoutAndIdFixTests(unittest.TestCase):
             with mock.patch.object(main, "BASE", base), \
                  mock.patch.object(main, "STATE_DIR", state), \
                  mock.patch.dict(os.environ, {"SHORT_ID": "old", "SAP_REUSE_SHORT_ID": "0"}, clear=False):
-                allocated = main.allocate_id()
+                allocated = main.allocate_id(reuse_existing=False)
 
             self.assertNotEqual(allocated, "old")
 
@@ -62,8 +62,8 @@ class Stage6AnchorTimeoutAndIdFixTests(unittest.TestCase):
 
             with mock.patch.object(main, "BASE", base), \
                  mock.patch.object(main, "STATE_DIR", state), \
-                 mock.patch.dict(os.environ, {"SHORT_ID": "old", "SAP_REUSE_SHORT_ID": "1"}, clear=False):
-                allocated = main.allocate_id()
+                 mock.patch.dict(os.environ, {"SHORT_ID": "old"}, clear=False):
+                allocated = main.allocate_id(reuse_existing=True)
 
             self.assertEqual(allocated, "old")
 

@@ -81,6 +81,13 @@ def main() -> int:
     if "RETENTION_REVIEW=CONTINUE" not in main_text:
         fail("main_retention_review_contract")
 
+    if (
+        "def allocate_id(*, reuse_existing: bool = False)" not in main_text
+        or '"--reuse-short-id"' not in main_text
+        or 'os.getenv("SAP_REUSE_SHORT_ID"' in main_text
+    ):
+        fail("fresh_run_id_isolation_contract")
+
     recovery_text = (ROOT / "production_recovery.py").read_text(encoding="utf-8")
     if '("retention_engine.py", ("--repair", "--enforce"))' in recovery_text:
         fail("recovery_retention_review_is_fatal")
