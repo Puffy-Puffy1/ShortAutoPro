@@ -309,7 +309,10 @@ def _frame_content_stats(raw: bytes) -> dict[str, Any]:
     }
 
 
-def analyze_rendered_content(path: Path) -> dict[str, Any]:
+def analyze_rendered_content(
+    path: Path,
+    diversity: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Verify opening and per-scene pixels in the rendered timeline itself."""
     runtime = load(RUNTIME)
     raw_durations = (
@@ -340,7 +343,21 @@ def analyze_rendered_content(path: Path) -> dict[str, Any]:
             **_frame_content_stats(opening_raw),
         })
 
-        if len(durations) == expected:
+        reused = (
+            diversity.get("content_samples", [])
+            if isinstance(diversity, dict)
+            and isinstance(diversity.get("content_samples"), list)
+            else []
+        )
+        if len(reused) == expected:
+            for item in reused:
+                if not isinstance(item, dict):
+                    continue
+                samples.append({
+                    "kind": "scene_midpoint",
+                    **item,
+                })
+        elif len(durations) == expected:
             cursor = 0.0
             for number, scene_duration in enumerate(durations, 1):
                 max_inside = max(0.18, scene_duration - 0.08)
@@ -463,6 +480,14 @@ def analyze_scene_diversity(path: Path) -> dict[str, Any]:
         "consecutive_mad": consecutive,
         "cluster_ids": cluster_ids,
         "timestamps": [round(x, 3) for x in timestamps],
+        "content_samples": [
+            {
+                "scene": index,
+                "timestamp": round(timestamps[index - 1], 3),
+                **_frame_content_stats(frame),
+            }
+            for index, frame in enumerate(frames, 1)
+        ],
     }
 
 
@@ -597,7 +622,7 @@ def main() -> int:
 
     measurements = analyze_final_video(VIDEO)
     diversity = analyze_scene_diversity(VIDEO)
-    rendered_content = analyze_rendered_content(VIDEO)
+    rendered_content = analyze_rendered_content(VIDEO, diversity)
     measurements["scene_diversity"] = diversity
     measurements["rendered_content"] = rendered_content
     black = float(measurements["black_seconds"] or 0.0)
