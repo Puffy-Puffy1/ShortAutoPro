@@ -83,6 +83,55 @@ def editorial_scene_numbers(root: Path) -> set[int]:
     return out
 
 
+def editorial_scene_metadata(root: Path) -> dict[int, dict]:
+    """Return validated editorial metadata keyed by scene number."""
+    data = _load_index(root)
+    scenes = data.get("scenes", {}) if isinstance(data.get("scenes"), dict) else {}
+    out: dict[int, dict] = {}
+    for key, value in scenes.items():
+        try:
+            number = int(key)
+        except (TypeError, ValueError):
+            continue
+        if number <= 0 or not isinstance(value, dict):
+            continue
+        out[number] = dict(value)
+    return out
+
+
+def neutral_slate_scene_numbers(root: Path) -> set[int]:
+    """Scenes backed by generated neutral slates, not meaningful source media."""
+    return {
+        number
+        for number, meta in editorial_scene_metadata(root).items()
+        if bool(meta.get("neutral_slate"))
+    }
+
+
+def clear_editorial_scene(
+    media_dir: str | os.PathLike[str],
+    scene_number: int,
+) -> bool:
+    """Remove stale editorial metadata after a real asset replaces a scene."""
+    root = Path(media_dir)
+    data = _load_index(root)
+    scenes = data.get("scenes", {}) if isinstance(data.get("scenes"), dict) else {}
+    key = str(int(scene_number))
+    if key not in scenes:
+        return False
+    scenes.pop(key, None)
+    data["scenes"] = scenes
+    data["version"] = "2.1"
+    if scenes:
+        _save_index(root, data)
+    else:
+        try:
+            (root / INDEX_NAME).unlink(missing_ok=True)
+        except OSError:
+            _save_index(root, data)
+    return True
+
+
 def available_sources(
     media_dir: str | os.PathLike[str],
     exclude_scene: int,
@@ -285,7 +334,7 @@ def _record_editorial(
         "neutral_slate": bool(neutral),
     }
     data.update({
-        "version": "2.0",
+        "version": "2.1",
         "scenes": scenes,
     })
     _save_index(root, data)
@@ -329,6 +378,8 @@ def _candidate_payload(
 def create_editorial_reuse(
     media_dir: str | os.PathLike[str],
     scene_number: int,
+    *,
+    allow_neutral: bool = True,
 ) -> dict | None:
     root = Path(media_dir)
     root.mkdir(parents=True, exist_ok=True)
@@ -400,9 +451,22 @@ def create_editorial_reuse(
                 variant,
             )
 
-    # No real primary source (or all source-based layouts collided). Build a
-    # neutral, non-evidentiary slate with scene-specific geometry and validate
-    # it with the same duplicate checks.
+    # Neutral slates are diagnostic placeholders only. Production callers set
+    # allow_neutral=False so a scene without meaningful source pixels remains
+    # missing and is reacquired instead of silently becoming "complete".
+    if not allow_neutral:
+        print(
+            "SAP_MEDIA_EDITORIAL_NEUTRAL=DISABLED "
+            f"scene={int(scene_number)} reason=NO_REAL_SOURCE"
+        )
+        try:
+            destination.unlink(missing_ok=True)
+        except OSError:
+            pass
+        return None
+
+    # Backward-compatible opt-in used only by isolated tests/tools. A neutral
+    # slate is explicitly tagged and downstream production gates reject it.
     for variant in range(max_variants):
         try:
             destination.unlink(missing_ok=True)
@@ -465,4 +529,7 @@ __all__ = [
     "available_sources",
     "create_editorial_reuse",
     "editorial_scene_numbers",
+    "editorial_scene_metadata",
+    "neutral_slate_scene_numbers",
+    "clear_editorial_scene",
 ]
