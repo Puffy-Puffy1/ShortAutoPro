@@ -517,7 +517,7 @@ def main() -> int:
             "MEDIA_STAGE_RUNTIME=BUDGET "
             f"round={round_index + 1} remaining={remaining_hint} "
             f"timeout={round_timeout}s "
-            f"scene_budget={env_float('SAP_MEDIA_SCENE_BUDGET_SECONDS', 12.0, 6.0, 30.0):.0f}s"
+            f"scene_budget={env_float('SAP_MEDIA_SCENE_BUDGET_SECONDS', 18.0, 10.0, 35.0):.0f}s"
         )
 
         previous_report = report_signature()
@@ -563,9 +563,13 @@ def main() -> int:
 
         if completion_override is None:
             if report_signature() == previous_report:
-                # A timeout can happen after media was written but before the
-                # JSON checkpoint. Reconcile from physical files first.
+                # Preserve unrelated failures and stale timeouts unless physical
+                # files prove the interrupted selector actually made progress.
+                stale_report = read_report()
+                stale_total = total_from(stale_report)
                 physical_ok, physical = validate_media_completion(ignore_report=True)
+                physical_total = int(physical.get("valid", 0) or 0)
+
                 if physical_ok:
                     _clear_missing_report()
                     print(
@@ -573,6 +577,21 @@ def main() -> int:
                         f"scenes={physical['valid']}/{physical['expected']}"
                     )
                     return 0
+
+                if returncode != 124:
+                    print(
+                        "MEDIA_STAGE_RUNTIME=HARD_FAIL "
+                        f"code={returncode} reason=STALE_MISSING_REPORT"
+                    )
+                    return returncode or 1
+
+                if physical_total <= stale_total:
+                    print(
+                        "MEDIA_STAGE_RUNTIME=HARD_FAIL "
+                        "code=124 reason=STALE_MISSING_REPORT_NO_PHYSICAL_PROGRESS"
+                    )
+                    return 124
+
                 completion_override = physical
                 missing = set(physical.get("missing", []))
                 missing.update(
@@ -580,12 +599,13 @@ def main() -> int:
                     for item in physical.get("invalid", [])
                     if isinstance(item, dict) and item.get("scene") is not None
                 )
-                total = int(physical.get("valid", 0) or 0)
+                total = physical_total
                 expected = int(physical.get("expected", 0) or 0)
-                report = read_report()
+                report = stale_report
                 print(
                     "MEDIA_STAGE_RUNTIME=STALE_REPORT_PHYSICAL_RECOVERY "
                     f"code={returncode} valid={total}/{expected or '?'} "
+                    f"previous_valid={stale_total} "
                     f"missing={','.join(map(str, sorted(missing))) or '-'}"
                 )
             else:
