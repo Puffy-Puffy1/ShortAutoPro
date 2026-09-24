@@ -379,11 +379,10 @@ def full_rerun(sid: str) -> int:
     print("Checkpoint parcial incompatível ou insuficiente. Reexecutando o pipeline oficial com o mesmo ID.")
     env = os.environ.copy()
     env["SHORT_ID"] = sid
-    env["SAP_REUSE_SHORT_ID"] = "1"
     rerun_timeout = env_int("SAP_RESUME_FULL_RERUN_TIMEOUT", 7200, 600, 21600)
     try:
         return run_group(
-            [sys.executable, str(main_path), "run"],
+            [sys.executable, str(main_path), "run", "--reuse-short-id"],
             cwd=str(BASE),
             env=env,
             timeout=rerun_timeout,
