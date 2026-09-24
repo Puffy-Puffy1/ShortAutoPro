@@ -17,6 +17,11 @@ REQUIRED = (
     "visual_media_refresh.py",
     "resume_short_runtime.py",
     "media_stage_runtime.py",
+    "media_emergency_fallback.py",
+    "media_master_gate.py",
+    "visual_qa.py",
+    "production_manifest.py",
+    "final_quality.py",
     "video_professional.py",
     "v6_professional.py",
     "release_gate.py",
@@ -91,6 +96,26 @@ def main() -> int:
         fail("stage6_final_editorial_contract_missing")
     if '"post_scene_plan"' not in resume_text or "RESUME_FROM_STAGE6=YES" not in resume_text:
         fail("resume_stage6_checkpoint_contract")
+
+    media_fallback_text = (ROOT / "media_emergency_fallback.py").read_text(encoding="utf-8")
+    media_gate_text = (ROOT / "media_master_gate.py").read_text(encoding="utf-8")
+    render_preflight_text = (ROOT / "render_preflight.py").read_text(encoding="utf-8")
+    visual_qa_text = (ROOT / "visual_qa.py").read_text(encoding="utf-8")
+    release_text = (ROOT / "release_gate.py").read_text(encoding="utf-8")
+    midia_text = (ROOT / "midia.py").read_text(encoding="utf-8")
+
+    if "SAP_MEDIA_EDITORIAL_NEUTRAL=DISABLED" not in media_fallback_text:
+        fail("neutral_editorial_disable_contract")
+    if "neutral_editorial_scene_" not in media_gate_text:
+        fail("media_gate_neutral_placeholder_contract")
+    if "neutral editorial placeholder proibido" not in render_preflight_text:
+        fail("preflight_neutral_placeholder_contract")
+    if "blank_opening_frame" not in visual_qa_text:
+        fail("visual_qa_blank_opening_contract")
+    if "rendered_visual_content_not_verified" not in release_text:
+        fail("release_rendered_content_contract")
+    if 'SAP_MEDIA_INROUND_EDITORIAL", "0"' not in midia_text:
+        fail("midia_neutral_deferred_contract")
 
     bridge = (ROOT / "automation" / "termux_bridge.sh").read_text(encoding="utf-8")
     if 'BRANCH="${SAP_BRIDGE_BRANCH:-termux-stable}"' not in bridge:
