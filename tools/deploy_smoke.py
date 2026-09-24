@@ -84,6 +84,14 @@ def main() -> int:
     if 'status in {"PASS", "REVIEW"}' not in resume_text:
         fail("resume_retention_review_contract")
 
+    media_stage_text = (ROOT / "media_stage_runtime.py").read_text(encoding="utf-8")
+    if 'SAP_MEDIA_SCENE_BUDGET_SECONDS", 18.0' not in media_stage_text:
+        fail("stage6_outer_budget_not_aligned")
+    if "MEDIA_STAGE_RUNTIME=FINAL_EDITORIAL_PASS" not in media_stage_text:
+        fail("stage6_final_editorial_contract_missing")
+    if '"post_scene_plan"' not in resume_text or "RESUME_FROM_STAGE6=YES" not in resume_text:
+        fail("resume_stage6_checkpoint_contract")
+
     bridge = (ROOT / "automation" / "termux_bridge.sh").read_text(encoding="utf-8")
     if 'BRANCH="${SAP_BRIDGE_BRANCH:-termux-stable}"' not in bridge:
         fail("bridge_branch_contract")

@@ -20,6 +20,10 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
+from media_emergency_fallback import create_editorial_reuse
+from media_provenance_capture_v1 import write_provenance
+import visual_engine_unified
+
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
 SID = os.getenv("SHORT_ID", date.today().isoformat()).strip()
 REPORT = BASE / "reports" / "media" / f"acquisition_missing_{SID}.json"
@@ -202,8 +206,13 @@ def _probe_asset(path: Path) -> tuple[bool, str]:
     return True, "ok"
 
 
-def validate_media_completion() -> tuple[bool, dict[str, Any]]:
-    """Fail closed: a zero exit code is not enough to certify Stage 6."""
+def validate_media_completion(*, ignore_report: bool = False) -> tuple[bool, dict[str, Any]]:
+    """Fail closed: a zero exit code is not enough to certify Stage 6.
+
+    ignore_report is used only while reconciling an outer timeout with physical
+    media already written to disk. Normal certification still requires report
+    consistency.
+    """
     expected, contract_errors = scene_contract()
     media_dir = BASE / "imagens" / f"short_{SID}"
     valid: set[int] = set()
@@ -246,7 +255,7 @@ def validate_media_completion() -> tuple[bool, dict[str, Any]]:
     report_expected = expected_from(report)
     report_total = total_from(report)
     report_errors: list[str] = []
-    if report:
+    if report and not ignore_report:
         if report_expected not in {0, expected}:
             report_errors.append(
                 f"SAP-E002:report_expected_mismatch:{report_expected}!={expected}"
@@ -287,11 +296,186 @@ def round_timeout_seconds() -> tuple[int, int]:
         remaining = len(pending)
     else:
         remaining = max(1, expected - current_completed_hint())
-    base = env_int("SAP_MEDIA_ROUND_TIMEOUT", 45, 20, 150)
-    scene_budget = env_float("SAP_MEDIA_SCENE_BUDGET_SECONDS", 12.0, 6.0, 30.0)
-    grace = env_int("SAP_MEDIA_ROUND_GRACE_SECONDS", 8, 4, 25)
+
+    # Keep the controller aligned with midia.py. The selector uses an 18s
+    # default per-scene budget; the previous 12s outer budget could kill Stage 6
+    # before its own emergency completion path was reached.
+    base = env_int("SAP_MEDIA_ROUND_TIMEOUT", 60, 30, 195)
+    scene_budget = env_float("SAP_MEDIA_SCENE_BUDGET_SECONDS", 18.0, 10.0, 35.0)
+    grace = env_int("SAP_MEDIA_ROUND_GRACE_SECONDS", 12, 6, 30)
     dynamic = int(remaining * scene_budget + grace)
-    return max(20, min(max(base, dynamic), 150)), remaining
+    # Two worst-case rounds stay below main.py's 420s Stage 6 timeout.
+    return max(30, min(max(base, dynamic), 195)), remaining
+
+
+def _scene_rows() -> list[dict[str, Any]]:
+    path = BASE / "roteiros" / f"scene_map_{SID}.json"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+    if isinstance(data, dict):
+        rows = data.get("scenes", [])
+    elif isinstance(data, list):
+        rows = data
+    else:
+        rows = []
+    return [row for row in rows if isinstance(row, dict)]
+
+
+def _clear_missing_report() -> None:
+    try:
+        REPORT.unlink(missing_ok=True)
+    except OSError:
+        pass
+
+
+def _atomic_json(path: Path, payload: dict[str, Any]) -> None:
+    import tempfile
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+        dir=str(path.parent),
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle, ensure_ascii=False, indent=2)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp, path)
+        tmp = ""
+    finally:
+        if tmp:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+
+
+def final_editorial_completion(missing: list[int]) -> bool:
+    """Finish a small timed-out tail with audited non-evidentiary media."""
+    missing = sorted({int(x) for x in missing if int(x) > 0})
+    if not missing:
+        return False
+
+    max_scenes = env_int("SAP_MEDIA_FINAL_EDITORIAL_MAX", 3, 0, 6)
+    if max_scenes <= 0 or len(missing) > max_scenes:
+        print(
+            "MEDIA_STAGE_RUNTIME=FINAL_EDITORIAL_SKIP "
+            f"missing={','.join(map(str, missing))} max={max_scenes}"
+        )
+        return False
+
+    media_dir = BASE / "imagens" / f"short_{SID}"
+    media_dir.mkdir(parents=True, exist_ok=True)
+    rows = _scene_rows()
+    completed: list[int] = []
+    failures: list[dict[str, Any]] = []
+
+    print(
+        "MEDIA_STAGE_RUNTIME=FINAL_EDITORIAL_START "
+        f"missing={','.join(map(str, missing))}"
+    )
+
+    for number in missing:
+        try:
+            candidate = create_editorial_reuse(media_dir, number)
+        except Exception as exc:
+            candidate = None
+            failures.append({
+                "scene": number,
+                "reason": f"{type(exc).__name__}:{str(exc)[:160]}",
+            })
+            continue
+
+        path = Path(str((candidate or {}).get("local_path", "") or ""))
+        ok, reason = _probe_asset(path)
+        if not candidate or not ok:
+            failures.append({
+                "scene": number,
+                "reason": reason or "fallback_failed",
+            })
+            continue
+
+        try:
+            write_provenance(
+                candidate,
+                str(path),
+                method="media_stage_runtime_final_editorial",
+            )
+        except Exception:
+            pass
+
+        if 1 <= number <= len(rows):
+            scene = rows[number - 1]
+            try:
+                visual_engine_unified.note_commit_runtime(
+                    candidate,
+                    {
+                        "SHORT_ID": SID,
+                        "numero": number,
+                        "scene": number,
+                        "cena": scene,
+                        "busca": str(scene.get("query", "") or ""),
+                        "segmento": str(scene.get("segment", "") or ""),
+                    },
+                )
+            except Exception:
+                pass
+
+        completed.append(number)
+        print(
+            "MEDIA_STAGE_RUNTIME=FINAL_EDITORIAL_SCENE "
+            f"scene={number} status=PASS truth_claim=NONE"
+        )
+
+    audit = {
+        "short_id": SID,
+        "version": "STAGE6_FINAL_EDITORIAL_1.0",
+        "requested": missing,
+        "completed": completed,
+        "failures": failures,
+        "truth_claim": "NONE",
+        "policy": "BOUNDED_LAST_RESORT_DO_NOT_RELAX_MUST",
+    }
+    _atomic_json(
+        BASE / "reports" / "media" / f"final_editorial_completion_{SID}.json",
+        audit,
+    )
+
+    if failures or completed != missing:
+        print(
+            "MEDIA_STAGE_RUNTIME=FINAL_EDITORIAL_FAIL "
+            f"completed={','.join(map(str, completed)) or '-'} "
+            f"failed={','.join(str(x['scene']) for x in failures) or '-'}"
+        )
+        return False
+
+    physically_ready, physical = validate_media_completion(ignore_report=True)
+    if not physically_ready:
+        print(
+            "MEDIA_STAGE_RUNTIME=FINAL_EDITORIAL_INVALID "
+            f"valid={physical.get('valid')}/{physical.get('expected')} "
+            f"missing={','.join(map(str, physical.get('missing', []))) or '-'}"
+        )
+        return False
+
+    _clear_missing_report()
+    certified, final = validate_media_completion()
+    if certified:
+        print(
+            "MEDIA_STAGE_RUNTIME=FINAL_EDITORIAL_PASS "
+            f"scenes={final['valid']}/{final['expected']}"
+        )
+        return True
+
+    print(
+        "MEDIA_STAGE_RUNTIME=FINAL_EDITORIAL_CERT_FAIL "
+        f"errors={'|'.join(final.get('errors', [])) or '-'}"
+    )
+    return False
 
 
 def main() -> int:
@@ -333,7 +517,7 @@ def main() -> int:
             "MEDIA_STAGE_RUNTIME=BUDGET "
             f"round={round_index + 1} remaining={remaining_hint} "
             f"timeout={round_timeout}s "
-            f"scene_budget={env_float('SAP_MEDIA_SCENE_BUDGET_SECONDS', 12.0, 6.0, 30.0):.0f}s"
+            f"scene_budget={env_float('SAP_MEDIA_SCENE_BUDGET_SECONDS', 18.0, 10.0, 35.0):.0f}s"
         )
 
         previous_report = report_signature()
@@ -379,12 +563,56 @@ def main() -> int:
 
         if completion_override is None:
             if report_signature() == previous_report:
-                print(f"MEDIA_STAGE_RUNTIME=HARD_FAIL code={returncode} reason=STALE_MISSING_REPORT")
-                return returncode or 1
-            report = read_report()
-            missing = set(missing_numbers(report))
-            total = total_from(report)
-            expected = expected_from(report)
+                # Preserve unrelated failures and stale timeouts unless physical
+                # files prove the interrupted selector actually made progress.
+                stale_report = read_report()
+                stale_total = total_from(stale_report)
+                physical_ok, physical = validate_media_completion(ignore_report=True)
+                physical_total = int(physical.get("valid", 0) or 0)
+
+                if physical_ok:
+                    _clear_missing_report()
+                    print(
+                        "MEDIA_STAGE_RUNTIME=PASS_PHYSICAL_RECONCILE "
+                        f"scenes={physical['valid']}/{physical['expected']}"
+                    )
+                    return 0
+
+                if returncode != 124:
+                    print(
+                        "MEDIA_STAGE_RUNTIME=HARD_FAIL "
+                        f"code={returncode} reason=STALE_MISSING_REPORT"
+                    )
+                    return returncode or 1
+
+                if physical_total <= stale_total:
+                    print(
+                        "MEDIA_STAGE_RUNTIME=HARD_FAIL "
+                        "code=124 reason=STALE_MISSING_REPORT_NO_PHYSICAL_PROGRESS"
+                    )
+                    return 124
+
+                completion_override = physical
+                missing = set(physical.get("missing", []))
+                missing.update(
+                    int(item.get("scene"))
+                    for item in physical.get("invalid", [])
+                    if isinstance(item, dict) and item.get("scene") is not None
+                )
+                total = physical_total
+                expected = int(physical.get("expected", 0) or 0)
+                report = stale_report
+                print(
+                    "MEDIA_STAGE_RUNTIME=STALE_REPORT_PHYSICAL_RECOVERY "
+                    f"code={returncode} valid={total}/{expected or '?'} "
+                    f"previous_valid={stale_total} "
+                    f"missing={','.join(map(str, sorted(missing))) or '-'}"
+                )
+            else:
+                report = read_report()
+                missing = set(missing_numbers(report))
+                total = total_from(report)
+                expected = expected_from(report)
         else:
             report = read_report()
             missing = set(completion_override.get("missing", []))
@@ -451,10 +679,32 @@ def main() -> int:
             )
 
     final = read_report()
+    final_missing = missing_numbers(final)
+    if not final_missing:
+        physical_ok, physical = validate_media_completion(ignore_report=True)
+        if physical_ok:
+            _clear_missing_report()
+            print(
+                "MEDIA_STAGE_RUNTIME=PASS_FINAL_RECONCILE "
+                f"scenes={physical['valid']}/{physical['expected']}"
+            )
+            return 0
+        final_missing = list(physical.get("missing", []))
+        final_missing.extend(
+            int(item.get("scene"))
+            for item in physical.get("invalid", [])
+            if isinstance(item, dict) and item.get("scene") is not None
+        )
+        final_missing = sorted(set(final_missing))
+
     print(
         "MEDIA_STAGE_RUNTIME=EXHAUSTED "
-        f"missing={','.join(map(str, missing_numbers(final))) or '?'}"
+        f"missing={','.join(map(str, final_missing)) or '?'}"
     )
+
+    if final_editorial_completion(final_missing):
+        return 0
+
     return 1
 
 

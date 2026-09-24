@@ -8,9 +8,10 @@ class MediaFastCompletionContractTests(unittest.TestCase):
     def test_stage_defaults_are_mobile_bounded(self):
         text = (ROOT / "media_stage_runtime.py").read_text(encoding="utf-8")
         self.assertIn('SAP_MEDIA_STAGE_ROUNDS\", 2', text)
-        self.assertIn('SAP_MEDIA_SCENE_BUDGET_SECONDS\", 12.0', text)
-        self.assertIn('SAP_MEDIA_ROUND_TIMEOUT\", 45', text)
+        self.assertIn('SAP_MEDIA_SCENE_BUDGET_SECONDS\", 18.0', text)
+        self.assertIn('SAP_MEDIA_ROUND_TIMEOUT\", 60', text)
         self.assertNotIn('SAP_MEDIA_SCENE_BUDGET_SECONDS\", 75.0', text)
+        self.assertIn('min(max(base, dynamic), 195)', text)
 
     def test_media_runtime_has_editorial_completion(self):
         text = (ROOT / "midia.py").read_text(encoding="utf-8")
