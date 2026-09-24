@@ -260,7 +260,7 @@ def main():
 
     print()
     print("================================")
-    print("FINAL QUALITY SCORE - 2.6")
+    print("FINAL QUALITY SCORE - 2.7")
     print("================================")
     print()
     print(f"Roteiro: {resultado['components']['script']:.1f}/25")
