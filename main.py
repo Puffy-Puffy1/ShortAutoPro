@@ -113,12 +113,18 @@ def setup_env() -> None:
     os.environ["SHORTAUTOPRO_BASE"] = str(BASE)
 
 
-def allocate_id() -> str:
+def allocate_id(*, reuse_existing: bool = False) -> str:
+    """Allocate the production ID.
+
+    A normal `run` is always a fresh-production operation. Reusing an ID is
+    only permitted when the caller explicitly opts in (the internal resume
+    path). Persistent config/environment flags are intentionally ignored here
+    so a completed Short cannot poison the next production.
+    """
     existing = os.getenv("SHORT_ID", "").strip()
-    allow_reuse = os.getenv("SAP_REUSE_SHORT_ID", "0").strip() == "1"
 
     if existing:
-        if allow_reuse:
+        if reuse_existing:
             return existing
 
         artifact_candidates = (
@@ -579,10 +585,10 @@ def export(p: Pipeline) -> Path:
     return destination
 
 
-def run_pipeline() -> int:
+def run_pipeline(*, reuse_short_id: bool = False) -> int:
     source_config()
     setup_env()
-    sid = allocate_id()
+    sid = allocate_id(reuse_existing=reuse_short_id)
     os.environ["SHORT_ID"] = sid
     STATE_DIR.mkdir(parents=True, exist_ok=True)
     with RunLock(sid):
@@ -639,7 +645,12 @@ def run_pipeline() -> int:
 def cli() -> int:
     parser = argparse.ArgumentParser(description="ShortAutoPro official entrypoint")
     sub = parser.add_subparsers(dest="command")
-    sub.add_parser("run")
+    run_cmd = sub.add_parser("run")
+    run_cmd.add_argument(
+        "--reuse-short-id",
+        action="store_true",
+        help=argparse.SUPPRESS,
+    )
     resume = sub.add_parser("resume")
     resume.add_argument("--short-id", default=None)
     resume.add_argument("--status", action="store_true")
@@ -653,7 +664,9 @@ def cli() -> int:
     command_name = args.command or "run"
 
     if command_name == "run":
-        return run_pipeline()
+        return run_pipeline(
+            reuse_short_id=bool(getattr(args, "reuse_short_id", False))
+        )
 
     setup_env()
     control_timeout = env_int("SAP_CONTROL_COMMAND_TIMEOUT", 7200, 300, 21600)
