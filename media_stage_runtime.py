@@ -20,7 +20,10 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from media_emergency_fallback import create_editorial_reuse
+from media_emergency_fallback import (
+    create_editorial_reuse,
+    neutral_slate_scene_numbers,
+)
 from media_provenance_capture_v1 import write_provenance
 import visual_engine_unified
 
@@ -215,6 +218,10 @@ def validate_media_completion(*, ignore_report: bool = False) -> tuple[bool, dic
     """
     expected, contract_errors = scene_contract()
     media_dir = BASE / "imagens" / f"short_{SID}"
+    try:
+        neutral_scenes = neutral_slate_scene_numbers(media_dir)
+    except Exception:
+        neutral_scenes = set()
     valid: set[int] = set()
     invalid: list[dict[str, Any]] = []
 
@@ -242,6 +249,13 @@ def validate_media_completion(*, ignore_report: bool = False) -> tuple[bool, dic
         except ValueError:
             continue
         if number < 1 or number > expected:
+            continue
+        if number in neutral_scenes:
+            invalid.append({
+                "scene": number,
+                "path": str(path),
+                "reason": "neutral_editorial_placeholder",
+            })
             continue
         ok, reason = _probe_asset(path)
         if ok:
@@ -276,6 +290,7 @@ def validate_media_completion(*, ignore_report: bool = False) -> tuple[bool, dic
         "valid": len(valid),
         "missing": missing,
         "invalid": invalid,
+        "neutral_editorial_scenes": sorted(neutral_scenes),
         "errors": errors,
     }
 
@@ -381,7 +396,11 @@ def final_editorial_completion(missing: list[int]) -> bool:
 
     for number in missing:
         try:
-            candidate = create_editorial_reuse(media_dir, number)
+            candidate = create_editorial_reuse(
+                media_dir,
+                number,
+                allow_neutral=False,
+            )
         except Exception as exc:
             candidate = None
             failures.append({
@@ -391,6 +410,12 @@ def final_editorial_completion(missing: list[int]) -> bool:
             continue
 
         path = Path(str((candidate or {}).get("local_path", "") or ""))
+        if candidate and candidate.get("neutral_slate"):
+            failures.append({
+                "scene": number,
+                "reason": "neutral_editorial_placeholder_rejected",
+            })
+            continue
         ok, reason = _probe_asset(path)
         if not candidate or not ok:
             failures.append({
@@ -438,7 +463,7 @@ def final_editorial_completion(missing: list[int]) -> bool:
         "completed": completed,
         "failures": failures,
         "truth_claim": "NONE",
-        "policy": "BOUNDED_LAST_RESORT_DO_NOT_RELAX_MUST",
+        "policy": "BOUNDED_SOURCE_BASED_EDITORIAL_ONLY_NO_NEUTRAL_PLACEHOLDERS",
     }
     _atomic_json(
         BASE / "reports" / "media" / f"final_editorial_completion_{SID}.json",
