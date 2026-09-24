@@ -125,7 +125,7 @@ class VisualDirectionReleaseIntegrityTests(unittest.TestCase):
         text = Path("release_gate.py").read_text(encoding="utf-8")
         self.assertIn("render_topic_identity_mismatch", text)
         self.assertIn("SAP_ARTIFACT_IDENTITY_ENFORCE", text)
-        self.assertIn("RELEASE_GATE_1.5_INPUT_CHAIN", text)
+        self.assertIn("RELEASE_GATE_1.6_VISUAL_CONTENT_INTEGRITY", text)
 
     def test_manifest_requires_render_identity_match(self):
         text = Path("production_manifest.py").read_text(encoding="utf-8")
