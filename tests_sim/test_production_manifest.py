@@ -111,6 +111,7 @@ class ProductionManifestTests(unittest.TestCase):
                     "measurements": {
                         "rendered_content": {
                             "available": True,
+                            "scene_timeline_available": True,
                             "opening_blank": False,
                             "blank_scenes": [],
                         }
