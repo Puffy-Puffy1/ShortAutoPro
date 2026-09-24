@@ -61,7 +61,19 @@ def main()->int:
    elif not render_topic_sha:critical.append("render_topic_identity_missing")
    elif render_topic_sha!=current_topic_sha:critical.append("render_topic_identity_mismatch")
  if not factual_ok:critical.append("legacy_final_quality_not_approved")
- if str(vqa.get("status","PASS")).upper()=="BLOCK":critical.append("visual_qa_block")
+ if not media:critical.append("media_quality_report_missing")
+ elif str(media.get("status","")).upper()!="PASS":critical.append("media_quality_not_pass")
+ neutral_media=media.get("neutral_editorial_scenes",[]) if isinstance(media.get("neutral_editorial_scenes"),list) else []
+ if neutral_media:critical.append("neutral_editorial_media_present:"+",".join(map(str,neutral_media)))
+ if not vqa:critical.append("visual_qa_missing")
+ elif str(vqa.get("status","")).upper()=="BLOCK":critical.append("visual_qa_block")
+ rendered_content=vqa.get("measurements",{}).get("rendered_content",{}) if isinstance(vqa.get("measurements"),dict) else {}
+ if vqa and (
+  not isinstance(rendered_content,dict)
+  or not rendered_content.get("available")
+  or rendered_content.get("opening_blank")
+  or rendered_content.get("blank_scenes")
+ ):critical.append("rendered_visual_content_not_verified")
  if str(audio.get("status","PASS")).upper()=="BLOCK":critical.append("audio_master_block")
  script=clamp((num(retention.get("components",{}).get("hook"),80)+num(retention.get("components",{}).get("language"),80)+num(retention.get("components",{}).get("payoff"),80))/3)
  media_score=num(pro.get("components",{}).get("media"),100 if str(media.get("status","")).upper()=="PASS" else 75)
@@ -96,7 +108,7 @@ def main()->int:
  if not input_identity["production_manifest_sha256"]:critical.append("production_manifest_identity_missing")
  if not input_identity["final_quality_sha256"]:critical.append("final_quality_identity_missing")
  if critical:decision="BLOCK"
- payload={"short_id":SID,"version":"RELEASE_GATE_1.5_INPUT_CHAIN","generated_at":datetime.now().astimezone().isoformat(timespec="seconds"),"shortautopro_score":score,"decision":decision,"components":components,"weights":weights,"critical":critical,"repair_actions":actions,"visual_multiscore":vscore,"shortauto_brain":brain,"brain_enforced":brain_enforce,"shortauto_intelligence":intelligence,"intelligence_enforced":intelligence_enforce,"intelligence_qa_score":num(intelligence_qa.get("score"),0),"artifact_identity":{"enforced":identity_enforce,"current_topic":current_topic,"current_topic_sha256":current_topic_sha,"render_identity":render_identity},"input_identity":input_identity};atomic(OUT,payload);print(json.dumps(payload,ensure_ascii=False,indent=2))
+ payload={"short_id":SID,"version":"RELEASE_GATE_1.6_VISUAL_CONTENT_INTEGRITY","generated_at":datetime.now().astimezone().isoformat(timespec="seconds"),"shortautopro_score":score,"decision":decision,"components":components,"weights":weights,"critical":critical,"repair_actions":actions,"visual_multiscore":vscore,"shortauto_brain":brain,"brain_enforced":brain_enforce,"shortauto_intelligence":intelligence,"intelligence_enforced":intelligence_enforce,"intelligence_qa_score":num(intelligence_qa.get("score"),0),"artifact_identity":{"enforced":identity_enforce,"current_topic":current_topic,"current_topic_sha256":current_topic_sha,"render_identity":render_identity},"input_identity":input_identity};atomic(OUT,payload);print(json.dumps(payload,ensure_ascii=False,indent=2))
  if args.enforce and decision=="BLOCK":return 1
  if args.enforce and decision=="REPAIR":return 20
  return 0
