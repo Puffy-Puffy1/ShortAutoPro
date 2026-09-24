@@ -97,6 +97,12 @@ def main() -> int:
     if '"post_scene_plan"' not in resume_text or "RESUME_FROM_STAGE6=YES" not in resume_text:
         fail("resume_stage6_checkpoint_contract")
 
+    if (
+        "def media_integrity_ok(" not in resume_text
+        or "RELEASE_GATE_1.6_VISUAL_CONTENT_INTEGRITY" not in resume_text
+    ):
+        fail("resume_completed_visual_revalidation_contract")
+
     media_fallback_text = (ROOT / "media_emergency_fallback.py").read_text(encoding="utf-8")
     media_gate_text = (ROOT / "media_master_gate.py").read_text(encoding="utf-8")
     render_preflight_text = (ROOT / "render_preflight.py").read_text(encoding="utf-8")
