@@ -28,6 +28,11 @@ MANIFEST_REQUIRED_FLAGS = (
     "video_exists",
     "scene_map_numbering_ok",
     "media_numbering_ok",
+    "media_gate_pass",
+    "neutral_editorial_absent",
+    "visual_qa_present",
+    "visual_qa_not_blocked",
+    "rendered_content_verified",
     "resolution_ok",
     "fps_ok",
     "video_codec_ok",
@@ -242,7 +247,7 @@ def main():
     roteiro = ler_txt(ROTEIRO)
     hook = ler_txt(HOOK)
     resultado = avaliar(manifest, publish, roteiro, hook)
-    resultado["version"] = "FINAL_QUALITY_2.6_MANIFEST_CHAIN"
+    resultado["version"] = "FINAL_QUALITY_2.7_VISUAL_CONTENT_CHAIN"
     resultado["input_identity"] = {
         "production_manifest_sha256": file_sha256(MANIFEST),
     }
