@@ -94,6 +94,41 @@ def pro_plan_ok(sid: str) -> bool:
     )
 
 
+def pre_media_plan_ok(sid: str) -> bool:
+    """Return True when Stage 1-5E artifacts are safe to resume from Stage 6."""
+    script = BASE / "roteiros" / f"short_{sid}.txt"
+    source = BASE / "roteiros" / f"fonte_{sid}.txt"
+    topic_real = BASE / "roteiros" / f"used_topic_{sid}.txt"
+    topic = BASE / "roteiros" / f"topic_{sid}.txt"
+    scene_map_path = BASE / "roteiros" / f"scene_map_{sid}.json"
+    truth_path = BASE / "roteiros" / f"post_script_truth_{sid}.json"
+    semantic_path = BASE / "roteiros" / f"semantic_integrity_{sid}.json"
+    continuity_path = BASE / "roteiros" / f"visual_continuity_{sid}.json"
+
+    if not nonempty(script, 40) or not nonempty(source, 40):
+        return False
+    if not (nonempty(topic_real, 3) or nonempty(topic, 3)):
+        return False
+
+    scene_map = read_json(scene_map_path)
+    scenes = scene_map.get("scenes", []) if isinstance(scene_map, dict) else []
+    if not isinstance(scenes, list) or len(scenes) != expected_scenes():
+        return False
+
+    truth = read_json(truth_path)
+    semantic = read_json(semantic_path)
+    if str(truth.get("status", "")).upper() not in {"PASS", "WARNING"}:
+        return False
+    if str(semantic.get("status", "")).upper() != "PASS":
+        return False
+
+    # Continuity may legitimately be REVIEW, but its existence proves the
+    # Stage 5 visual planning chain completed before Stage 6.
+    if not nonempty(continuity_path, 20) or not read_json(continuity_path):
+        return False
+    return True
+
+
 def consolidation_plan_ok(sid: str) -> bool:
     if not pro_plan_ok(sid):
         return False
@@ -181,9 +216,12 @@ def boundary(sid: str) -> str:
     render_valid = render_ok(sid)
     if final_ok(sid, render_valid):
         return "complete"
-    # Never partially resume an older architecture. This is intentionally
-    # conservative because new 3.0 gates depend on these planning artifacts.
+    # Prefer the deepest validated checkpoint. If the Short completed Stage 5E
+    # but failed during Stage 6, resume media acquisition directly instead of
+    # regenerating topic/script/scenes under the same Short ID.
     if not consolidation_plan_ok(sid):
+        if pre_media_plan_ok(sid):
+            return "post_scene_plan"
         return "full"
     if render_valid:
         return "post_render"
@@ -312,6 +350,41 @@ def final_gates(sid: str) -> int:
     return run_python(sid, "SHORTAUTOPRO RELEASE GATE", "release_gate.py", "--enforce", allow={0, 20})
 
 
+def media_planning_tail(sid: str) -> None:
+    stages = [
+        ("SMART MEDIA SELECTOR", "media_stage_runtime.py", ()),
+        ("MEDIA MASTER GATE", "media_master_gate.py", ()),
+        ("ASSET LIBRARY + FIRST FRAME", "shortauto_asset_library.py", ("index", "--short-id", sid)),
+        ("INTELLIGENCE MEDIA", "shortauto_intelligence_layer.py", ("media", "--short-id", sid)),
+        ("MULTIDIMENSIONAL VISUAL SCORE", "visual_score_engine.py", ()),
+        ("CINEMATIC MOTION DIRECTOR", "motion_director.py", ()),
+        ("MONTAGE RHYTHM DIRECTOR", "rhythm_director.py", ()),
+        ("PROFESSIONAL EDIT DIRECTOR", "professional_edit_director.py", ()),
+        ("PROFESSIONAL EDIT AUTO-REPAIR", "professional_edit_repair.py", ()),
+        ("MULTI-ASSET DIRECTOR", "multi_asset_director.py", ()),
+    ]
+    for title, script, args in stages:
+        run_python(sid, title, script, *args)
+
+    retention = run_python(
+        sid,
+        "RETENTION ENGINE + SAFE REPAIR",
+        "retention_engine.py",
+        "--repair",
+        "--enforce",
+        allow={0, 20},
+    )
+    if retention == 20:
+        print(
+            "RETENTION_REVIEW=CONTINUE "
+            "reason=NON_CRITICAL_REVIEW next=RESUME_TAIL"
+        )
+
+    run_python(sid, "SOUND DESIGN ENGINE", "sound_design_engine.py")
+    run_python(sid, "PRODUCTION SUPERVISOR", "production_supervisor.py")
+    run_python(sid, "EVOLUTION VISUAL AUDIT", "shortautopro_evolution.py", "visual-audit")
+
+
 def render_tail(sid: str) -> None:
     run_python(sid, "PROFESSIONAL MULTI-BEAT ASSEMBLER", "video_professional.py")
     run_python(sid, "FINAL RENDER V6 PROFESSIONAL", "v6_professional.py")
@@ -325,6 +398,7 @@ def _resume_locked(sid: str, point: str) -> int:
     """Only the process owning the production lock may modify its state."""
     try:
         order = {
+            "post_scene_plan": 0,
             "post_planning": 1,
             "post_audio": 2,
             "post_captions": 3,
@@ -332,6 +406,10 @@ def _resume_locked(sid: str, point: str) -> int:
             "post_render": 5,
         }
         rank = order[point]
+
+        if rank <= 0:
+            print("RESUME_FROM_STAGE6=YES")
+            media_planning_tail(sid)
 
         if rank <= 1:
             run_python(sid, "FINAL EDITORIAL GATE", "editorial_gate.py")
