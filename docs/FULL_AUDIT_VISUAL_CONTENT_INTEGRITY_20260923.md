@@ -188,6 +188,14 @@ Existem muitas gerações de VI, bridges, adapters e policies. Algumas ainda sã
 
 **Ação nesta correção:** não apagar em massa. A remoção sem análise de import graph pode introduzir regressão. O pipeline canônico é reforçado para que bridges auxiliares não possam transformar placeholder em aprovação final.
 
+### F-016 — CRITICAL — Resume aceitava certificado antigo como “complete”
+
+Um Short produzido antes desta auditoria podia continuar sendo tratado como completo porque `resume_short_runtime.final_ok()` verificava apenas MP4 técnico, quality aprovado e release antigo PUBLISH/ACCEPTABLE.
+
+**Impacto:** o vídeo já produzido com abertura vazia poderia nunca entrar no novo fluxo de reparo.
+
+**Correção:** o resume agora exige o contrato visual novo (Media Gate, ausência de neutral, Visual QA presente, rendered-content verificado e Release Gate 1.6). Se o índice físico revelar placeholder/excesso editorial, o boundary retorna `post_scene_plan` e reabre diretamente no Stage 6; se a mídia estiver boa mas o certificado for antigo, refaz QA/gates necessários sem regenerar tema/roteiro.
+
 ## 5. Política nova de mídia
 
 Uma cena de produção somente é considerada concluída quando:
@@ -242,6 +250,7 @@ Na próxima revalidação:
 | Manifest | técnico | inclui visual integrity |
 | Final Quality | técnico/editorial | exige visual integrity |
 | Release Gate | QA ausente podia virar PASS | fail-closed |
+| Resume de Short antigo | release antigo encerrava como complete | revalida mídia + novo contrato visual |
 
 ## 9. Riscos residuais
 

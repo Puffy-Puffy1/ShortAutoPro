@@ -21,6 +21,7 @@ from typing import Any
 import main as canonical
 from subprocess_guard import check_output_group, run_group
 from runtime_config import env_int, env_float
+from media_emergency_fallback import editorial_scene_metadata
 import shortautopro_evolution as evo
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
@@ -77,6 +78,47 @@ def media_ok(sid: str) -> bool:
     except OSError:
         return False
     return valid == set(range(1, expected + 1))
+
+
+def media_integrity_ok(sid: str) -> bool:
+    """Validate current media against the visual-content integrity contract."""
+    folder = BASE / "imagens" / f"short_{sid}"
+    report = read_json(BASE / "roteiros" / f"media_quality_{sid}.json")
+    if not media_ok(sid):
+        return False
+
+    index_path = folder / ".editorial_reuse_index.json"
+    if index_path.exists() and not read_json(index_path):
+        return False
+
+    try:
+        editorial = editorial_scene_metadata(folder)
+    except Exception:
+        return False
+
+    neutral = {
+        number
+        for number, meta in editorial.items()
+        if bool(meta.get("neutral_slate"))
+    }
+    if neutral:
+        return False
+
+    editorial_limit = env_int(
+        "SAP_MEDIA_EDITORIAL_REUSE_MAX_SCENES", 3, 0, 6
+    )
+    if len(editorial) > editorial_limit:
+        return False
+
+    reported_neutral = (
+        report.get("neutral_editorial_scenes", [])
+        if isinstance(report.get("neutral_editorial_scenes"), list)
+        else []
+    )
+    if reported_neutral:
+        return False
+
+    return True
 
 
 def supervisor_ok(sid: str) -> bool:
@@ -203,11 +245,50 @@ def render_ok(sid: str) -> bool:
 def final_ok(sid: str, render_valid: bool | None = None) -> bool:
     quality = read_json(BASE / "manifests" / f"{sid}_quality.json")
     release = read_json(BASE / "manifests" / f"{sid}_release.json")
+    manifest = read_json(BASE / "manifests" / f"{sid}.json")
+    vqa = read_json(BASE / "reports" / "evolution" / f"visual_qa_{sid}.json")
     if render_valid is None:
         render_valid = render_ok(sid)
+
+    manifest_quality = (
+        manifest.get("quality", {})
+        if isinstance(manifest.get("quality"), dict)
+        else {}
+    )
+    required_visual_flags = (
+        "media_gate_pass",
+        "neutral_editorial_absent",
+        "visual_qa_present",
+        "visual_qa_not_blocked",
+        "rendered_content_verified",
+    )
+    visual_contract = all(
+        manifest_quality.get(flag) is True
+        for flag in required_visual_flags
+    )
+
+    rendered = (
+        vqa.get("measurements", {}).get("rendered_content", {})
+        if isinstance(vqa.get("measurements"), dict)
+        else {}
+    )
+    rendered_ok = (
+        bool(rendered)
+        and rendered.get("available") is True
+        and rendered.get("scene_timeline_available") is True
+        and not rendered.get("opening_blank")
+        and not rendered.get("blank_scenes")
+    )
+
     return (
         render_valid
+        and media_integrity_ok(sid)
         and quality.get("approved") is True
+        and visual_contract
+        and rendered_ok
+        and str(release.get("version", "")).startswith(
+            "RELEASE_GATE_1.6_VISUAL_CONTENT_INTEGRITY"
+        )
         and release.get("decision") in {"PUBLISH", "ACCEPTABLE"}
     )
 
@@ -216,6 +297,13 @@ def boundary(sid: str) -> str:
     render_valid = render_ok(sid)
     if final_ok(sid, render_valid):
         return "complete"
+
+    # A previously "successful" Short can predate the visual-content contract.
+    # If its physical media is now known to contain a neutral placeholder (or
+    # exceeds the editorial reuse limit), force reacquisition from Stage 6.
+    if pre_media_plan_ok(sid) and not media_integrity_ok(sid):
+        return "post_scene_plan"
+
     # Prefer the deepest validated checkpoint. If the Short completed Stage 5E
     # but failed during Stage 6, resume media acquisition directly instead of
     # regenerating topic/script/scenes under the same Short ID.
