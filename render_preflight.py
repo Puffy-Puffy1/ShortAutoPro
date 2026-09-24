@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any
 
 from runtime_config import env_int
+from media_emergency_fallback import editorial_scene_metadata
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
 MEDIA_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".webm", ".mkv"}
@@ -143,6 +144,20 @@ def inspect(short_id: str) -> dict[str, Any]:
     temp_dir = BASE / "temp" / short_id
     output_dir = BASE / "videos"
 
+    try:
+        editorial_meta = editorial_scene_metadata(media_dir)
+    except Exception:
+        editorial_meta = {}
+    editorial_scenes = sorted(editorial_meta)
+    neutral_editorial = sorted(
+        number
+        for number, meta in editorial_meta.items()
+        if bool(meta.get("neutral_slate"))
+    )
+    editorial_limit = env_int(
+        "SAP_MEDIA_EDITORIAL_REUSE_MAX_SCENES", 3, 0, 6
+    )
+
     checks: dict[str, Any] = {}
     errors: list[str] = []
     warnings: list[str] = []
@@ -191,6 +206,23 @@ def inspect(short_id: str) -> dict[str, Any]:
         errors.append(str(exc))
 
     media_by_scene: dict[int, Path] = {}
+
+    if neutral_editorial:
+        errors.append(
+            "neutral editorial placeholder proibido: "
+            + ",".join(f"{n:02d}" for n in neutral_editorial)
+        )
+    if len(editorial_scenes) > editorial_limit:
+        errors.append(
+            "reuso editorial excessivo: "
+            f"{len(editorial_scenes)}/{editorial_limit}"
+        )
+
+    checks["neutral_editorial_absent"] = not neutral_editorial
+    checks["editorial_reuse_within_limit"] = (
+        len(editorial_scenes) <= editorial_limit
+    )
+
     if not media_dir.is_dir():
         errors.append(f"pasta de mídia ausente: {media_dir}")
     else:
@@ -218,7 +250,11 @@ def inspect(short_id: str) -> dict[str, Any]:
     missing = sorted(set(range(1, expected + 1)) - set(media_by_scene))
     if missing:
         errors.append("assets ausentes: " + ",".join(f"{n:02d}" for n in missing))
-    checks["assets"] = len(media_by_scene) == expected
+    checks["assets"] = (
+        len(media_by_scene) == expected
+        and not neutral_editorial
+        and len(editorial_scenes) <= editorial_limit
+    )
 
     audio_duration = 0.0
     try:
@@ -278,10 +314,13 @@ def inspect(short_id: str) -> dict[str, Any]:
     return {
         "short_id": short_id,
         "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
-        "version": "RENDER_PREFLIGHT_1.0",
+        "version": "RENDER_PREFLIGHT_1.1_VISUAL_CONTENT",
         "status": status,
         "expected_scenes": expected,
         "valid_assets": len(media_by_scene),
+        "editorial_reuse_scenes": editorial_scenes,
+        "neutral_editorial_scenes": neutral_editorial,
+        "editorial_reuse_limit": editorial_limit,
         "audio_duration": round(audio_duration, 3),
         "subtitle_end": round(subtitle_end, 3),
         "checks": checks,
@@ -299,6 +338,14 @@ def print_report(report: dict[str, Any]) -> None:
     print(f"Scene Map ............ {'OK' if checks.get('scene_map') else 'FAILED'}")
     print(f"Edit Plan ............ {'OK' if checks.get('edit_plan') else 'FAILED'}")
     print(f"Assets ............... {report['valid_assets']}/{report['expected_scenes']}")
+    print(
+        "Neutral Placeholders .. "
+        + (
+            "NONE"
+            if not report.get("neutral_editorial_scenes")
+            else ",".join(map(str, report.get("neutral_editorial_scenes", [])))
+        )
+    )
     print(f"Audio ................ {'OK' if checks.get('audio') else 'FAILED'}")
     print(f"Audio Duration ....... {report['audio_duration']:.2f}s")
     print(f"Subtitles ............ {'OK' if checks.get('subtitles') else 'FAILED'}")
