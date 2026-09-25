@@ -45,13 +45,19 @@ class EmptySearchResilienceTests(unittest.TestCase):
         self.assertEqual(reason, "CLOSED")
         self.assertEqual(remaining, 0.0)
 
-    def test_real_timeout_still_opens_circuit(self):
+    def test_real_separated_timeouts_still_open_circuit(self):
         resilience.note_provider_event("pixabay_video", "TIMEOUT")
+        state = resilience._load()["providers"]["pixabay"]
+        state["last_failure_at"] -= resilience.TRANSIENT_DEDUP_SECONDS + 1
         resilience.note_provider_event("pixabay_foto", "TIMEOUT")
+        state["last_failure_at"] -= resilience.TRANSIENT_DEDUP_SECONDS + 1
+        resilience.note_provider_event("pixabay_video", "TIMEOUT")
+
         allowed, reason, remaining = resilience.provider_gate("pixabay")
         self.assertFalse(allowed)
         self.assertEqual(reason, "TIMEOUT")
         self.assertGreater(remaining, 0.0)
+        self.assertLessEqual(remaining, 8.5)
 
 
 if __name__ == "__main__":
