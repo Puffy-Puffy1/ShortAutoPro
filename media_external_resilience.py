@@ -214,6 +214,8 @@ def note_provider_event(provider: Any, event: str, *, status=None, retry_after=N
             item["empties"] = int(item.get("empties", 0) or 0) + 1
             item["empty_streak"] = int(item.get("empty_streak", 0) or 0) + 1
             item["consecutive_failures"] = 0
+            item["last_failure_event"] = ""
+            item["last_failure_at"] = 0.0
             # EMPTY is a valid response to a particular semantic query. Do not
             # disable the provider for unrelated later scenes.
             if item.get("open_reason") == "EMPTY":
