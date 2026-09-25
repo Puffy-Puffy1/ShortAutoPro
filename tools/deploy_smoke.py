@@ -130,6 +130,18 @@ def main() -> int:
     if 'SAP_MEDIA_INROUND_EDITORIAL", "0"' not in midia_text:
         fail("midia_neutral_deferred_contract")
 
+    resilience_text = (ROOT / "media_external_resilience.py").read_text(encoding="utf-8")
+    if "SAP_MEDIA_PROVIDER_CONTROLLER_TIMEOUT" not in midia_text:
+        fail("provider_controller_timeout_contract_missing")
+    if "health_penalty=NO" not in midia_text or "wait(" not in midia_text:
+        fail("provider_head_of_line_fix_missing")
+    if "SAP_MEDIA_PROVIDER_CIRCUIT_BACKOFF" not in midia_text:
+        fail("provider_transient_backoff_contract_missing")
+    if 'VERSION = "1.2"' not in resilience_text:
+        fail("media_resilience_version_contract")
+    if "TRANSIENT_DEDUP_SECONDS" not in resilience_text:
+        fail("media_resilience_dedupe_contract")
+
     bridge = (ROOT / "automation" / "termux_bridge.sh").read_text(encoding="utf-8")
     if 'BRANCH="${SAP_BRIDGE_BRANCH:-termux-stable}"' not in bridge:
         fail("bridge_branch_contract")

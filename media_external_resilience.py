@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-VERSION = "1.1"
+VERSION = "1.2"
 BASE = Path(os.path.abspath(os.path.expanduser(os.getenv("SHORTAUTOPRO_BASE", "~/ShortAutoPro"))))
 STATE_FILE = BASE / "cache" / "media_resilience" / "state.json"
 _LOCK = threading.RLock()
@@ -26,8 +26,14 @@ ALIASES = {
     "pixabay_video": "pixabay", "pixabay_foto": "pixabay",
     "coverr_video": "coverr", "wikimedia_api": "wikimedia",
 }
-THRESHOLDS = {"AUTH": 1, "RATE_LIMIT": 1, "SERVER": 2, "NETWORK": 2, "TIMEOUT": 2, "MALFORMED": 2}
-COOLDOWNS = {"AUTH": 900.0, "RATE_LIMIT": 60.0, "SERVER": 45.0, "NETWORK": 30.0, "TIMEOUT": 30.0, "MALFORMED": 60.0}
+THRESHOLDS = {"AUTH": 1, "RATE_LIMIT": 1, "SERVER": 2, "NETWORK": 3, "TIMEOUT": 3, "MALFORMED": 2}
+COOLDOWNS = {"AUTH": 900.0, "RATE_LIMIT": 60.0, "SERVER": 20.0, "NETWORK": 8.0, "TIMEOUT": 8.0, "MALFORMED": 30.0}
+TRANSIENT_EVENTS = {"SERVER", "NETWORK", "TIMEOUT", "MALFORMED"}
+try:
+    TRANSIENT_DEDUP_SECONDS = float(os.getenv("SAP_MEDIA_TRANSIENT_DEDUP_SECONDS", "2.5") or 2.5)
+except (TypeError, ValueError):
+    TRANSIENT_DEDUP_SECONDS = 2.5
+TRANSIENT_DEDUP_SECONDS = max(0.5, min(TRANSIENT_DEDUP_SECONDS, 5.0))
 ASSET_TTL = {"HTTP_403": 1800.0, "HTTP_404": 604800.0, "HTTP_410": 604800.0, "HTTP_429": 900.0, "TIMEOUT": 600.0, "NETWORK": 600.0, "CONTENT_TYPE": 86400.0, "TOO_SMALL": 86400.0, "TOO_LARGE": 86400.0, "CORRUPT": 86400.0, "PROBE_FAIL": 86400.0, "REMOVED": 604800.0, "UNKNOWN": 900.0}
 
 
@@ -92,6 +98,23 @@ def _load():
         data = _empty()
     data.setdefault("providers", {})
     data.setdefault("bad_assets", {})
+
+    # v1.1 could persist aggressive transient TIMEOUT/NETWORK circuits created
+    # by the orchestration deadline itself. On upgrade, preserve AUTH/RATE_LIMIT
+    # protection but clear transient circuit debt so a new Stage 6 can probe
+    # providers under the corrected controller semantics.
+    if str(data.get("version", "")) != VERSION:
+        for item in data.get("providers", {}).values():
+            if not isinstance(item, dict):
+                continue
+            if str(item.get("open_reason", "")).upper() in TRANSIENT_EVENTS:
+                item["open_until"] = 0.0
+                item["open_reason"] = ""
+                item["consecutive_failures"] = 0
+                item["last_failure_event"] = ""
+                item["last_failure_at"] = 0.0
+        data["version"] = VERSION
+
     _STATE = data
     _cleanup(data)
     return data
@@ -176,6 +199,8 @@ def note_provider_event(provider: Any, event: str, *, status=None, retry_after=N
             item["open_until"] = 0.0
             item["open_reason"] = ""
             item["last_success"] = now
+            item["last_failure_event"] = ""
+            item["last_failure_at"] = 0.0
         elif event == "HTTP_SUCCESS":
             item["consecutive_failures"] = 0
             # Successful transport proves provider health. Search-result
@@ -183,27 +208,55 @@ def note_provider_event(provider: Any, event: str, *, status=None, retry_after=N
             if item.get("open_reason") == "EMPTY":
                 item["open_until"] = 0.0
                 item["open_reason"] = ""
+            item["last_failure_event"] = ""
+            item["last_failure_at"] = 0.0
         elif event == "EMPTY":
             item["empties"] = int(item.get("empties", 0) or 0) + 1
             item["empty_streak"] = int(item.get("empty_streak", 0) or 0) + 1
             item["consecutive_failures"] = 0
+            item["last_failure_event"] = ""
+            item["last_failure_at"] = 0.0
             # EMPTY is a valid response to a particular semantic query. Do not
             # disable the provider for unrelated later scenes.
             if item.get("open_reason") == "EMPTY":
                 item["open_until"] = 0.0
                 item["open_reason"] = ""
         else:
-            item["failures"] = int(item.get("failures", 0) or 0) + 1
-            item["consecutive_failures"] = int(item.get("consecutive_failures", 0) or 0) + 1
-            item["empty_streak"] = 0
-            threshold = THRESHOLDS.get(event, 2)
-            if item["consecutive_failures"] >= threshold:
-                cooldown = COOLDOWNS.get(event, 30.0)
-                if event == "RATE_LIMIT":
-                    try: cooldown = max(1.0, min(float(retry_after), 900.0))
-                    except (TypeError, ValueError): pass
-                item["open_until"] = now + cooldown
-                item["open_reason"] = event
+            # Video/photo variants from one provider family can fail nearly
+            # simultaneously in the same acquisition round. Count that burst
+            # once; otherwise Pixabay video+photo alone could open the family
+            # circuit from a single network hiccup.
+            last_failure_event = str(item.get("last_failure_event", "") or "").upper()
+            try:
+                last_failure_at = float(item.get("last_failure_at", 0.0) or 0.0)
+            except (TypeError, ValueError):
+                last_failure_at = 0.0
+
+            duplicate_transient = (
+                event in TRANSIENT_EVENTS
+                and last_failure_event == event
+                and (now - last_failure_at) < TRANSIENT_DEDUP_SECONDS
+            )
+
+            if duplicate_transient:
+                item["deduped_failures"] = int(item.get("deduped_failures", 0) or 0) + 1
+            else:
+                item["failures"] = int(item.get("failures", 0) or 0) + 1
+                item["consecutive_failures"] = int(item.get("consecutive_failures", 0) or 0) + 1
+                item["last_failure_event"] = event
+                item["last_failure_at"] = now
+
+                item["empty_streak"] = 0
+                threshold = THRESHOLDS.get(event, 2)
+                if item["consecutive_failures"] >= threshold:
+                    cooldown = COOLDOWNS.get(event, 30.0)
+                    if event == "RATE_LIMIT":
+                        try:
+                            cooldown = max(1.0, min(float(retry_after), 900.0))
+                        except (TypeError, ValueError):
+                            pass
+                    item["open_until"] = now + cooldown
+                    item["open_reason"] = event
         _save(state)
 
 

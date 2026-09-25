@@ -70,10 +70,24 @@ class Stage6AnchorTimeoutAndIdFixTests(unittest.TestCase):
     def test_parallel_provider_result_timeout_is_bounded(self):
         text = Path("midia.py").read_text(encoding="utf-8")
         self.assertIn("SAP_MEDIA_PROVIDER_RESULT_TIMEOUT", text)
-        self.assertIn("SAP_MEDIA_PROVIDER_TIMEOUT", text)
-        self.assertIn("_provider_deadline", text)
-        self.assertIn("timeout=_provider_remaining", text)
+        self.assertIn("_PROVIDER_RESULT_TIMEOUT", text)
+        self.assertIn("wait(", text)
+        self.assertIn("timeout=_PROVIDER_RESULT_TIMEOUT", text)
         self.assertIn("round_deadline=", text)
+
+    def test_parallel_provider_controller_timeout_does_not_poison_health(self):
+        text = Path("midia.py").read_text(encoding="utf-8")
+        self.assertIn("from concurrent.futures import", text)
+        self.assertIn("wait", text)
+        self.assertIn("SAP_MEDIA_PROVIDER_CONTROLLER_TIMEOUT", text)
+        self.assertIn("health_penalty=NO", text)
+        self.assertIn("SAP_MEDIA_PROVIDER_CIRCUIT_BACKOFF", text)
+
+        start = text.index("if future not in _done:")
+        end = text.index("continue", start)
+        controller_block = text[start:end]
+        self.assertNotIn("_sap_note_provider_event", controller_block)
+        self.assertNotIn("_sap_note_provider_exception", controller_block)
 
     def test_wikimedia_multi_query_search_has_deadline(self):
         text = Path("wikimedia_source.py").read_text(encoding="utf-8")

@@ -59,6 +59,55 @@ class MediaExternalResilienceTests(unittest.TestCase):
         self.assertEqual(reason, "CLOSED")
         self.assertEqual(remaining, 0)
 
+    def test_same_family_transient_burst_is_deduplicated(self):
+        resilience.note_provider_event("pixabay_video", "TIMEOUT")
+        resilience.note_provider_event("pixabay_foto", "TIMEOUT")
+
+        allowed, reason, remaining = resilience.provider_gate("pixabay_video")
+        self.assertTrue(allowed)
+        self.assertEqual(reason, "CLOSED")
+        self.assertEqual(remaining, 0)
+
+        state = resilience._load()["providers"]["pixabay"]
+        self.assertEqual(state.get("consecutive_failures"), 1)
+        self.assertGreaterEqual(state.get("deduped_failures", 0), 1)
+
+        # Three genuinely separated transient failures still open the circuit.
+        state["last_failure_at"] -= resilience.TRANSIENT_DEDUP_SECONDS + 1
+        resilience.note_provider_event("pixabay_video", "TIMEOUT")
+        state["last_failure_at"] -= resilience.TRANSIENT_DEDUP_SECONDS + 1
+        resilience.note_provider_event("pixabay_video", "TIMEOUT")
+
+        allowed, reason, remaining = resilience.provider_gate("pixabay_foto")
+        self.assertFalse(allowed)
+        self.assertEqual(reason, "TIMEOUT")
+        self.assertGreater(remaining, 0)
+        self.assertLessEqual(remaining, 8.5)
+
+    def test_upgrade_clears_v11_transient_circuit_debt(self):
+        resilience.STATE_FILE.write_text(
+            '{"version":"1.1","providers":{"pixabay":{"open_until":9999999999,'
+            '"open_reason":"TIMEOUT","consecutive_failures":9}},'
+            '"bad_assets":{}}',
+            encoding="utf-8",
+        )
+        resilience._STATE = None
+
+        allowed, reason, remaining = resilience.provider_gate("pixabay_video")
+        self.assertTrue(allowed)
+        self.assertEqual(reason, "CLOSED")
+        self.assertEqual(remaining, 0)
+
+    def test_empty_response_resets_transient_failure_debt(self):
+        resilience.note_provider_event("coverr_video", "TIMEOUT")
+        resilience.note_provider_event("coverr_video", "EMPTY", item_count=0)
+        resilience.note_provider_event("coverr_video", "TIMEOUT")
+
+        state = resilience._load()["providers"]["coverr"]
+        self.assertEqual(state.get("consecutive_failures"), 1)
+        allowed, _, _ = resilience.provider_gate("coverr_video")
+        self.assertTrue(allowed)
+
     def test_bad_asset_is_quarantined_by_provider_and_id(self):
         url = "https://example.test/media/a.jpg?signed=secret"
         resilience.mark_asset_bad(

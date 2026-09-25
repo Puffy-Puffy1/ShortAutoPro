@@ -292,10 +292,10 @@ def _wrap_pool(namespace: dict[str, Any]) -> bool:
 
         try:
             provider_deadline = float(
-                os.getenv("SAP_MEDIA_PROVIDER_RESULT_TIMEOUT", "6") or 6
+                os.getenv("SAP_MEDIA_PROVIDER_RESULT_TIMEOUT", "8") or 8
             )
         except (TypeError, ValueError):
-            provider_deadline = 6.0
+            provider_deadline = 8.0
         provider_deadline = max(2.0, provider_deadline)
 
         # If the first provider round consumed almost its whole deadline and
