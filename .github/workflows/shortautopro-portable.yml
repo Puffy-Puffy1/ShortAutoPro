@@ -121,7 +121,8 @@ jobs:
             tests_sim.test_retention_review_contract \
             tests_sim.test_stage6_timeout_resume \
             tests_sim.test_visual_content_integrity \
-            tests_sim.test_fresh_run_after_success
+            tests_sim.test_fresh_run_after_success \
+            tests_sim.test_media_external_resilience
           echo "PORTABLE_STAGE6_GATE=PASS"
 
       - name: JSON Integrity Audit
