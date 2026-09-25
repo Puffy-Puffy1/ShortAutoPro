@@ -70,9 +70,9 @@ class Stage6AnchorTimeoutAndIdFixTests(unittest.TestCase):
     def test_parallel_provider_result_timeout_is_bounded(self):
         text = Path("midia.py").read_text(encoding="utf-8")
         self.assertIn("SAP_MEDIA_PROVIDER_RESULT_TIMEOUT", text)
-        self.assertIn("SAP_MEDIA_PROVIDER_TIMEOUT", text)
-        self.assertIn("_provider_deadline", text)
-        self.assertIn("timeout=_provider_remaining", text)
+        self.assertIn("_PROVIDER_RESULT_TIMEOUT", text)
+        self.assertIn("wait(", text)
+        self.assertIn("timeout=_PROVIDER_RESULT_TIMEOUT", text)
         self.assertIn("round_deadline=", text)
 
     def test_parallel_provider_controller_timeout_does_not_poison_health(self):
