@@ -103,7 +103,8 @@ def _load():
     # by the orchestration deadline itself. On upgrade, preserve AUTH/RATE_LIMIT
     # protection but clear transient circuit debt so a new Stage 6 can probe
     # providers under the corrected controller semantics.
-    if str(data.get("version", "")) != VERSION:
+    migrated = str(data.get("version", "")) != VERSION
+    if migrated:
         for item in data.get("providers", {}).values():
             if not isinstance(item, dict):
                 continue
@@ -117,6 +118,8 @@ def _load():
 
     _STATE = data
     _cleanup(data)
+    if migrated:
+        _save(data)
     return data
 
 
