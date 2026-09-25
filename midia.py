@@ -20,7 +20,7 @@ import re
 import json
 import hashlib
 import tempfile
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError, wait
 import threading
 import requests
 from requests.adapters import HTTPAdapter
@@ -171,12 +171,12 @@ _MEDIA_API_TIMEOUT = max(3.0, min(_MEDIA_API_TIMEOUT, 8.0))
 
 try:
     _PROVIDER_RESULT_TIMEOUT = float(
-        os.getenv("SAP_MEDIA_PROVIDER_RESULT_TIMEOUT", "6") or 6
+        os.getenv("SAP_MEDIA_PROVIDER_RESULT_TIMEOUT", "8") or 8
     )
 except (TypeError, ValueError):
-    _PROVIDER_RESULT_TIMEOUT = 6.0
+    _PROVIDER_RESULT_TIMEOUT = 8.0
 
-_PROVIDER_RESULT_TIMEOUT = max(4.0, min(_PROVIDER_RESULT_TIMEOUT, 10.0))
+_PROVIDER_RESULT_TIMEOUT = max(5.0, min(_PROVIDER_RESULT_TIMEOUT, 12.0))
 
 _DOWNLOAD_READ_TIMEOUT = env_float(
     "SAP_MEDIA_DOWNLOAD_READ_TIMEOUT", 15.0, 5.0, 30.0
@@ -2678,12 +2678,14 @@ def buscar_todos_candidatos(
             )
         )
 
+    _provider_jobs_all = list(provider_jobs)
     _provider_jobs_ready = []
+    _provider_jobs_blocked = []
 
     for (
         _provider_name,
         _provider_job,
-    ) in provider_jobs:
+    ) in _provider_jobs_all:
 
         (
             _allowed,
@@ -2694,6 +2696,9 @@ def buscar_todos_candidatos(
         )
 
         if not _allowed:
+            _provider_jobs_blocked.append(
+                (_provider_name, _provider_job, _reason, _remaining)
+            )
             print(
                 "SAP_MEDIA_PROVIDER_CIRCUIT=SKIP "
                 f"provider={_provider_name} "
@@ -2710,6 +2715,55 @@ def buscar_todos_candidatos(
         )
 
     provider_jobs = _provider_jobs_ready
+
+    # Do not race through all remaining scenes while every stock provider is in
+    # a short transient circuit. A bounded mobile backoff gives the corrected
+    # circuit enough time to half-open without waiting on AUTH/RATE_LIMIT.
+    if not provider_jobs and _provider_jobs_blocked:
+        _transient_blocked = [
+            item for item in _provider_jobs_blocked
+            if str(item[2]).upper() in {"TIMEOUT", "NETWORK", "SERVER", "MALFORMED"}
+            and float(item[3] or 0.0) > 0.0
+        ]
+        if _transient_blocked:
+            try:
+                _backoff_cap = float(
+                    os.getenv("SAP_MEDIA_CIRCUIT_BACKOFF_MAX_SECONDS", "2.0") or 2.0
+                )
+            except (TypeError, ValueError):
+                _backoff_cap = 2.0
+            _backoff_cap = max(0.0, min(_backoff_cap, 3.0))
+            _backoff = min(
+                _backoff_cap,
+                min(float(item[3]) for item in _transient_blocked),
+            )
+            if _backoff > 0.0:
+                print(
+                    "SAP_MEDIA_PROVIDER_CIRCUIT_BACKOFF "
+                    f"seconds={_backoff:.1f} "
+                    f"providers={len(_transient_blocked)}"
+                )
+                time.sleep(_backoff)
+
+            _retry_ready = []
+            for _provider_name, _provider_job, _, _ in _provider_jobs_blocked:
+                _allowed, _reason, _remaining = _sap_provider_gate(_provider_name)
+                if _allowed:
+                    _retry_ready.append((_provider_name, _provider_job))
+                else:
+                    print(
+                        "SAP_MEDIA_PROVIDER_CIRCUIT_RECHECK=SKIP "
+                        f"provider={_provider_name} "
+                        f"reason={_reason} "
+                        f"remaining={_remaining:.1f}s"
+                    )
+            if _retry_ready:
+                print(
+                    "SAP_MEDIA_PROVIDER_CIRCUIT_RECHECK=RECOVERED "
+                    f"providers={len(_retry_ready)}"
+                )
+                provider_jobs = _retry_ready
+
     provider_results = {}
 
     if (
@@ -2736,60 +2790,52 @@ def buscar_todos_candidatos(
                 for name, job in provider_jobs
             }
 
-            _provider_deadline = (
-                time.monotonic()
-                + _PROVIDER_RESULT_TIMEOUT
+            # Wait once for the whole concurrent set. The old ordered
+            # future.result() loop could spend the entire shared deadline on
+            # the first slow provider and then falsely mark already-running
+            # siblings as provider TIMEOUTs (head-of-line blocking).
+            _done, _not_done = wait(
+                set(futures.values()),
+                timeout=_PROVIDER_RESULT_TIMEOUT,
             )
 
             for name, _ in provider_jobs:
+                future = futures[name]
+
+                if future not in _done:
+                    provider_results[name] = []
+                    future.cancel()
+
+                    # This is an orchestration deadline, not proof that the
+                    # provider/API itself timed out. Real request exceptions
+                    # are already recorded inside each provider function.
+                    print(
+                        "SAP_MEDIA_PROVIDER_CONTROLLER_TIMEOUT "
+                        f"provider={name} "
+                        f"round_deadline={_PROVIDER_RESULT_TIMEOUT:.1f}s "
+                        "health_penalty=NO"
+                    )
+                    continue
 
                 try:
-                    _provider_remaining = max(
-                        0.0,
-                        _provider_deadline
-                        - time.monotonic()
-                    )
-
-                    if _provider_remaining <= 0:
-                        raise FuturesTimeoutError()
-
-                    provider_results[
-                        name
-                    ] = list(
-                        futures[
-                            name
-                        ].result(
-                            timeout=_provider_remaining
-                        )
-                        or []
+                    provider_results[name] = list(
+                        future.result() or []
                     )
 
                 except FuturesTimeoutError:
+                    # A completed Future raising TimeoutError is a genuine
+                    # provider-call timeout and may count toward health.
                     provider_results[name] = []
-                    futures[name].cancel()
-
-                    _sap_note_provider_event(
-                        name,
-                        "TIMEOUT",
-                    )
-
+                    _sap_note_provider_event(name, "TIMEOUT")
                     print(
                         "SAP_MEDIA_PROVIDER_TIMEOUT "
                         f"provider={name} "
-                        f"round_deadline={_PROVIDER_RESULT_TIMEOUT:.1f}s"
+                        "source=FUTURE_EXCEPTION"
                     )
 
                 except Exception as exc:
-
-                    provider_results[
-                        name
-                    ] = []
-
-                    _sap_note_provider_exception(
-                        name,
-                        exc,
-                    )
-
+                    provider_results[name] = []
+                    _sap_note_provider_exception(name, exc)
                     print(
                         "SAP_MEDIA_PROVIDER_FAIL_OPEN "
                         f"provider={name} "
