@@ -84,13 +84,13 @@ class BatchRuntimeTests(unittest.TestCase):
             idx = int(sid.rsplit("_", 1)[1])
             attempts[idx] = attempts.get(idx, 0) + 1
             if idx == 3 and attempts[idx] == 1:
-                return FakeProc(1, "MEDIA_STAGE_RUNTIME=EXHAUSTED")
+                return 1, "MEDIA_STAGE_RUNTIME=EXHAUSTED", False
             completed.add(sid)
-            return FakeProc(0, "ok")
+            return 0, "ok", False
 
         with (
             mock.patch.object(br, "release_ok", side_effect=release),
-            mock.patch.object(br.subprocess, "run", side_effect=run),
+            mock.patch.object(br, "run_logged", side_effect=run),
             mock.patch.object(br.time, "sleep"),
             mock.patch.object(br, "last_stage", return_value="6"),
         ):
@@ -116,15 +116,15 @@ class BatchRuntimeTests(unittest.TestCase):
             idx = int(sid.rsplit("_", 1)[1])
             attempts[idx] = attempts.get(idx, 0) + 1
             if idx == 2 and attempts[idx] == 1:
-                return FakeProc(1, "provider timeout")
+                return 1, "provider timeout", False
             if idx == 7 and attempts[idx] == 1:
-                return FakeProc(1, "RENDER_INVALID")
+                return 1, "RENDER_INVALID", False
             completed.add(sid)
-            return FakeProc(0, "ok")
+            return 0, "ok", False
 
         with (
             mock.patch.object(br, "release_ok", side_effect=release),
-            mock.patch.object(br.subprocess, "run", side_effect=run),
+            mock.patch.object(br, "run_logged", side_effect=run),
             mock.patch.object(br.time, "sleep"),
             mock.patch.object(br, "last_stage", return_value="6"),
         ):
@@ -140,7 +140,7 @@ class BatchRuntimeTests(unittest.TestCase):
         state = br.make_state(5)
         with (
             mock.patch.object(br, "release_ok", return_value=False),
-            mock.patch.object(br.subprocess, "run", return_value=FakeProc(1, "STORAGE_LOW")),
+            mock.patch.object(br, "run_logged", return_value=(1, "STORAGE_LOW", False)),
             mock.patch.object(br.time, "sleep"),
             mock.patch.object(br, "last_stage", return_value="preflight"),
         ):
@@ -176,11 +176,11 @@ class BatchRuntimeTests(unittest.TestCase):
 
         def fake_run(cmd, **kwargs):
             calls["run"] += 1
-            return FakeProc(1, "RELEASE_BLOCK")
+            return 1, "RELEASE_BLOCK", False
 
         with (
             mock.patch.object(br, "release_ok", return_value=False),
-            mock.patch.object(br.subprocess, "run", side_effect=fake_run),
+            mock.patch.object(br, "run_logged", side_effect=fake_run),
             mock.patch.object(br.time, "sleep"),
             mock.patch.object(br, "last_stage", return_value="release"),
         ):
