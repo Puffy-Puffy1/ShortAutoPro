@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import shutil
 from subprocess_guard import run_group
 from runtime_config import env_int
 from runtime_config import env_float
@@ -26,6 +27,7 @@ from media_emergency_fallback import (
 )
 from media_provenance_capture_v1 import write_provenance
 import visual_engine_unified
+from shortauto_asset_library import verified_candidate
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
 SID = os.getenv("SHORT_ID", date.today().isoformat()).strip()
@@ -369,6 +371,72 @@ def _atomic_json(path: Path, payload: dict[str, Any]) -> None:
                 pass
 
 
+def _verified_local_reuse(number: int, rows: list[dict[str, Any]], media_dir: Path) -> dict[str, Any] | None:
+    if not (1 <= number <= len(rows)):
+        return None
+    scene = rows[number - 1]
+    record = verified_candidate(scene, exclude_short_id=SID)
+    if not record:
+        return None
+
+    source = Path(str(record.get("path", "") or ""))
+    try:
+        if not source.is_file() or source.stat().st_size <= 1000:
+            return None
+    except OSError:
+        return None
+
+    suffix = source.suffix.lower()
+    if suffix not in {".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".webm", ".mkv"}:
+        return None
+    destination = media_dir / f"scene_{number:02d}{suffix}"
+    temp = media_dir / f".scene_{number:02d}.{os.getpid()}.tmp{suffix}"
+    try:
+        shutil.copy2(source, temp)
+        if temp.stat().st_size != source.stat().st_size:
+            raise OSError("local asset copy size mismatch")
+        for old in media_dir.glob(f"scene_{number:02d}.*"):
+            if old != temp:
+                try:
+                    old.unlink()
+                except OSError:
+                    pass
+        os.replace(temp, destination)
+    except Exception as exc:
+        try:
+            temp.unlink(missing_ok=True)
+        except OSError:
+            pass
+        print(
+            "SAP_MEDIA_LOCAL_ASSET=FAIL "
+            f"scene={number} reason={type(exc).__name__}:{str(exc)[:120]}"
+        )
+        return None
+
+    must = scene.get("must_have", []) if isinstance(scene.get("must_have"), list) else []
+    candidate = {
+        "fonte": "VerifiedLocalAsset",
+        "tipo": "video" if suffix in {".mp4", ".mov", ".webm", ".mkv"} else "foto",
+        "score": max(0.0, min(float(record.get("quality", 0) or 0) / 100.0, 1.0)),
+        "must_hits": len(must),
+        "avoid_hits": 0,
+        "descricao": "previously Media-Master-approved asset reused with verified provenance metadata",
+        "id": str(record.get("asset_id") or ""),
+        "local_path": str(destination),
+        "source": record.get("source"),
+        "license": record.get("license"),
+        "entities": record.get("entities", []),
+        "truth_claim": "VERIFIED_LOCAL_REUSE",
+        "verified_local_asset": True,
+        "source_short_ids": record.get("short_ids", []),
+    }
+    print(
+        "SAP_MEDIA_LOCAL_ASSET=PASS "
+        f"scene={number} asset_id={candidate['id']} source={record.get('source')}"
+    )
+    return candidate
+
+
 def final_editorial_completion(missing: list[int]) -> bool:
     """Finish a small timed-out tail with audited non-evidentiary media."""
     missing = sorted({int(x) for x in missing if int(x) > 0})
@@ -395,19 +463,21 @@ def final_editorial_completion(missing: list[int]) -> bool:
     )
 
     for number in missing:
-        try:
-            candidate = create_editorial_reuse(
-                media_dir,
-                number,
-                allow_neutral=False,
-            )
-        except Exception as exc:
-            candidate = None
-            failures.append({
-                "scene": number,
-                "reason": f"{type(exc).__name__}:{str(exc)[:160]}",
-            })
-            continue
+        candidate = _verified_local_reuse(number, rows, media_dir)
+        if candidate is None:
+            try:
+                candidate = create_editorial_reuse(
+                    media_dir,
+                    number,
+                    allow_neutral=False,
+                )
+            except Exception as exc:
+                candidate = None
+                failures.append({
+                    "scene": number,
+                    "reason": f"{type(exc).__name__}:{str(exc)[:160]}",
+                })
+                continue
 
         path = Path(str((candidate or {}).get("local_path", "") or ""))
         if candidate and candidate.get("neutral_slate"):
