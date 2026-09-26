@@ -10,16 +10,17 @@ class ExtremeBatchReleaseHarmonyRound12Tests(unittest.TestCase):
         self.assertIn("video_size_identity_mismatch", text)
         self.assertIn("video_mtime_identity_mismatch", text)
         self.assertIn('VIDEOS / f"short_v6_{sid}.mp4"', text)
-        self.assertIn('release_short_id_mismatch', text)
+        self.assertIn("release_short_id_mismatch", text)
 
-    def test_batch_paths_use_shared_release_guard(self):
+    def test_canonical_batch_runtime_uses_shared_release_guard(self):
         for name in ("batch_queue.sh", "batch_recovery.sh"):
-            text = (ROOT / name).read_text(encoding="utf-8")
-            self.assertIn("release_artifact_guard.py", text, name)
-        queue = (ROOT / "batch_queue.sh").read_text(encoding="utf-8")
-        recovery = (ROOT / "batch_recovery.sh").read_text(encoding="utf-8")
-        self.assertNotIn('manifest=json.loads(', queue)
-        self.assertNotIn('m=json.loads(', recovery)
+            wrapper = (ROOT / name).read_text(encoding="utf-8")
+            self.assertIn("batch_runtime.py", wrapper, name)
+            self.assertNotIn("manifest=json.loads(", wrapper)
+        runtime = (ROOT / "batch_runtime.py").read_text(encoding="utf-8")
+        self.assertIn("release_artifact_guard.py", runtime)
+        self.assertIn('"--short-id", short_id', runtime)
+        self.assertIn("release_ok(sid)", runtime)
 
     def test_health_preflight_and_audit_require_release_guard(self):
         for name in ("preflight_check.sh", "health_check.sh"):
