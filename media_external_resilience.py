@@ -114,6 +114,15 @@ def _load():
                 item["last_failure_event"] = ""
                 item["last_failure_at"] = 0.0
         data["version"] = VERSION
+        # Persist the migration immediately. Otherwise a fresh Python process
+        # can reload the same v1.1 transient circuit debt before any later
+        # provider event happens to call _save().
+        data["updated_at"] = time.time()
+        _cleanup(data)
+        try:
+            _atomic_write(data)
+        except Exception as exc:
+            print(f"SAP_MEDIA_RESILIENCE_MIGRATION=WRITE_FAIL {type(exc).__name__}:{str(exc)[:100]}")
 
     _STATE = data
     _cleanup(data)

@@ -167,6 +167,74 @@ def index_short(sid: str) -> dict[str, Any]:
     return report
 
 
+def _norm(value: Any) -> str:
+    return " ".join(str(value or "").strip().lower().split())
+
+
+def verified_candidate(scene: dict[str, Any], *, exclude_short_id: str = "") -> dict[str, Any] | None:
+    """Return a previously gate-approved local asset that satisfies scene metadata.
+
+    This is deliberately strict: unknown source/license, missing files, low
+    quality, missing MUST entities, or mismatched location/era are rejected.
+    It never invents semantic evidence from a filename.
+    """
+    library = load(STATE, {"assets": []})
+    assets = library.get("assets", []) if isinstance(library, dict) else []
+    if not isinstance(assets, list):
+        return None
+
+    must_raw = scene.get("must_have", []) if isinstance(scene, dict) else []
+    must = {_norm(x) for x in must_raw if _norm(x)} if isinstance(must_raw, list) else set()
+    if not must:
+        return None
+
+    wanted_location = _norm(scene.get("location", ""))
+    wanted_era = _norm(scene.get("era", ""))
+    candidates: list[dict[str, Any]] = []
+
+    for item in assets:
+        if not isinstance(item, dict):
+            continue
+        path = Path(str(item.get("path", "") or ""))
+        try:
+            if not path.is_file() or path.stat().st_size <= 1000:
+                continue
+        except OSError:
+            continue
+        if _norm(item.get("source")) in {"", "unknown"}:
+            continue
+        if _norm(item.get("license")) in {"", "unknown"}:
+            continue
+        try:
+            if float(item.get("quality", 0) or 0) < 78.0:
+                continue
+        except (TypeError, ValueError):
+            continue
+        entities_raw = item.get("entities", [])
+        entities = {_norm(x) for x in entities_raw if _norm(x)} if isinstance(entities_raw, list) else set()
+        if not must.issubset(entities):
+            continue
+        if wanted_location and _norm(item.get("location")) != wanted_location:
+            continue
+        if wanted_era and _norm(item.get("year_or_era")) != wanted_era:
+            continue
+        short_ids = item.get("short_ids", []) if isinstance(item.get("short_ids"), list) else []
+        if exclude_short_id and short_ids and set(short_ids) == {exclude_short_id}:
+            continue
+        candidates.append(item)
+
+    if not candidates:
+        return None
+    candidates.sort(
+        key=lambda item: (
+            -float(item.get("quality", 0) or 0),
+            int(item.get("used_count", 0) or 0),
+            str(item.get("last_used_at", "")),
+        )
+    )
+    return dict(candidates[0])
+
+
 def status() -> dict[str, Any]:
     library = load(STATE, {"assets": []})
     assets = library.get("assets", []) if isinstance(library, dict) else []
