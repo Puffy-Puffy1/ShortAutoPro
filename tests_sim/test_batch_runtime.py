@@ -156,10 +156,39 @@ class BatchRuntimeTests(unittest.TestCase):
             "total": 5, "current": 2, "successes": 2, "failures": 1,
             "status": "retry_pending",
         }
-        out = br.migrate_legacy(data)
+        with (
+            mock.patch.object(br, "release_ok", side_effect=lambda sid: sid in {"x_01", "x_02"}),
+            mock.patch.object(br, "artifacts_exist", side_effect=lambda sid: sid == "x_03"),
+        ):
+            out = br.migrate_legacy(data)
         self.assertEqual([x["status"] for x in out["items"]],
                          ["completed", "completed", "retry_pending", "queued", "queued"])
         self.assertEqual(out["items"][2]["short_id"], "x_03")
+
+    def test_completed_item_is_revalidated_before_skip(self):
+        base = self.sandbox()
+        state = br.make_state(1)
+        item = state["items"][0]
+        item["status"] = "completed"
+        sid = item["short_id"]
+        (base / "roteiros" / f"scene_map_{sid}.json").write_text("{}", encoding="utf-8")
+        calls = {"run": 0}
+
+        def fake_run(cmd, **kwargs):
+            calls["run"] += 1
+            return FakeProc(1, "RELEASE_BLOCK")
+
+        with (
+            mock.patch.object(br, "release_ok", return_value=False),
+            mock.patch.object(br.subprocess, "run", side_effect=fake_run),
+            mock.patch.object(br.time, "sleep"),
+            mock.patch.object(br, "last_stage", return_value="release"),
+        ):
+            br.execute(state, max_attempts=1, recovery_rounds=0)
+
+        self.assertEqual(calls["run"], 1)
+        self.assertEqual(item["status"], "failed_permanent")
+        self.assertEqual(item["error_class"], "RELEASE_BLOCK")
 
     def test_state_write_is_atomic_and_valid(self):
         self.sandbox()
