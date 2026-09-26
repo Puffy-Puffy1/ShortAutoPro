@@ -126,6 +126,79 @@ def output_path(short_id: str) -> str:
     return str(path) if path.is_file() else ""
 
 
+def _tail_text(path: Path, limit: int = 65536) -> str:
+    try:
+        with path.open("rb") as handle:
+            handle.seek(0, 2)
+            size = handle.tell()
+            handle.seek(max(0, size - limit))
+            return handle.read().decode("utf-8", errors="replace")
+    except OSError:
+        return ""
+
+
+def run_logged(
+    cmd: list[str],
+    *,
+    env: dict[str, str],
+    log_path: Path,
+    timeout: int,
+) -> tuple[int, str, bool]:
+    """Run one Short without retaining its complete output in RAM.
+
+    A dedicated process group lets batch interruption/timeout terminate the
+    launched main/resume process and its descendants instead of leaving an
+    orphaned FFmpeg/Piper/Whisper tree.
+    """
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    timed_out = False
+    with log_path.open("a", encoding="utf-8") as log:
+        log.write(f"\n[{now()}] BATCH_SUBPROCESS_START cmd={' '.join(cmd)}\n")
+        log.flush()
+        proc = subprocess.Popen(
+            cmd,
+            cwd=BASE,
+            env=env,
+            stdout=log,
+            stderr=subprocess.STDOUT,
+            text=True,
+            start_new_session=True,
+        )
+        try:
+            returncode = proc.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            timed_out = True
+            try:
+                os.killpg(proc.pid, signal.SIGTERM)
+            except (ProcessLookupError, PermissionError):
+                pass
+            try:
+                returncode = proc.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                try:
+                    os.killpg(proc.pid, signal.SIGKILL)
+                except (ProcessLookupError, PermissionError):
+                    pass
+                returncode = proc.wait()
+        except BaseException:
+            try:
+                os.killpg(proc.pid, signal.SIGTERM)
+            except (ProcessLookupError, PermissionError):
+                pass
+            try:
+                proc.wait(timeout=10)
+            except Exception:
+                try:
+                    os.killpg(proc.pid, signal.SIGKILL)
+                except (ProcessLookupError, PermissionError):
+                    pass
+            raise
+        finally:
+            log.write(f"[{now()}] BATCH_SUBPROCESS_END timeout={timed_out}\n")
+            log.flush()
+    return returncode, _tail_text(log_path), timed_out
+
+
 def clean_env(short_id: str) -> dict[str, str]:
     env = os.environ.copy()
     for key in TRANSIENT_ENV:
@@ -361,16 +434,30 @@ def run_item(state: dict[str, Any], item: dict[str, Any], recovering: bool = Fal
     print(f"BATCH_ITEM_MODE={mode.upper()} short_id={sid}")
 
     env = clean_env(sid)
-    proc = subprocess.run(
-        cmd, cwd=BASE, env=env, text=True,
-        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False,
+    try:
+        item_timeout = int(os.getenv("SAP_BATCH_ITEM_TIMEOUT_SECONDS", "10800") or 10800)
+    except ValueError:
+        item_timeout = 10800
+    item_timeout = max(600, min(item_timeout, 21600))
+    log_path = LOG_DIR / f"batch_{state['batch_id']}_item_{index:02d}_{sid}.log"
+    item["log_path"] = str(log_path)
+    save_state(state)
+    returncode, text, timed_out = run_logged(
+        cmd,
+        env=env,
+        log_path=log_path,
+        timeout=item_timeout,
     )
-    text = proc.stdout or ""
-    sys.stdout.write(text)
-    item["last_exit_code"] = int(proc.returncode)
+    if text:
+        # Keep console diagnostics bounded while the complete output remains
+        # available in the per-item log.
+        sys.stdout.write(text[-12000:])
+        if not text.endswith("\n"):
+            sys.stdout.write("\n")
+    item["last_exit_code"] = int(returncode)
     item["last_stage"] = last_stage(sid)
 
-    if proc.returncode == 0 and release_ok(sid):
+    if returncode == 0 and release_ok(sid):
         item.update(
             status="completed", release="PUBLISH", output_path=output_path(sid),
             last_error="", error_class="", updated_at=now(),
@@ -379,7 +466,10 @@ def run_item(state: dict[str, Any], item: dict[str, Any], recovering: bool = Fal
         print(f"BATCH_ITEM_COMPLETE index={index} short_id={sid} release=PUBLISH")
         return None
 
-    failure = classify_failure(text if proc.returncode else "RELEASE_BLOCK", proc.returncode)
+    if timed_out:
+        failure = Failure("ITEM_TIMEOUT", "RECOVERABLE", f"batch item exceeded {item_timeout}s")
+    else:
+        failure = classify_failure(text if returncode else "RELEASE_BLOCK", returncode)
     item["last_error"] = failure.message
     item["error_class"] = failure.code
     item["release"] = "BLOCK"
