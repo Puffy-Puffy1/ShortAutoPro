@@ -485,16 +485,22 @@ def status_text(state: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def preflight() -> None:
+def preflight(total: int = 1) -> None:
     required = ["main.py", "release_artifact_guard.py", "config.sh"]
     missing = [name for name in required if not (BASE / name).is_file()]
     if missing:
         raise RuntimeError("CONFIG_INVALID missing=" + ",".join(missing))
     try:
         usage = __import__("shutil").disk_usage(BASE)
-        min_free = int(os.getenv("SAP_BATCH_MIN_FREE_MB", "768")) * 1024 * 1024
+        reserve_mb = int(os.getenv("SAP_BATCH_MIN_FREE_MB", "768"))
+        per_short_mb = int(os.getenv("SAP_BATCH_ESTIMATED_SHORT_MB", "220"))
+        reserve_mb = max(256, min(reserve_mb, 8192))
+        per_short_mb = max(64, min(per_short_mb, 2048))
+        min_free = max(reserve_mb, 256 + per_short_mb * max(1, int(total))) * 1024 * 1024
         if usage.free < min_free:
-            raise RuntimeError(f"STORAGE_LOW free={usage.free} required={min_free}")
+            raise RuntimeError(
+                f"STORAGE_LOW free={usage.free} required={min_free} total={total}"
+            )
     except FileNotFoundError:
         raise RuntimeError("CONFIG_INVALID base_missing")
 
@@ -523,10 +529,14 @@ def cli() -> int:
         print(f"BATCH_REPORT_JSON={j}\nBATCH_REPORT_TEXT={t}")
         return 0
 
-    preflight()
+    if command == "run":
+        requested_total = max(1, min(int(args.count), MAX_TOTAL))
+    else:
+        requested_total = int(load_state().get("total") or 1)
+    preflight(requested_total)
     with BatchLock():
         if command == "run":
-            total = max(1, min(int(args.count), MAX_TOTAL))
+            total = requested_total
             state = make_state(total)
             save_state(state)
         else:
