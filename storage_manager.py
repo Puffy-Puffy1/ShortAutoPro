@@ -70,6 +70,19 @@ def active_ids()->set[str]:
   for item in legacy.iterdir():
    sid=item.name.strip()
    if sid:out.add(sid)
+ # Batch items awaiting recovery still depend on partial media/temp artifacts.
+ # Protect them even while no per-run flock is currently held.
+ batch=BASE/"queue"/"batch_state.json"
+ try:
+  data=json.loads(batch.read_text(encoding="utf-8")) if batch.is_file() else {}
+  items=data.get("items",[]) if isinstance(data,dict) else []
+  for item in items if isinstance(items,list) else []:
+   if not isinstance(item,dict):continue
+   if str(item.get("status","")).lower() in {"running","recovering","retry_pending","blocked_global"}:
+    sid=str(item.get("short_id","")).strip()
+    if sid:out.add(sid)
+ except Exception as exc:
+  print(f"STORAGE_BATCH_STATE=UNREADABLE {type(exc).__name__}:{str(exc)[:100]}")
  if SID:out.add(SID)
  return out
 def protected(p:Path)->bool:
