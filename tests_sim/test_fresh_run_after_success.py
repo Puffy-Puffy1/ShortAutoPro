@@ -38,6 +38,29 @@ class FreshRunAfterSuccessTests(unittest.TestCase):
             self.assertNotEqual(fresh, old)
             self.assertTrue(fresh)
 
+    def test_two_fresh_runs_immediately_receive_distinct_ids(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            state = base / ".sap_state"
+            videos = base / "videos"
+            roteiros = base / "roteiros"
+            for path in (state, videos, roteiros):
+                path.mkdir(parents=True, exist_ok=True)
+
+            with (
+                mock.patch.object(main, "BASE", base),
+                mock.patch.object(main, "STATE_DIR", state),
+                mock.patch.dict(os.environ, {}, clear=False),
+            ):
+                first = main.allocate_id(reuse_existing=False)
+                (videos / f"short_v6_{first}.mp4").write_bytes(b"x")
+                os.environ["SHORT_ID"] = first
+                second = main.allocate_id(reuse_existing=False)
+
+            self.assertNotEqual(first, second)
+            self.assertTrue(first)
+            self.assertTrue(second)
+
     def test_resume_can_explicitly_reuse_existing_short_id(self):
         with tempfile.TemporaryDirectory() as tmp:
             base = Path(tmp)
