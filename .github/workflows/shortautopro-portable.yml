@@ -76,6 +76,54 @@ jobs:
           python -m compileall -q .
           echo "PORTABLE_PYTHON_COMPILE=PASS"
 
+      - name: Python AST and PyCompile Audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import ast
+          import pathlib
+          import py_compile
+          import sys
+
+          failures = []
+          for path in pathlib.Path(".").rglob("*.py"):
+              if ".git" in path.parts or "__pycache__" in path.parts:
+                  continue
+              try:
+                  source = path.read_text(encoding="utf-8")
+                  ast.parse(source, filename=str(path))
+                  py_compile.compile(str(path), doraise=True)
+              except Exception as exc:
+                  failures.append(f"{path}: {exc}")
+          if failures:
+              print("PORTABLE_PY_STATIC=FAIL")
+              print("\n".join(failures))
+              sys.exit(1)
+          print("PORTABLE_PY_STATIC=PASS")
+          PY
+
+      - name: Import Smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import batch_runtime
+          import media_external_resilience
+          import storage_manager
+          print("PORTABLE_IMPORT_SMOKE=PASS")
+          PY
+
+      - name: Batch Reliability Gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest -v \
+            tests_sim.test_fresh_run_after_success \
+            tests_sim.test_batch_runtime \
+            tests_sim.test_media_resilience_migration_persistence
+          echo "PORTABLE_BATCH_RELIABILITY=PASS"
+
       - name: Deployment Semantic Smoke
         shell: bash
         run: |
