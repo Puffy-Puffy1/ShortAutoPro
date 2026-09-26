@@ -176,6 +176,13 @@ class BatchRuntimeTests(unittest.TestCase):
                 with br.BatchLock():
                     pass
 
+    def test_stale_lock_file_content_does_not_block_new_runner(self):
+        base = self.sandbox()
+        lock = base / "queue" / ".batch_runtime.lock"
+        lock.write_text('{"pid":999999,"started_at":"old"}', encoding="utf-8")
+        with br.BatchLock():
+            self.assertTrue(lock.is_file())
+
     def test_exact_release_short_id_controls_completion(self):
         self.sandbox()
         state = br.make_state(1)
