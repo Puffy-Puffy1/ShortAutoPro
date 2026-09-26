@@ -190,6 +190,72 @@ class BatchRuntimeTests(unittest.TestCase):
         self.assertEqual(item["status"], "failed_permanent")
         self.assertEqual(item["error_class"], "RELEASE_BLOCK")
 
+    def test_interrupted_batch_keeps_completed_prefix_and_continues_at_five(self):
+        self.sandbox()
+        state = br.make_state(10)
+        completed = set()
+        for item in state["items"][:4]:
+            item["status"] = "completed"
+            item["release"] = "PUBLISH"
+            completed.add(item["short_id"])
+        attempts = []
+
+        def release(sid):
+            return sid in completed
+
+        def run(cmd, **kwargs):
+            sid = kwargs["env"]["SHORT_ID"]
+            attempts.append(sid)
+            completed.add(sid)
+            return 0, "ok", False
+
+        with (
+            mock.patch.object(br, "release_ok", side_effect=release),
+            mock.patch.object(br, "run_logged", side_effect=run),
+            mock.patch.object(br.time, "sleep"),
+            mock.patch.object(br, "last_stage", return_value="release"),
+        ):
+            rc = br.execute(state, max_attempts=3, recovery_rounds=1)
+
+        self.assertEqual(rc, 0)
+        self.assertEqual(len(attempts), 6)
+        self.assertTrue(attempts[0].endswith("_05"))
+        self.assertTrue(attempts[-1].endswith("_10"))
+        self.assertEqual([x["status"] for x in state["items"]], ["completed"] * 10)
+
+    def test_logged_timeout_terminates_process_group(self):
+        base = self.sandbox()
+        log_path = base / "logs" / "lotes" / "timeout.log"
+        code = (
+            "import subprocess,sys,time;"
+            "p=subprocess.Popen([sys.executable,'-c','import time;time.sleep(30)']);"
+            "print(p.pid,flush=True);time.sleep(30)"
+        )
+        rc, tail, timed_out = br.run_logged(
+            [__import__("sys").executable, "-c", code],
+            env=os.environ.copy(),
+            log_path=log_path,
+            timeout=1,
+        )
+        self.assertTrue(timed_out)
+        self.assertNotEqual(rc, 0)
+        child_pid = None
+        for line in tail.splitlines():
+            if line.strip().isdigit():
+                child_pid = int(line.strip())
+                break
+        self.assertIsNotNone(child_pid)
+        deadline = __import__("time").time() + 3
+        alive = True
+        while __import__("time").time() < deadline:
+            try:
+                os.kill(child_pid, 0)
+            except ProcessLookupError:
+                alive = False
+                break
+            __import__("time").sleep(0.05)
+        self.assertFalse(alive, f"child process {child_pid} survived process-group timeout")
+
     def test_state_write_is_atomic_and_valid(self):
         self.sandbox()
         state = br.make_state(5)
