@@ -238,11 +238,15 @@ def migrate_legacy(data: dict[str, Any]) -> dict[str, Any]:
     legacy_status = str(data.get("status") or "running")
     items = []
     for i in range(1, total + 1):
-        status = "completed" if i <= current else "queued"
+        sid = item_short_id(batch_id, i)
+        if i <= current:
+            status = "completed" if release_ok(sid) else ("retry_pending" if artifacts_exist(sid) else "queued")
+        else:
+            status = "queued"
         if legacy_status == "retry_pending" and i == current + 1:
-            status = "retry_pending"
+            status = "retry_pending" if artifacts_exist(sid) else "queued"
         items.append({
-            "index": i, "short_id": item_short_id(batch_id, i), "status": status,
+            "index": i, "short_id": sid, "status": status,
             "attempts": 0, "recovery_count": 0, "created_at": now(), "updated_at": now(),
             "last_stage": "", "last_error": "migrated_from_contiguous_state" if status == "retry_pending" else "",
             "error_class": "", "last_exit_code": None, "topic": "", "release": "PUBLISH" if status == "completed" else "UNKNOWN",
@@ -427,6 +431,18 @@ def finalize_status(state: dict[str, Any]) -> None:
 def execute(state: dict[str, Any], *, max_attempts: int, recovery_rounds: int) -> int:
     validate_state(state)
     stop = False
+
+    # A persisted "completed" label is advisory. The exact release guard is
+    # authoritative on every resume so stale/corrupt state cannot produce a
+    # false batch success.
+    for item in state["items"]:
+        if item["status"] == "completed" and not release_ok(str(item["short_id"])):
+            item["status"] = "retry_pending" if artifacts_exist(str(item["short_id"])) else "queued"
+            item["release"] = "BLOCK"
+            item["error_class"] = "RELEASE_BLOCK"
+            item["last_error"] = "persisted completion failed exact release revalidation"
+            item["updated_at"] = now()
+    save_state(state)
 
     for item in state["items"]:
         if item["status"] in {"completed", "failed_permanent", "cancelled"}:
