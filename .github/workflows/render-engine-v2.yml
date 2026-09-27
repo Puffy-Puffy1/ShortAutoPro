@@ -1,0 +1,52 @@
+name: ShortAutoPro Render Engine V2
+
+on:
+  pull_request:
+    paths:
+      - "render_engine_v2.py"
+      - "render_v2/**"
+      - "tests_sim/test_render_engine_v2_contract.py"
+      - "tests_sim/test_render_engine_v2_real.py"
+      - "main.py"
+      - ".github/workflows/render-engine-v2.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Python contract tests
+        run: python -m unittest tests_sim.test_render_engine_v2_contract
+
+  remotion-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: contract
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: "render_v2/package.json"
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Install Remotion dependencies
+        working-directory: render_v2
+        run: npm install --no-audit --no-fund
+      - name: Render engine real smoke
+        env:
+          SAP_RENDER_V2_CONCURRENCY: "2"
+          SAP_RENDER_V2_CRF: "30"
+        run: python tests_sim/test_render_engine_v2_real.py

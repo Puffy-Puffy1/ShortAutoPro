@@ -1,0 +1,21 @@
+{
+  "name": "shortautopro-render-engine-v2",
+  "private": true,
+  "version": "2.0.0",
+  "description": "Deterministic Remotion composition layer for ShortAutoPro Render Engine V2",
+  "scripts": {
+    "render": "remotion render src/index.tsx ShortAutoProV2"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.529",
+    "@remotion/renderer": "4.0.529",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "remotion": "4.0.529"
+  },
+  "devDependencies": {
+    "@types/react": "19.1.10",
+    "@types/react-dom": "19.1.7",
+    "typescript": "5.9.2"
+  }
+}
