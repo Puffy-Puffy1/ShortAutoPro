@@ -22,7 +22,7 @@ class RenderEngineV2RealTests(unittest.TestCase):
                 out=media/f"scene_{i:02d}.png"
                 subprocess.run(["ffmpeg","-y","-loglevel","error","-f","lavfi","-i",f"testsrc2=size=1080x1920:rate=30:duration=0.5","-frames:v","1",str(out)],check=True,timeout=30)
             audio=base/"audios"/f"short_{sid}.mp3"
-            subprocess.run(["ffmpeg","-y","-loglevel","error","-f","lavfi","-i","sine=frequency=440:sample_rate=48000:duration=3","-c:a","aac",str(audio)],check=True,timeout=30)
+            subprocess.run(["ffmpeg","-y","-loglevel","error","-f","lavfi","-i","sine=frequency=440:sample_rate=48000:duration=3","-c:a","libmp3lame",str(audio)],check=True,timeout=30)
             scenes=[{"scene":i,"segment":f"cena {i}","words":3} for i in range(1,7)]
             plan=[{"scene":i,"pace_multiplier":1.0,"zoom_start":1.0,"zoom_end":1.01,"pan":"center","transition_duration":0.05} for i in range(1,7)]
             (base/"roteiros"/f"scene_map_{sid}.json").write_text(json.dumps({"scenes":scenes}),encoding="utf-8")
