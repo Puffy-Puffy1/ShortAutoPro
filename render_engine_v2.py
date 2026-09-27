@@ -23,7 +23,8 @@ from typing import Any
 
 from subprocess_guard import run_group
 
-BASE = Path(os.getenv("SHORTAUTOPRO_BASE", Path.home() / "ShortAutoPro")).resolve()\nRENDER_PROJECT = Path(__file__).resolve().parent / "render_v2"
+BASE = Path(os.getenv("SHORTAUTOPRO_BASE", Path.home() / "ShortAutoPro")).resolve()
+RENDER_PROJECT = Path(__file__).resolve().parent / "render_v2"
 ENGINE_VERSION = "2.0.0"
 FPS = 30
 WIDTH = 1080
