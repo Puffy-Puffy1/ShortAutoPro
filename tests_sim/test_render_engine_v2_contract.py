@@ -54,7 +54,7 @@ class RenderEngineV2ContractTests(unittest.TestCase):
             fake = mock.Mock(returncode=0, stdout=json.dumps({"streams":[],"format":{"duration":"10"}}), stderr="")
             with mock.patch.object(engine, "run_cmd", return_value=fake):
                 report=engine.ffprobe_validator(output,job)
-            self.assertFalse(report["quality_gate"])
+            self.assertEqual(report["quality_gate"], "FAIL")
             self.assertIn("VIDEO_STREAM_MISSING", report["errors"])
 
 
