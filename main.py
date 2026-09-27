@@ -463,10 +463,7 @@ def assemble_and_render(p: Pipeline) -> None:
         "production_health.py",
         "--short-id", p.sid, "--phase", "pre_render",
     )
-    p.run("9 - PROFESSIONAL MULTI-BEAT ASSEMBLER", "video_professional.py")
-    p.run("10 - FINAL RENDER V6 PROFESSIONAL", "v6_professional.py", retries=1)
-    final = BASE / "videos" / f"short_v6_{p.sid}.mp4"
-    if not final.is_file() or final.stat().st_size < 500_000:
+    render_engine = os.getenv("RENDER_ENGINE", "v2").strip().lower() or "v2"\n    if render_engine == "v2":\n        p.run("9 - RENDER ENGINE V2 (REMOTION + FFMPEG + FFPROBE)", "render_engine_v2.py", "--short-id", p.sid)\n    elif render_engine == "legacy":\n        print("RENDER_ENGINE=legacy: rollback path temporarily enabled")\n        p.run("9L - PROFESSIONAL MULTI-BEAT ASSEMBLER", "video_professional.py")\n        p.run("10L - FINAL RENDER V6 PROFESSIONAL", "v6_professional.py", retries=1)\n    else:\n        raise RuntimeError(f"RENDER_ENGINE inválido: {render_engine}")\n    final = BASE / "videos" / f"short_v6_{p.sid}.mp4"\n    if not final.is_file() or final.stat().st_size < 500_000:
         raise RuntimeError(f"vídeo final ausente/inválido: {final}")
     p.run("10.1 - FINAL AUDIO MEASURED MASTER", "audio_finalizer.py")
     p.run("10.2 - VISUAL QA", "visual_qa.py")
