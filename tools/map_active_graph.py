@@ -27,6 +27,7 @@ DEFAULT_SEEDS = {
     "resume_after_semantic_fix.py",
     "batch_queue.sh",
     "batch_recovery.sh",
+    "batch_runtime.py",
     "health_check.sh",
     "preflight_check.sh",
     "automation/install_termux_autosync.sh",
