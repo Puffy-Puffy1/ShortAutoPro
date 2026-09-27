@@ -49,7 +49,7 @@ while true;do
   2)cabecalho;read -r -p "Quantos Shorts? [1-10]: " q;if [[ "$q" =~ ^[0-9]+$ ]]&&[ "$q" -ge 1 ]&&[ "$q" -le 10 ];then rodar_shell batch_recovery.sh "$q"||true;else echo "Quantidade inválida.";fi;pausa;;
   3)cabecalho;rodar_shell batch_recovery.sh --resume||true;pausa;;
   4)cabecalho;rodar_shell batch_recovery.sh --status||true;pausa;;
-  5)cabecalho;rodar_main resume||true;pausa;;
+  5)cabecalho;read -r -p "SHORT_ID para retomar: " sid;if [ -n "$sid" ];then rodar_main resume --short-id "$sid"||true;else echo "SHORT_ID obrigatório.";fi;pausa;;
   6)cabecalho;rodar_main resume --status||true;pausa;;
   7)cabecalho;ver_manifests;pausa;;
   8)cabecalho;mostrar_publish;pausa;;
