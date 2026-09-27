@@ -6,7 +6,7 @@ global-blocker classification, exact release verification and atomic state.
 Shell entrypoints are wrappers only.
 """
 from __future__ import annotations
-import argparse, json, os, re, shutil, signal, subprocess, sys, tempfile, time
+import argparse, fcntl, json, os, re, shutil, signal, subprocess, sys, tempfile, time
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -18,6 +18,19 @@ TRANSIENT_CODES={"MEDIA_PROVIDER_TIMEOUT","MEDIA_RATE_LIMIT","MEDIA_INCOMPLETE",
 GLOBAL_CODES={"STORAGE_LOW","CONFIG_INVALID","RUNTIME_MISSING","STATE_CORRUPT"}
 ENV_DROP={"SHORT_ID","SAP_REUSE_SHORT_ID","SHORT_TOPIC_EXACT","SHORT_ALLOW_REPEAT_TOPIC","SAP_BATCH_RECOVERY","SAP_RESUME_SHORT_ID"}
 MAX_ATTEMPTS=max(1,min(int(os.getenv("SHORT_BATCH_MAX_ATTEMPTS","3")),5))
+LOCK_FILE=QUEUE/".batch_runtime.lock"
+
+class BatchLock:
+    def __enter__(self):
+        QUEUE.mkdir(parents=True,exist_ok=True); self.f=LOCK_FILE.open("a+")
+        try: fcntl.flock(self.f.fileno(),fcntl.LOCK_EX|fcntl.LOCK_NB)
+        except BlockingIOError:
+            self.f.close(); raise RuntimeError("LOCK_ACTIVE:batch")
+        self.f.seek(0); self.f.truncate(); self.f.write(str(os.getpid())); self.f.flush(); return self
+    def __exit__(self,*_):
+        try: fcntl.flock(self.f.fileno(),fcntl.LOCK_UN)
+        finally: self.f.close()
+
 MIN_FREE_MB=max(256,int(os.getenv("SHORT_BATCH_MIN_FREE_MB","1024")))
 
 def now(): return datetime.now().astimezone().isoformat(timespec="seconds")
