@@ -1,36 +1,19 @@
 import unittest
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-
+ROOT=Path(__file__).resolve().parents[1]
 
 class ExtremeBatchRetrySemanticsRound14Tests(unittest.TestCase):
-    def test_state_declares_last_completed_semantics(self):
-        text = (ROOT / "batch_recovery.sh").read_text(encoding="utf-8")
-        self.assertIn('"version":"BATCH_STATE_2.0_CONTIGUOUS"', text)
-        self.assertIn('"current_semantics":"last_completed_index"', text)
+    def text(self): return (ROOT/"batch_runtime.py").read_text(encoding="utf-8")
+    def test_state_is_per_item_not_contiguous(self):
+        t=self.text(); self.assertIn("BATCH_STATE_3.0_PER_ITEM",t); self.assertIn('"items":items',t); self.assertNotIn("BATCH_STATE_2.0_CONTIGUOUS",t)
+    def test_failed_item_is_deferred_without_aborting_later_items(self):
+        t=self.text(); self.assertIn('"RETRY_PENDING"',t); self.assertIn("BATCH_CONTINUE",t); self.assertIn("BATCH_RECOVERY_ROUND",t)
+    def test_recovery_uses_exact_short_id_resume(self):
+        t=self.text(); self.assertIn('"resume","--short-id",sid',t); self.assertIn('mode="resume" if has or recovery',t)
+    def test_success_requires_exact_release_validation(self):
+        t=self.text(); self.assertIn("release_ok(sid,env)",t); self.assertIn('release="PUBLISH"',t)
+    def test_historical_failures_do_not_prevent_recovered_completion(self):
+        t=self.text(); self.assertIn('all(x["status"]=="COMPLETED"',t); self.assertNotIn('failures==0',t)
 
-    def test_failed_item_is_left_pending_for_resume(self):
-        text = (ROOT / "batch_recovery.sh").read_text(encoding="utf-8")
-        self.assertIn('"retry_pending"', text)
-        self.assertIn('salvar_estado "$BATCH_ID" "$TOTAL" "$((i-1))"', text)
-        self.assertIn('será repetido no --resume', text)
-
-    def test_resume_accepts_retry_pending_and_retries_current_plus_one(self):
-        text = (ROOT / "batch_recovery.sh").read_text(encoding="utf-8")
-        self.assertIn('[ "$STATUS" = "retry_pending" ]', text)
-        self.assertIn('INICIO=$((ATUAL+1))', text)
-        self.assertIn('[ "$SUCESSOS" -le "$ATUAL" ]', text)
-
-    def test_success_requires_post_run_exact_release_validation(self):
-        text = (ROOT / "batch_recovery.sh").read_text(encoding="utf-8")
-        self.assertIn('python "$BASE/main.py" run && resultado_final_ok "$SHORT_ID"', text)
-
-    def test_historical_attempt_failures_do_not_prevent_recovered_completion(self):
-        text = (ROOT / "batch_recovery.sh").read_text(encoding="utf-8")
-        self.assertIn('if [ "$SUCESSOS" -eq "$TOTAL" ]; then STATUS_FINAL="completed"', text)
-        self.assertNotIn('[ "$FALHAS" -eq 0 ] && [ "$SUCESSOS" -eq "$TOTAL" ]', text)
-
-
-if __name__ == "__main__":
-    unittest.main()
+if __name__=="__main__": unittest.main()
