@@ -349,7 +349,7 @@ def ffprobe_validator(path: Path, job: Path) -> dict[str, Any]:
         if rate not in {"30/1","30000/1001"}: errors.append("INVALID_FPS")
     decode=run_cmd(["ffmpeg","-v","error","-xerror","-i",str(path),"-map","0:v:0","-map","0:a:0","-f","null","-"],BASE,max(60,min(300,int(target*4+30))))
     if decode.returncode!=0: errors.append("OUTPUT_DECODE_FAILED")
-    first=run_cmd(["ffmpeg","-v","error","-i",str(path),"-vf","select=eq(n\,0),signalstats,metadata=print:file=-","-frames:v","1","-f","null","-"],BASE,45)
+    first=run_cmd(["ffmpeg","-v","error","-i",str(path),"-vf",r"select=eq(n\,0),signalstats,metadata=print:file=-","-frames:v","1","-f","null","-"],BASE,45)
     first_text=(first.stdout or "")+(first.stderr or "")
     yavg=None
     for line in first_text.splitlines():
