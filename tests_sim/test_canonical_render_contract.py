@@ -62,12 +62,12 @@ class CanonicalRenderContractTests(unittest.TestCase):
         self.assertIn('"audio_codec_ok": audio_codec_normalized == "aac"', source)
         self.assertIn('"duration_ok": 15.0 <= duration <= 180.0', source)
 
-    def test_main_has_only_the_professional_renderer_route(self):
+    def test_main_uses_render_engine_v2_as_canonical_route(self):
         source = (ROOT / "main.py").read_text(encoding="utf-8")
-        self.assertIn('p.run("10 - FINAL RENDER V6 PROFESSIONAL", "v6_professional.py"', source)
+        self.assertIn('p.run("9 - RENDER ENGINE V2 (REMOTION + FFMPEG + FFPROBE)", "render_engine_v2.py"', source)
         self.assertNotIn("v6_runtime.py", source)
         self.assertNotIn('"v6.py"', source)
-        self.assertNotIn("SAP_PRO_EDIT", source)
+        self.assertIn('os.getenv("RENDER_ENGINE", "v2")', source)\n        self.assertIn('render_engine == "legacy"', source)\n        self.assertNotIn("SAP_PRO_EDIT", source)
         self.assertFalse((ROOT / "v6_runtime.py").exists())
         self.assertFalse((ROOT / "v6.py").exists())
 
