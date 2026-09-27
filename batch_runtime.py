@@ -178,13 +178,14 @@ def main():
     if args.status:return status()
     QUEUE.mkdir(parents=True,exist_ok=True)
     try:
-        ensure_preflight(args.count or 1)
-        if args.resume:
-            d=load_state()
-            if d.get("status")=="COMPLETED": print("Este lote já foi concluído."); return 0
-        else:
-            total=max(1,min(args.count or int(os.getenv("SHORT_LOTE","3")),10)); d=new_state(total)
-        return execute(d)
+        with BatchLock():
+            ensure_preflight(args.count or 1)
+            if args.resume:
+                d=load_state()
+                if d.get("status")=="COMPLETED": print("Este lote já foi concluído."); return 0
+            else:
+                total=max(1,min(args.count or int(os.getenv("SHORT_LOTE","3")),10)); d=new_state(total)
+            return execute(d)
     except RuntimeError as e:
         print(f"BATCH_BLOCKED {e}"); return 2
 
