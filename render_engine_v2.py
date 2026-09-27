@@ -76,7 +76,7 @@ def parse_ass(path: Path) -> list[dict[str, Any]]:
         if len(parts) != 10:
             raise ValueError("SUBTITLE_INVALID: malformed ASS dialogue")
         start, end = ass_time(parts[1]), ass_time(parts[2])
-        text = parts[9].replace("\N", "\n").strip()
+        text = parts[9].replace(r"\N", "\n").strip()
         if end <= start:
             raise ValueError("SUBTITLE_INVALID: non-positive cue")
         cues.append({"start": start, "end": end, "text": text})
