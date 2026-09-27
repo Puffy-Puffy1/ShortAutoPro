@@ -13,13 +13,13 @@ class ExtremeBatchReleaseHarmonyRound12Tests(unittest.TestCase):
         self.assertIn('release_short_id_mismatch', text)
 
     def test_batch_paths_use_shared_release_guard(self):
+        runtime = (ROOT / "batch_runtime.py").read_text(encoding="utf-8")
+        self.assertIn("release_artifact_guard.py", runtime)
+        self.assertIn("release_ok(sid,env)", runtime)
         for name in ("batch_queue.sh", "batch_recovery.sh"):
             text = (ROOT / name).read_text(encoding="utf-8")
-            self.assertIn("release_artifact_guard.py", text, name)
-        queue = (ROOT / "batch_queue.sh").read_text(encoding="utf-8")
-        recovery = (ROOT / "batch_recovery.sh").read_text(encoding="utf-8")
-        self.assertNotIn('manifest=json.loads(', queue)
-        self.assertNotIn('m=json.loads(', recovery)
+            self.assertIn("batch_runtime.py", text, name)
+            self.assertNotIn("manifest=json.loads(", text)
 
     def test_health_preflight_and_audit_require_release_guard(self):
         for name in ("preflight_check.sh", "health_check.sh"):
