@@ -14,6 +14,8 @@ class RenderEngineV2RealTests(unittest.TestCase):
     def test_one_real_render_and_ffprobe_gate(self):
         if shutil.which("ffmpeg") is None or shutil.which("ffprobe") is None:
             self.skipTest("ffmpeg/ffprobe unavailable")
+        if not (ROOT / "render_v2" / "node_modules" / ".bin" / "remotion").is_file():
+            self.skipTest("Remotion dependencies not installed in this workflow")
         with tempfile.TemporaryDirectory() as tmp:
             home=Path(tmp); base=home/"ShortAutoPro"; sid="v2_real"
             media=base/"imagens"/f"short_{sid}"; media.mkdir(parents=True)
