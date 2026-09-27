@@ -37,7 +37,7 @@ class BatchRuntimeTests(unittest.TestCase):
         def fake(cmd,**kw): calls.append(cmd); return FakeRun(0)
         with mock.patch.object(br.subprocess,"run",side_effect=fake), mock.patch.object(br,"release_ok",side_effect=[False,True]):
             br.run_item(d,item)
-        self.assertEqual(calls[0][-1],"run")
+        self.assertEqual(calls[0][-2:],["run","--reuse-short-id"])
     def test_middle_failure_does_not_stop_later_items(self):
         d=br.new_state(5); seen=[]
         def fake_item(state,item,recovery=False):
