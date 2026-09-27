@@ -48,5 +48,5 @@ jobs:
       - name: Render engine real smoke
         env:
           SAP_RENDER_V2_CONCURRENCY: "2"
-          SAP_RENDER_V2_CRF: "30"
+          SAP_RENDER_V2_CRF: "20"
         run: python tests_sim/test_render_engine_v2_real.py
