@@ -384,10 +384,21 @@ def commit_output(temp: Path, job: Path, short_id: str) -> Path:
     final=BASE/"videos"/f"short_v6_{short_id}.mp4"
     final.parent.mkdir(parents=True,exist_ok=True)
     staging=job/"final.commit.mp4"
-    shutil.copy2(temp,staging)
-    if staging.stat().st_size < 500_000: raise RuntimeError("ATOMIC_COMMIT_FAILED:staging_small")
-    os.replace(staging,final)
-    return final
+    source_size=temp.stat().st_size
+    if source_size <= 0:
+        raise RuntimeError("ATOMIC_COMMIT_FAILED:source_empty")
+    try:
+        with temp.open("rb") as src, staging.open("wb") as dst:
+            shutil.copyfileobj(src, dst, length=1024*1024)
+            dst.flush()
+            os.fsync(dst.fileno())
+        copied_size=staging.stat().st_size
+        if copied_size != source_size:
+            raise RuntimeError(f"ATOMIC_COMMIT_FAILED:size_mismatch:{source_size}:{copied_size}")
+        os.replace(staging, final)
+        return final
+    finally:
+        staging.unlink(missing_ok=True)
 
 def main() -> int:
     parser=argparse.ArgumentParser()
