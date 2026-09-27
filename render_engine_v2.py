@@ -23,7 +23,7 @@ from typing import Any
 
 from subprocess_guard import run_group
 
-BASE = Path(os.getenv("SHORTAUTOPRO_BASE", Path.home() / "ShortAutoPro")).resolve()
+BASE = Path(os.getenv("SHORTAUTOPRO_BASE", Path.home() / "ShortAutoPro")).resolve()\nRENDER_PROJECT = Path(__file__).resolve().parent / "render_v2"
 ENGINE_VERSION = "2.0.0"
 FPS = 30
 WIDTH = 1080
@@ -285,7 +285,7 @@ def validate_input(job: Path) -> dict[str, Any]:
     return {"asset_count":len(assets),"subtitle_count":len(timeline.get("subtitles",[]))}
 
 def remotion_binary() -> Path:
-    p=BASE/"render_v2"/"node_modules"/".bin"/("remotion.cmd" if os.name=="nt" else "remotion")
+    p=RENDER_PROJECT/"node_modules"/".bin"/("remotion.cmd" if os.name=="nt" else "remotion")
     if p.is_file(): return p
     raise RuntimeError("RENDER_RUNTIME_MISSING:render_v2/node_modules; install render_v2 dependencies first")
 
@@ -296,7 +296,7 @@ def render_visual(job: Path) -> Path:
     timeline=read_json(job/"timeline.json")
     props_data={"fps":FPS,"width":WIDTH,"height":HEIGHT,"duration_target":timeline["duration"],"timeline":timeline}
     atomic_json(props,props_data)
-    cmd=[str(remotion_binary()),"render",str(BASE/"render_v2"/"src/index.tsx"),"ShortAutoProV2",str(output),
+    cmd=[str(remotion_binary()),"render",str(RENDER_PROJECT/"src/index.tsx"),"ShortAutoProV2",str(output),
          "--props",str(props),"--public-dir",str(job/"public"),"--width",str(WIDTH),"--height",str(HEIGHT),"--fps",str(FPS),
          "--pixel-format","yuv420p","--codec","h264","--crf",os.getenv("SAP_RENDER_V2_CRF","20"),
          "--concurrency",os.getenv("SAP_RENDER_V2_CONCURRENCY","2"),"--log","error"]
