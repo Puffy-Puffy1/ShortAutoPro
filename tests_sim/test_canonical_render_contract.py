@@ -67,7 +67,9 @@ class CanonicalRenderContractTests(unittest.TestCase):
         self.assertIn('p.run("9 - RENDER ENGINE V2 (REMOTION + FFMPEG + FFPROBE)", "render_engine_v2.py"', source)
         self.assertNotIn("v6_runtime.py", source)
         self.assertNotIn('"v6.py"', source)
-        self.assertIn('os.getenv("RENDER_ENGINE", "v2")', source)\n        self.assertIn('render_engine == "legacy"', source)\n        self.assertNotIn("SAP_PRO_EDIT", source)
+        self.assertIn('os.getenv("RENDER_ENGINE", "v2")', source)
+        self.assertIn('render_engine == "legacy"', source)
+        self.assertNotIn("SAP_PRO_EDIT", source)
         self.assertFalse((ROOT / "v6_runtime.py").exists())
         self.assertFalse((ROOT / "v6.py").exists())
 
