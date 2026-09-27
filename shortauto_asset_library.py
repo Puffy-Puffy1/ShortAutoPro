@@ -167,6 +167,138 @@ def index_short(sid: str) -> dict[str, Any]:
     return report
 
 
+def _norm_tokens(value: Any) -> set[str]:
+    import re
+    import unicodedata
+    text = unicodedata.normalize("NFKD", str(value or "")).casefold()
+    text = "".join(ch for ch in text if not unicodedata.combining(ch))
+    return set(re.findall(r"[a-z0-9]+", text))
+
+
+def _matches_anchor(metadata: str, anchor: str) -> bool:
+    anchor_tokens = _norm_tokens(anchor)
+    if not anchor_tokens:
+        return False
+    meta_tokens = _norm_tokens(metadata)
+    return anchor_tokens.issubset(meta_tokens)
+
+
+def search_candidates(
+    query: str,
+    must_have: list[str] | tuple[str, ...] | None = None,
+    avoid: list[str] | tuple[str, ...] | None = None,
+    *,
+    limit: int = 12,
+) -> list[dict[str, Any]]:
+    """Return only previously accepted assets whose stored provenance can prove MUST.
+
+    This is a retrieval fallback, not an acceptance bypass. The caller still
+    runs the normal Stage-6 semantic verifier and professional media gate.
+    Assets must still exist and their stored SHA-256 must match before use.
+    """
+    must = [str(x).strip() for x in (must_have or []) if str(x).strip()]
+    blocked = [str(x).strip() for x in (avoid or []) if str(x).strip()]
+    if not must:
+        return []
+
+    library = load(STATE, {})
+    assets = library.get("assets", []) if isinstance(library, dict) else []
+    if not isinstance(assets, list):
+        return []
+
+    original_query = str(query or "").strip()
+    scored: list[dict[str, Any]] = []
+
+    for asset in assets:
+        if not isinstance(asset, dict):
+            continue
+        path_text = str(asset.get("path") or "").strip()
+        if not path_text:
+            continue
+        path = Path(path_text).expanduser()
+        try:
+            if not path.is_file() or path.stat().st_size <= 1000:
+                continue
+        except OSError:
+            continue
+
+        metadata = " ".join(
+            str(asset.get(key) or "")
+            for key in (
+                "file", "source", "license", "entities",
+                "location", "year_or_era", "visual_style",
+            )
+        )
+        hits = sum(1 for anchor in must if _matches_anchor(metadata, anchor))
+        if hits != len(must):
+            continue
+        if any(_matches_anchor(metadata, anchor) for anchor in blocked):
+            continue
+
+        ext = path.suffix.lower()
+        if ext not in {".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".webm", ".mkv"}:
+            continue
+
+        source = str(asset.get("source") or "").strip()
+        license_name = str(asset.get("license") or "").strip()
+        if not source or source.casefold() == "unknown":
+            continue
+        if not license_name or license_name.casefold() == "unknown":
+            continue
+
+        quality_score = float(asset.get("quality") or 0.0)
+        used_count = int(asset.get("used_count") or 0)
+        score = 62.0 + min(24.0, quality_score * 0.24)
+        score += max(0.0, 12.0 - min(12.0, used_count * 2.0))
+        if original_query and _norm_tokens(original_query) & _norm_tokens(metadata):
+            score += 4.0
+
+        scored.append({
+            "fonte": "LocalLibrary",
+            "tipo": "vídeo" if ext in {".mp4", ".mov", ".webm", ".mkv"} else "foto",
+            "score": round(min(100.0, score), 2),
+            "must_hits": len(must),
+            "avoid_hits": 0,
+            "id": str(asset.get("asset_id") or asset.get("sha256") or path.name),
+            "descricao": metadata,
+            "local_path": str(path),
+            "sha256": str(asset.get("sha256") or ""),
+            "visual_hash": str(asset.get("visual_hash") or ""),
+            "source": source,
+            "license": license_name,
+            "asset_library_version": str(library.get("version") or "ASSET_LIBRARY_1.0"),
+            "provenance": {
+                "source": source,
+                "license": license_name,
+                "original_file": str(asset.get("file") or ""),
+                "original_short_id": (
+                    str((asset.get("short_ids") or [""])[-1])
+                    if isinstance(asset.get("short_ids"), list) and asset.get("short_ids")
+                    else ""
+                ),
+                "sha256": str(asset.get("sha256") or ""),
+            },
+        })
+
+    scored.sort(
+        key=lambda item: (
+            float(item.get("must_hits", 0)),
+            float(item.get("score", 0)),
+            -int(next(
+                (
+                    a.get("used_count", 0)
+                    for a in assets
+                    if isinstance(a, dict)
+                    and str(a.get("asset_id", "")) == str(item.get("id", ""))
+                ),
+                0,
+            )),
+        ),
+        reverse=True,
+    )
+    return scored[: max(1, min(int(limit), 32))]
+
+
 def status() -> dict[str, Any]:
     library = load(STATE, {"assets": []})
     assets = library.get("assets", []) if isinstance(library, dict) else []

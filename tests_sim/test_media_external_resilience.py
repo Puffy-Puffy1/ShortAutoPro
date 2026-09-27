@@ -125,6 +125,60 @@ class MediaExternalResilienceTests(unittest.TestCase):
         self.assertEqual(reason, "CORRUPT")
         self.assertGreater(remaining, 0)
 
+    def test_semantic_local_library_is_a_verified_retrieval_tier(self):
+        import hashlib
+        import shortauto_asset_library as library
+
+        with tempfile.TemporaryDirectory() as root:
+            root_path = Path(root)
+            asset = root_path / "accepted_book.jpg"
+            asset.write_bytes(b"accepted-real-media" * 200)
+            digest = hashlib.sha256(asset.read_bytes()).hexdigest()
+            library.STATE = root_path / "asset_library.json"
+            library.atomic(
+                library.STATE,
+                {
+                    "version": "ASSET_LIBRARY_1.0",
+                    "assets": [{
+                        "asset_id": "sha256:" + digest[:16],
+                        "sha256": digest,
+                        "file": "scene_01.jpg",
+                        "path": str(asset),
+                        "width": 1200,
+                        "height": 1600,
+                        "source": "Pixabay",
+                        "license": "Pixabay Content License",
+                        "entities": ["book", "pages"],
+                        "location": "",
+                        "year_or_era": "antique",
+                        "visual_style": "document",
+                        "quality": 92,
+                        "used_count": 0,
+                        "short_ids": ["old-short"],
+                    }],
+                },
+            )
+            candidates = library.search_candidates(
+                "old antique leather bound poetry book open pages",
+                ["book", "pages"],
+                [],
+            )
+            self.assertEqual(len(candidates), 1)
+            self.assertEqual(candidates[0]["fonte"], "LocalLibrary")
+            self.assertEqual(candidates[0]["must_hits"], 2)
+            self.assertEqual(candidates[0]["source"], "Pixabay")
+            self.assertTrue(candidates[0]["sha256"] == digest)
+
+        library.STATE = library.BASE / ".sap_state" / "asset_library.json"
+
+    def test_midia_has_hash_verified_local_library_copy_path(self):
+        text = (ROOT / "midia.py").read_text(encoding="utf-8")
+        self.assertIn("_sap_local_library_candidates", text)
+        self.assertIn('fonte") == "LocalLibrary"', text)
+        self.assertIn("expected_sha", text)
+        self.assertIn("HASH_MISMATCH", text)
+        self.assertIn("SAP_MEDIA_LOCAL_LIBRARY=MERGED", text)
+
     def test_midia_integrates_circuits_quarantine_and_bounded_download(self):
         text = (ROOT / "midia.py").read_text(encoding="utf-8")
         self.assertIn("SAP_MEDIA_PROVIDER_CIRCUIT=SKIP", text)
