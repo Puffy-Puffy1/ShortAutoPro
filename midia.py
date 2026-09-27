@@ -37,6 +37,7 @@ from media_emergency_fallback import (
     neutral_slate_scene_numbers,
     clear_editorial_scene,
 )
+from shortauto_asset_library import search_candidates as _sap_search_library_candidates
 from media_external_resilience import (
     provider_gate as _sap_provider_gate,
     note_provider_event as _sap_note_provider_event,
@@ -2536,6 +2537,30 @@ def simplificar_busca(busca, must_have):
     return saida
 
 
+def _sap_local_library_candidates(busca, must_have, avoid):
+    """Use only previously Media-Master-approved assets as local recovery media."""
+    try:
+        candidates = _sap_search_library_candidates(
+            busca,
+            must_have,
+            avoid,
+            limit=12,
+        )
+    except Exception as exc:
+        print(
+            "SAP_MEDIA_LOCAL_LIBRARY=FAIL_OPEN "
+            f"{type(exc).__name__}:{str(exc)[:140]}"
+        )
+        return []
+
+    if candidates:
+        print(
+            "SAP_MEDIA_LOCAL_LIBRARY=CANDIDATES "
+            f"count={len(candidates)} strict_must={len(must_have or [])}"
+        )
+    return candidates
+
+
 def buscar_todos_candidatos(
     busca,
     must_have,
@@ -3065,6 +3090,21 @@ def buscar_todos_candidatos(
     todos = _sap_filter_quarantined(
         todos
     )
+
+    # Last retrieval tier: previously accepted local assets. This never
+    # weakens MUST/evidence validation; it only avoids total provider starvation
+    # when external APIs are temporarily unavailable or rate-limited.
+    _library_candidates = _sap_local_library_candidates(
+        busca,
+        must_have,
+        avoid,
+    )
+    if _library_candidates:
+        todos.extend(_library_candidates)
+        print(
+            "SAP_MEDIA_LOCAL_LIBRARY=MERGED "
+            f"count={len(_library_candidates)}"
+        )
 
     # Reliable metadata that proves zero explicit MUST anchors is rejected
     # before download. Partial matches still reach the canonical strict guard,
@@ -4561,6 +4601,31 @@ def _sap_professional_media_accept_v1(candidato, destino):
         pass
     return False
 
+def _sap_copy_library_asset(candidato, destino):
+    source = str(candidato.get("local_path") or "").strip()
+    expected_sha = str(candidato.get("sha256") or "").strip().lower()
+    if not source or not expected_sha:
+        return False
+    try:
+        source_path = Path(source).expanduser().resolve()
+        if not source_path.is_file() or source_path.stat().st_size <= 1000:
+            return False
+        digest = hashlib.sha256()
+        with source_path.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+        if digest.hexdigest().lower() != expected_sha:
+            print(
+                "SAP_MEDIA_LOCAL_LIBRARY=HASH_MISMATCH "
+                f"id={candidato.get('id','?')}"
+            )
+            return False
+        shutil.copy2(source_path, destino)
+        return os.path.isfile(destino) and os.path.getsize(destino) > 1000
+    except (OSError, ValueError):
+        return False
+
+
 def baixar_candidato_5_2(
     candidato,
     numero,
@@ -4607,14 +4672,23 @@ def baixar_candidato_5_2(
         )
 
 
-    ok = baixar(
-        candidato.get(
-            "url",
-            ""
-        ),
-        destino,
-        candidato=candidato,
-    )
+    if candidato.get("fonte") == "LocalLibrary":
+        ok = _sap_copy_library_asset(candidato, destino)
+        if ok:
+            print(
+                "    LOCAL LIBRARY COPY: OK "
+                f"source={candidato.get('source','?')} "
+                f"license={candidato.get('license','?')}"
+            )
+    else:
+        ok = baixar(
+            candidato.get(
+                "url",
+                ""
+            ),
+            destino,
+            candidato=candidato,
+        )
 
     if ok:
         ok = _sap_professional_media_accept_v1(
@@ -5036,6 +5110,7 @@ contagem = {
     "Coverr": 0,
     "Wikimedia": 0,
     "Local": 0,
+    "LocalLibrary": 0,
     "ResumeCache": 0,
     "EditorialReuse": 0
 }
