@@ -9,7 +9,9 @@ on:
       - "tests_sim/test_render_engine_v2_real.py"
       - "tests_sim/test_render_engine_v2_ffmpeg.py"
       - "tests_sim/test_media_stage_recovery_budget.py"
+      - "tests_sim/test_wikimedia_search_deadline.py"
       - "media_stage_runtime.py"
+      - "wikimedia_source.py"
       - "main.py"
       - ".github/workflows/render-engine-v2.yml"
   workflow_dispatch:
@@ -27,7 +29,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Python contract tests
-        run: python -m unittest tests_sim.test_render_engine_v2_contract tests_sim.test_media_stage_recovery_budget
+        run: python -m unittest tests_sim.test_render_engine_v2_contract tests_sim.test_media_stage_recovery_budget tests_sim.test_wikimedia_search_deadline
 
   remotion-smoke:
     runs-on: ubuntu-latest
