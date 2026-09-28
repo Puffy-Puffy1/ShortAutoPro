@@ -16,7 +16,11 @@ for (const relative of [
   "node_modules/@remotion/bundler/dist/bundle.js",
 ]) {
   const source = fs.readFileSync(path.join(root, relative), "utf8");
-  if (source.includes('const rspack_config_1 = require("./rspack-config");')) {
+  if (!source.includes('const getRspackConfig = () => require("./rspack-config");')) {
+    throw new Error(`Lazy Rspack getter missing in ${relative}`);
+  }
+  const eager = /const\s+[A-Za-z_$][\w$]*\s*=\s*require\(["']\.\/rspack-config["']\);/;
+  if (eager.test(source)) {
     throw new Error(`Eager Rspack require remains in ${relative}`);
   }
 }
