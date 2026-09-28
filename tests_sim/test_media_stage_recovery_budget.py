@@ -29,6 +29,11 @@ class MediaStageRecoveryBudgetTests(unittest.TestCase):
                     int(env["SAP_MEDIA_PROVIDER_RESULT_TIMEOUT"]),
                     int(env["SAP_WIKIMEDIA_SEARCH_DEADLINE"]),
                 )
+            for env in (first, second, third):
+                self.assertEqual(env["SAP_MEDIA_SIMPLIFIED_RETRY_MAX"], "1")
+                self.assertEqual(env["SAP_VSE4_QUERY_EXPANSION"], "1")
+                self.assertEqual(env["SAP_VSE4_QUERY_ONLY_ON_EMPTY"], "1")
+                self.assertEqual(env["SAP_VSE4_QUERY_EXTRA"], "1")
         finally:
             runtime.SID = old_sid
 
