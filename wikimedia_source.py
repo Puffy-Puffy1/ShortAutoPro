@@ -353,7 +353,8 @@ def gerar_queries(
 
 def consultar_commons(
     query,
-    limite
+    limite,
+    deadline_at=None,
 ):
 
     allowed, reason, remaining = (
@@ -391,8 +392,12 @@ def consultar_commons(
         # The recovery controller has its own provider-result deadline, so
         # this layer must leave headroom for retry bookkeeping and return
         # before the controller can kill the provider future.
-        elapsed = time.monotonic() - search_started if "search_started" in locals() else 0.0
-        remaining = max(0.0, SEARCH_DEADLINE - elapsed)
+        now = time.monotonic()
+        remaining = (
+            max(0.0, deadline_at - now)
+            if deadline_at is not None
+            else SEARCH_DEADLINE
+        )
         if remaining <= 0.0:
             print(
                 "SAP_WIKIMEDIA_DEADLINE=REACHED "
@@ -400,7 +405,10 @@ def consultar_commons(
             )
             return []
 
-        request_budget = min(TIMEOUT, max(1.0, remaining - 0.25))
+        if remaining <= 0.25:
+            return []
+
+        request_budget = min(TIMEOUT, remaining - 0.25)
         connect_budget = min(6.0, request_budget)
 
         try:
@@ -434,8 +442,10 @@ def consultar_commons(
                 }
             ):
 
-                remaining = SEARCH_DEADLINE - (
-                    time.monotonic() - search_started
+                remaining = (
+                    max(0.0, deadline_at - time.monotonic())
+                    if deadline_at is not None
+                    else SEARCH_DEADLINE
                 )
                 if remaining <= 0.0:
                     return []
@@ -1167,7 +1177,8 @@ def buscar_wikimedia_fotos(
 
         pages = consultar_commons(
             query,
-            limite
+            limite,
+            deadline_at=search_started + SEARCH_DEADLINE,
         )
 
 
