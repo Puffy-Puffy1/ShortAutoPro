@@ -94,7 +94,8 @@ def round_env(round_index: int) -> dict[str, str]:
     env["SAP_WIKIMEDIA_SEARCH_DEADLINE"] = str(wiki_deadline)
     # One bounded semantic rescue for unresolved scenes. This broadens
     # retrieval queries only; MUST acceptance remains unchanged and strict.
-    env["SAP_MEDIA_SIMPLIFIED_RETRY_MAX"] = "1"
+    # Simplified scene retries remain governed by midia.py scene budgets;
+    # do not override their certified recovery contract from the controller.
     env["SAP_VSE4_QUERY_EXPANSION"] = "1"
     env["SAP_VSE4_QUERY_ONLY_ON_EMPTY"] = "1"
     env["SAP_VSE4_QUERY_EXTRA"] = "1"
