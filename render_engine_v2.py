@@ -151,6 +151,20 @@ def build_job(short_id: str) -> Path:
     render_id = choose_render_id(root)
     job = root / render_id
     if (job / "job.json").is_file() and (job / "manifest.json").is_file() and (job / "timeline.json").is_file():
+        # Resume/retry must preserve the frozen job. If an older V2 job predates
+        # the frozen-subtitle contract, repair only that missing derived artifact.
+        manifest_path = job / "manifest.json"
+        manifest = read_json(manifest_path)
+        frozen_existing = job / "subtitles" / f"{short_id}.ass"
+        if not frozen_existing.is_file():
+            frozen_existing.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(ass, frozen_existing)
+            manifest["subtitles"] = {
+                "path": str(frozen_existing),
+                "required": True,
+                "checksum_sha256": sha256(frozen_existing),
+            }
+            atomic_json(manifest_path, manifest)
         return job
     public_assets = job / "public" / "assets"
     public_assets.mkdir(parents=True, exist_ok=True)
@@ -290,6 +304,8 @@ def validate_input(job: Path) -> dict[str, Any]:
         if item.get("validation_status")!="FROZEN_LOCAL": errors.append(f"RENDER_ASSET_INVALID:{item.get('scene_id')}")
     audio=Path(str(manifest.get("audio",{}).get("path","")))
     if not audio.is_file(): errors.append("AUDIO_STREAM_MISSING")
+    subtitle=Path(str(manifest.get("subtitles",{}).get("path","")))
+    if not subtitle.is_file(): errors.append("SUBTITLE_INVALID:frozen_ass_missing")
     if timeline.get("short_id") != manifest.get("short_id"): errors.append("RENDER_INPUT_INVALID:identity")
     if len(timeline.get("scenes",[])) != len(assets): errors.append("RENDER_INPUT_INVALID:timeline")
     if errors: raise RuntimeError(";".join(errors))
