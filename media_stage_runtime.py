@@ -99,7 +99,11 @@ def round_env(round_index: int) -> dict[str, str]:
     env["SAP_VSE4_QUERY_ONLY_ON_EMPTY"] = "1"
     env["SAP_VSE4_QUERY_EXTRA"] = "1"
     env["SAP_MEDIA_RECOVERY_ROUND"] = str(round_index + 1)
-ap = BASE / "roteiros" / f"scene_map_{SID}.json"
+    return env
+
+
+def scene_count_hint() -> int:
+    scene_map = BASE / "roteiros" / f"scene_map_{SID}.json"
     try:
         data = json.loads(scene_map.read_text(encoding="utf-8"))
         if isinstance(data, list):
