@@ -37,7 +37,7 @@ class VisualQueryExpansionTests(unittest.TestCase):
 
         def search(query, must_have=None):
             calls.append(query)
-            if query != "abandoned vintage merchant ship drifting at sea":
+            if "vessel" in query.casefold():
                 return [{"id": "rescued"}]
             return []
 
