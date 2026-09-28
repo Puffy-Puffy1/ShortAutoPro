@@ -43,5 +43,8 @@ if (!fs.existsSync(indexFile) || !fs.existsSync(bundleFile)) {
   fail("Expected Remotion bundler dist files are missing.");
 }
 
-const changed = patchRspackRequire(indexFile) || patchRspackRequire(bundleFile);
+const indexChanged = patchRspackRequire(indexFile);
+const bundleChanged = patchRspackRequire(bundleFile);
+const changed = indexChanged || bundleChanged;
+
 console.log(`[ShortAutoPro] Remotion bundler Android lazy-Rspack patch: ${changed ? "APPLIED" : "ALREADY_PATCHED"}`);
