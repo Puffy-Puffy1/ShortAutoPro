@@ -92,12 +92,14 @@ def round_env(round_index: int) -> dict[str, str]:
     env["SAP_MUST_RESCUE_MAX_QUERIES"] = str(rescue_budget)
     env["SAP_MEDIA_PROVIDER_RESULT_TIMEOUT"] = str(provider_timeout)
     env["SAP_WIKIMEDIA_SEARCH_DEADLINE"] = str(wiki_deadline)
-    # One bounded semantic rescue for unresolved scenes. This broadens\n    # retrieval queries only; MUST acceptance remains unchanged and strict.\n    env["SAP_MEDIA_SIMPLIFIED_RETRY_MAX"] = "1"\n    env["SAP_VSE4_QUERY_EXPANSION"] = "1"\n    env["SAP_VSE4_QUERY_ONLY_ON_EMPTY"] = "1"\n    env["SAP_VSE4_QUERY_EXTRA"] = "1"\n    env["SAP_MEDIA_RECOVERY_ROUND"] = str(round_index + 1)
-    return env
-
-
-def scene_count_hint() -> int:
-    scene_map = BASE / "roteiros" / f"scene_map_{SID}.json"
+    # One bounded semantic rescue for unresolved scenes. This broadens
+    # retrieval queries only; MUST acceptance remains unchanged and strict.
+    env["SAP_MEDIA_SIMPLIFIED_RETRY_MAX"] = "1"
+    env["SAP_VSE4_QUERY_EXPANSION"] = "1"
+    env["SAP_VSE4_QUERY_ONLY_ON_EMPTY"] = "1"
+    env["SAP_VSE4_QUERY_EXTRA"] = "1"
+    env["SAP_MEDIA_RECOVERY_ROUND"] = str(round_index + 1)
+ap = BASE / "roteiros" / f"scene_map_{SID}.json"
     try:
         data = json.loads(scene_map.read_text(encoding="utf-8"))
         if isinstance(data, list):
