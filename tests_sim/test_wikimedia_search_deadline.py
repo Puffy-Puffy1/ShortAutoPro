@@ -1,9 +1,16 @@
 #!/usr/bin/env python3
 """Regression tests for bounded Wikimedia HTTP search budgets."""
 
+import sys
 import time
+import types
 import unittest
 from unittest.mock import patch
+
+# Contract CI does not install runtime HTTP dependencies. Provide a minimal
+# import stub; the tests patch requests.get and never perform network I/O.
+if "requests" not in sys.modules:
+    sys.modules["requests"] = types.SimpleNamespace(get=None)
 
 
 class _Response:
