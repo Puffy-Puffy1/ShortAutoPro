@@ -2,7 +2,11 @@
 """ShortAutoPro Render Engine V2.
 
 Acquisition-free renderer boundary:
-  frozen local inputs -> Remotion composition -> FFmpeg finalization -> FFprobe -> gates -> atomic commit.
+  frozen local inputs -> render backend -> FFmpeg finalization -> FFprobe -> gates -> atomic commit.
+
+Backends:
+  - remotion: Linux/desktop execution with Chromium.
+  - ffmpeg: native FFmpeg visual backend for Termux/Android, no browser required.
 
 This module never calls media providers, never creates a new SHORT_ID during
 retry/resume, and never publishes a file before output validation succeeds.
@@ -22,6 +26,7 @@ from pathlib import Path
 from typing import Any
 
 from subprocess_guard import run_group
+from render_v2.ffmpeg_visual_renderer import render_visual_ffmpeg
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", Path.home() / "ShortAutoPro")).resolve()
 RENDER_PROJECT = Path(__file__).resolve().parent / "render_v2"
@@ -197,6 +202,10 @@ def build_job(short_id: str) -> Path:
     cues = parse_ass(ass) if ass.is_file() else []
     if not ass.is_file():
         raise RuntimeError("SUBTITLE_INVALID:subtitle file missing")
+    subtitle_dir = job / "subtitles"
+    subtitle_dir.mkdir(parents=True, exist_ok=True)
+    frozen_ass = subtitle_dir / f"{short_id}.ass"
+    shutil.copy2(ass, frozen_ass)
     manifest = {
         "schema_version": "render-manifest-v2",
         "short_id": short_id,
@@ -205,6 +214,7 @@ def build_job(short_id: str) -> Path:
         "frozen_at": now(),
         "assets": frozen_scenes,
         "audio": {"path": str(frozen_audio), "required": True, "checksum_sha256": sha256(frozen_audio)},
+        "subtitles": {"path": str(frozen_ass), "required": True, "checksum_sha256": sha256(frozen_ass)},
     }
     timeline = {
         "schema_version": "render-timeline-v2",
@@ -290,7 +300,24 @@ def remotion_binary() -> Path:
     if p.is_file(): return p
     raise RuntimeError("RENDER_RUNTIME_MISSING:render_v2/node_modules; install render_v2 dependencies first")
 
-def render_visual(job: Path) -> Path:
+def is_termux_android() -> bool:
+    return Path("/data/data/com.termux/files/usr").is_dir() or bool(os.getenv("TERMUX_VERSION"))
+
+
+def render_backend() -> str:
+    requested = os.getenv("SAP_RENDER_V2_BACKEND", "auto").strip().lower() or "auto"
+    if requested not in {"auto", "remotion", "ffmpeg"}:
+        raise RuntimeError(f"RENDER_BACKEND_INVALID:{requested}")
+    if requested == "ffmpeg":
+        return "ffmpeg"
+    if requested == "remotion":
+        if is_termux_android():
+            raise RuntimeError("RENDER_RUNTIME_UNSUPPORTED:remotion_android_requires_browser")
+        return "remotion"
+    return "ffmpeg" if is_termux_android() else "remotion"
+
+
+def render_visual_remotion(job: Path) -> Path:
     output=job/"rendered.visual.mp4"
     output.unlink(missing_ok=True)
     props=job/"remotion_props.json"
@@ -308,6 +335,13 @@ def render_visual(job: Path) -> Path:
     if not output.is_file() or output.stat().st_size<=1000:
         raise RuntimeError("REMOTION_FAILED:empty_output")
     return output
+
+
+def render_visual(job: Path) -> tuple[Path, str]:
+    backend = render_backend()
+    if backend == "ffmpeg":
+        return render_visual_ffmpeg(job, cwd=BASE), backend
+    return render_visual_remotion(job), backend
 
 def ffmpeg_finalize(job: Path) -> Path:
     visual=job/"rendered.visual.mp4"; audio=Path(str(read_json(job/"manifest.json")["audio"]["path"]))
@@ -371,6 +405,7 @@ def ffprobe_validator(path: Path, job: Path) -> dict[str, Any]:
         errors.append("AUDIO_COMPLETELY_SILENT_AT_START")
     report={
         "engine":"render_v2","version":ENGINE_VERSION,"short_id":read_json(job/"job.json")["short_id"],"render_id":read_json(job/"job.json")["render_id"],
+        "backend": read_json(job/"state.json").get("backend", "unknown"),
         "status":"PASSED" if not errors else "FAILED","duration_seconds":actual,"video_stream":bool(video),"audio_stream":bool(audio),
         "real_media":all(x.get("validation_status")=="FROZEN_LOCAL" for x in read_json(job/"manifest.json").get("assets",[])),
         "first_frame_valid":not any(x in errors for x in ("FIRST_FRAME_INVALID","FIRST_FRAME_BLACK")),
@@ -417,8 +452,8 @@ def main() -> int:
         transition(job,"READY",input=detail)
         transition(job,"RENDERING")
         started=time.monotonic()
-        visual=render_visual(job)
-        transition(job,"RENDERED",render_seconds=round(time.monotonic()-started,3))
+        visual, backend=render_visual(job)
+        transition(job,"RENDERED",render_seconds=round(time.monotonic()-started,3),backend=backend)
         transition(job,"VALIDATING_OUTPUT")
         temp=ffmpeg_finalize(job)
         report=validate_output(temp,job)
