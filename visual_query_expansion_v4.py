@@ -88,6 +88,24 @@ def wrap_search_function(fn):
             must_terms = [str(item).strip() for item in must_have if str(item).strip()]
             must_query = " ".join(must_terms)
             if must_query and must_query.casefold() != original.casefold():
+                # Keep the canonical MUST anchors in the rescue query, but add
+                # conservative discovery synonyms. They affect retrieval only;
+                # the original MUST list is still passed unchanged to fn() and
+                # remains the acceptance contract.
+                synonym_terms = {
+                    "ship": ("vessel", "boat", "cargo", "merchant"),
+                    "ships": ("vessel", "boat", "cargo", "merchant"),
+                    "ocean": ("sea", "marine"),
+                    "sea": ("ocean", "marine"),
+                    "boat": ("vessel", "ship"),
+                    "vessel": ("ship", "boat"),
+                }
+                expanded_terms = list(must_terms)
+                for term in must_terms:
+                    for synonym in synonym_terms.get(term.casefold(), ()):
+                        if synonym.casefold() not in {x.casefold() for x in expanded_terms}:
+                            expanded_terms.append(synonym)
+                must_query = " ".join(expanded_terms)
                 plans.append(must_query)
 
         existing = {item.casefold() for item in plans}
