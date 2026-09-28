@@ -405,7 +405,7 @@ def ffprobe_validator(path: Path, job: Path) -> dict[str, Any]:
         errors.append("AUDIO_COMPLETELY_SILENT_AT_START")
     report={
         "engine":"render_v2","version":ENGINE_VERSION,"short_id":read_json(job/"job.json")["short_id"],"render_id":read_json(job/"job.json")["render_id"],
-        "backend": read_json(job/"state.json").get("backend", "unknown"),
+        "backend": read_json(job/"state.json").get("backend", "unknown") if (job/"state.json").is_file() else "unknown",
         "status":"PASSED" if not errors else "FAILED","duration_seconds":actual,"video_stream":bool(video),"audio_stream":bool(audio),
         "real_media":all(x.get("validation_status")=="FROZEN_LOCAL" for x in read_json(job/"manifest.json").get("assets",[])),
         "first_frame_valid":not any(x in errors for x in ("FIRST_FRAME_INVALID","FIRST_FRAME_BLACK")),
