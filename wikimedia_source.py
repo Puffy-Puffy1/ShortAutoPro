@@ -482,7 +482,9 @@ def consultar_commons(
                 )
                 if remaining < 0.65:
                     return []
-                time.sleep(0.6)
+                time.sleep(
+                    0.6
+                )
 
                 continue
 
