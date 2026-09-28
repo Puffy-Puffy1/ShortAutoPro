@@ -21,22 +21,42 @@ if (version !== "4.0.529") fail(`Unsupported @remotion/bundler version ${version
 
 function patchRspackRequire(file) {
   let source = fs.readFileSync(file, "utf8");
-  if (source.includes('const getRspackConfig = () => require("./rspack-config");')) return false;
+  let changed = false;
+  const getter = 'const getRspackConfig = () => require("./rspack-config");';
 
-  const match = source.match(/const\s+([A-Za-z_$][\w$]*)\s*=\s*require\(["']\.\/rspack-config["']\);/);
-  if (!match) fail(`Expected Rspack config require anchor not found in ${path.relative(root, file)}.`);
+  let variable = null;
+  if (!source.includes(getter)) {
+    const match = source.match(/const\s+([A-Za-z_$][\w$]*)\s*=\s*require\(["']\.\/rspack-config["']\);/);
+    if (!match) fail(`Expected Rspack config require anchor not found in ${path.relative(root, file)}.`);
+    variable = match[1];
+    source = source.replace(match[0], getter);
+    changed = true;
+  }
 
-  const variable = match[1];
-  source = source.replace(match[0], 'const getRspackConfig = () => require("./rspack-config");');
+  // Replace references from the original generated import binding when this is
+  // the first patch pass.
+  if (variable) {
+    const escaped = variable.replace(/[.*+?^$()|[\]\\]/g, "\\$&");
+    const next = source
+      .replace(new RegExp("\\b" + escaped + "\\.rspackConfig", "g"), "getRspackConfig().rspackConfig")
+      .replace(new RegExp("\\b" + escaped + "\\.createRspackCompiler", "g"), "getRspackConfig().createRspackCompiler")
+      .replace(new RegExp("\\b" + escaped + "\\.rspack\\(", "g"), "getRspackConfig().rspack(");
+    changed = changed || next !== source;
+    source = next;
+  }
 
-  const escaped = variable.replace(/[.*+?^$()|[\]\\]/g, "\\$&");
-  const variablePattern = new RegExp("\\b" + escaped + "\\.rspackConfig", "g");
-  source = source.replace(variablePattern, "getRspackConfig().rspackConfig");
-  source = source.replace(new RegExp("\\b" + escaped + "\\.createRspackCompiler", "g"), "getRspackConfig().createRspackCompiler");
-  source = source.replace(new RegExp("\\b" + escaped + "\\.rspack\\(", "g"), "getRspackConfig().rspack(");
+  // In index.js these are object-literal exports. Direct values such as
+  // getRspackConfig().rspackConfig execute the getter during require().
+  const next = source
+    .replace(/rspackConfig:\s*getRspackConfig\(\)\.rspackConfig\s*,/g,
+      "rspackConfig: (...args) => getRspackConfig().rspackConfig(...args),")
+    .replace(/createRspackCompiler:\s*getRspackConfig\(\)\.createRspackCompiler\s*,/g,
+      "createRspackCompiler: (...args) => getRspackConfig().createRspackCompiler(...args),");
+  changed = changed || next !== source;
+  source = next;
 
   fs.writeFileSync(file, source);
-  return true;
+  return changed;
 }
 
 if (!fs.existsSync(indexFile) || !fs.existsSync(bundleFile)) {
