@@ -26,8 +26,8 @@ for (const relative of [
 }
 
 const result = execFileSync(process.execPath, ["-e", [
-  'const b=require("@remotion/bundler");',
-  'if (require.cache[require.resolve("@remotion/bundler/dist/rspack-config.js")]) process.exit(2);',
+  'require("@remotion/bundler");',
+  'if (Object.keys(require.cache).some(k => /[\\\\/]@remotion[\\\\/]bundler[\\\\/]dist[\\\\/]rspack-config\\\\.js$/.test(k))) process.exit(2);',
   'if (Object.keys(require.cache).some(k => k.includes("@rspack/core"))) process.exit(3);',
   'console.log("REMOTION_BUNDLER_LAZY_RSPACK=PASS");',
 ].join(" ")], {cwd: root, encoding: "utf8"});
