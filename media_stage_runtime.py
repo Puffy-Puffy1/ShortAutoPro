@@ -79,16 +79,26 @@ def round_env(round_index: int) -> dict[str, str]:
 
     # Increasing retrieval effort only. MUST acceptance rules are untouched.
     rescue_budget = (1, 1, 2)[min(round_index, 2)]
-    # Keep recovery bounded on mobile. The provider layer already runs
-    # concurrently, so escalating to 30-45s makes hard scenes dominate the
-    # entire Short production without improving acceptance rules.
-    provider_timeout = (5, 6, 8)[min(round_index, 2)]
-    wiki_deadline = (5, 6, 8)[min(round_index, 2)]
+    # The controller deadline must exceed the provider's own bounded
+    # request/search budget. The previous 5/6/8s values could terminate the
+    # concurrent future while Wikimedia was still inside its legitimate retry
+    # window, producing controller timeouts and avoidable scene starvation.
+    # Keep the budget bounded on mobile, but give the provider layer enough
+    # time to complete one bounded search before the orchestration deadline.
+    provider_timeout = (10, 12, 12)[min(round_index, 2)]
+    wiki_deadline = (8, 10, 12)[min(round_index, 2)]
 
     env["SAP_STOCK_RESCUE_MAX_QUERIES"] = str(rescue_budget)
     env["SAP_MUST_RESCUE_MAX_QUERIES"] = str(rescue_budget)
     env["SAP_MEDIA_PROVIDER_RESULT_TIMEOUT"] = str(provider_timeout)
     env["SAP_WIKIMEDIA_SEARCH_DEADLINE"] = str(wiki_deadline)
+    # One bounded semantic rescue for unresolved scenes. This broadens
+    # retrieval queries only; MUST acceptance remains unchanged and strict.
+    # Simplified scene retries remain governed by midia.py scene budgets;
+    # do not override their certified recovery contract from the controller.
+    env["SAP_VSE4_QUERY_EXPANSION"] = "1"
+    env["SAP_VSE4_QUERY_ONLY_ON_EMPTY"] = "1"
+    env["SAP_VSE4_QUERY_EXTRA"] = "1"
     env["SAP_MEDIA_RECOVERY_ROUND"] = str(round_index + 1)
     return env
 

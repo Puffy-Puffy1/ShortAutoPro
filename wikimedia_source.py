@@ -353,7 +353,8 @@ def gerar_queries(
 
 def consultar_commons(
     query,
-    limite
+    limite,
+    deadline_at=None,
 ):
 
     allowed, reason, remaining = (
@@ -387,6 +388,29 @@ def consultar_commons(
 
     for attempt in range(2):
 
+        # Never let one HTTP request outlive the bounded search deadline.
+        # The recovery controller has its own provider-result deadline, so
+        # this layer must leave headroom for retry bookkeeping and return
+        # before the controller can kill the provider future.
+        now = time.monotonic()
+        remaining = (
+            max(0.0, deadline_at - now)
+            if deadline_at is not None
+            else SEARCH_DEADLINE
+        )
+        if remaining <= 0.0:
+            print(
+                "SAP_WIKIMEDIA_DEADLINE=REACHED "
+                f"limit={SEARCH_DEADLINE:.1f}s assets=0"
+            )
+            return []
+
+        if remaining <= 0.25:
+            return []
+
+        request_budget = min(TIMEOUT, remaining - 0.25)
+        connect_budget = min(6.0, request_budget)
+
         try:
 
             r = requests.get(
@@ -394,11 +418,8 @@ def consultar_commons(
                 headers=HEADERS,
                 params=params,
                 timeout=(
-                    min(
-                        6.0,
-                        TIMEOUT
-                    ),
-                    TIMEOUT
+                    connect_budget,
+                    request_budget
                 )
             )
 
@@ -421,9 +442,14 @@ def consultar_commons(
                 }
             ):
 
-                time.sleep(
-                    0.6
+                remaining = (
+                    max(0.0, deadline_at - time.monotonic())
+                    if deadline_at is not None
+                    else SEARCH_DEADLINE
                 )
+                if remaining <= 0.0:
+                    return []
+                time.sleep(min(0.6, max(0.0, remaining - 0.05)))
 
                 continue
 
@@ -449,6 +475,13 @@ def consultar_commons(
                 and attempt == 0
             ):
 
+                remaining = (
+                    max(0.0, deadline_at - time.monotonic())
+                    if deadline_at is not None
+                    else SEARCH_DEADLINE
+                )
+                if remaining < 0.65:
+                    return []
                 time.sleep(
                     0.6
                 )
@@ -497,9 +530,14 @@ def consultar_commons(
 
             if attempt == 0:
 
-                time.sleep(
-                    0.4
+                remaining = (
+                    max(0.0, deadline_at - time.monotonic())
+                    if deadline_at is not None
+                    else SEARCH_DEADLINE
                 )
+                if remaining < 0.45:
+                    return []
+                time.sleep(0.4)
 
                 continue
 
@@ -1145,7 +1183,8 @@ def buscar_wikimedia_fotos(
 
         pages = consultar_commons(
             query,
-            limite
+            limite,
+            deadline_at=search_started + SEARCH_DEADLINE,
         )
 
 

@@ -112,7 +112,7 @@ def run_item(d,item,recovery=False):
     item["status"]="RECOVERING" if mode=="resume" else "RUNNING"; item["attempts"]+=1; item["recovery_count"]+=int(mode=="resume"); item["updated_at"]=now(); save(d)
     print(f"BATCH_ITEM_START index={item['index']} short_id={sid} attempt={item['attempts']}")
     print(f"BATCH_ITEM_MODE={mode.upper()} short_id={sid}")
-    cmd=[sys.executable,str(BASE/"main.py"),"resume","--short-id",sid] if mode=="resume" else [sys.executable,str(BASE/"main.py"),"run"]
+    cmd=[sys.executable,str(BASE/"main.py"),"resume","--short-id",sid] if mode=="resume" else [sys.executable,str(BASE/"main.py"),"run","--reuse-short-id"]
     started=time.monotonic()
     with log.open("a",encoding="utf-8") as fh:
         fh.write(f"\n[{now()}] mode={mode} attempt={item['attempts']} short_id={sid}\n"); fh.flush()
