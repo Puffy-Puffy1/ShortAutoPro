@@ -37,7 +37,7 @@ class VisualQueryExpansionTests(unittest.TestCase):
 
         def search(query, must_have=None):
             calls.append(query)
-            if query == "ship ocean":
+            if query != "abandoned vintage merchant ship drifting at sea":
                 return [{"id": "rescued"}]
             return []
 
@@ -65,13 +65,11 @@ class VisualQueryExpansionTests(unittest.TestCase):
                     os.environ[name] = value
 
         self.assertEqual(result, [{"id": "rescued"}])
-        self.assertEqual(
-            calls,
-            [
-                "abandoned vintage merchant ship drifting at sea",
-                "ship ocean",
-            ],
-        )
+        self.assertEqual(calls[0], "abandoned vintage merchant ship drifting at sea")
+        self.assertEqual(len(calls), 2)
+        self.assertIn("ship", calls[1].casefold())
+        self.assertIn("ocean", calls[1].casefold())
+        self.assertIn("vessel", calls[1].casefold())
 
 
 if __name__ == "__main__":
