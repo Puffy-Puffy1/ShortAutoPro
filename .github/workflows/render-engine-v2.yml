@@ -7,6 +7,7 @@ on:
       - "render_v2/**"
       - "tests_sim/test_render_engine_v2_contract.py"
       - "tests_sim/test_render_engine_v2_real.py"
+      - "tests_sim/test_render_engine_v2_ffmpeg.py"
       - "main.py"
       - ".github/workflows/render-engine-v2.yml"
   workflow_dispatch:
@@ -51,8 +52,14 @@ jobs:
       - name: TypeScript check
         working-directory: render_v2
         run: npx tsc --noEmit
-      - name: Render engine real smoke
+      - name: Render engine real Remotion smoke
         env:
+          SAP_RENDER_V2_BACKEND: "remotion"
           SAP_RENDER_V2_CONCURRENCY: "2"
           SAP_RENDER_V2_CRF: "20"
         run: python tests_sim/test_render_engine_v2_real.py
+      - name: Render engine native FFmpeg backend smoke
+        env:
+          SAP_RENDER_V2_BACKEND: "ffmpeg"
+          SAP_RENDER_V2_CRF: "20"
+        run: python -m unittest tests_sim.test_render_engine_v2_ffmpeg
