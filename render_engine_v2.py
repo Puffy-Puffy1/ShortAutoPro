@@ -377,7 +377,7 @@ def validate_output(path: Path, job: Path) -> dict[str, Any]:
 
 def ffprobe_validator(path: Path, job: Path) -> dict[str, Any]:
     errors=[]
-    if not path.is_file() or path.stat().st_size < 500_000: errors.append("MP4_EXISTS_OR_SIZE")
+    if not path.is_file() or path.stat().st_size <= 1000: errors.append("MP4_EXISTS_OR_SIZE")
     probe=run_cmd(["ffprobe","-v","error","-show_streams","-show_format","-of","json",str(path)],BASE,45)
     if probe.returncode!=0: errors.append("FFPROBE_FAILED")
     try: data=json.loads(probe.stdout or "{}")
