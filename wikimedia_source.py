@@ -387,6 +387,22 @@ def consultar_commons(
 
     for attempt in range(2):
 
+        # Never let one HTTP request outlive the bounded search deadline.
+        # The recovery controller has its own provider-result deadline, so
+        # this layer must leave headroom for retry bookkeeping and return
+        # before the controller can kill the provider future.
+        elapsed = time.monotonic() - search_started if "search_started" in locals() else 0.0
+        remaining = max(0.0, SEARCH_DEADLINE - elapsed)
+        if remaining <= 0.0:
+            print(
+                "SAP_WIKIMEDIA_DEADLINE=REACHED "
+                f"limit={SEARCH_DEADLINE:.1f}s assets=0"
+            )
+            return []
+
+        request_budget = min(TIMEOUT, max(1.0, remaining - 0.25))
+        connect_budget = min(6.0, request_budget)
+
         try:
 
             r = requests.get(
@@ -394,11 +410,8 @@ def consultar_commons(
                 headers=HEADERS,
                 params=params,
                 timeout=(
-                    min(
-                        6.0,
-                        TIMEOUT
-                    ),
-                    TIMEOUT
+                    connect_budget,
+                    request_budget
                 )
             )
 
@@ -421,9 +434,12 @@ def consultar_commons(
                 }
             ):
 
-                time.sleep(
-                    0.6
+                remaining = SEARCH_DEADLINE - (
+                    time.monotonic() - search_started
                 )
+                if remaining <= 0.0:
+                    return []
+                time.sleep(min(0.6, max(0.0, remaining - 0.05)))
 
                 continue
 
@@ -449,9 +465,12 @@ def consultar_commons(
                 and attempt == 0
             ):
 
-                time.sleep(
-                    0.6
+                remaining = SEARCH_DEADLINE - (
+                    time.monotonic() - search_started
                 )
+                if remaining <= 0.0:
+                    return []
+                time.sleep(min(0.6, max(0.0, remaining - 0.05)))
 
                 continue
 
@@ -497,9 +516,12 @@ def consultar_commons(
 
             if attempt == 0:
 
-                time.sleep(
-                    0.4
+                remaining = SEARCH_DEADLINE - (
+                    time.monotonic() - search_started
                 )
+                if remaining <= 0.0:
+                    return []
+                time.sleep(min(0.4, max(0.0, remaining - 0.05)))
 
                 continue
 
