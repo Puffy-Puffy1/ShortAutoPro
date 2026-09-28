@@ -19,3 +19,26 @@ The repository CI runs a real Ubuntu smoke render. Termux/Android remains a sepa
 
 Canonical mode: `RENDER_ENGINE=v2`.
 Temporary rollback: `RENDER_ENGINE=legacy`.
+
+## Termux/Android compatibility bridge
+
+The Termux target uses Android arm64, where the native Rspack binding required by
+Remotion 4.0.529 is not available in the standard npm package. Render Engine V2
+therefore keeps Remotion's Webpack bundling path on Android and lazy-loads the
+optional Rspack module only when Rspack is explicitly requested.
+
+`npm install` runs a version-pinned local compatibility patch for
+`@remotion/bundler@4.0.529`. The patch is fail-closed: if the installed bundler
+version changes or the expected upstream anchors are missing, installation
+fails instead of silently producing an unqualified runtime.
+
+Verify after installation with:
+
+```bash
+npm run verify:android-bundle
+npx tsc --noEmit
+```
+
+This does not claim full Android rendering compatibility. It only removes the
+known eager-Rspack load blocker. Final qualification still requires a real
+Termux render using FFmpeg/FFprobe and the production Render Engine V2 input.
