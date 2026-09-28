@@ -91,15 +91,16 @@ def wrap_search_function(fn):
                 plans.append(must_query)
 
         existing = {item.casefold() for item in plans}
-        for plan in expansion_queries(original, max_extra=max_extra):
-            if plan.casefold() == original.casefold():
-                continue
-            if plan.casefold() in existing:
-                continue
-            plans.append(plan)
-            existing.add(plan.casefold())
-            if len(plans) >= max_extra:
-                break
+        if len(plans) < max_extra:
+            for plan in expansion_queries(original, max_extra=max_extra):
+                if plan.casefold() == original.casefold():
+                    continue
+                if plan.casefold() in existing:
+                    continue
+                plans.append(plan)
+                existing.add(plan.casefold())
+                if len(plans) >= max_extra:
+                    break
 
         if not plans:
             return primary
