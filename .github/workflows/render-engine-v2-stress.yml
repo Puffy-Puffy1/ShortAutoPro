@@ -32,6 +32,12 @@ jobs:
       - name: Install Remotion dependencies
         working-directory: render_v2
         run: npm install --no-audit --no-fund
+      - name: Verify Android-safe Remotion bundler
+        working-directory: render_v2
+        run: npm run verify:android-bundle
+      - name: TypeScript check
+        working-directory: render_v2
+        run: npx tsc --noEmit
       - name: Run 1 -> 2 -> 5 -> 10 qualification
         env:
           SAP_RENDER_V2_CONCURRENCY: "2"
