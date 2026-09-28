@@ -475,12 +475,14 @@ def consultar_commons(
                 and attempt == 0
             ):
 
-                remaining = SEARCH_DEADLINE - (
-                    time.monotonic() - search_started
+                remaining = (
+                    max(0.0, deadline_at - time.monotonic())
+                    if deadline_at is not None
+                    else SEARCH_DEADLINE
                 )
-                if remaining <= 0.0:
+                if remaining < 0.65:
                     return []
-                time.sleep(min(0.6, max(0.0, remaining - 0.05)))
+                time.sleep(0.6)
 
                 continue
 
@@ -526,12 +528,14 @@ def consultar_commons(
 
             if attempt == 0:
 
-                remaining = SEARCH_DEADLINE - (
-                    time.monotonic() - search_started
+                remaining = (
+                    max(0.0, deadline_at - time.monotonic())
+                    if deadline_at is not None
+                    else SEARCH_DEADLINE
                 )
-                if remaining <= 0.0:
+                if remaining < 0.45:
                     return []
-                time.sleep(min(0.4, max(0.0, remaining - 0.05)))
+                time.sleep(0.4)
 
                 continue
 
