@@ -96,17 +96,20 @@ const Subtitles: React.FC<{cues: SubtitleCue[]}> = ({cues}) => {
   );
 };
 
-export const RenderComposition: React.FC<RenderProps> = ({timeline}) => (
-  <AbsoluteFill style={{backgroundColor: "#000", overflow: "hidden"}}>
-    {(timeline?.scenes || []).map((scene) => (
-      <Sequence
-        key={scene.scene_id}
-        from={Math.max(0, Math.round(scene.start_time * 30))}
-        durationInFrames={Math.max(1, Math.round(scene.duration * 30))}
-      >
-        <Scene scene={scene} />
-      </Sequence>
-    ))}
-    <Subtitles cues={timeline?.subtitles || []} />
-  </AbsoluteFill>
-);
+export const RenderComposition: React.FC<RenderProps> = ({timeline}) => {
+  const {fps} = useVideoConfig();
+  return (
+    <AbsoluteFill style={{backgroundColor: "#000", overflow: "hidden"}}>
+      {(timeline?.scenes || []).map((scene) => (
+        <Sequence
+          key={scene.scene_id}
+          from={Math.max(0, Math.round(scene.start_time * fps))}
+          durationInFrames={Math.max(1, Math.round(scene.duration * fps))}
+        >
+          <Scene scene={scene} />
+        </Sequence>
+      ))}
+      <Subtitles cues={timeline?.subtitles || []} />
+    </AbsoluteFill>
+  );
+};
