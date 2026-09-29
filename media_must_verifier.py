@@ -112,6 +112,24 @@ def _phrase_present(text: str, phrase: str) -> bool:
 
 
 STRICT_VISUAL_ALIASES = {
+    # Conservative visual equivalences used only for explicit-MUST evidence.
+    # These affect acceptance only when the asset itself contains the alias.
+    "ship": (
+        "ship", "ships", "vessel", "vessels", "boat", "boats",
+        "watercraft", "merchant ship", "cargo ship",
+    ),
+    "boat": (
+        "boat", "boats", "ship", "ships", "vessel", "vessels", "watercraft",
+    ),
+    "vessel": (
+        "vessel", "vessels", "ship", "ships", "boat", "boats", "watercraft",
+    ),
+    "ocean": (
+        "ocean", "oceans", "sea", "seas", "open water",
+    ),
+    "sea": (
+        "sea", "seas", "ocean", "oceans", "open water",
+    ),
     "spoon": (
         "spoon",
         "teaspoon",
