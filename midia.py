@@ -3209,11 +3209,16 @@ def buscar_todos_candidatos(
 
         except Exception as _semantic_exc:
 
+            # The semantic verifier is a production safety gate. If it cannot
+            # run, never fall through to legacy must_hits or contextual rescue.
+            # Fail closed and let the bounded Stage 6 recovery report the exact
+            # verifier failure instead of silently accepting unverified media.
             print(
-                "SAP_MEDIA_SEMANTIC_TRIAGE=FAIL_OPEN "
+                "SAP_MEDIA_SEMANTIC_TRIAGE=FAIL_CLOSED "
                 f"{type(_semantic_exc).__name__}:"
                 f"{str(_semantic_exc)[:120]}"
             )
+            todos = []
 
     return todos
 
