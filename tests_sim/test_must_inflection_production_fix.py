@@ -59,6 +59,29 @@ class MustInflectionProductionFixTests(unittest.TestCase):
         )
         self.assertEqual(result["hits"], 0)
 
+    def test_ship_requirement_accepts_vessel_evidence(self):
+        result = mustv.verified_must(
+            {"description": "A large cargo vessel at sea"},
+            {"must_have": ["ship"]},
+        )
+        self.assertEqual(result["hits"], 1)
+        self.assertEqual(result["missing"], [])
+
+    def test_ocean_requirement_accepts_sea_evidence(self):
+        result = mustv.verified_must(
+            {"description": "A vessel crossing the open sea"},
+            {"must_have": ["ocean"]},
+        )
+        self.assertEqual(result["hits"], 1)
+        self.assertEqual(result["missing"], [])
+
+    def test_unrelated_transport_still_fails_ship_requirement(self):
+        result = mustv.verified_must(
+            {"description": "A modern airplane above a city"},
+            {"must_have": ["ship"]},
+        )
+        self.assertEqual(result["hits"], 0)
+
     def test_concept_alias_remains_strict_after_inflection(self):
         candidate = {
             "description": "Detective examining document records",
