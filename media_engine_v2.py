@@ -6,8 +6,8 @@ Single responsibility:
 
 This module deliberately does not render, edit, encode, publish, or create SHORT_IDs.
 It uses the repository's mature provider primitives as an acquisition compatibility
-boundary; the production entrypoint calls this engine directly and never invokes
-media_stage_runtime.py.
+boundary; the production entrypoint calls this engine directly and never invokes the legacy
+media controller.
 """
 from __future__ import annotations
 
