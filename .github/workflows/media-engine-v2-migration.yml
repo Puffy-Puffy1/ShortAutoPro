@@ -8,6 +8,7 @@ on:
       - "media_engine_v2.py"
       - "render_plan_v2.py"
       - "render_engine_v2.py"
+      - "main.py"
       - "tests_sim/**"
       - ".github/workflows/media-engine-v2-migration.yml"
   push:
