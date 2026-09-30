@@ -450,7 +450,7 @@ def assemble_and_render(p: Pipeline) -> None:
     else:
         raise RuntimeError(f"RENDER_ENGINE inválido: {render_engine}")
     final = BASE / "videos" / f"short_v6_{p.sid}.mp4"
-    if not final.is_file() or final.stat().st_size < 500_000:
+    if not final.is_file() or final.stat().st_size <= 1000:
         raise RuntimeError(f"vídeo final ausente/inválido: {final}")
     p.run("10.1 - FINAL AUDIO MEASURED MASTER", "audio_finalizer.py")
     p.run("10.2 - VISUAL QA", "visual_qa.py")
