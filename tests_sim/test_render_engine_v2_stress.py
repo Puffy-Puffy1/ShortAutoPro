@@ -72,7 +72,14 @@ class RenderEngineV2ConsecutiveTests(unittest.TestCase):
                         check=True, timeout=30,
                     )
                     (base/"videos"/f"short_{sid}.ass").write_text(
-                        "[Script Info]\n[Events]\n"
+                        "[Script Info]\n"
+                        "ScriptType: v4.00+\n"
+                        "PlayResX: 1080\n"
+                        "PlayResY: 1920\n"
+                        "[V4+ Styles]\n"
+                        "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, TertiaryColour, BackColour, Bold, Italic, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, AlphaLevel, Encoding\n"
+                        "Style: Default,Arial,48,&H00FFFFFF,&H000000FF,&H00000000,&H64000000,0,0,1,2,0,2,30,30,60,0,1\n"
+                        "[Events]\n"
                         "Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text\n"
                         "Dialogue: 0,0:00:00.00,0:00:02.50,Default,,0,0,0,,Render V2 stress\n",
                         encoding="utf-8",
