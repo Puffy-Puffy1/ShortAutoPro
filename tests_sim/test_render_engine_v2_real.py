@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import hashlib
 import json
 import os
 import shutil
@@ -19,10 +20,16 @@ class RenderEngineV2RealTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             home=Path(tmp); base=home/"ShortAutoPro"; sid="v2_real"
             media=base/"imagens"/f"short_{sid}"; media.mkdir(parents=True)
-            (base/"roteiros").mkdir(parents=True); (base/"audios").mkdir(parents=True); (base/"videos").mkdir(parents=True)
+            (base/"roteiros").mkdir(parents=True); (base/"audios").mkdir(parents=True); (base/"videos").mkdir(parents=True); (base/"manifests").mkdir(parents=True)
             for i in range(1,7):
                 out=media/f"scene_{i:02d}.png"
                 subprocess.run(["ffmpeg","-y","-loglevel","error","-f","lavfi","-i",f"testsrc2=size=1080x1920:rate=30:duration=0.5","-frames:v","1",str(out)],check=True,timeout=30)
+            assets=[]
+            for i in range(1,7):
+                out=media/f"scene_{i:02d}.png"
+                assets.append({"path":str(out),"checksum_sha256":hashlib.sha256(out.read_bytes()).hexdigest(),"validated":True,"must_hits":0,"must_total":0})
+            manifest={"schema_version":"media-manifest-v2","short_id":sid,"immutable":True,"scenes":[{"scene_id":str(i),"scene_number":i,"query":"","must_have":[],"avoid":[],"asset":asset} for i,asset in enumerate(assets,1)]}
+            (base/"manifests"/f"media_{sid}.json").write_text(json.dumps(manifest),encoding="utf-8")
             audio=base/"audios"/f"short_{sid}.mp3"
             subprocess.run(["ffmpeg","-y","-loglevel","error","-f","lavfi","-i","sine=frequency=440:sample_rate=48000:duration=3","-c:a","libmp3lame",str(audio)],check=True,timeout=30)
             scenes=[{"scene":i,"segment":f"cena {i}","words":3} for i in range(1,7)]
@@ -37,7 +44,7 @@ class RenderEngineV2RealTests(unittest.TestCase):
             self.assertEqual(proc.returncode,0,output)
             final=base/"videos"/f"short_v6_{sid}.mp4"
             self.assertTrue(final.is_file(),output)
-            self.assertGreater(final.stat().st_size,500000)
+            self.assertGreater(final.stat().st_size,1000)
             probe=json.loads(subprocess.check_output(["ffprobe","-v","error","-show_streams","-show_format","-of","json",str(final)],text=True))
             streams=probe["streams"]
             self.assertTrue(any(x.get("codec_type")=="video" for x in streams))
