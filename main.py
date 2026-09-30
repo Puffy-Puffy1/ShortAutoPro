@@ -259,8 +259,8 @@ class Pipeline:
             return env_int("SAP_STAGE_TIMEOUT_AI_SECONDS", 240, 60, 900)
 
         # Media acquisition is explicitly bounded and has emergency completion.
-        if name == "media_stage_runtime.py":
-            return env_int("SAP_STAGE_TIMEOUT_MEDIA_SECONDS", 420, 120, 900)
+        if name == "media_engine_v2.py":
+            return env_int("SAP_STAGE_TIMEOUT_MEDIA_ENGINE_V2_SECONDS", 900, 180, 1800)
 
         # Pre-render recovery may rerun media plus downstream planning once.
         if name == "production_recovery.py":
@@ -408,34 +408,11 @@ def stages_before_render(p: Pipeline) -> None:
     p.run("5D2 - POST-SCRIPT TRUTH LOCK", "post_script_truth_lock.py")
     p.run("5E - SEMANTIC INTEGRITY GATE", "semantic_integrity_gate.py")
 
-    p.run("6 - SMART MEDIA SELECTOR", "media_stage_runtime.py")
-    p.run("6A - MEDIA MASTER GATE", "media_master_gate.py")
-    p.run("6A0 - ASSET LIBRARY + FIRST FRAME", "shortauto_asset_library.py", "index", "--short-id", p.sid)
-    p.run("6A0A - INTELLIGENCE MEDIA: SOURCE/CACHE/AGING", "shortauto_intelligence_layer.py", "media", "--short-id", p.sid)
-    p.run("6A1 - MULTIDIMENSIONAL VISUAL SCORE", "visual_score_engine.py")
-    p.run("6B - CINEMATIC MOTION DIRECTOR", "motion_director.py")
-    p.run("6C - MONTAGE RHYTHM DIRECTOR", "rhythm_director.py")
-    p.run("6C1 - PROFESSIONAL EDIT DIRECTOR", "professional_edit_director.py")
-    p.run("6C2 - PROFESSIONAL EDIT AUTO-REPAIR", "professional_edit_repair.py")
-    p.run("6C2B - MULTI-ASSET DIRECTOR", "multi_asset_director.py", retries=1)
-    retention_code = p.run(
-        "6C3 - RETENTION ENGINE + SAFE REPAIR",
-        "retention_engine.py",
-        "--repair",
-        "--enforce",
-        allow_codes={0, 20},
-    )
-    if retention_code == 20:
-        print(
-            "RETENTION_REVIEW=CONTINUE "
-            "reason=NON_CRITICAL_REVIEW "
-            "next=RELEASE_GATE"
-        )
-    p.run("6C4 - SOUND DESIGN ENGINE", "sound_design_engine.py")
-    p.run("6D - PRODUCTION SUPERVISOR", "production_supervisor.py")
-    p.run("6D1 - EVOLUTION VISUAL AUDIT", "shortautopro_evolution.py", "visual-audit")
-    p.run("6E - FINAL EDITORIAL GATE", "editorial_gate.py")
-
+    # Stage 6 is no longer a production dependency. Media acquisition and
+    # asset validation are owned by Media Engine V2; render planning is a
+    # deterministic input contract for Render Engine V2.
+    p.run("MEDIA ENGINE V2 - ACQUIRE + VALIDATE + FREEZE MANIFEST", "media_engine_v2.py", "--short-id", p.sid)
+    p.run("RENDER PLAN V2 - DETERMINISTIC TIMELINE INPUT", "render_plan_v2.py", "--short-id", p.sid)
     p.run("6F - SPEECH DIRECTOR", "speech_director.py")
     p.run("7 - VOZ PIPER", "audio.py", retries=1)
     p.run("8 - WHISPER + LEGENDA DINÂMICA", "legenda_dinamica.py", retries=1)
