@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import json, os, shutil, subprocess, sys, tempfile, unittest
+import json, os, shutil, subprocess, sys, tempfile, unittest, hashlib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -14,8 +14,6 @@ class RenderEngineV2ConsecutiveTests(unittest.TestCase):
     def test_1_2_5_10_consecutive_jobs_are_isolated(self):
         if shutil.which("ffmpeg") is None or shutil.which("ffprobe") is None:
             self.skipTest("ffmpeg/ffprobe unavailable")
-        if not (ROOT / "render_v2" / "node_modules" / ".bin" / "remotion").is_file():
-            self.skipTest("Remotion dependencies not installed")
         counts = (1, 2, 5, 10)
         with tempfile.TemporaryDirectory() as tmp:
             home = Path(tmp)
@@ -43,6 +41,29 @@ class RenderEngineV2ConsecutiveTests(unittest.TestCase):
                              "-frames:v","1",str(out)],
                             check=True, timeout=30,
                         )
+                    assets=[]
+                    for i in range(1,4):
+                        path=media/f"scene_{i:02d}.png"
+                        assets.append({
+                            "source":"fixture","asset_id":f"{sid}-{i}","asset_type":"image",
+                            "path":str(path),
+                            "checksum_sha256":hashlib.sha256(path.read_bytes()).hexdigest(),
+                            "probe":{"width":1080,"height":1920},
+                            "validated":True,
+                        })
+                    (base/"manifests").mkdir(parents=True, exist_ok=True)
+                    (base/"manifests"/f"media_{sid}.json").write_text(
+                        json.dumps({
+                            "schema_version":"media-manifest-v2","version":2,
+                            "engine":"Media Engine V2","short_id":sid,"immutable":True,
+                            "scenes":[
+                                {"scene_id":str(i),"scene_number":i,"query":"fixture",
+                                 "must_have":[],"avoid":[],"asset":assets[i-1]}
+                                for i in range(1,4)
+                            ],
+                        }),
+                        encoding="utf-8",
+                    )
                     audio = base/"audios"/f"short_{sid}.mp3"
                     subprocess.run(
                         ["ffmpeg","-y","-loglevel","error","-f","lavfi","-i",
@@ -63,6 +84,7 @@ class RenderEngineV2ConsecutiveTests(unittest.TestCase):
                         "USERPROFILE": str(home),
                         "SAP_RENDER_V2_CRF": "20",
                         "SAP_RENDER_V2_CONCURRENCY": "2",
+                        "SAP_RENDER_V2_BACKEND": "ffmpeg",
                     })
                     run([sys.executable, str(ROOT/"render_engine_v2.py"), "--short-id", sid], env)
                     final = base/"videos"/f"short_v6_{sid}.mp4"
