@@ -405,6 +405,31 @@ def final_editorial_completion(missing: list[int]) -> bool:
     )
 
     for number in missing:
+        # Editorial reuse is only a bounded visual-continuity fallback. It must
+        # never satisfy a scene whose contract still contains explicit MUST
+        # evidence requirements; those scenes require a fresh verified asset.
+        if 1 <= number <= len(rows):
+            scene_contract_row = rows[number - 1]
+            raw_must = scene_contract_row.get("must_have", []) if isinstance(scene_contract_row, dict) else []
+            explicit_must = (
+                [str(item).strip() for item in raw_must]
+                if isinstance(raw_must, (list, tuple, set))
+                else [str(raw_must).strip()] if raw_must else []
+            )
+            explicit_must = [item for item in explicit_must if item]
+            if explicit_must:
+                failures.append({
+                    "scene": number,
+                    "reason": "explicit_must_requires_verified_fresh_asset",
+                    "must_have": explicit_must,
+                })
+                print(
+                    "MEDIA_STAGE_RUNTIME=FINAL_EDITORIAL_BLOCKED "
+                    f"scene={number} reason=EXPLICIT_MUST_REQUIRES_VERIFIED_ASSET "
+                    f"must={','.join(explicit_must)}"
+                )
+                continue
+
         try:
             candidate = create_editorial_reuse(
                 media_dir,
