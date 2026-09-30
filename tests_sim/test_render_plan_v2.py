@@ -15,6 +15,6 @@ class RenderPlanV2Tests(unittest.TestCase):
             render_plan_v2.BASE=base
             self.assertEqual(main(sid),0)
             first=(base/"roteiros"/f"pro_edit_plan_{sid}.json").read_text()
-            self.assertEqual(main(),0)
+            self.assertEqual(main(sid),0)
             second=(base/"roteiros"/f"pro_edit_plan_{sid}.json").read_text()
             self.assertEqual(first,second)
