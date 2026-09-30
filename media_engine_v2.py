@@ -170,6 +170,8 @@ def _candidate_record(candidate: dict[str, Any], path: Path, probe: dict[str, An
         "must_total": int(candidate.get("_sap_must_total", 0) or 0),
         "path": str(path),
         "checksum_sha256": sha256(path),
+        "license": str(candidate.get("license") or ""),
+        "provenance": candidate.get("provenance", {}),
         "probe": probe,
         "validated": True,
     }
