@@ -126,6 +126,38 @@ def existing_asset(media_dir: Path, number: int) -> Path | None:
     return matches[0] if len(matches) == 1 else None
 
 
+def _existing_asset_record(
+    media_dir: Path,
+    number: int,
+    scene: dict[str, Any],
+) -> dict[str, Any] | None:
+    path = existing_asset(media_dir, number)
+    sidecar = media_dir / f"scene_{number:02d}.json"
+    if path is None or not sidecar.is_file():
+        return None
+    try:
+        record = json.loads(sidecar.read_text(encoding="utf-8"))
+        if not isinstance(record, dict):
+            return None
+        expected = str(record.get("checksum_sha256") or "")
+        must_total = len(scene.get("must_have") or [])
+        if not expected or int(record.get("must_total", 0)) != must_total:
+            return None
+        if sha256(path) != expected:
+            return None
+        probe = ffprobe_asset(path)
+        record["path"] = str(path)
+        record["probe"] = probe
+        record["validated"] = True
+        return record
+    except (OSError, ValueError, TypeError, RuntimeError):
+        return None
+
+
+def _write_asset_sidecar(media_dir: Path, number: int, asset: dict[str, Any]) -> None:
+    atomic_json(media_dir / f"scene_{number:02d}.json", asset)
+
+
 def _candidate_record(candidate: dict[str, Any], path: Path, probe: dict[str, Any]) -> dict[str, Any]:
     return {
         "source": str(candidate.get("fonte") or candidate.get("source") or ""),
@@ -266,28 +298,13 @@ def run(short_id: str) -> Path:
 
     assets: list[dict[str, Any]] = []
     for number, scene in enumerate(scenes, 1):
-        existing = existing_asset(media_dir, number)
+        existing = _existing_asset_record(media_dir, number, scene)
         if existing is not None:
-            try:
-                probe = ffprobe_asset(existing)
-                assets.append({
-                    "source": str(scene.get("source") or ""),
-                    "asset_id": "",
-                    "url": "",
-                    "asset_type": "video" if existing.suffix.lower() in {".mp4",".mov",".webm",".mkv"} else "image",
-                    "description": "",
-                    "evidence_class": "EXISTING_VALIDATED_INPUT",
-                    "must_hits": 0,
-                    "must_total": len(scene.get("must_have") or []),
-                    "path": str(existing),
-                    "checksum_sha256": sha256(existing),
-                    "probe": probe,
-                    "validated": True,
-                })
-                continue
-            except RuntimeError:
-                pass
-        assets.append(acquire_scene(short_id, number, scene, media_dir))
+            assets.append(existing)
+            continue
+        asset = acquire_scene(short_id, number, scene, media_dir)
+        _write_asset_sidecar(media_dir, number, asset)
+        assets.append(asset)
 
     manifest = build_manifest(short_id, scenes, assets)
     atomic_json(manifest_path, manifest)
