@@ -11,6 +11,7 @@ on:
       - "main.py"
       - "production_recovery.py"
       - "tests_sim/**"
+      - "docs/MEDIA_ENGINE_V2_MIGRATION_AUDIT.md"
       - ".github/workflows/media-engine-v2-migration.yml"
   push:
     branches:
