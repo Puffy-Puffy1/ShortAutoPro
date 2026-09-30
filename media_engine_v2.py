@@ -143,6 +143,31 @@ def _candidate_record(candidate: dict[str, Any], path: Path, probe: dict[str, An
     }
 
 
+def _local_library_asset(query: str, must: list[str], avoid: list[str]) -> dict[str, Any] | None:
+    try:
+        from shortauto_asset_library import search_candidates
+        candidates = search_candidates(query, must, avoid, limit=3)
+    except Exception:
+        return None
+    for candidate in candidates:
+        path = Path(str(candidate.get("local_path") or "")).expanduser()
+        expected = str(candidate.get("sha256") or "")
+        if not path.is_file() or not expected:
+            continue
+        try:
+            if sha256(path) != expected:
+                continue
+            probe = ffprobe_asset(path)
+        except RuntimeError:
+            continue
+        record = dict(candidate)
+        record["fonte"] = "LocalLibrary"
+        record["_sap_must_total"] = len(must)
+        record["must_hits"] = len(must)
+        return _candidate_record(record, path, probe)
+    return None
+
+
 def acquire_scene(short_id: str, number: int, scene: dict[str, Any], media_dir: Path) -> dict[str, Any]:
     query = str(scene.get("query") or scene.get("busca") or scene.get("segment") or "").strip()
     must = [str(x).strip() for x in (scene.get("must_have") or []) if str(x).strip()]
@@ -152,34 +177,38 @@ def acquire_scene(short_id: str, number: int, scene: dict[str, Any], media_dir: 
     if not query:
         raise RuntimeError(f"MEDIA_INPUT_INVALID:scene_{number:02d}:query_empty")
 
-    # Sequential provider orchestration is intentional for the V2 contract:
-    # bounded provider fallback instead of an unbounded parallel fan-out.
+    # Provider acquisition is bounded and sequential. LocalLibrary is only a
+    # fallback after provider search/verification/download has failed.
     os.environ.setdefault("SAP_MEDIA_PARALLEL_PROVIDERS", "0")
     os.environ.setdefault("SAP_MEDIA_PROVIDER_WORKERS", "1")
 
     candidates = PROVIDER.search(
         query, must, avoid, segmento=segment, visual_mode=visual_mode
     )
+    total_must = len(must)
+    strict = PROVIDER.prepare(candidates, total_must) if candidates else []
+    if strict:
+        candidate = strict[0]
+        ok, destination = PROVIDER.download(candidate, number)
+        if ok and destination:
+            path = Path(destination)
+            probe = ffprobe_asset(path)
+            return _candidate_record(candidate, path, probe)
+
+    local = _local_library_asset(query, must, avoid)
+    if local is not None:
+        return local
+
     if not candidates:
         raise RuntimeError(
-            f"MEDIA_INCOMPLETE:scene_{number:02d}:no_provider_candidates"
+            f"MEDIA_INCOMPLETE:scene_{number:02d}:providers_empty_and_library_miss"
         )
-    total_must = len(must)
-    strict = PROVIDER.prepare(candidates, total_must)
     if not strict:
         raise RuntimeError(
             f"MEDIA_INCOMPLETE:scene_{number:02d}:no_verified_asset:"
             f"must={','.join(must) or '-'}"
         )
-
-    candidate = strict[0]
-    ok, destination = PROVIDER.download(candidate, number)
-    if not ok:
-        raise RuntimeError(f"MEDIA_DOWNLOAD_FAILED:scene_{number:02d}")
-    path = Path(destination)
-    probe = ffprobe_asset(path)
-    return _candidate_record(candidate, path, probe)
-
+    raise RuntimeError(f"MEDIA_DOWNLOAD_FAILED:scene_{number:02d}")
 
 def build_manifest(short_id: str, scenes: list[dict[str, Any]], assets: list[dict[str, Any]]) -> dict[str, Any]:
     return {
