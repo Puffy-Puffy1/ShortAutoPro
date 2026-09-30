@@ -21,10 +21,14 @@ def atomic(path:Path,data:dict):
             try: os.unlink(tmp)
             except OSError: pass
 
-def main():
+def main(short_id=None):
     import argparse
-    ap=argparse.ArgumentParser(); ap.add_argument("--short-id",required=True); args=ap.parse_args()
-    sid=args.short_id
+    if short_id is None:
+        ap=argparse.ArgumentParser()
+        ap.add_argument("--short-id",required=True)
+        args=ap.parse_args()
+        short_id=args.short_id
+    sid=short_id
     scene_path=BASE/"roteiros"/f"scene_map_{sid}.json"
     out=BASE/"roteiros"/f"pro_edit_plan_{sid}.json"
     data=json.loads(scene_path.read_text(encoding="utf-8"))
