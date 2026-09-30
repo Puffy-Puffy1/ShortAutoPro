@@ -25,13 +25,23 @@ BASE = Path(os.getenv("SHORTAUTOPRO_BASE", Path.home() / "ShortAutoPro")).resolv
 MEDIA_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".webm", ".mkv"}
 ENGINE_VERSION = "2.0.0"
 
-# Provider primitives remain centralized in the existing acquisition implementation.
-# The architectural boundary is this engine: callers receive only a frozen manifest.
-from midia import (  # noqa: E402
-    buscar_todos_candidatos,
-    preparar_candidatos,
-    baixar_candidato_5_2,
-)
+# Provider primitives are loaded lazily so deterministic unit/CI tests do
+# not import the legacy runtime graph. Production acquisition crosses this
+# boundary only when a scene actually needs a provider call.
+def _provider_primitives():
+    from midia import buscar_todos_candidatos as search
+    from midia import preparar_candidatos as prepare
+    from midia import baixar_candidato_5_2 as download
+    return search, prepare, download
+
+def buscar_todos_candidatos(*args, **kwargs):
+    return _provider_primitives()[0](*args, **kwargs)
+
+def preparar_candidatos(*args, **kwargs):
+    return _provider_primitives()[1](*args, **kwargs)
+
+def baixar_candidato_5_2(*args, **kwargs):
+    return _provider_primitives()[2](*args, **kwargs)
 
 
 def atomic_json(path: Path, payload: dict[str, Any]) -> None:
