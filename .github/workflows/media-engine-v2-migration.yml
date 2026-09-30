@@ -9,6 +9,7 @@ on:
       - "render_plan_v2.py"
       - "render_engine_v2.py"
       - "main.py"
+      - "production_recovery.py"
       - "tests_sim/**"
       - ".github/workflows/media-engine-v2-migration.yml"
   push:
@@ -53,3 +54,5 @@ jobs:
           echo "STAGE6_BYPASS_CONTRACT=PASS"
       - name: Real FFmpeg/FFprobe render E2E
         run: python -m unittest -v tests_sim.test_render_engine_v2_manifest_e2e
+      - name: Consecutive 1-2-5-10 isolation
+        run: python -m unittest -v tests_sim.test_render_engine_v2_stress
