@@ -78,8 +78,18 @@ def main() -> int:
         if token not in main_text:
             fail(f"main_contract:{token}")
 
-    if "RETENTION_REVIEW=CONTINUE" not in main_text:
-        fail("main_retention_review_contract")
+    # V2 owns media acquisition and render planning; the retired Stage 6
+    # controller must not remain on the production path.
+    if '"media_engine_v2.py"' not in main_text:
+        fail("main_media_engine_v2_contract")
+    if '"render_plan_v2.py"' not in main_text:
+        fail("main_render_plan_v2_contract")
+    if "media_stage_runtime.py" in main_text:
+        fail("legacy_stage6_controller_still_in_production_path")
+
+    render_engine_text = (ROOT / "render_engine_v2.py").read_text(encoding="utf-8")
+    if "media-manifest-v2" not in render_engine_text:
+        fail("render_v2_manifest_contract")
 
     if (
         "def allocate_id(*, reuse_existing: bool = False)" not in main_text
