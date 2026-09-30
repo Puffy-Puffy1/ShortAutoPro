@@ -21,7 +21,7 @@ def _legacy():
 
 
 class MediaProviderV2:
-    """Bounded adapter; no render, batch, or SHORT_ID responsibilities."""
+    """Bounded adapter; no render, batch, or production-ID responsibilities."""
 
     name = "legacy-provider-adapter"
 
