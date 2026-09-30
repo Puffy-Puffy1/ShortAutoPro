@@ -91,10 +91,12 @@ jobs:
           python -m unittest discover -s tests_sim -p "test_*.py" -v
           echo "PORTABLE_SIM_TESTS=PASS"
 
-      - name: Critical Stage 6 Regression Gate
+      - name: Legacy Compatibility and V2 Production Gate
         shell: bash
         run: |
           set -euo pipefail
+          # Legacy contracts remain regression-protected while the old Stage 6
+          # controller is removed from the production path.
           python -m unittest -v \
             tests_sim.test_stage6_completion_contract \
             tests_sim.test_stage6_anchor_timeout_id_fix \
@@ -123,7 +125,17 @@ jobs:
             tests_sim.test_visual_content_integrity \
             tests_sim.test_fresh_run_after_success \
             tests_sim.test_media_external_resilience
-          echo "PORTABLE_STAGE6_GATE=PASS"
+          python -m unittest -v \
+            tests_sim.test_media_engine_v2_contract \
+            tests_sim.test_media_engine_v2_failure_modes \
+            tests_sim.test_media_engine_v2_integration \
+            tests_sim.test_render_plan_v2 \
+            tests_sim.test_render_engine_v2_manifest_e2e \
+            tests_sim.test_render_engine_v2_stress
+          ! grep -q "media_stage_runtime.py" main.py
+          grep -q "media_engine_v2.py" main.py
+          grep -q "media-manifest-v2" render_engine_v2.py
+          echo "PORTABLE_V2_ARCHITECTURE_GATE=PASS"
 
       - name: JSON Integrity Audit
         shell: bash
