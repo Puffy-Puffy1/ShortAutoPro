@@ -1,5 +1,6 @@
 import unittest
 from unittest.mock import patch
+from pathlib import Path
 
 from media_provider_v2 import MediaProviderV2
 
@@ -20,7 +21,7 @@ class MediaProviderV2Tests(unittest.TestCase):
             self.assertEqual(provider.search("q", [], []), [])
 
     def test_provider_boundary_does_not_own_rendering(self):
-        source = open("media_provider_v2.py", encoding="utf-8").read()
+        source = Path("media_provider_v2.py").read_text(encoding="utf-8")
         self.assertNotIn("render_engine_v2", source)
         self.assertNotIn("ffmpeg", source.lower())
         self.assertNotIn("SHORT_ID", source)
