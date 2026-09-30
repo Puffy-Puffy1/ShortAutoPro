@@ -193,7 +193,7 @@ def search_candidates(
     """Return only previously accepted assets whose stored provenance can prove MUST.
 
     This is a retrieval fallback, not an acceptance bypass. The caller still
-    runs the normal Stage-6 semantic verifier and professional media gate.
+    runs the Media Engine V2 semantic verifier and manifest gate.
     Assets must still exist and their stored SHA-256 must match before use.
     """
     must = [str(x).strip() for x in (must_have or []) if str(x).strip()]
