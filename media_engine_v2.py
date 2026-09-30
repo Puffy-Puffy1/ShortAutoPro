@@ -15,7 +15,6 @@ import argparse
 import hashlib
 import json
 import os
-import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -25,23 +24,9 @@ BASE = Path(os.getenv("SHORTAUTOPRO_BASE", Path.home() / "ShortAutoPro")).resolv
 MEDIA_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".webm", ".mkv"}
 ENGINE_VERSION = "2.0.0"
 
-# Provider primitives are loaded lazily so deterministic unit/CI tests do
-# not import the legacy runtime graph. Production acquisition crosses this
-# boundary only when a scene actually needs a provider call.
-def _provider_primitives():
-    from midia import buscar_todos_candidatos as search
-    from midia import preparar_candidatos as prepare
-    from midia import baixar_candidato_5_2 as download
-    return search, prepare, download
+from media_provider_v2 import MediaProviderV2
 
-def buscar_todos_candidatos(*args, **kwargs):
-    return _provider_primitives()[0](*args, **kwargs)
-
-def preparar_candidatos(*args, **kwargs):
-    return _provider_primitives()[1](*args, **kwargs)
-
-def baixar_candidato_5_2(*args, **kwargs):
-    return _provider_primitives()[2](*args, **kwargs)
+PROVIDER = MediaProviderV2()
 
 
 def atomic_json(path: Path, payload: dict[str, Any]) -> None:
@@ -172,7 +157,7 @@ def acquire_scene(short_id: str, number: int, scene: dict[str, Any], media_dir: 
     os.environ.setdefault("SAP_MEDIA_PARALLEL_PROVIDERS", "0")
     os.environ.setdefault("SAP_MEDIA_PROVIDER_WORKERS", "1")
 
-    candidates = buscar_todos_candidatos(
+    candidates = PROVIDER.search(
         query, must, avoid, segmento=segment, visual_mode=visual_mode
     )
     if not candidates:
@@ -180,9 +165,7 @@ def acquire_scene(short_id: str, number: int, scene: dict[str, Any], media_dir: 
             f"MEDIA_INCOMPLETE:scene_{number:02d}:no_provider_candidates"
         )
     total_must = len(must)
-    strict = preparar_candidatos(
-        candidates, total_must, relaxado=False, descricao_anterior=""
-    )
+    strict = PROVIDER.prepare(candidates, total_must)
     if not strict:
         raise RuntimeError(
             f"MEDIA_INCOMPLETE:scene_{number:02d}:no_verified_asset:"
@@ -190,7 +173,7 @@ def acquire_scene(short_id: str, number: int, scene: dict[str, Any], media_dir: 
         )
 
     candidate = strict[0]
-    ok, destination = baixar_candidato_5_2(candidate, number, "MEDIA_ENGINE_V2")
+    ok, destination = PROVIDER.download(candidate, number)
     if not ok:
         raise RuntimeError(f"MEDIA_DOWNLOAD_FAILED:scene_{number:02d}")
     path = Path(destination)
