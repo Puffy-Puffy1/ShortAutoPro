@@ -19,4 +19,22 @@ class MediaEngineV2FailureTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "MEDIA_DOWNLOAD_FAILED"):
                     media_engine_v2.acquire_scene("X",1,{"query":"ship","must_have":["ship"]},media)
 
+    def test_local_library_is_only_fallback_after_provider_failure(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            media = base/"imagens"/"short_X"
+            media.mkdir(parents=True)
+            asset = media/"scene_01.jpg"
+            asset.write_bytes(b"valid-local-asset")
+            with patch.object(media_engine_v2.PROVIDER, "search", return_value=[]), \
+                 patch.object(media_engine_v2, "_local_library_asset", return_value={
+                     "source":"LocalLibrary","asset_id":"sha256:test",
+                     "path":str(asset),"checksum_sha256":"expected","validated":True
+                 }) as local:
+                result = media_engine_v2.acquire_scene(
+                    "X", 1, {"query":"ship","must_have":["ship"]}, media
+                )
+                local.assert_called_once()
+                self.assertEqual(result["source"], "LocalLibrary")
+
 if __name__=="__main__": unittest.main()
