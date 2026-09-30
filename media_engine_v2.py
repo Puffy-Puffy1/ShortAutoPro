@@ -271,15 +271,23 @@ def validate_manifest(path: Path, short_id: str, expected: int) -> None:
     if not path.is_file():
         raise RuntimeError("MEDIA_MANIFEST_MISSING")
     data = json.loads(path.read_text(encoding="utf-8"))
-    if data.get("schema_version") != "media-manifest-v2" or data.get("short_id") != short_id:
+    if (
+        data.get("schema_version") != "media-manifest-v2"
+        or data.get("short_id") != short_id
+        or data.get("immutable") is not True
+    ):
         raise RuntimeError("MEDIA_MANIFEST_INVALID")
     rows = data.get("scenes")
     if not isinstance(rows, list) or len(rows) != expected:
         raise RuntimeError(f"MEDIA_MANIFEST_INCOMPLETE:{len(rows) if isinstance(rows, list) else 0}/{expected}")
     for row in rows:
         asset = row.get("asset", {}) if isinstance(row, dict) else {}
+        must_total = len(row.get("must_have") or []) if isinstance(row, dict) else 0
+        must_hits = int(asset.get("must_hits", 0) or 0)
         if not asset.get("validated") or not asset.get("checksum_sha256"):
             raise RuntimeError("MEDIA_MANIFEST_UNVALIDATED")
+        if must_hits < must_total:
+            raise RuntimeError("MEDIA_MANIFEST_MUST_EVIDENCE_MISSING")
         path_value = Path(str(asset.get("path") or ""))
         if not path_value.is_file() or sha256(path_value) != asset.get("checksum_sha256"):
             raise RuntimeError("MEDIA_MANIFEST_ASSET_IDENTITY_MISMATCH")
