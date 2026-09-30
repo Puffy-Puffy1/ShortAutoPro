@@ -175,6 +175,10 @@ def acquire_scene(short_id: str, number: int, scene: dict[str, Any], media_dir: 
     candidates = buscar_todos_candidatos(
         query, must, avoid, segmento=segment, visual_mode=visual_mode
     )
+    if not candidates:
+        raise RuntimeError(
+            f"MEDIA_INCOMPLETE:scene_{number:02d}:no_provider_candidates"
+        )
     total_must = len(must)
     strict = preparar_candidatos(
         candidates, total_must, relaxado=False, descricao_anterior=""
