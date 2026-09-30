@@ -1,4 +1,4 @@
-import json, os, subprocess, sys, tempfile, unittest, shutil
+import json, os, subprocess, sys, tempfile, unittest, shutil, hashlib
 from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
@@ -22,8 +22,9 @@ class RenderManifestE2ETests(unittest.TestCase):
             assets=[]
             for i in (1,2):
                 path=media/f"scene_{i:02d}.png"
-                subprocess.run(["ffmpeg","-y","-loglevel","error","-f","lavfi","-i",f"testsrc2=size=1080x1920:rate=30:duration=1.0","-frames:v","1",str(path)],check=True,timeout=30)
-                import hashlib
+                subprocess.run(["ffmpeg","-y","-loglevel","error","-f","lavfi","-i",
+                                "testsrc2=size=1080x1920:rate=30:duration=1.0","-frames:v","1",str(path)],
+                               check=True,timeout=30)
                 assets.append({"source":"fixture","asset_id":str(i),"asset_type":"image","path":str(path),
                                "checksum_sha256":hashlib.sha256(path.read_bytes()).hexdigest(),
                                "probe":{"width":1080,"height":1920},"validated":True})
@@ -32,10 +33,16 @@ class RenderManifestE2ETests(unittest.TestCase):
                 "short_id":sid,"immutable":True,"scenes":[{"scene_id":str(i),"scene_number":i,
                 "query":"fixture","must_have":[],"avoid":[],"asset":assets[i-1]} for i in (1,2)]
             }),encoding="utf-8")
-            subprocess.run(["ffmpeg","-y","-loglevel","error","-f","lavfi","-i","sine=frequency=440:sample_rate=48000:duration=2.0",
-                            "-c:a","aac",str(base/"audios"/f"short_{sid}.mp3")],check=True,timeout=30)
+            subprocess.run(["ffmpeg","-y","-loglevel","error","-f","lavfi","-i",
+                            "sine=frequency=440:sample_rate=48000:duration=2.0",
+                            "-c:a","libmp3lame",str(base/"audios"/f"short_{sid}.mp3")],
+                           check=True,timeout=30)
             (base/"videos"/f"short_{sid}.ass").write_text(
-                "[Script Info]\n[Events]\nFormat: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text\n"
+                "[Script Info]\nScriptType: v4.00+\nPlayResX: 1080\nPlayResY: 1920\n"
+                "[V4+ Styles]\n"
+                "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, TertiaryColour, BackColour, Bold, Italic, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, AlphaLevel, Encoding\n"
+                "Style: Default,Arial,48,&H00FFFFFF,&H000000FF,&H00000000,&H64000000,0,0,1,2,0,2,30,30,60,0,1\n"
+                "[Events]\nFormat: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text\n"
                 "Dialogue: 0,0:00:00.00,0:00:02.00,Default,,0,0,0,,V2 fixture\n",encoding="utf-8")
             env=os.environ.copy(); env.update({"SHORTAUTOPRO_BASE":str(base),"SAP_RENDER_V2_BACKEND":"ffmpeg","HOME":str(home)})
             p=subprocess.run([sys.executable,str(ROOT/"render_engine_v2.py"),"--short-id",sid],
