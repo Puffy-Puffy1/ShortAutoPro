@@ -35,7 +35,7 @@ class MediaEngineContractTests(unittest.TestCase):
         self.assertNotIn("ffmpeg_visual_renderer", source)
 
     def test_provider_failure_contract(self):
-        with patch.object(media_engine_v2, "buscar_todos_candidatos", side_effect=RuntimeError("provider timeout")):
+        with patch.object(media_engine_v2.PROVIDER, "search", side_effect=RuntimeError("provider timeout")):
             with self.assertRaises(RuntimeError) as ctx:
                 media_engine_v2.acquire_scene("X", 1, {"query":"ship","must_have":["ship"]}, Path(tempfile.mkdtemp()))
             self.assertIn("provider timeout", str(ctx.exception))
