@@ -36,7 +36,7 @@ class RetentionReviewContractTests(unittest.TestCase):
             rc = retention_engine.main()
         self.assertEqual(rc, 1)
 
-    def test_canonical_pipeline_accepts_review_code_and_continues(self):
+    def test_canonical_pipeline_uses_v2_and_does_not_invoke_legacy_stage6(self):
         calls = []
 
         class FakePipeline:
@@ -44,16 +44,14 @@ class RetentionReviewContractTests(unittest.TestCase):
 
             def run(self, title, script, *args, **kwargs):
                 calls.append((title, script, args, kwargs))
-                if script == "retention_engine.py":
-                    return 20
                 return 0
 
         main.stages_before_render(FakePipeline())
-        retention = [x for x in calls if x[1] == "retention_engine.py"]
-        self.assertEqual(len(retention), 1)
-        self.assertEqual(retention[0][3].get("allow_codes"), {0, 20})
-        self.assertIn("--repair", retention[0][2])
-        self.assertIn("--enforce", retention[0][2])
+        scripts = [x[1] for x in calls]
+        self.assertIn("media_engine_v2.py", scripts)
+        self.assertIn("render_plan_v2.py", scripts)
+        self.assertNotIn("media_stage_runtime.py", scripts)
+        self.assertNotIn("retention_engine.py", scripts)
 
     def test_pre_render_recovery_repairs_retention_without_enforce(self):
         source = open(production_recovery.__file__, encoding="utf-8").read()
