@@ -103,16 +103,28 @@ def main() -> int:
         fail("recovery_retention_review_is_fatal")
 
     resume_text = (ROOT / "resume_short_runtime.py").read_text(encoding="utf-8")
-    if 'status in {"PASS", "REVIEW"}' not in resume_text:
-        fail("resume_retention_review_contract")
+    for token in ("media_engine_v2.py", "render_plan_v2.py", "render_engine_v2.py"):
+        if token not in resume_text:
+            fail("resume_v2_contract:" + token)
+    for legacy in (
+        "media_stage_runtime.py",
+        "professional_edit_director.py",
+        "professional_edit_repair.py",
+        "retention_engine.py",
+        "video_professional.py",
+        "v6_professional.py",
+        "editorial_gate.py",
+    ):
+        if legacy in resume_text:
+            fail("resume_legacy_route:" + legacy)
 
     media_stage_text = (ROOT / "media_stage_runtime.py").read_text(encoding="utf-8")
     if 'SAP_MEDIA_SCENE_BUDGET_SECONDS", 18.0' not in media_stage_text:
         fail("stage6_outer_budget_not_aligned")
     if "MEDIA_STAGE_RUNTIME=FINAL_EDITORIAL_PASS" not in media_stage_text:
         fail("stage6_final_editorial_contract_missing")
-    if '"post_scene_plan"' not in resume_text or "RESUME_FROM_STAGE6=YES" not in resume_text:
-        fail("resume_stage6_checkpoint_contract")
+    if '"post_scene_plan"' not in resume_text or "RESUME_FROM_V2_MEDIA=YES" not in resume_text:
+        fail("resume_v2_checkpoint_contract")
 
     if (
         "def media_integrity_ok(" not in resume_text
