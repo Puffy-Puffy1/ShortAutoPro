@@ -1,5 +1,6 @@
 name: ShortAutoPro Portable Validation
 # V2 migration checkpoint: portable validation is authoritative before merge.
+# Resume/checkpoint contracts are validated against the frozen V2 manifest.
 
 on:
   workflow_dispatch:
