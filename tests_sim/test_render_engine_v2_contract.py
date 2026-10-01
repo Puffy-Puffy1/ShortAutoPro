@@ -43,7 +43,7 @@ class RenderEngineV2ContractTests(unittest.TestCase):
             asset = media / "scene_01_placeholder.jpg"
             import hashlib
             (base / "manifests" / f"media_{sid}.json").write_text(json.dumps({
-                "schema_version":"media-manifest-v2","short_id":sid,"immutable":True,
+                "schema_version":"media-manifest-v2","short_id":sid,"immutable":True,"scene_count":1,
                 "scenes":[{"scene_id":"1","scene_number":1,"query":"a","must_have":[],"avoid":[],
                            "asset":{"path":str(asset),"validated":True,
                                     "checksum_sha256":hashlib.sha256(asset.read_bytes()).hexdigest()}}]
