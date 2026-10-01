@@ -442,48 +442,49 @@ def final_gates(sid: str) -> int:
 
 
 def media_planning_tail(sid: str) -> None:
-    stages = [
-        ("SMART MEDIA SELECTOR", "media_stage_runtime.py", ()),
-        ("MEDIA MASTER GATE", "media_master_gate.py", ()),
-        ("ASSET LIBRARY + FIRST FRAME", "shortauto_asset_library.py", ("index", "--short-id", sid)),
-        ("INTELLIGENCE MEDIA", "shortauto_intelligence_layer.py", ("media", "--short-id", sid)),
-        ("MULTIDIMENSIONAL VISUAL SCORE", "visual_score_engine.py", ()),
-        ("CINEMATIC MOTION DIRECTOR", "motion_director.py", ()),
-        ("MONTAGE RHYTHM DIRECTOR", "rhythm_director.py", ()),
-        ("PROFESSIONAL EDIT DIRECTOR", "professional_edit_director.py", ()),
-        ("PROFESSIONAL EDIT AUTO-REPAIR", "professional_edit_repair.py", ()),
-        ("MULTI-ASSET DIRECTOR", "multi_asset_director.py", ()),
-    ]
-    for title, script, args in stages:
-        run_python(sid, title, script, *args)
-
-    retention = run_python(
+    """Recover only through the V2 media + deterministic planning boundary."""
+    run_python(
         sid,
-        "RETENTION ENGINE + SAFE REPAIR",
-        "retention_engine.py",
-        "--repair",
-        "--enforce",
-        allow={0, 20},
+        "MEDIA ENGINE V2 - ACQUIRE + VALIDATE + FREEZE MANIFEST",
+        "media_engine_v2.py",
+        "--short-id",
+        sid,
     )
-    if retention == 20:
-        print(
-            "RETENTION_REVIEW=CONTINUE "
-            "reason=NON_CRITICAL_REVIEW next=RESUME_TAIL"
-        )
-
-    run_python(sid, "SOUND DESIGN ENGINE", "sound_design_engine.py")
-    run_python(sid, "PRODUCTION SUPERVISOR", "production_supervisor.py")
-    run_python(sid, "EVOLUTION VISUAL AUDIT", "shortautopro_evolution.py", "visual-audit")
-
+    run_python(
+        sid,
+        "RENDER PLAN V2 - DETERMINISTIC TIMELINE INPUT",
+        "render_plan_v2.py",
+        "--short-id",
+        sid,
+    )
 
 def render_tail(sid: str) -> None:
-    run_python(sid, "PROFESSIONAL MULTI-BEAT ASSEMBLER", "video_professional.py")
-    run_python(sid, "FINAL RENDER V6 PROFESSIONAL", "v6_professional.py")
+    """Render frozen V2 inputs; never invoke the retired Stage 6 route."""
+    run_python(
+        sid,
+        "PRE-RENDER VALIDATION + BOUNDED AUTO-RECOVERY",
+        "production_recovery.py",
+        "--short-id",
+        sid,
+    )
+    run_python(
+        sid,
+        "RENDER PREFLIGHT CERTIFICATION",
+        "render_preflight.py",
+        "--short-id",
+        sid,
+    )
+    run_python(
+        sid,
+        "RENDER ENGINE V2",
+        "render_engine_v2.py",
+        "--short-id",
+        sid,
+    )
     if not render_ok(sid):
-        raise RuntimeError("renderer terminou sem artefato técnico válido")
+        raise RuntimeError("Render Engine V2 terminou sem artefato técnico válido")
     run_python(sid, "FINAL AUDIO MASTER", "audio_finalizer.py")
     run_python(sid, "VISUAL QA", "visual_qa.py")
-
 
 def _resume_locked(sid: str, point: str) -> int:
     """Only the process owning the production lock may modify its state."""
@@ -503,7 +504,6 @@ def _resume_locked(sid: str, point: str) -> int:
             media_planning_tail(sid)
 
         if rank <= 1:
-            run_python(sid, "FINAL EDITORIAL GATE", "editorial_gate.py")
             run_python(sid, "SPEECH DIRECTOR", "speech_director.py")
             run_python(sid, "GERANDO VOZ PIPER", "audio.py")
         if rank <= 2:
@@ -525,10 +525,7 @@ def _resume_locked(sid: str, point: str) -> int:
 
         code = final_gates(sid)
         if code == 20:
-            run_python(sid, "REPAIR EDIT", "professional_edit_repair.py")
-            run_python(sid, "REPAIR MULTI-ASSET", "multi_asset_director.py")
-            run_python(sid, "REPAIR RETENTION", "retention_engine.py", "--repair")
-            run_python(sid, "REPAIR SOUND", "sound_design_engine.py")
+            media_planning_tail(sid)
             render_tail(sid)
             code = final_gates(sid)
         if code == 20 or not final_ok(sid):
