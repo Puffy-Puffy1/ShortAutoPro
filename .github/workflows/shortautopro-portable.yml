@@ -23,7 +23,7 @@ permissions:
 
 concurrency:
   group: shortautopro-portable-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   portable-validation:
