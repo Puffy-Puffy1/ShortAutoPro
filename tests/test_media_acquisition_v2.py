@@ -4,7 +4,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 from media_provider_router_v2 import MediaProviderRouterV2
-from media_provider_router_v2 import MediaProvider
 from media_validator_v2 import validate
 import media_engine_v2
 import render_engine_v2
@@ -180,7 +179,7 @@ class AcquisitionV2Tests(unittest.TestCase):
                 manifest = media_engine_v2.build_manifest(sid)
             self.assertEqual(manifest["short_id"], sid)
             self.assertEqual(manifest["scene_count"], 1)
-            self.assertTrue((base / "roteiros" / f"media_manifest_v2_{sid}.json").is_file())
+            self.assertTrue((base / "manifests" / f"media_{sid}.json").is_file())
 
     def test_manifest_matches_render_engine_v2_contract(self):
         with tempfile.TemporaryDirectory() as td:
