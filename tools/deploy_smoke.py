@@ -80,6 +80,7 @@ def main() -> int:
 
     # V2 owns media acquisition and render planning; the retired Stage 6
     # controller must not remain on the production path.
+    # This check is authoritative on the exact PR HEAD, not a legacy merge artifact.
     if '"media_engine_v2.py"' not in main_text:
         fail("main_media_engine_v2_contract")
     if '"render_plan_v2.py"' not in main_text:
