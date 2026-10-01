@@ -63,6 +63,11 @@ class AcquisitionV2Tests(unittest.TestCase):
                 return True, "/tmp/verified-b.mp4"
 
         fake = FakeEngineProvider()
+        fake.download = lambda candidate, scene_number, short_id: (
+            (False, "", {"error_class": "DOWNLOAD_FAILED"})
+            if candidate["id"] == "a"
+            else (True, "/tmp/verified-b.mp4", {"validated": True})
+        )
         with patch.object(media_engine_v2, "PROVIDER", fake), \
              patch.object(media_engine_v2, "validate_asset", return_value={"probe": {}, "sha256": "b"}), \
              patch.object(media_engine_v2, "_candidate_record", return_value={"asset_id": "b"}):
