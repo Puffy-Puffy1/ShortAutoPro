@@ -41,6 +41,7 @@ DEFAULT_SEEDS = {
     "tools/map_active_graph.py",
     "tools/repo_audit.py",
     "tools/deploy_smoke.py",
+    "tests/test_media_acquisition_v2.py",
 }
 
 FILE_REF_RE = re.compile(r"(?<![A-Za-z0-9_./-])([A-Za-z0-9_.-]+\.(?:py|sh))(?![A-Za-z0-9_.-])")
