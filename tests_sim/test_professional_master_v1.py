@@ -146,14 +146,30 @@ class CanonicalResumeTests(unittest.TestCase):
 
     def test_resume_contains_only_v2_render_route(self):
         text = (ROOT / "resume_short_runtime.py").read_text(encoding="utf-8")
-        self.assertIn("render_engine_v2.py", text)
-        self.assertIn("media_engine_v2.py", text)
-        self.assertIn("render_plan_v2.py", text)
-        self.assertNotIn("media_stage_runtime.py", text)
-        self.assertNotIn("STANDARD_ROLLBACK", text)
-        self.assertNotIn("SAP_PRO_EDIT", text)
-        self.assertNotIn('"video.py"', text)
-        self.assertNotIn('"v6_runtime.py"', text)
+        for required in (
+            "media_engine_v2.py",
+            "render_plan_v2.py",
+            "render_engine_v2.py",
+            "production_recovery.py",
+            "render_preflight.py",
+        ):
+            self.assertIn(required, text)
+        for legacy in (
+            "media_stage_runtime.py",
+            "professional_edit_director.py",
+            "professional_edit_repair.py",
+            "retention_engine.py",
+            "sound_design_engine.py",
+            "video_professional.py",
+            "v6_professional.py",
+            "editorial_gate.py",
+            "STANDARD_ROLLBACK",
+            "SAP_PRO_EDIT",
+            '"video.py"',
+            '"v6_runtime.py"',
+        ):
+            self.assertNotIn(legacy, text)
+
 
 
 if __name__ == "__main__":
