@@ -15,7 +15,7 @@ on:
       - ".github/workflows/media-engine-v2-migration.yml"
   push:
     branches:
-      - "feature/retire-stage6-media-engine-v2"
+      - "feature/retire-stage6-media-engine-v2"\n      - "audit/media-acquisition-v2"
     paths:
       - "media_engine_v2.py"
       - "render_plan_v2.py"
@@ -43,7 +43,7 @@ jobs:
       - name: Media Engine V2 unit and failure tests
         run: |
           python -m unittest -v             tests_sim.test_media_engine_v2_contract             tests_sim.test_media_engine_v2_failure_modes             tests_sim.test_media_provider_v2             tests_sim.test_media_engine_v2_integration             tests_sim.test_render_plan_v2
-      - name: Architecture boundary audit
+      - name: Independent Media Acquisition V2 tests\n        run: python -m unittest -v tests.test_media_acquisition_v2\n      - name: Architecture boundary audit
         run: |
           set -euo pipefail
           ! grep -q "media_stage_runtime.py" main.py
