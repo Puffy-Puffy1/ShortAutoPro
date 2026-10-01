@@ -39,8 +39,9 @@ class MediaTwoPassRecoveryTests(unittest.TestCase):
 
     def test_main_uses_media_runtime_not_raw_midia(self):
         text = Path("main.py").read_text(encoding="utf-8")
-        self.assertIn('"media_stage_runtime.py"', text)
-        self.assertNotIn('p.run("6 - SMART MEDIA SELECTOR", "midia.py")', text)
+        self.assertIn('"media_engine_v2.py"', text)
+        self.assertIn('"render_plan_v2.py"', text)
+        self.assertNotIn('p.run("6 - SMART MEDIA SELECTOR", "media_stage_runtime.py")', text)
 
     def test_semantic_resume_uses_same_runtime(self):
         text = Path("resume_after_semantic_fix.py").read_text(encoding="utf-8")
