@@ -44,7 +44,7 @@ jobs:
         run: |
           python -m pip install --disable-pip-version-check --quiet requests
       - name: Python compile
-        run: python -m compileall -q media_engine_v2.py render_plan_v2.py render_engine_v2.py tests_sim
+        run: python -m compileall -q media_engine_v2.py media_provider_v2.py media_provider_router_v2.py media_validator_v2.py render_plan_v2.py render_engine_v2.py tests tests_sim
       - name: Media Engine V2 unit and failure tests
         run: |
           python -m unittest -v             tests_sim.test_media_engine_v2_contract             tests_sim.test_media_engine_v2_failure_modes             tests_sim.test_media_provider_v2             tests_sim.test_media_engine_v2_integration             tests_sim.test_render_plan_v2
