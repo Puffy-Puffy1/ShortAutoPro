@@ -126,13 +126,9 @@ jobs:
             tests_sim.test_visual_content_integrity \
             tests_sim.test_fresh_run_after_success \
             tests_sim.test_media_external_resilience
-          python -m unittest -v \
-            tests_sim.test_media_engine_v2_contract \
-            tests_sim.test_media_engine_v2_failure_modes \
-            tests_sim.test_media_engine_v2_integration \
-            tests_sim.test_render_plan_v2 \
-            tests_sim.test_render_engine_v2_manifest_e2e \
-            tests_sim.test_render_engine_v2_stress
+          # V2 unit/E2E/stress qualification runs in dedicated authoritative
+          # workflows above; Portable keeps the architecture boundary here so
+          # this job does not duplicate long FFmpeg workloads.
           ! grep -q "media_stage_runtime.py" main.py
           grep -q "media_engine_v2.py" main.py
           grep -q "media-manifest-v2" render_engine_v2.py
