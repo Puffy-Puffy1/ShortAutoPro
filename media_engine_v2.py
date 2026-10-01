@@ -92,7 +92,7 @@ def ffprobe_asset(path: Path) -> dict[str, Any]:
         raise RuntimeError(f"MEDIA_INVALID:invalid_dimensions:{path.name}")
     fmt = data.get("format", {}) if isinstance(data, dict) else {}
     duration = float(fmt.get("duration") or 0.0)
-    if duration < 0:
+    if path.suffix.lower() in {".mp4", ".mov", ".webm", ".mkv"} and duration <= 0:
         raise RuntimeError(f"MEDIA_INVALID:invalid_duration:{path.name}")
     return {
         "codec": str(video.get("codec_name") or ""),
@@ -137,6 +137,9 @@ def _existing_asset_record(
     if path is None or not sidecar.is_file():
         return None
     try:
+        media_root = media_dir.resolve()
+        resolved = path.resolve()
+        resolved.relative_to(media_root)
         record = json.loads(sidecar.read_text(encoding="utf-8"))
         if not isinstance(record, dict):
             return None
