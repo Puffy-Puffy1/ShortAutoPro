@@ -61,6 +61,7 @@ class AcquisitionV2Tests(unittest.TestCase):
                 if candidate["id"] == "a":
                     return False, "", {"error_class": "DOWNLOAD_FAILED"}
                 return True, "/tmp/verified-b.mp4", {"validated": True}
+        fake = FakeEngineProvider()
         with patch.object(media_engine_v2, "PROVIDER", fake), \
              patch.object(media_engine_v2, "validate_asset", return_value={"probe": {}, "sha256": "b"}), \
              patch.object(media_engine_v2, "_candidate_record", return_value={"asset_id": "b"}):
@@ -311,10 +312,11 @@ class AcquisitionV2Tests(unittest.TestCase):
             (base / "roteiros").mkdir()
             (base / "audios").mkdir()
             (base / "manifests").mkdir()
-            (base / "imagens" / "short_" + sid).mkdir(parents=True)
+            (base / "imagens" / ("short_" + sid)).mkdir(parents=True)
             (base / "roteiros" / ("scene_map_" + sid + ".json")).write_text('{"scenes":[{"scene":1,"segment":"test","words":1}]}', encoding="utf-8")
             (base / "roteiros" / ("pro_edit_plan_" + sid + ".json")).write_text('{"scenes":[{"scene":1,"pace_multiplier":1.0}]}', encoding="utf-8")
             (base / "audios" / ("short_" + sid + ".mp3")).write_bytes(b"x")
+            (base / "videos" / ("short_" + sid + ".ass")).write_text("", encoding="utf-8")
             asset = base / "imagens" / ("short_" + sid) / "scene_01.jpg"
             media_manifest = {"schema_version":"media-manifest-v2","short_id":sid,"immutable":True,"scene_count":1,
                               "scenes":[{"scene_id":"1","scene_number":1,"asset":{"validated":True,"path":str(asset)}}]}
