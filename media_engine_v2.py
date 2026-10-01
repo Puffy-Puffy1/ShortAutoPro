@@ -300,7 +300,7 @@ def main(short_id: str | None = None) -> int:
     manifest = build_manifest(short_id)
     print(
         f"MEDIA_ENGINE_V2=PASS short_id={short_id} "
-        f"scenes={manifest['scene_count']} assets={len(manifest['assets'])}"
+        f"scenes={manifest['scene_count']} assets={len(manifest['scenes'])}"
     )
     return 0
 
