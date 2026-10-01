@@ -223,7 +223,7 @@ def acquire_scene(short_id: str, number: int, scene: dict[str, Any], media_dir: 
     # while another verified provider candidate remains available.
     for candidate in strict:
         try:
-            ok, destination = PROVIDER.download(candidate, number, short_id)
+            ok, destination, download_meta = PROVIDER.download(candidate, number, short_id)
             if not ok or not destination:
                 failures.append(f"{candidate.get('fonte','?')}:DOWNLOAD_FAILED")
                 continue
