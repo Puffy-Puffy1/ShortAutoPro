@@ -39,7 +39,7 @@ class RuntimeConsistencyTests(unittest.TestCase):
         text = (ROOT / "main.py").read_text(encoding="utf-8")
         self.assertIn("def _stage_timeout_seconds", text)
         self.assertIn("SAP_STAGE_TIMEOUT_AI_SECONDS", text)
-        self.assertIn("SAP_STAGE_TIMEOUT_MEDIA_SECONDS", text)
+        self.assertIn("SAP_STAGE_TIMEOUT_MEDIA_ENGINE_V2_SECONDS", text)
         self.assertIn("SAP_STAGE_TIMEOUT_RENDER_SECONDS", text)
         self.assertIn("SAP_STAGE_TIMEOUT_DEFAULT_SECONDS", text)
         self.assertNotIn(
