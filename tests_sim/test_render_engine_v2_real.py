@@ -28,7 +28,7 @@ class RenderEngineV2RealTests(unittest.TestCase):
             for i in range(1,7):
                 out=media/f"scene_{i:02d}.png"
                 assets.append({"path":str(out),"checksum_sha256":hashlib.sha256(out.read_bytes()).hexdigest(),"validated":True,"must_hits":0,"must_total":0})
-            manifest={"schema_version":"media-manifest-v2","short_id":sid,"immutable":True,"scenes":[{"scene_id":str(i),"scene_number":i,"query":"","must_have":[],"avoid":[],"asset":asset} for i,asset in enumerate(assets,1)]}
+            manifest={"schema_version":"media-manifest-v2","short_id":sid,"immutable":True,"scene_count":len(assets),"scenes":[{"scene_id":str(i),"scene_number":i,"query":"","must_have":[],"avoid":[],"asset":asset} for i,asset in enumerate(assets,1)]}
             (base/"manifests"/f"media_{sid}.json").write_text(json.dumps(manifest),encoding="utf-8")
             audio=base/"audios"/f"short_{sid}.mp3"
             subprocess.run(["ffmpeg","-y","-loglevel","error","-f","lavfi","-i","sine=frequency=440:sample_rate=48000:duration=3","-c:a","libmp3lame",str(audio)],check=True,timeout=30)
