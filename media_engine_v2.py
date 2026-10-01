@@ -253,3 +253,49 @@ def acquire_scene(short_id: str, number: int, scene: dict[str, Any], media_dir: 
         + (";".join(failures) if failures else "no_candidate_attempted")
     )
 
+
+
+
+def build_manifest(short_id: str) -> dict[str, Any]:
+    if not short_id or not __import__("re").fullmatch(r"[A-Za-z0-9._-]+", short_id) or ".." in short_id:
+        raise RuntimeError("MEDIA_INPUT_INVALID:short_id")
+    scenes = load_scene_map(short_id)
+    media_dir = BASE / "imagens" / f"short_{short_id}"
+    media_dir.mkdir(parents=True, exist_ok=True)
+    records = []
+    for number, scene in enumerate(scenes, 1):
+        existing = _existing_asset_record(media_dir, number, scene)
+        if existing is not None:
+            records.append(existing)
+            continue
+        record = acquire_scene(short_id, number, scene, media_dir)
+        _write_asset_sidecar(media_dir, number, record)
+        records.append(record)
+    manifest = {
+        "schema_version": "media-manifest-v2",
+        "engine_version": ENGINE_VERSION,
+        "short_id": short_id,
+        "immutable": True,
+        "scene_count": len(records),
+        "assets": records,
+    }
+    atomic_json(BASE / "roteiros" / f"media_manifest_v2_{short_id}.json", manifest)
+    return manifest
+
+
+def main(short_id: str | None = None) -> int:
+    if short_id is None:
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--short-id", required=True)
+        args = parser.parse_args()
+        short_id = args.short_id
+    manifest = build_manifest(short_id)
+    print(
+        f"MEDIA_ENGINE_V2=PASS short_id={short_id} "
+        f"scenes={manifest['scene_count']} assets={len(manifest['assets'])}"
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
