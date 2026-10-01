@@ -40,10 +40,9 @@ class ProductionIncrementalMediaTests(unittest.TestCase):
         resume = (ROOT / "resume_after_semantic_fix.py").read_text(encoding="utf-8")
         main = (ROOT / "main.py").read_text(encoding="utf-8")
         runtime = (ROOT / "media_stage_runtime.py").read_text(encoding="utf-8")
-        self.assertIn('("6 - SMART MEDIA SELECTOR", "media_stage_runtime.py", (), 0)', resume)
-        self.assertIn('p.run("6 - SMART MEDIA SELECTOR", "media_stage_runtime.py")', main)
-        self.assertIn('env["SAP_MEDIA_INCREMENTAL"] = "1"', runtime)
-        self.assertIn("MEDIA_STAGE_RUNTIME=RETRY_MISSING_ONLY", runtime)
+        self.assertIn('"media_engine_v2.py"', main)
+        self.assertIn('"render_plan_v2.py"', main)
+        self.assertNotIn('p.run("6 - SMART MEDIA SELECTOR", "media_stage_runtime.py")', main)
         self.assertNotIn('p.run("6 - SMART MEDIA SELECTOR", "midia.py", retries=1)', main)
 
     def test_strict_must_policy_remains_fail_closed(self):

@@ -60,7 +60,7 @@ class MotionRhythmHardeningTests(unittest.TestCase):
         return scenes
 
     def test_motion_rejects_missing_media(self):
-        scenes = self.prepare_valid_input()
+        self.prepare_valid_input()
         (self.base / "imagens" / "short_case" / "scene_06.jpg").unlink()
         result = self.run_script(MOTION)
         self.assertNotEqual(result.returncode, 0)
@@ -74,7 +74,7 @@ class MotionRhythmHardeningTests(unittest.TestCase):
         self.assertEqual(rhythm.returncode, 0, rhythm.stdout + rhythm.stderr)
 
     def test_rhythm_accepts_human_context_video_without_artificial_pan(self):
-        scenes = self.prepare_valid_input()
+        self.prepare_valid_input()
         motion = self.run_script(MOTION)
         self.assertEqual(motion.returncode, 0, motion.stdout + motion.stderr)
         path = self.base / "roteiros" / "motion_plan_case.json"
@@ -112,13 +112,18 @@ class MotionRhythmHardeningTests(unittest.TestCase):
         self.assertIn("largura * altura < 320 * 180", source)
         self.assertIn("def _sap_professional_media_accept_v1", source)
         pipeline = (REPO / "main.py").read_text(encoding="utf-8")
-        self.assertIn('p.run("6 - SMART MEDIA SELECTOR", "media_stage_runtime.py"', pipeline)
+        self.assertIn(
+            'p.run("MEDIA ENGINE V2 - ACQUIRE + VALIDATE + FREEZE MANIFEST", "media_engine_v2.py"',
+            pipeline,
+        )
+        self.assertIn(
+            'p.run("RENDER PLAN V2 - DETERMINISTIC TIMELINE INPUT", "render_plan_v2.py"',
+            pipeline,
+        )
+        self.assertNotIn("media_stage_runtime.py", pipeline)
         self.assertNotIn("midia_runtime.py", pipeline)
         self.assertFalse((REPO / "gerar_short.sh").exists())
-        runtime = (REPO / "media_stage_runtime.py").read_text(encoding="utf-8")
-        self.assertIn('MIDIA = BASE / "midia.py"', runtime)
         compile(source, str(MIDIA), "exec")
-        compile(runtime, "media_stage_runtime.py", "exec")
 
 
 if __name__ == "__main__":

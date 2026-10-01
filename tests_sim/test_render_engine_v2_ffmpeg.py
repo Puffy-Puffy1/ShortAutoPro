@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import hashlib
 import json
 import os
 import subprocess
@@ -20,6 +21,7 @@ class RenderEngineV2FfmpegBackendTests(unittest.TestCase):
             (base / "roteiros").mkdir(parents=True)
             (base / "audios").mkdir(parents=True)
             (base / "videos").mkdir(parents=True)
+            (base / "manifests").mkdir(parents=True)
 
             for i in range(1, 4):
                 subprocess.run(
@@ -32,6 +34,10 @@ class RenderEngineV2FfmpegBackendTests(unittest.TestCase):
                     ],
                     check=True, timeout=30,
                 )
+
+            assets = [{"path":str(media / f"scene_{i:02d}.png"),"checksum_sha256":hashlib.sha256((media / f"scene_{i:02d}.png").read_bytes()).hexdigest(),"validated":True,"must_hits":0,"must_total":0} for i in range(1,4)]
+            manifest={"schema_version":"media-manifest-v2","short_id":sid,"immutable":True,"scenes":[{"scene_id":str(i),"scene_number":i,"query":"","must_have":[],"avoid":[],"asset":asset} for i,asset in enumerate(assets,1)]}
+            (base / "manifests" / f"media_{sid}.json").write_text(json.dumps(manifest),encoding="utf-8")
 
             audio = base / "audios" / f"short_{sid}.mp3"
             subprocess.run(

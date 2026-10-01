@@ -62,12 +62,12 @@ class ProfessionalEditDirectorTests(unittest.TestCase):
 
     def tearDown(self):
         ped.BASE = self.old["base"]
+        ped.EXPECTED = self.old["expected"]
+        ped.PROFILE = self.old["profile"]
         ped.SCENE_MAP = self.old["scene_map"]
         ped.RHYTHM_PLAN = self.old["rhythm"]
         ped.MOTION_PLAN = self.old["motion"]
         ped.OUTPUT = self.old["output"]
-        ped.PROFILE = self.old["profile"]
-        ped.EXPECTED = self.old["expected"]
         self.temp.cleanup()
 
     def test_true_crime_plan_is_restrained_and_varied(self):
@@ -90,21 +90,21 @@ class CanonicalProfessionalPipelineTests(unittest.TestCase):
         source = (ROOT / "main.py").read_text(encoding="utf-8")
         self.assertIn("PROFESSIONAL_CANONICAL", source)
         for required in (
-            "professional_edit_director.py",
-            "professional_edit_repair.py",
+            "media_engine_v2.py",
+            "render_plan_v2.py",
+            "render_engine_v2.py",
             "multi_asset_director.py",
-            "retention_engine.py",
             "sound_design_engine.py",
             "speech_director.py",
             "professional_caption_director.py",
             "caption_layout_guard.py",
-            "video_professional.py",
-            "v6_professional.py",
             "audio_finalizer.py",
             "visual_qa.py",
+            "professional_quality_gate.py",
             "release_gate.py",
         ):
             self.assertIn(required, source)
+        self.assertNotIn("media_stage_runtime.py", source)
         self.assertNotIn("STANDARD_ROLLBACK", source)
         self.assertNotIn("SAP_PRO_EDIT", source)
         self.assertNotIn('"video.py"', source)
@@ -144,16 +144,32 @@ class CanonicalResumeTests(unittest.TestCase):
         with patch.object(rsr, "final_ok", return_value=False), patch.object(rsr, "consolidation_plan_ok", return_value=False):
             self.assertEqual(rsr.boundary("x"), "full")
 
-    def test_resume_contains_only_professional_render_route(self):
+    def test_resume_contains_only_v2_render_route(self):
         text = (ROOT / "resume_short_runtime.py").read_text(encoding="utf-8")
-        self.assertIn("video_professional.py", text)
-        self.assertIn("v6_professional.py", text)
-        self.assertIn("release_gate.py", text)
-        self.assertIn("PROFESSIONAL_CANONICAL", text)
-        self.assertNotIn("STANDARD_ROLLBACK", text)
-        self.assertNotIn("SAP_PRO_EDIT", text)
-        self.assertNotIn('"video.py"', text)
-        self.assertNotIn('"v6_runtime.py"', text)
+        for required in (
+            "media_engine_v2.py",
+            "render_plan_v2.py",
+            "render_engine_v2.py",
+            "production_recovery.py",
+            "render_preflight.py",
+        ):
+            self.assertIn(required, text)
+        for legacy in (
+            "media_stage_runtime.py",
+            "professional_edit_director.py",
+            "professional_edit_repair.py",
+            "retention_engine.py",
+            "sound_design_engine.py",
+            "video_professional.py",
+            "v6_professional.py",
+            "editorial_gate.py",
+            "STANDARD_ROLLBACK",
+            "SAP_PRO_EDIT",
+            '"video.py"',
+            '"v6_runtime.py"',
+        ):
+            self.assertNotIn(legacy, text)
+
 
 
 if __name__ == "__main__":

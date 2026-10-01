@@ -112,10 +112,22 @@ class ResumeBoundaryTests(unittest.TestCase):
         (roteiros / f"media_quality_{self.sid}.json").write_text(
             json.dumps({"status": "PASS", "critical": []}), encoding="utf-8"
         )
+        # V2 checkpoint artifacts: deterministic render plan + immutable media manifest.
         (roteiros / f"pro_edit_plan_{self.sid}.json").write_text(json.dumps({
-            "version": "PRO_EDIT_1_0",
-            "profile": "true_crime",
+            "schema_version": "render-plan-v2",
+            "short_id": self.sid,
             "scenes": [{"scene": i} for i in range(1, 13)],
+        }), encoding="utf-8")
+        manifest_dir = self.base / "manifests"
+        manifest_dir.mkdir(parents=True, exist_ok=True)
+        (manifest_dir / f"media_{self.sid}.json").write_text(json.dumps({
+            "schema_version": "media-manifest-v2",
+            "short_id": self.sid,
+            "immutable": True,
+            "scenes": [
+                {"scene": i, "asset": {"validated": True, "checksum_sha256": f"sha-{i}"}}
+                for i in range(1, 13)
+            ],
         }), encoding="utf-8")
 
         planning = {
@@ -177,8 +189,8 @@ class ResumeBoundaryTests(unittest.TestCase):
         }), encoding="utf-8")
         self.assertEqual(rsr.boundary(self.sid), "full")
 
-    def test_resume_falls_back_to_full_without_consolidation_plan(self):
-        (self.base / "roteiros" / f"retention_{self.sid}.json").unlink()
+    def test_resume_falls_back_to_full_without_v2_manifest(self):
+        (self.base / "manifests" / f"media_{self.sid}.json").unlink()
         self.assertEqual(rsr.boundary(self.sid), "full")
 
     def test_render_boundary_can_skip_to_final_gates(self):

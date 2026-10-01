@@ -130,7 +130,8 @@ def pro_plan_ok(sid: str) -> bool:
     data = read_json(BASE / "roteiros" / f"pro_edit_plan_{sid}.json")
     scenes = data.get("scenes", []) if isinstance(data, dict) else []
     return (
-        str(data.get("version", "")).startswith("PRO_EDIT_")
+        data.get("schema_version") == "render-plan-v2"
+        and data.get("short_id") == sid
         and isinstance(scenes, list)
         and len(scenes) == expected_scenes()
     )
@@ -172,31 +173,35 @@ def pre_media_plan_ok(sid: str) -> bool:
 
 
 def consolidation_plan_ok(sid: str) -> bool:
-    if not pro_plan_ok(sid):
+    """Validate the frozen V2 media manifest and deterministic render plan."""
+    plan = read_json(BASE / "roteiros" / f"pro_edit_plan_{sid}.json")
+    scenes = plan.get("scenes", []) if isinstance(plan, dict) else []
+    if (
+        plan.get("schema_version") != "render-plan-v2"
+        or plan.get("short_id") != sid
+        or not isinstance(scenes, list)
+        or len(scenes) != expected_scenes()
+    ):
         return False
-    required = [
-        BASE / "roteiros" / f"retention_{sid}.json",
-        BASE / "roteiros" / f"sound_design_{sid}.json",
-        BASE / "roteiros" / f"multi_asset_{sid}.json",
-        BASE / "roteiros" / f"visual_score_{sid}.json",
-        BASE / "roteiros" / f"visual_continuity_{sid}.json",
-    ]
-    if not all(nonempty(path, 20) and read_json(path) for path in required):
-        return False
-    retention = read_json(required[0])
-    status = str(retention.get("status", "") or "").upper()
-    if status == "BLOCK":
-        return False
-    if status in {"PASS", "REVIEW"}:
-        return True
-    try:
-        score = float(retention.get("retention_score", retention.get("score", 0)) or 0)
-    except (TypeError, ValueError, OverflowError):
-        return False
-    review_floor = env_float("SAP_RETENTION_REVIEW_MIN_SCORE", 70.0, 0.0, 100.0)
-    return math.isfinite(score) and score >= review_floor
 
+    manifest = read_json(BASE / "manifests" / f"media_{sid}.json")
+    media_scenes = manifest.get("scenes", []) if isinstance(manifest, dict) else []
+    if (
+        manifest.get("schema_version") != "media-manifest-v2"
+        or manifest.get("short_id") != sid
+        or manifest.get("immutable") is not True
+        or not isinstance(media_scenes, list)
+        or len(media_scenes) != expected_scenes()
+    ):
+        return False
 
+    for row in media_scenes:
+        asset = row.get("asset") if isinstance(row, dict) else None
+        if not isinstance(asset, dict) or asset.get("validated") is not True:
+            return False
+        if not asset.get("checksum_sha256"):
+            return False
+    return True
 def audio_ok(sid: str) -> bool:
     return nonempty(BASE / "audios" / f"short_{sid}.mp3", 5000)
 
@@ -438,45 +443,30 @@ def final_gates(sid: str) -> int:
 
 
 def media_planning_tail(sid: str) -> None:
-    stages = [
-        ("SMART MEDIA SELECTOR", "media_stage_runtime.py", ()),
-        ("MEDIA MASTER GATE", "media_master_gate.py", ()),
-        ("ASSET LIBRARY + FIRST FRAME", "shortauto_asset_library.py", ("index", "--short-id", sid)),
-        ("INTELLIGENCE MEDIA", "shortauto_intelligence_layer.py", ("media", "--short-id", sid)),
-        ("MULTIDIMENSIONAL VISUAL SCORE", "visual_score_engine.py", ()),
-        ("CINEMATIC MOTION DIRECTOR", "motion_director.py", ()),
-        ("MONTAGE RHYTHM DIRECTOR", "rhythm_director.py", ()),
-        ("PROFESSIONAL EDIT DIRECTOR", "professional_edit_director.py", ()),
-        ("PROFESSIONAL EDIT AUTO-REPAIR", "professional_edit_repair.py", ()),
-        ("MULTI-ASSET DIRECTOR", "multi_asset_director.py", ()),
-    ]
-    for title, script, args in stages:
-        run_python(sid, title, script, *args)
-
-    retention = run_python(
+    """Resume only through Media Engine V2 and deterministic Render Plan V2."""
+    run_python(
         sid,
-        "RETENTION ENGINE + SAFE REPAIR",
-        "retention_engine.py",
-        "--repair",
-        "--enforce",
-        allow={0, 20},
+        "MEDIA ENGINE V2 - ACQUIRE + VALIDATE + FREEZE MANIFEST",
+        "media_engine_v2.py",
+        "--short-id",
+        sid,
     )
-    if retention == 20:
-        print(
-            "RETENTION_REVIEW=CONTINUE "
-            "reason=NON_CRITICAL_REVIEW next=RESUME_TAIL"
-        )
-
-    run_python(sid, "SOUND DESIGN ENGINE", "sound_design_engine.py")
-    run_python(sid, "PRODUCTION SUPERVISOR", "production_supervisor.py")
-    run_python(sid, "EVOLUTION VISUAL AUDIT", "shortautopro_evolution.py", "visual-audit")
-
+    run_python(
+        sid,
+        "RENDER PLAN V2 - DETERMINISTIC TIMELINE INPUT",
+        "render_plan_v2.py",
+        "--short-id",
+        sid,
+    )
 
 def render_tail(sid: str) -> None:
-    run_python(sid, "PROFESSIONAL MULTI-BEAT ASSEMBLER", "video_professional.py")
-    run_python(sid, "FINAL RENDER V6 PROFESSIONAL", "v6_professional.py")
+    """Render only from the frozen V2 manifest; acquisition stays outside the renderer."""
+    run_python(sid, "PRE-RENDER VALIDATION + BOUNDED AUTO-RECOVERY", "production_recovery.py", "--short-id", sid)
+    run_python(sid, "RENDER PREFLIGHT CERTIFICATION", "render_preflight.py", "--short-id", sid)
+    run_python(sid, "PRODUCTION HEALTH SNAPSHOT", "production_health.py", "--short-id", sid, "--phase", "pre_render")
+    run_python(sid, "RENDER ENGINE V2 (REMOTION + FFMPEG + FFPROBE)", "render_engine_v2.py", "--short-id", sid)
     if not render_ok(sid):
-        raise RuntimeError("renderer terminou sem artefato técnico válido")
+        raise RuntimeError("Render Engine V2 terminou sem artefato técnico válido")
     run_python(sid, "FINAL AUDIO MASTER", "audio_finalizer.py")
     run_python(sid, "VISUAL QA", "visual_qa.py")
 
@@ -495,11 +485,10 @@ def _resume_locked(sid: str, point: str) -> int:
         rank = order[point]
 
         if rank <= 0:
-            print("RESUME_FROM_STAGE6=YES")
+            print("RESUME_FROM_V2_MEDIA=YES")
             media_planning_tail(sid)
 
         if rank <= 1:
-            run_python(sid, "FINAL EDITORIAL GATE", "editorial_gate.py")
             run_python(sid, "SPEECH DIRECTOR", "speech_director.py")
             run_python(sid, "GERANDO VOZ PIPER", "audio.py")
         if rank <= 2:
@@ -510,21 +499,14 @@ def _resume_locked(sid: str, point: str) -> int:
         if rank <= 3:
             render_tail(sid)
         elif rank <= 4:
-            run_python(sid, "FINAL RENDER V6 PROFESSIONAL", "v6_professional.py")
-            if not render_ok(sid):
-                raise RuntimeError("renderer terminou sem artefato técnico válido")
-            run_python(sid, "FINAL AUDIO MASTER", "audio_finalizer.py")
-            run_python(sid, "VISUAL QA", "visual_qa.py")
+            render_tail(sid)
         else:
             run_python(sid, "FINAL AUDIO MASTER", "audio_finalizer.py")
             run_python(sid, "VISUAL QA", "visual_qa.py")
 
         code = final_gates(sid)
         if code == 20:
-            run_python(sid, "REPAIR EDIT", "professional_edit_repair.py")
-            run_python(sid, "REPAIR MULTI-ASSET", "multi_asset_director.py")
-            run_python(sid, "REPAIR RETENTION", "retention_engine.py", "--repair")
-            run_python(sid, "REPAIR SOUND", "sound_design_engine.py")
+            media_planning_tail(sid)
             render_tail(sid)
             code = final_gates(sid)
         if code == 20 or not final_ok(sid):

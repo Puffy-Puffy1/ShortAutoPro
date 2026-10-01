@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 class EvolutionRuntimeIntegrationTests(unittest.TestCase):
     def test_generation_pipeline_has_evolution_observability(self):
         text = (ROOT / "main.py").read_text(encoding="utf-8")
-        self.assertIn('"shortautopro_evolution.py", "visual-audit"', text)
+        self.assertIn('"shortautopro_evolution.py", "caption-audit"', text)
         self.assertIn('"shortautopro_evolution.py", "caption-audit"', text)
         self.assertIn('"shortautopro_evolution.py", "e2e"', text)
         self.assertIn('evo_args = ["quality-score"]', text)

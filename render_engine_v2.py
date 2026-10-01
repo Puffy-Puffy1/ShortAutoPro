@@ -121,17 +121,25 @@ def build_job(short_id: str) -> Path:
     edit_path = source / f"pro_edit_plan_{short_id}.json"
     audio = BASE / "audios" / f"short_{short_id}.mp3"
     ass = BASE / "videos" / f"short_{short_id}.ass"
-    media_dir = BASE / "imagens" / f"short_{short_id}"
-    for p in (scene_map_path, edit_path, audio, media_dir):
+    media_manifest_path = BASE / "manifests" / f"media_{short_id}.json"
+    for p in (scene_map_path, edit_path, audio, media_manifest_path):
         if not p.exists():
             raise RuntimeError(f"RENDER_INPUT_INVALID:{p.name}")
     scenes_raw = read_json(scene_map_path).get("scenes")
     plan = read_json(edit_path)
+    media_manifest = read_json(media_manifest_path)
     planned = plan.get("scenes")
+    frozen_assets = media_manifest.get("scenes")
+    if media_manifest.get("schema_version") != "media-manifest-v2":
+        raise RuntimeError("RENDER_INPUT_INVALID:media_manifest_schema")
+    if media_manifest.get("short_id") != short_id:
+        raise RuntimeError("RENDER_INPUT_INVALID:media_manifest_short_id")
     if not isinstance(scenes_raw, list) or not scenes_raw:
         raise RuntimeError("RENDER_INPUT_INVALID:scene_map")
     if not isinstance(planned, list) or len(planned) != len(scenes_raw):
         raise RuntimeError("RENDER_INPUT_INVALID:pro_edit_plan")
+    if not isinstance(frozen_assets, list) or len(frozen_assets) != len(scenes_raw):
+        raise RuntimeError("RENDER_INPUT_INVALID:media_manifest_scenes")
     duration = audio_duration(audio)
     weights = []
     for scene, edit in zip(scenes_raw, planned):
@@ -172,16 +180,17 @@ def build_job(short_id: str) -> Path:
     frozen_scenes = []
     t = 0.0
     for idx, (scene, edit, logical) in enumerate(zip(scenes_raw, planned, durations), 1):
-        candidates = sorted(
-            p for p in media_dir.glob(f"scene_{idx:02d}*")
-            if p.is_file() and p.suffix.lower() in MEDIA_EXTS
-        )
-        if len(candidates) != 1:
-            raise RuntimeError(f"RENDER_ASSET_INVALID:scene_{idx:02d}:expected_one_got_{len(candidates)}")
-        src = candidates[0]
-        if src.stat().st_size <= 1000:
-            raise RuntimeError(f"RENDER_ASSET_INVALID:scene_{idx:02d}:too_small")
-        # Reject known neutral/editorial placeholders at the render boundary.
+        media_row = frozen_assets[idx - 1] if idx - 1 < len(frozen_assets) else {}
+        asset = media_row.get("asset", {}) if isinstance(media_row, dict) else {}
+        if not isinstance(asset, dict) or asset.get("validated") is not True:
+            raise RuntimeError(f"RENDER_ASSET_INVALID:scene_{idx:02d}:manifest_not_validated")
+        src = Path(str(asset.get("path") or "")).expanduser().resolve()
+        if not src.is_file() or src.stat().st_size <= 1000:
+            raise RuntimeError(f"RENDER_ASSET_INVALID:scene_{idx:02d}:manifest_asset_missing")
+        if asset.get("checksum_sha256") and sha256(src) != asset.get("checksum_sha256"):
+            raise RuntimeError(f"RENDER_ASSET_INVALID:scene_{idx:02d}:manifest_checksum")
+        # The renderer never searches for or substitutes media. Placeholders are
+        # rejected here as a second independent quality boundary.
         name = src.name.lower()
         if any(token in name for token in ("slate","placeholder","neutral_editorial","editorial_reuse")):
             raise RuntimeError(f"REAL_MEDIA_MISSING:scene_{idx:02d}")

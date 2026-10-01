@@ -153,42 +153,13 @@ def _visual_quality_state(short_id: str) -> dict[str, Any]:
 
 
 def _repair_media(short_id: str, actions: list[dict[str, Any]]) -> bool:
-    sequence: list[tuple[str, tuple[str, ...]]] = [
-        ("visual_query_guard.py", ()),
-        ("visual_media_refresh.py", ()),
-        ("media_stage_runtime.py", ()),
-        ("media_master_gate.py", ()),
-        ("visual_score_engine.py", ()),
-        ("motion_director.py", ()),
-        ("rhythm_director.py", ()),
-        ("professional_edit_director.py", ()),
-        ("professional_edit_repair.py", ()),
-        ("multi_asset_director.py", ()),
-        ("retention_engine.py", ("--repair",)),
-        ("sound_design_engine.py", ()),
-        ("production_supervisor.py", ()),
-        ("editorial_gate.py", ()),
-    ]
-    for script, args in sequence:
-        if not _append_action(actions, _run(short_id, script, *args)):
-            return False
-    return True
+    # Recovery never re-enters Stage 6. Media Engine V2 owns acquisition and
+    # manifest validation; a frozen manifest is authoritative on resume.
+    return _append_action(actions, _run(short_id, "media_engine_v2.py", "--short-id", short_id))
 
 
 def _repair_edit_plan(short_id: str, actions: list[dict[str, Any]]) -> bool:
-    sequence: list[tuple[str, tuple[str, ...]]] = [
-        ("professional_edit_director.py", ()),
-        ("professional_edit_repair.py", ()),
-        ("multi_asset_director.py", ()),
-        ("retention_engine.py", ("--repair",)),
-        ("sound_design_engine.py", ()),
-        ("production_supervisor.py", ()),
-        ("editorial_gate.py", ()),
-    ]
-    for script, args in sequence:
-        if not _append_action(actions, _run(short_id, script, *args)):
-            return False
-    return True
+    return _append_action(actions, _run(short_id, "render_plan_v2.py", "--short-id", short_id))
 
 
 def _repair_audio(short_id: str, actions: list[dict[str, Any]]) -> bool:

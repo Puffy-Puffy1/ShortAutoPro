@@ -222,3 +222,7 @@ reports/repair/
 # INTELLIGENCE LAYER RUNTIME STATE
 # =========================
 reports/intelligence/
+
+# Local Android/Remotion build artifacts — never part of production source
+render_v2/node_modules/
+rspack_android_lab/

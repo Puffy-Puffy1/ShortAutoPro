@@ -16,10 +16,7 @@ class RetentionReviewContractTests(unittest.TestCase):
             "status": "REVIEW",
             "issues": [],
         }
-        with mock.patch.object(sys, "argv", ["retention_engine.py", "--repair", "--enforce"]), \
-             mock.patch.object(retention_engine, "score", side_effect=[dict(report), dict(report)]), \
-             mock.patch.object(retention_engine, "repair_pacing", return_value=[]), \
-             mock.patch.object(retention_engine, "atomic"):
+        with mock.patch.object(sys, "argv", ["retention_engine.py", "--repair", "--enforce"]),              mock.patch.object(retention_engine, "score", side_effect=[dict(report), dict(report)]),              mock.patch.object(retention_engine, "repair_pacing", return_value=[]),              mock.patch.object(retention_engine, "atomic"):
             rc = retention_engine.main()
         self.assertEqual(rc, 20)
 
@@ -30,13 +27,11 @@ class RetentionReviewContractTests(unittest.TestCase):
             "status": "BLOCK",
             "issues": ["critical"],
         }
-        with mock.patch.object(sys, "argv", ["retention_engine.py", "--enforce"]), \
-             mock.patch.object(retention_engine, "score", return_value=dict(report)), \
-             mock.patch.object(retention_engine, "atomic"):
+        with mock.patch.object(sys, "argv", ["retention_engine.py", "--enforce"]),              mock.patch.object(retention_engine, "score", return_value=dict(report)),              mock.patch.object(retention_engine, "atomic"):
             rc = retention_engine.main()
         self.assertEqual(rc, 1)
 
-    def test_canonical_pipeline_accepts_review_code_and_continues(self):
+    def test_canonical_pipeline_uses_v2_and_does_not_invoke_legacy_stage6(self):
         calls = []
 
         class FakePipeline:
@@ -44,49 +39,51 @@ class RetentionReviewContractTests(unittest.TestCase):
 
             def run(self, title, script, *args, **kwargs):
                 calls.append((title, script, args, kwargs))
-                if script == "retention_engine.py":
-                    return 20
                 return 0
 
         main.stages_before_render(FakePipeline())
-        retention = [x for x in calls if x[1] == "retention_engine.py"]
-        self.assertEqual(len(retention), 1)
-        self.assertEqual(retention[0][3].get("allow_codes"), {0, 20})
-        self.assertIn("--repair", retention[0][2])
-        self.assertIn("--enforce", retention[0][2])
+        scripts = [x[1] for x in calls]
+        self.assertIn("media_engine_v2.py", scripts)
+        self.assertIn("render_plan_v2.py", scripts)
+        self.assertNotIn("media_stage_runtime.py", scripts)
+        self.assertNotIn("retention_engine.py", scripts)
 
-    def test_pre_render_recovery_repairs_retention_without_enforce(self):
+    def test_pre_render_recovery_repairs_only_v2_inputs(self):
         source = open(production_recovery.__file__, encoding="utf-8").read()
-        self.assertNotIn(
-            '("retention_engine.py", ("--repair", "--enforce"))',
-            source,
-        )
-        self.assertGreaterEqual(
-            source.count('("retention_engine.py", ("--repair",))'),
-            2,
-        )
+        self.assertIn("media_engine_v2.py", source)
+        self.assertIn("render_plan_v2.py", source)
+        self.assertNotIn("retention_engine.py", source)
+        self.assertNotIn("media_stage_runtime.py", source)
 
-    def test_resume_accepts_review_checkpoint_but_rejects_block(self):
-        def fake_read_json(path):
-            name = str(path)
-            if "retention_" in name:
-                return {"retention_score": 75.2, "status": "REVIEW"}
-            return {"ok": True}
-
-        with mock.patch.object(resume_short_runtime, "pro_plan_ok", return_value=True), \
-             mock.patch.object(resume_short_runtime, "nonempty", return_value=True), \
-             mock.patch.object(resume_short_runtime, "read_json", side_effect=fake_read_json):
+    def test_resume_requires_frozen_v2_manifest(self):
+        valid_plan = {
+            "schema_version": "render-plan-v2",
+            "short_id": "case",
+            "scenes": [{"scene": i} for i in range(1, 13)],
+        }
+        valid_manifest = {
+            "schema_version": "media-manifest-v2",
+            "short_id": "case",
+            "immutable": True,
+            "scenes": [
+                {"scene": i, "asset": {"validated": True, "checksum_sha256": f"sha-{i}"}}
+                for i in range(1, 13)
+            ],
+        }
+        with mock.patch.object(
+            resume_short_runtime,
+            "read_json",
+            side_effect=lambda path: valid_plan if "pro_edit_plan_" in str(path) else valid_manifest,
+        ):
             self.assertTrue(resume_short_runtime.consolidation_plan_ok("case"))
 
-        def blocked_read_json(path):
-            name = str(path)
-            if "retention_" in name:
-                return {"retention_score": 62.0, "status": "BLOCK"}
-            return {"ok": True}
-
-        with mock.patch.object(resume_short_runtime, "pro_plan_ok", return_value=True), \
-             mock.patch.object(resume_short_runtime, "nonempty", return_value=True), \
-             mock.patch.object(resume_short_runtime, "read_json", side_effect=blocked_read_json):
+        blocked_manifest = dict(valid_manifest)
+        blocked_manifest["immutable"] = False
+        with mock.patch.object(
+            resume_short_runtime,
+            "read_json",
+            side_effect=lambda path: valid_plan if "pro_edit_plan_" in str(path) else blocked_manifest,
+        ):
             self.assertFalse(resume_short_runtime.consolidation_plan_ok("case"))
 
 
