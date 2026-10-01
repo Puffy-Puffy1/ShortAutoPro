@@ -24,7 +24,8 @@ BASE = Path(os.getenv("SHORTAUTOPRO_BASE", Path.home() / "ShortAutoPro")).resolv
 MEDIA_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".webm", ".mkv"}
 ENGINE_VERSION = "2.0.0"
 
-from media_provider_v2 import MediaProviderV2\nfrom media_validator_v2 import validate as validate_asset
+from media_provider_v2 import MediaProviderV2
+from media_validator_v2 import validate as validate_asset
 
 PROVIDER = MediaProviderV2()
 
