@@ -134,6 +134,20 @@ def build_job(short_id: str) -> Path:
         raise RuntimeError("RENDER_INPUT_INVALID:media_manifest_schema")
     if media_manifest.get("short_id") != short_id:
         raise RuntimeError("RENDER_INPUT_INVALID:media_manifest_short_id")
+    if media_manifest.get("scene_count") != len(frozen_assets or []):
+        raise RuntimeError("RENDER_INPUT_INVALID:media_manifest_scene_count")
+    media_root = (BASE / "imagens" / ("short_" + short_id)).resolve()
+    for idx, row in enumerate(frozen_assets or [], 1):
+        if not isinstance(row, dict):
+            raise RuntimeError("RENDER_INPUT_INVALID:media_manifest_scene_%02d" % idx)
+        asset = row.get("asset")
+        if not isinstance(asset, dict) or asset.get("validated") is not True:
+            raise RuntimeError("RENDER_INPUT_INVALID:media_manifest_asset_%02d" % idx)
+        asset_path = Path(str(asset.get("path") or "")).expanduser().resolve()
+        try:
+            asset_path.relative_to(media_root)
+        except ValueError:
+            raise RuntimeError("RENDER_INPUT_INVALID:media_manifest_asset_scope_%02d" % idx)
     if not isinstance(scenes_raw, list) or not scenes_raw:
         raise RuntimeError("RENDER_INPUT_INVALID:scene_map")
     if not isinstance(planned, list) or len(planned) != len(scenes_raw):
