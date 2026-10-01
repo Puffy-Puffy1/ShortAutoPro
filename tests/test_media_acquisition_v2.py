@@ -141,5 +141,21 @@ class AcquisitionV2Tests(unittest.TestCase):
                 self.assertIsNotNone(media_engine_v2._existing_asset_record(media_a, 1, {"must_have": ["x"]}))
                 self.assertIsNone(media_engine_v2._existing_asset_record(media_b, 1, {"must_have": ["x"]}))
 
+    def test_validator_rejects_fake_tiny_or_uniform_jpeg_signature(self):
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / "fake.jpg"
+            p.write_bytes(b"\xff\xd8\xff" + b"\x00" * 3000)
+            with patch("media_validator_v2.probe", side_effect=ValueError("PROBE_FAIL")):
+                with self.assertRaises(ValueError):
+                    validate(p)
+
+    def test_validator_rejects_invalid_visual_dimensions(self):
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / "bad.jpg"
+            p.write_bytes(b"\xff\xd8\xff" + b"x" * 3000)
+            with patch("media_validator_v2.probe", side_effect=ValueError("INVALID_DIMENSIONS")):
+                with self.assertRaisesRegex(ValueError, "INVALID_DIMENSIONS"):
+                    validate(p)
+
 if __name__ == "__main__":
     unittest.main()
