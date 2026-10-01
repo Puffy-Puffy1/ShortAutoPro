@@ -208,5 +208,32 @@ class AcquisitionV2Tests(unittest.TestCase):
             self.assertTrue(manifest["scenes"][0]["asset"]["validated"])
             self.assertTrue((base / "manifests" / f"media_{sid}.json").is_file())
 
+    def test_render_manifest_rejects_cross_short_asset(self):
+        source = __import__("render_engine_v2")
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            sid = "SHORT_A"
+            other = base / "imagens" / "short_SHORT_B"
+            other.mkdir(parents=True)
+            asset = other / "scene_01.jpg"
+            asset.write_bytes(b"x" * 2000)
+            manifest = {
+                "schema_version": "media-manifest-v2", "short_id": sid,
+                "scene_count": 1, "scenes": [{"asset": {"validated": True, "path": str(asset)}}],
+            }
+            (base / "roteiros").mkdir()
+            (base / "audios").mkdir()
+            (base / "videos").mkdir()
+            (base / "manifests").mkdir()
+            (base / "roteiros" / ("scene_map_" + sid + ".json")).write_text(__import__("json").dumps({"scenes":[{}]}), encoding="utf-8")
+            (base / "roteiros" / ("pro_edit_plan_" + sid + ".json")).write_text(__import__("json").dumps({"scenes":[{}]}), encoding="utf-8")
+            (base / "manifests" / ("media_" + sid + ".json")).write_text(__import__("json").dumps(manifest), encoding="utf-8")
+            (base / "audios" / ("short_" + sid + ".mp3")).write_bytes(b"x")
+            source.BASE = base
+            with patch.object(source, "audio_duration", return_value=1.0):
+                with self.assertRaisesRegex(RuntimeError, "media_manifest_asset_scope"):
+                    source.build_job(sid)
+
+
 if __name__ == "__main__":
     unittest.main()
