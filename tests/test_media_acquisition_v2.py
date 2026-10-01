@@ -275,6 +275,8 @@ class AcquisitionV2Tests(unittest.TestCase):
                 __import__("json").dumps({"scenes": []}), encoding="utf-8"
             )
             (base / "audios" / ("short_" + sid + ".mp3")).write_bytes(b"x")
+            (base / "videos").mkdir()
+            (base / "videos" / ("short_" + sid + ".ass")).write_text("", encoding="utf-8")
             (base / "videos" / ("short_v6_" + sid + ".mp4")).write_bytes(b"x" * 2000)
             media = base / "imagens" / ("short_" + sid)
             media.mkdir(parents=True)
