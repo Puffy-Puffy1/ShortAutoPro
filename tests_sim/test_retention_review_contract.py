@@ -16,10 +16,7 @@ class RetentionReviewContractTests(unittest.TestCase):
             "status": "REVIEW",
             "issues": [],
         }
-        with mock.patch.object(sys, "argv", ["retention_engine.py", "--repair", "--enforce"]), \
-             mock.patch.object(retention_engine, "score", side_effect=[dict(report), dict(report)]), \
-             mock.patch.object(retention_engine, "repair_pacing", return_value=[]), \
-             mock.patch.object(retention_engine, "atomic"):
+        with mock.patch.object(sys, "argv", ["retention_engine.py", "--repair", "--enforce"]),              mock.patch.object(retention_engine, "score", side_effect=[dict(report), dict(report)]),              mock.patch.object(retention_engine, "repair_pacing", return_value=[]),              mock.patch.object(retention_engine, "atomic"):
             rc = retention_engine.main()
         self.assertEqual(rc, 20)
 
@@ -30,9 +27,7 @@ class RetentionReviewContractTests(unittest.TestCase):
             "status": "BLOCK",
             "issues": ["critical"],
         }
-        with mock.patch.object(sys, "argv", ["retention_engine.py", "--enforce"]), \
-             mock.patch.object(retention_engine, "score", return_value=dict(report)), \
-             mock.patch.object(retention_engine, "atomic"):
+        with mock.patch.object(sys, "argv", ["retention_engine.py", "--enforce"]),              mock.patch.object(retention_engine, "score", return_value=dict(report)),              mock.patch.object(retention_engine, "atomic"):
             rc = retention_engine.main()
         self.assertEqual(rc, 1)
 
@@ -67,9 +62,7 @@ class RetentionReviewContractTests(unittest.TestCase):
                 return {"retention_score": 75.2, "status": "REVIEW"}
             return {"ok": True}
 
-        with mock.patch.object(resume_short_runtime, "pro_plan_ok", return_value=True), \
-             mock.patch.object(resume_short_runtime, "nonempty", return_value=True), \
-             mock.patch.object(resume_short_runtime, "read_json", side_effect=fake_read_json):
+        with mock.patch.object(resume_short_runtime, "pro_plan_ok", return_value=True),              mock.patch.object(resume_short_runtime, "nonempty", return_value=True),              mock.patch.object(resume_short_runtime, "read_json", side_effect=fake_read_json):
             self.assertTrue(resume_short_runtime.consolidation_plan_ok("case"))
 
         def blocked_read_json(path):
@@ -78,9 +71,7 @@ class RetentionReviewContractTests(unittest.TestCase):
                 return {"retention_score": 62.0, "status": "BLOCK"}
             return {"ok": True}
 
-        with mock.patch.object(resume_short_runtime, "pro_plan_ok", return_value=True), \
-             mock.patch.object(resume_short_runtime, "nonempty", return_value=True), \
-             mock.patch.object(resume_short_runtime, "read_json", side_effect=blocked_read_json):
+        with mock.patch.object(resume_short_runtime, "pro_plan_ok", return_value=True),              mock.patch.object(resume_short_runtime, "nonempty", return_value=True),              mock.patch.object(resume_short_runtime, "read_json", side_effect=blocked_read_json):
             self.assertFalse(resume_short_runtime.consolidation_plan_ok("case"))
 
 
