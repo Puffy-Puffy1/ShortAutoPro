@@ -442,49 +442,31 @@ def final_gates(sid: str) -> int:
 
 
 def media_planning_tail(sid: str) -> None:
-    """Recover only through the V2 media + deterministic planning boundary."""
-    run_python(
-        sid,
-        "MEDIA ENGINE V2 - ACQUIRE + VALIDATE + FREEZE MANIFEST",
-        "media_engine_v2.py",
-        "--short-id",
-        sid,
-    )
-    run_python(
-        sid,
-        "RENDER PLAN V2 - DETERMINISTIC TIMELINE INPUT",
-        "render_plan_v2.py",
-        "--short-id",
-        sid,
-    )
+    """Resume the V2 media boundary without invoking the retired Stage 6 controller."""
+    run_python(sid, "MEDIA ENGINE V2 - ACQUIRE + VALIDATE + FREEZE MANIFEST", "media_engine_v2.py", "--short-id", sid)
+    run_python(sid, "RENDER PLAN V2 - DETERMINISTIC TIMELINE INPUT", "render_plan_v2.py", "--short-id", sid)
+    run_python(sid, "ASSET LIBRARY INDEX", "shortauto_asset_library.py", "index", "--short-id", sid)
+    run_python(sid, "INTELLIGENCE MEDIA", "shortauto_intelligence_layer.py", "media", "--short-id", sid)
+    run_python(sid, "MULTIDIMENSIONAL VISUAL SCORE", "visual_score_engine.py")
+    run_python(sid, "CINEMATIC MOTION DIRECTOR", "motion_director.py")
+    run_python(sid, "MONTAGE RHYTHM DIRECTOR", "rhythm_director.py")
+    run_python(sid, "MULTI-ASSET DIRECTOR", "multi_asset_director.py")
+    run_python(sid, "SOUND DESIGN ENGINE", "sound_design_engine.py")
+    run_python(sid, "PRODUCTION SUPERVISOR", "production_supervisor.py")
+    run_python(sid, "EVOLUTION CAPTION AUDIT", "shortautopro_evolution.py", "caption-audit")
+
 
 def render_tail(sid: str) -> None:
-    """Render frozen V2 inputs; never invoke the retired Stage 6 route."""
-    run_python(
-        sid,
-        "PRE-RENDER VALIDATION + BOUNDED AUTO-RECOVERY",
-        "production_recovery.py",
-        "--short-id",
-        sid,
-    )
-    run_python(
-        sid,
-        "RENDER PREFLIGHT CERTIFICATION",
-        "render_preflight.py",
-        "--short-id",
-        sid,
-    )
-    run_python(
-        sid,
-        "RENDER ENGINE V2",
-        "render_engine_v2.py",
-        "--short-id",
-        sid,
-    )
+    """Render only from the frozen V2 manifest; acquisition stays outside the renderer."""
+    run_python(sid, "PRE-RENDER VALIDATION + BOUNDED AUTO-RECOVERY", "production_recovery.py", "--short-id", sid)
+    run_python(sid, "RENDER PREFLIGHT CERTIFICATION", "render_preflight.py", "--short-id", sid)
+    run_python(sid, "PRODUCTION HEALTH SNAPSHOT", "production_health.py", "--short-id", sid, "--phase", "pre_render")
+    run_python(sid, "RENDER ENGINE V2 (REMOTION + FFMPEG + FFPROBE)", "render_engine_v2.py", "--short-id", sid)
     if not render_ok(sid):
         raise RuntimeError("Render Engine V2 terminou sem artefato técnico válido")
     run_python(sid, "FINAL AUDIO MASTER", "audio_finalizer.py")
     run_python(sid, "VISUAL QA", "visual_qa.py")
+
 
 def _resume_locked(sid: str, point: str) -> int:
     """Only the process owning the production lock may modify its state."""
