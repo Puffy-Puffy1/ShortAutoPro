@@ -1,0 +1,81 @@
+{
+  "audited_head": "929f982a13fde6c6513506916603394630941ead",
+  "providers": [
+    {
+      "name": "Pexels",
+      "media": [
+        "image",
+        "video"
+      ],
+      "api": [
+        "https://api.pexels.com/v1/search",
+        "https://api.pexels.com/videos/search"
+      ],
+      "auth": "API key",
+      "timeout": "_MEDIA_API_TIMEOUT 3-8s",
+      "circuit": "media_external_resilience provider family pexels"
+    },
+    {
+      "name": "Pixabay",
+      "media": [
+        "image",
+        "video"
+      ],
+      "api": [
+        "https://pixabay.com/api/",
+        "https://pixabay.com/api/videos/"
+      ],
+      "auth": "API key",
+      "timeout": "_MEDIA_API_TIMEOUT 3-8s",
+      "circuit": "provider family pixabay"
+    },
+    {
+      "name": "Coverr",
+      "media": [
+        "video"
+      ],
+      "api": [
+        "https://api.coverr.co/videos"
+      ],
+      "auth": "Bearer API key",
+      "timeout": "_MEDIA_API_TIMEOUT 3-8s",
+      "circuit": "provider family coverr"
+    },
+    {
+      "name": "Wikimedia Commons",
+      "media": [
+        "image"
+      ],
+      "api": [
+        "https://commons.wikimedia.org/w/api.php"
+      ],
+      "auth": "none",
+      "timeout": "SAP_WIKIMEDIA_TIMEOUT default 10s, bounded 4-30s",
+      "circuit": "provider family wikimedia"
+    },
+    {
+      "name": "Local Asset Library",
+      "media": [
+        "image",
+        "video"
+      ],
+      "api": [],
+      "auth": "none",
+      "timeout": "filesystem",
+      "circuit": "none; SHA checked"
+    },
+    {
+      "name": "Legacy Local Directory",
+      "media": [
+        "image",
+        "video"
+      ],
+      "api": [],
+      "auth": "none",
+      "timeout": "filesystem",
+      "circuit": "none; random legacy fallback"
+    }
+  ],
+  "current_v2_provider": "MediaProviderV2 legacy-provider-adapter",
+  "router_status": "NO_TRUE_PER_ASSET_ROUTER"
+}

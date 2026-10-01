@@ -1,0 +1,66 @@
+{
+  "audited_head": "929f982a13fde6c6513506916603394630941ead",
+  "go_no_go": "NO-GO",
+  "phases": [
+    {
+      "phase": "B1",
+      "name": "Provider extraction",
+      "exit": "provider adapters callable without importing midia.py"
+    },
+    {
+      "phase": "B2",
+      "name": "Asset Validator",
+      "exit": "content/decode/duration/dimensions/sha gates independent"
+    },
+    {
+      "phase": "B3",
+      "name": "Provider Router",
+      "exit": "per-asset fallback with typed failures"
+    },
+    {
+      "phase": "B4",
+      "name": "Manifest hardening",
+      "exit": "schema + self-integrity + path containment + write-once semantics"
+    },
+    {
+      "phase": "B5",
+      "name": "V2 integration",
+      "exit": "media_engine_v2 imports acquisition boundary only"
+    },
+    {
+      "phase": "B6",
+      "name": "Parity",
+      "exit": "fixture parity without legacy runtime authority"
+    },
+    {
+      "phase": "B7",
+      "name": "Stress",
+      "exit": "1/2/5/10 + mixed failures + resume + contamination"
+    },
+    {
+      "phase": "B8",
+      "name": "Legacy retirement",
+      "exit": "adapter and legacy acquisition removed only after green evidence"
+    },
+    {
+      "phase": "B9",
+      "name": "Promotion",
+      "exit": "merge -> post-merge validation -> termux-stable equality -> Termux"
+    }
+  ],
+  "tests": [
+    "T1 normal acquisition",
+    "T2 two Shorts",
+    "T3 batch 5",
+    "T4 batch 10",
+    "T5 provider failure",
+    "T6 timeout",
+    "T7 empty provider",
+    "T8 invalid asset",
+    "T9 resume",
+    "T10 contamination",
+    "T11 concurrency",
+    "T12 repeatability",
+    "T13 mixed stress"
+  ]
+}

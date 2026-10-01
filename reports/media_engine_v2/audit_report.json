@@ -1,0 +1,42 @@
+{
+  "audited_head": "929f982a13fde6c6513506916603394630941ead",
+  "branch": "audit/media-acquisition-v2",
+  "go_no_go": "NO-GO",
+  "summary": "V2 production path bypasses direct Stage6 but remains coupled to midia.py through the provider adapter.",
+  "critical_findings": [
+    {
+      "id": "BUG-001",
+      "severity": "RED",
+      "title": "V2 imports production script midia.py",
+      "evidence": [
+        "media_provider_v2.py:L14-L25",
+        "midia.py:L5080+"
+      ]
+    },
+    {
+      "id": "BUG-002",
+      "severity": "RED",
+      "title": "V2 only downloads strict[0], no per-asset provider fallback",
+      "evidence": [
+        "media_engine_v2.py:L205-L245"
+      ]
+    },
+    {
+      "id": "BUG-003",
+      "severity": "YELLOW",
+      "title": "V2 allows video duration == 0",
+      "evidence": [
+        "media_engine_v2.py:L59-L106"
+      ]
+    },
+    {
+      "id": "BUG-004",
+      "severity": "YELLOW",
+      "title": "CI contract tests do not exercise real adapter import path",
+      "evidence": [
+        "tests_sim/test_media_engine_v2_contract.py",
+        "tests_sim/test_media_engine_v2_failure_modes.py"
+      ]
+    }
+  ]
+}

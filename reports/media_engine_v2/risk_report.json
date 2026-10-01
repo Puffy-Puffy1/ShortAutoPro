@@ -1,0 +1,54 @@
+{
+  "audited_head": "929f982a13fde6c6513506916603394630941ead",
+  "severity": "NO-GO",
+  "bugs": [
+    {
+      "id": "BUG-001",
+      "severity": "RED",
+      "title": "V2 imports production script midia.py",
+      "evidence": [
+        "media_provider_v2.py:L14-L25",
+        "midia.py:L5080+"
+      ]
+    },
+    {
+      "id": "BUG-002",
+      "severity": "RED",
+      "title": "V2 only downloads strict[0], no per-asset provider fallback",
+      "evidence": [
+        "media_engine_v2.py:L205-L245"
+      ]
+    },
+    {
+      "id": "BUG-003",
+      "severity": "YELLOW",
+      "title": "V2 allows video duration == 0",
+      "evidence": [
+        "media_engine_v2.py:L59-L106"
+      ]
+    },
+    {
+      "id": "BUG-004",
+      "severity": "YELLOW",
+      "title": "CI contract tests do not exercise real adapter import path",
+      "evidence": [
+        "tests_sim/test_media_engine_v2_contract.py",
+        "tests_sim/test_media_engine_v2_failure_modes.py"
+      ]
+    }
+  ],
+  "architectural_risks": [
+    "global process selector set `usados`",
+    "provider resilience is global/persistent and must remain health-only",
+    "manifest immutable flag is not cryptographic",
+    "sidecar fallback is weaker than frozen manifest",
+    "asset paths are not explicitly constrained to current Short directory",
+    "legacy VI6/VSE logic remains reachable through midia",
+    "selection/download/validation are coupled in midia"
+  ],
+  "unknowns": [
+    "local Termux working-tree state",
+    "full runtime behavior under real provider credentials on this exact HEAD",
+    "whether any external/local orchestration outside repository calls legacy modules directly"
+  ]
+}
