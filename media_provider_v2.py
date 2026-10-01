@@ -20,6 +20,5 @@ class MediaProviderV2:
             and int(c.get("avoid_hits", 0) or 0) == 0
         ]
 
-    def download(self, candidate: dict[str, Any], scene_number: int, short_id: str) -> tuple[bool, str]:
-        ok, path, _ = self.router.download(candidate, scene_number, short_id)
-        return ok, path
+    def download(self, candidate: dict[str, Any], scene_number: int, short_id: str) -> tuple[bool, str, dict[str, Any]]:
+        return self.router.download(candidate, scene_number, short_id)
