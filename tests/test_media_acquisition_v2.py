@@ -112,5 +112,34 @@ class AcquisitionV2Tests(unittest.TestCase):
         import media_provider_v2
         self.assertNotIn("midia", getattr(media_provider_v2,"__dict__",{}))
 
+    def test_short_ids_are_isolated_by_router_output_path(self):
+        router = MediaProviderRouterV2([])
+        with patch("media_provider_router_v2.requests.get") as get:
+            get.side_effect = AssertionError("network must not be reached for invalid IDs")
+            for sid in ("../OTHER", "short/../OTHER", "A B"):
+                ok, _, meta = router.download(
+                    {"fonte": "test", "tipo": "video", "id": "x", "url": "https://example.invalid/x.mp4"},
+                    1, sid,
+                )
+                self.assertFalse(ok)
+                self.assertEqual(meta["error_class"], "SHORT_ID_INVALID")
+
+    def test_existing_asset_is_scoped_to_media_directory(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            media_a = root / "short_A"
+            media_b = root / "short_B"
+            media_a.mkdir(); media_b.mkdir()
+            asset = media_a / "scene_01.jpg"
+            asset.write_bytes(b"x" * 2000)
+            digest = media_engine_v2.sha256(asset)
+            (media_a / "scene_01.json").write_text(
+                __import__("json").dumps({"checksum_sha256": digest, "must_total": 1}),
+                encoding="utf-8",
+            )
+            with patch.object(media_engine_v2, "ffprobe_asset", return_value={"width": 1080, "height": 1920}):
+                self.assertIsNotNone(media_engine_v2._existing_asset_record(media_a, 1, {"must_have": ["x"]}))
+                self.assertIsNone(media_engine_v2._existing_asset_record(media_b, 1, {"must_have": ["x"]}))
+
 if __name__ == "__main__":
     unittest.main()
