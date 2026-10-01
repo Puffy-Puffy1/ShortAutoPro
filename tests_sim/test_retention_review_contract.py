@@ -53,16 +53,12 @@ class RetentionReviewContractTests(unittest.TestCase):
         self.assertNotIn("media_stage_runtime.py", scripts)
         self.assertNotIn("retention_engine.py", scripts)
 
-    def test_pre_render_recovery_repairs_retention_without_enforce(self):
+    def test_pre_render_recovery_repairs_only_v2_inputs(self):
         source = open(production_recovery.__file__, encoding="utf-8").read()
-        self.assertNotIn(
-            '("retention_engine.py", ("--repair", "--enforce"))',
-            source,
-        )
-        self.assertGreaterEqual(
-            source.count('("retention_engine.py", ("--repair",))'),
-            2,
-        )
+        self.assertIn("media_engine_v2.py", source)
+        self.assertIn("render_plan_v2.py", source)
+        self.assertNotIn("retention_engine.py", source)
+        self.assertNotIn("media_stage_runtime.py", source)
 
     def test_resume_accepts_review_checkpoint_but_rejects_block(self):
         def fake_read_json(path):
