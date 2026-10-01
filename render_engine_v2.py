@@ -99,6 +99,12 @@ def audio_duration(path: Path) -> float:
         raise RuntimeError("INVALID_DURATION: audio")
     return value
 
+def validate_short_id(short_id: str) -> str:
+    sid = str(short_id or "").strip()
+    if not sid or not re.fullmatch(r"[A-Za-z0-9._-]+", sid) or ".." in sid:
+        raise RuntimeError("RENDER_INPUT_INVALID:short_id")
+    return sid
+
 def choose_render_id(job_root: Path) -> str:
     if not job_root.exists():
         return "render_001"
@@ -116,6 +122,7 @@ def choose_render_id(job_root: Path) -> str:
     return f"render_{len(existing)+1:03d}"
 
 def build_job(short_id: str) -> Path:
+    short_id = validate_short_id(short_id)
     source = BASE / "roteiros"
     scene_map_path = source / f"scene_map_{short_id}.json"
     edit_path = source / f"pro_edit_plan_{short_id}.json"
@@ -177,6 +184,16 @@ def build_job(short_id: str) -> Path:
         # the frozen-subtitle contract, repair only that missing derived artifact.
         manifest_path = job / "manifest.json"
         manifest = read_json(manifest_path)
+        job_meta = read_json(job / "job.json")
+        timeline = read_json(job / "timeline.json")
+        if manifest.get("short_id") != short_id:
+            raise RuntimeError("RENDER_RESUME_INVALID:manifest_short_id")
+        if job_meta.get("short_id") != short_id:
+            raise RuntimeError("RENDER_RESUME_INVALID:job_short_id")
+        if timeline.get("short_id") != short_id:
+            raise RuntimeError("RENDER_RESUME_INVALID:timeline_short_id")
+        if job_meta.get("render_id") != render_id:
+            raise RuntimeError("RENDER_RESUME_INVALID:render_id")
         frozen_existing = job / "subtitles" / f"{short_id}.ass"
         if not frozen_existing.is_file():
             frozen_existing.parent.mkdir(parents=True, exist_ok=True)
