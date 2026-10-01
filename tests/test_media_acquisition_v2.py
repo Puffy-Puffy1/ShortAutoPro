@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from media_provider_router_v2 import MediaProviderRouterV2
+from media_provider_router_v2 import MediaProvider
 from media_validator_v2 import validate
 import media_engine_v2
 
@@ -17,6 +18,32 @@ class AcquisitionV2Tests(unittest.TestCase):
         b={"fonte":"pixabay","tipo":"video","id":"b","url":"https://invalid/b.mp4","must_hits":1,"avoid_hits":0,"score":80}
         router=MediaProviderRouterV2([FakeProvider("pexels",[a]),FakeProvider("pixabay",[b])])
         self.assertEqual([x["id"] for x in router.search("x",["x"],[])],["a","b"])
+
+    def test_router_rejects_path_traversal_short_id(self):
+        class DownloadProvider:
+            name = "test"
+            def search(self, query, must, avoid):
+                return []
+        router = MediaProviderRouterV2([DownloadProvider()])
+        with patch("media_provider_router_v2.requests.get") as get:
+            ok, path, meta = router.download(
+                {"fonte": "test", "tipo": "video", "id": "x", "url": "https://example.invalid/x.mp4"},
+                1,
+                "../ESCAPE",
+            )
+        self.assertFalse(ok)
+        self.assertEqual(meta["error_class"], "SHORT_ID_INVALID")
+        get.assert_not_called()
+
+    def test_router_rejects_invalid_scene_number(self):
+        router = MediaProviderRouterV2([])
+        ok, path, meta = router.download(
+            {"fonte": "test", "tipo": "video", "id": "x", "url": "https://example.invalid/x.mp4"},
+            0,
+            "SAFE_SHORT",
+        )
+        self.assertFalse(ok)
+        self.assertEqual(meta["error_class"], "SCENE_NUMBER_INVALID")
 
     def test_engine_retries_next_candidate_after_download_failure(self):
         class FakeEngineProvider:
