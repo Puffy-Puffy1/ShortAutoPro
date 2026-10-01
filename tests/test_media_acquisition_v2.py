@@ -248,5 +248,18 @@ class AcquisitionV2Tests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "job_scope"):
                     media_engine.validate_input(job)
 
+    def test_render_main_does_not_trust_stale_passed_state(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            sid = "SHORT_PASS"
+            job = base / "render_jobs" / sid / "render_001"
+            job.mkdir(parents=True)
+            (job / "state.json").write_text('{"status":"PASSED"}', encoding="utf-8")
+            (job / "render_report.json").write_text('{"status":"PASSED","short_id":"SHORT_PASS"}', encoding="utf-8")
+            (job / "job.json").write_text('{"short_id":"SHORT_PASS","render_id":"render_001","duration_target":1}', encoding="utf-8")
+            with patch.object(media_engine, "BASE", base):
+                with patch.object(media_engine.sys, "argv", ["render_engine_v2.py", "--short-id", sid]):
+                    self.assertNotEqual(media_engine.main(), 0)
+
 if __name__ == "__main__":
     unittest.main()
