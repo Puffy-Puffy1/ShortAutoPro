@@ -1,4 +1,5 @@
 name: ShortAutoPro Portable Validation
+# V2 migration checkpoint: portable validation is authoritative before merge.
 
 on:
   workflow_dispatch:
