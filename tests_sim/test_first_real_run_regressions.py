@@ -19,9 +19,9 @@ class MediaResolutionGuardTests(unittest.TestCase):
         self.assertFalse((ROOT / "gerar_short.sh").exists())
         self.assertTrue((ROOT / "media_stage_runtime.py").exists())
         pipeline = (ROOT / "main.py").read_text(encoding="utf-8")
-        self.assertIn('p.run("6 - SMART MEDIA SELECTOR", "media_stage_runtime.py"', pipeline)
-        runtime = (ROOT / "media_stage_runtime.py").read_text(encoding="utf-8")
-        self.assertIn('MIDIA = BASE / "midia.py"', runtime)
+        self.assertIn("media_engine_v2.py", pipeline)
+        self.assertIn("render_plan_v2.py", pipeline)
+        self.assertNotIn("media_stage_runtime.py", pipeline)
         self.assertNotIn("midia_runtime.py", pipeline)
 
 
