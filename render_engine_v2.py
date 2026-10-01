@@ -512,8 +512,21 @@ def main() -> int:
         job=build_job(sid)
         state=read_json(job/"state.json") if (job/"state.json").is_file() else {"status":"CREATED"}
         if state.get("status")=="PASSED":
-            report=read_json(job/"render_report.json")
-            print(json.dumps(report,ensure_ascii=False)); return 0
+            report_path = job/"render_report.json"
+            final_path = BASE/"videos"/f"short_v6_{sid}.mp4"
+            if not report_path.is_file() or not final_path.is_file():
+                transition(job,"FAILED",error_code="PASSED_STATE_INVALID",error="missing_passed_artifact")
+                raise RuntimeError("PASSED_STATE_INVALID:missing_artifact")
+            report=read_json(report_path)
+            job_meta=read_json(job/"job.json")
+            if report.get("status")!="PASSED" or report.get("short_id")!=sid or job_meta.get("short_id")!=sid:
+                transition(job,"FAILED",error_code="PASSED_STATE_INVALID",error="identity_or_report")
+                raise RuntimeError("PASSED_STATE_INVALID:identity_or_report")
+            verified=validate_output(final_path,job)
+            if verified.get("status")!="PASSED" or verified.get("short_id")!=sid:
+                transition(job,"FAILED",error_code="PASSED_STATE_INVALID",error="final_revalidation")
+                raise RuntimeError("PASSED_STATE_INVALID:final_revalidation")
+            print(json.dumps(verified,ensure_ascii=False)); return 0
         transition(job,"VALIDATING_INPUT")
         detail=validate_input(job)
         transition(job,"READY",input=detail)
