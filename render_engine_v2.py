@@ -17,6 +17,7 @@ import hashlib
 import json
 import math
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -108,18 +109,16 @@ def validate_short_id(short_id: str) -> str:
 def choose_render_id(job_root: Path) -> str:
     if not job_root.exists():
         return "render_001"
-    existing = sorted(p.name for p in job_root.iterdir() if p.is_dir() and p.name.startswith("render_"))
+    existing = sorted(
+        (p.name for p in job_root.iterdir() if p.is_dir() and p.name.startswith("render_")),
+        reverse=True,
+    )
     if not existing:
         return "render_001"
-    for name in existing:
-        state = job_root / name / "state.json"
-        if state.is_file():
-            try:
-                if read_json(state).get("status") != "PASSED":
-                    return name
-            except Exception:
-                return name
-    return f"render_{len(existing)+1:03d}"
+    # A given SHORT_ID owns one resumable render lineage. Reusing the latest
+    # render directory is important: a persisted PASSED state must be revalidated
+    # instead of silently creating a fresh render that bypasses stale-state checks.
+    return existing[0]
 
 def build_job(short_id: str) -> Path:
     short_id = validate_short_id(short_id)
