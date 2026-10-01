@@ -230,9 +230,10 @@ def main() -> int:
         issues.append("profile_run_not_canonical")
     if "STANDARD_ROLLBACK" in profile_text or "SAP_PRO_EDIT" in profile_text:
         issues.append("profile_run_has_legacy_mode")
-    if "v6_professional.py" not in resume_text or "video_professional.py" not in resume_text:
-        issues.append("resume_not_professional_canonical")
-    for token in ("STANDARD_ROLLBACK", "SAP_PRO_EDIT", '"video.py"', '"v6_runtime.py"'):
+    for token in ("media_engine_v2.py", "render_plan_v2.py", "render_engine_v2.py"):
+        if token not in resume_text:
+            issues.append(f"resume_v2_contract_missing:{token}")
+    for token in ("STANDARD_ROLLBACK", "SAP_PRO_EDIT", '"video.py"', '"v6_runtime.py"', "media_stage_runtime.py", "video_professional.py", "v6_professional.py", "retention_engine.py"):
         if token in resume_text:
             issues.append(f"resume_legacy_token:{token}")
 
