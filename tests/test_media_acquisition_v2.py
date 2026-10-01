@@ -275,7 +275,6 @@ class AcquisitionV2Tests(unittest.TestCase):
                 __import__("json").dumps({"scenes": []}), encoding="utf-8"
             )
             (base / "audios" / ("short_" + sid + ".mp3")).write_bytes(b"x")
-            (base / "videos").mkdir()
             (base / "videos" / ("short_" + sid + ".ass")).write_text("", encoding="utf-8")
             (base / "videos" / ("short_v6_" + sid + ".mp4")).write_bytes(b"x" * 2000)
             media = base / "imagens" / ("short_" + sid)
@@ -318,6 +317,7 @@ class AcquisitionV2Tests(unittest.TestCase):
             (base / "roteiros" / ("scene_map_" + sid + ".json")).write_text('{"scenes":[{"scene":1,"segment":"test","words":1}]}', encoding="utf-8")
             (base / "roteiros" / ("pro_edit_plan_" + sid + ".json")).write_text('{"scenes":[{"scene":1,"pace_multiplier":1.0}]}', encoding="utf-8")
             (base / "audios" / ("short_" + sid + ".mp3")).write_bytes(b"x")
+            (base / "videos").mkdir()
             (base / "videos" / ("short_" + sid + ".ass")).write_text("", encoding="utf-8")
             asset = base / "imagens" / ("short_" + sid) / "scene_01.jpg"
             media_manifest = {"schema_version":"media-manifest-v2","short_id":sid,"immutable":True,"scene_count":1,
