@@ -55,23 +55,35 @@ class RetentionReviewContractTests(unittest.TestCase):
         self.assertNotIn("retention_engine.py", source)
         self.assertNotIn("media_stage_runtime.py", source)
 
-    def test_resume_accepts_review_checkpoint_but_rejects_block(self):
-        def fake_read_json(path):
-            name = str(path)
-            if "retention_" in name:
-                return {"retention_score": 75.2, "status": "REVIEW"}
-            return {"ok": True}
-
-        with mock.patch.object(resume_short_runtime, "pro_plan_ok", return_value=True),              mock.patch.object(resume_short_runtime, "nonempty", return_value=True),              mock.patch.object(resume_short_runtime, "read_json", side_effect=fake_read_json):
+    def test_resume_requires_frozen_v2_manifest(self):
+        valid_plan = {
+            "schema_version": "render-plan-v2",
+            "short_id": "case",
+            "scenes": [{"scene": i} for i in range(1, 13)],
+        }
+        valid_manifest = {
+            "schema_version": "media-manifest-v2",
+            "short_id": "case",
+            "immutable": True,
+            "scenes": [
+                {"scene": i, "asset": {"validated": True, "checksum_sha256": f"sha-{i}"}}
+                for i in range(1, 13)
+            ],
+        }
+        with mock.patch.object(
+            resume_short_runtime,
+            "read_json",
+            side_effect=lambda path: valid_plan if "pro_edit_plan_" in str(path) else valid_manifest,
+        ):
             self.assertTrue(resume_short_runtime.consolidation_plan_ok("case"))
 
-        def blocked_read_json(path):
-            name = str(path)
-            if "retention_" in name:
-                return {"retention_score": 62.0, "status": "BLOCK"}
-            return {"ok": True}
-
-        with mock.patch.object(resume_short_runtime, "pro_plan_ok", return_value=True),              mock.patch.object(resume_short_runtime, "nonempty", return_value=True),              mock.patch.object(resume_short_runtime, "read_json", side_effect=blocked_read_json):
+        blocked_manifest = dict(valid_manifest)
+        blocked_manifest["immutable"] = False
+        with mock.patch.object(
+            resume_short_runtime,
+            "read_json",
+            side_effect=lambda path: valid_plan if "pro_edit_plan_" in str(path) else blocked_manifest,
+        ):
             self.assertFalse(resume_short_runtime.consolidation_plan_ok("case"))
 
 
