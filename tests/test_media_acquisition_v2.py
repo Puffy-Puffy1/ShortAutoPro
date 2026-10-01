@@ -10,7 +10,7 @@ import render_engine_v2
 
 class FakeProvider:
     def __init__(self,name,candidates): self.name=name; self.candidates=candidates
-    def search(self,query,must,avoid): return list(self.candidates)
+    def search(self,query,must,avoid,**kwargs): return list(self.candidates)
 
 class AcquisitionV2Tests(unittest.TestCase):
     def test_router_falls_back_per_asset(self):
@@ -59,15 +59,8 @@ class AcquisitionV2Tests(unittest.TestCase):
             def download(self, candidate, scene_number, short_id):
                 self.calls.append(candidate["id"])
                 if candidate["id"] == "a":
-                    return False, ""
-                return True, "/tmp/verified-b.mp4"
-
-        fake = FakeEngineProvider()
-        fake.download = lambda candidate, scene_number, short_id: (
-            (False, "", {"error_class": "DOWNLOAD_FAILED"})
-            if candidate["id"] == "a"
-            else (True, "/tmp/verified-b.mp4", {"validated": True})
-        )
+                    return False, "", {"error_class": "DOWNLOAD_FAILED"}
+                return True, "/tmp/verified-b.mp4", {"validated": True}
         with patch.object(media_engine_v2, "PROVIDER", fake), \
              patch.object(media_engine_v2, "validate_asset", return_value={"probe": {}, "sha256": "b"}), \
              patch.object(media_engine_v2, "_candidate_record", return_value={"asset_id": "b"}):
@@ -282,6 +275,15 @@ class AcquisitionV2Tests(unittest.TestCase):
             )
             (base / "audios" / ("short_" + sid + ".mp3")).write_bytes(b"x")
             (base / "videos" / ("short_v6_" + sid + ".mp4")).write_bytes(b"x" * 2000)
+            media = base / "imagens" / ("short_" + sid)
+            media.mkdir(parents=True)
+            media_asset = media / "scene_01.jpg"
+            media_manifest = {"schema_version": "media-manifest-v2", "short_id": sid, "immutable": True,
+                              "scene_count": 1, "scenes": [{"scene_id": "1", "scene_number": 1,
+                              "asset": {"validated": True, "path": str(media_asset)}}]}
+            (base / "manifests" / ("media_" + sid + ".json")).write_text(__import__("json").dumps(media_manifest), encoding="utf-8")
+            (base / "roteiros" / ("scene_map_" + sid + ".json")).write_text(__import__("json").dumps({"scenes": [{"scene": 1, "segment": "test", "words": 1}]}), encoding="utf-8")
+            (base / "roteiros" / ("pro_edit_plan_" + sid + ".json")).write_text(__import__("json").dumps({"scenes": [{"scene": 1, "pace_multiplier": 1.0}]}), encoding="utf-8")
             with patch.object(render_engine_v2, "BASE", base):
                 with patch.object(render_engine_v2, "audio_duration", return_value=1.0):
                     with patch.object(
