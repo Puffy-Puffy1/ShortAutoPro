@@ -496,11 +496,7 @@ def _resume_locked(sid: str, point: str) -> int:
         if rank <= 3:
             render_tail(sid)
         elif rank <= 4:
-            run_python(sid, "FINAL RENDER V6 PROFESSIONAL", "v6_professional.py")
-            if not render_ok(sid):
-                raise RuntimeError("renderer terminou sem artefato técnico válido")
-            run_python(sid, "FINAL AUDIO MASTER", "audio_finalizer.py")
-            run_python(sid, "VISUAL QA", "visual_qa.py")
+            render_tail(sid)
         else:
             run_python(sid, "FINAL AUDIO MASTER", "audio_finalizer.py")
             run_python(sid, "VISUAL QA", "visual_qa.py")
