@@ -191,8 +191,6 @@ class ResumeBoundaryTests(unittest.TestCase):
 
     def test_resume_falls_back_to_full_without_v2_manifest(self):
         (self.base / "manifests" / f"media_{self.sid}.json").unlink()
-        self.assertEqual(rsr.boundary(self.sid), "post_planning")
-        (self.base / "roteiros" / f"short_{self.sid}.txt").unlink(missing_ok=True)
         self.assertEqual(rsr.boundary(self.sid), "full")
 
     def test_render_boundary_can_skip_to_final_gates(self):
