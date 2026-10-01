@@ -271,15 +271,23 @@ def build_manifest(short_id: str) -> dict[str, Any]:
         record = acquire_scene(short_id, number, scene, media_dir)
         _write_asset_sidecar(media_dir, number, record)
         records.append(record)
+    scenes_out = [
+        {
+            "scene_id": str(scene.get("scene_id", scene.get("scene", number))),
+            "scene_number": number,
+            "asset": record,
+        }
+        for number, (scene, record) in enumerate(zip(scenes, records), 1)
+    ]
     manifest = {
         "schema_version": "media-manifest-v2",
         "engine_version": ENGINE_VERSION,
         "short_id": short_id,
         "immutable": True,
-        "scene_count": len(records),
-        "assets": records,
+        "scene_count": len(scenes_out),
+        "scenes": scenes_out,
     }
-    atomic_json(BASE / "roteiros" / f"media_manifest_v2_{short_id}.json", manifest)
+    atomic_json(BASE / "manifests" / f"media_{short_id}.json", manifest)
     return manifest
 
 
