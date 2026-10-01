@@ -1,5 +1,4 @@
 import unittest
-from unittest.mock import patch
 from pathlib import Path
 
 from media_provider_v2 import MediaProviderV2
@@ -15,10 +14,10 @@ class MediaProviderV2Tests(unittest.TestCase):
             },
         )
 
-    def test_search_normalizes_non_list_provider_result(self):
-        provider = MediaProviderV2()
-        with patch("media_provider_v2._legacy", return_value=(lambda *a, **k: None, None, None)):
-            self.assertEqual(provider.search("q", [], []), [])
+    def test_provider_boundary_does_not_import_legacy(self):
+        source = Path("media_provider_v2.py").read_text(encoding="utf-8")
+        self.assertNotIn("from midia import", source)
+        self.assertNotIn("import midia", source)
 
     def test_provider_boundary_does_not_own_rendering(self):
         source = Path("media_provider_v2.py").read_text(encoding="utf-8")
