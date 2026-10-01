@@ -172,31 +172,35 @@ def pre_media_plan_ok(sid: str) -> bool:
 
 
 def consolidation_plan_ok(sid: str) -> bool:
-    if not pro_plan_ok(sid):
+    """Validate the frozen V2 media manifest and deterministic render plan."""
+    plan = read_json(BASE / "roteiros" / f"pro_edit_plan_{sid}.json")
+    scenes = plan.get("scenes", []) if isinstance(plan, dict) else []
+    if (
+        plan.get("schema_version") != "render-plan-v2"
+        or plan.get("short_id") != sid
+        or not isinstance(scenes, list)
+        or len(scenes) != expected_scenes()
+    ):
         return False
-    required = [
-        BASE / "roteiros" / f"retention_{sid}.json",
-        BASE / "roteiros" / f"sound_design_{sid}.json",
-        BASE / "roteiros" / f"multi_asset_{sid}.json",
-        BASE / "roteiros" / f"visual_score_{sid}.json",
-        BASE / "roteiros" / f"visual_continuity_{sid}.json",
-    ]
-    if not all(nonempty(path, 20) and read_json(path) for path in required):
-        return False
-    retention = read_json(required[0])
-    status = str(retention.get("status", "") or "").upper()
-    if status == "BLOCK":
-        return False
-    if status in {"PASS", "REVIEW"}:
-        return True
-    try:
-        score = float(retention.get("retention_score", retention.get("score", 0)) or 0)
-    except (TypeError, ValueError, OverflowError):
-        return False
-    review_floor = env_float("SAP_RETENTION_REVIEW_MIN_SCORE", 70.0, 0.0, 100.0)
-    return math.isfinite(score) and score >= review_floor
 
+    manifest = read_json(BASE / "manifests" / f"media_{sid}.json")
+    media_scenes = manifest.get("scenes", []) if isinstance(manifest, dict) else []
+    if (
+        manifest.get("schema_version") != "media-manifest-v2"
+        or manifest.get("short_id") != sid
+        or manifest.get("immutable") is not True
+        or not isinstance(media_scenes, list)
+        or len(media_scenes) != expected_scenes()
+    ):
+        return False
 
+    for row in media_scenes:
+        asset = row.get("asset") if isinstance(row, dict) else None
+        if not isinstance(asset, dict) or asset.get("validated") is not True:
+            return False
+        if not asset.get("checksum_sha256"):
+            return False
+    return True
 def audio_ok(sid: str) -> bool:
     return nonempty(BASE / "audios" / f"short_{sid}.mp3", 5000)
 
