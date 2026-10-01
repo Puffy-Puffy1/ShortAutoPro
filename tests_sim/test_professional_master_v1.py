@@ -90,18 +90,17 @@ class CanonicalProfessionalPipelineTests(unittest.TestCase):
         source = (ROOT / "main.py").read_text(encoding="utf-8")
         self.assertIn("PROFESSIONAL_CANONICAL", source)
         for required in (
-            "professional_edit_director.py",
-            "professional_edit_repair.py",
+            "media_engine_v2.py",
+            "render_plan_v2.py",
+            "render_engine_v2.py",
             "multi_asset_director.py",
-            "retention_engine.py",
             "sound_design_engine.py",
             "speech_director.py",
             "professional_caption_director.py",
             "caption_layout_guard.py",
-            "video_professional.py",
-            "v6_professional.py",
             "audio_finalizer.py",
             "visual_qa.py",
+            "professional_quality_gate.py",
             "release_gate.py",
         ):
             self.assertIn(required, source)
