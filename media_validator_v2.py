@@ -57,7 +57,7 @@ def probe(path: Path) -> dict[str, Any]:
         raise ValueError("INVALID_DIMENSIONS")
     fmt = data.get("format") if isinstance(data.get("format"), dict) else {}
     duration = float(fmt.get("duration") or 0.0)
-    if duration <= 0:
+    if path.suffix.lower() in VIDEO_EXTS and duration <= 0:
         raise ValueError("INVALID_DURATION")
     return {
         "codec": str(video.get("codec_name") or ""),
