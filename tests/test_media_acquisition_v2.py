@@ -306,9 +306,23 @@ class AcquisitionV2Tests(unittest.TestCase):
             (job / "state.json").write_text('{"status":"PASSED"}', encoding="utf-8")
             (job / "render_report.json").write_text('{"status":"PASSED","short_id":"SHORT_PASS"}', encoding="utf-8")
             (job / "job.json").write_text('{"short_id":"SHORT_PASS","render_id":"render_001","duration_target":1}', encoding="utf-8")
-            with patch.object(media_engine, "BASE", base):
-                with patch.object(render_engine_v2.sys, "argv", ["render_engine_v2.py", "--short-id", sid]):
-                    self.assertNotEqual(render_engine_v2.main(), 0)
+            (job / "manifest.json").write_text('{"short_id":"SHORT_PASS","assets":[]}', encoding="utf-8")
+            (job / "timeline.json").write_text('{"short_id":"SHORT_PASS","scenes":[]}', encoding="utf-8")
+            (base / "roteiros").mkdir()
+            (base / "audios").mkdir()
+            (base / "manifests").mkdir()
+            (base / "imagens" / "short_" + sid).mkdir(parents=True)
+            (base / "roteiros" / ("scene_map_" + sid + ".json")).write_text('{"scenes":[{"scene":1,"segment":"test","words":1}]}', encoding="utf-8")
+            (base / "roteiros" / ("pro_edit_plan_" + sid + ".json")).write_text('{"scenes":[{"scene":1,"pace_multiplier":1.0}]}', encoding="utf-8")
+            (base / "audios" / ("short_" + sid + ".mp3")).write_bytes(b"x")
+            asset = base / "imagens" / ("short_" + sid) / "scene_01.jpg"
+            media_manifest = {"schema_version":"media-manifest-v2","short_id":sid,"immutable":True,"scene_count":1,
+                              "scenes":[{"scene_id":"1","scene_number":1,"asset":{"validated":True,"path":str(asset)}}]}
+            (base / "manifests" / ("media_" + sid + ".json")).write_text(__import__("json").dumps(media_manifest), encoding="utf-8")
+            with patch.object(render_engine_v2, "BASE", base):
+                with patch.object(render_engine_v2, "audio_duration", return_value=1.0):
+                    with patch.object(render_engine_v2.sys, "argv", ["render_engine_v2.py", "--short-id", sid]):
+                        self.assertNotEqual(render_engine_v2.main(), 0)
 
 if __name__ == "__main__":
     unittest.main()
