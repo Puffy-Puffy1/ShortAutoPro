@@ -130,7 +130,8 @@ def pro_plan_ok(sid: str) -> bool:
     data = read_json(BASE / "roteiros" / f"pro_edit_plan_{sid}.json")
     scenes = data.get("scenes", []) if isinstance(data, dict) else []
     return (
-        str(data.get("version", "")).startswith("PRO_EDIT_")
+        data.get("schema_version") == "render-plan-v2"
+        and data.get("short_id") == sid
         and isinstance(scenes, list)
         and len(scenes) == expected_scenes()
     )
@@ -442,19 +443,21 @@ def final_gates(sid: str) -> int:
 
 
 def media_planning_tail(sid: str) -> None:
-    """Resume the V2 media boundary without invoking the retired Stage 6 controller."""
-    run_python(sid, "MEDIA ENGINE V2 - ACQUIRE + VALIDATE + FREEZE MANIFEST", "media_engine_v2.py", "--short-id", sid)
-    run_python(sid, "RENDER PLAN V2 - DETERMINISTIC TIMELINE INPUT", "render_plan_v2.py", "--short-id", sid)
-    run_python(sid, "ASSET LIBRARY INDEX", "shortauto_asset_library.py", "index", "--short-id", sid)
-    run_python(sid, "INTELLIGENCE MEDIA", "shortauto_intelligence_layer.py", "media", "--short-id", sid)
-    run_python(sid, "MULTIDIMENSIONAL VISUAL SCORE", "visual_score_engine.py")
-    run_python(sid, "CINEMATIC MOTION DIRECTOR", "motion_director.py")
-    run_python(sid, "MONTAGE RHYTHM DIRECTOR", "rhythm_director.py")
-    run_python(sid, "MULTI-ASSET DIRECTOR", "multi_asset_director.py")
-    run_python(sid, "SOUND DESIGN ENGINE", "sound_design_engine.py")
-    run_python(sid, "PRODUCTION SUPERVISOR", "production_supervisor.py")
-    run_python(sid, "EVOLUTION CAPTION AUDIT", "shortautopro_evolution.py", "caption-audit")
-
+    """Resume only through Media Engine V2 and deterministic Render Plan V2."""
+    run_python(
+        sid,
+        "MEDIA ENGINE V2 - ACQUIRE + VALIDATE + FREEZE MANIFEST",
+        "media_engine_v2.py",
+        "--short-id",
+        sid,
+    )
+    run_python(
+        sid,
+        "RENDER PLAN V2 - DETERMINISTIC TIMELINE INPUT",
+        "render_plan_v2.py",
+        "--short-id",
+        sid,
+    )
 
 def render_tail(sid: str) -> None:
     """Render only from the frozen V2 manifest; acquisition stays outside the renderer."""
