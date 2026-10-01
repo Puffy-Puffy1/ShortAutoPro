@@ -500,7 +500,7 @@ def _resume_locked(sid: str, point: str) -> int:
         rank = order[point]
 
         if rank <= 0:
-            print("RESUME_FROM_STAGE6=YES")
+            print("RESUME_FROM_V2_MEDIA=YES")
             media_planning_tail(sid)
 
         if rank <= 1:
