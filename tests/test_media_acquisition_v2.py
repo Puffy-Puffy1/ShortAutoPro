@@ -235,5 +235,18 @@ class AcquisitionV2Tests(unittest.TestCase):
                     source.build_job(sid)
 
 
+    def test_render_validate_input_rejects_cross_short_job_scope(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            job = base / "render_jobs" / "SHORT_A" / "render_001"
+            job.mkdir(parents=True)
+            (base / "imagens" / "short_SHORT_A").mkdir(parents=True)
+            (job / "job.json").write_text('{"short_id":"SHORT_B","render_id":"render_001"}', encoding="utf-8")
+            (job / "manifest.json").write_text('{"short_id":"SHORT_B","assets":[]}', encoding="utf-8")
+            (job / "timeline.json").write_text('{"short_id":"SHORT_B","scenes":[]}', encoding="utf-8")
+            with patch.object(media_engine, "BASE", base):
+                with self.assertRaisesRegex(RuntimeError, "job_scope"):
+                    media_engine.validate_input(job)
+
 if __name__ == "__main__":
     unittest.main()
