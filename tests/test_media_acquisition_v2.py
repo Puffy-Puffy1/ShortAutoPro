@@ -157,5 +157,29 @@ class AcquisitionV2Tests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "INVALID_DIMENSIONS"):
                     validate(p)
 
+    def test_build_manifest_reuses_verified_asset_without_provider(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            media_engine_v2.BASE = base
+            sid = "SHORT_A"
+            (base / "roteiros").mkdir()
+            (base / "imagens" / f"short_{sid}").mkdir(parents=True)
+            (base / "roteiros" / f"scene_map_{sid}.json").write_text(
+                __import__("json").dumps({"scenes": [{"query": "test", "must_have": ["test"]}]}),
+                encoding="utf-8",
+            )
+            asset = base / "imagens" / f"short_{sid}" / "scene_01.jpg"
+            asset.write_bytes(b"x" * 2000)
+            digest = media_engine_v2.sha256(asset)
+            (asset.parent / "scene_01.json").write_text(
+                __import__("json").dumps({"checksum_sha256": digest, "must_total": 1}),
+                encoding="utf-8",
+            )
+            with patch.object(media_engine_v2, "ffprobe_asset", return_value={"width": 1080, "height": 1920}),                  patch.object(media_engine_v2.PROVIDER, "search", side_effect=AssertionError("resume must not query")):
+                manifest = media_engine_v2.build_manifest(sid)
+            self.assertEqual(manifest["short_id"], sid)
+            self.assertEqual(manifest["scene_count"], 1)
+            self.assertTrue((base / "roteiros" / f"media_manifest_v2_{sid}.json").is_file())
+
 if __name__ == "__main__":
     unittest.main()
