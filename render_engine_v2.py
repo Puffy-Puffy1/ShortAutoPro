@@ -333,8 +333,19 @@ def run_cmd(cmd: list[str], cwd: Path, timeout: int) -> subprocess.CompletedProc
     return run_group(cmd, cwd=cwd, capture_output=True, text=True, check=False, timeout=timeout)
 
 def validate_input(job: Path) -> dict[str, Any]:
+    job_meta = read_json(job/"job.json")
     manifest = read_json(job/"manifest.json")
     timeline = read_json(job/"timeline.json")
+    expected_short_id = validate_short_id(str(job_meta.get("short_id") or ""))
+    expected_root = (BASE / "render_jobs" / expected_short_id).resolve()
+    try:
+        job.resolve().relative_to(expected_root)
+    except ValueError:
+        raise RuntimeError("RENDER_INPUT_INVALID:job_scope")
+    if manifest.get("short_id") != expected_short_id:
+        raise RuntimeError("RENDER_INPUT_INVALID:manifest_short_id")
+    if timeline.get("short_id") != expected_short_id:
+        raise RuntimeError("RENDER_INPUT_INVALID:timeline_short_id")
     errors=[]
     assets=manifest.get("assets",[])
     if not assets: errors.append("RENDER_ASSET_MISSING")
