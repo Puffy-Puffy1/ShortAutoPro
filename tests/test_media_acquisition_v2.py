@@ -7,6 +7,7 @@ from media_provider_router_v2 import MediaProviderRouterV2
 from media_provider_router_v2 import MediaProvider
 from media_validator_v2 import validate
 import media_engine_v2
+import render_engine_v2
 
 class FakeProvider:
     def __init__(self,name,candidates): self.name=name; self.candidates=candidates
@@ -244,9 +245,55 @@ class AcquisitionV2Tests(unittest.TestCase):
             (job / "job.json").write_text('{"short_id":"SHORT_B","render_id":"render_001"}', encoding="utf-8")
             (job / "manifest.json").write_text('{"short_id":"SHORT_B","assets":[]}', encoding="utf-8")
             (job / "timeline.json").write_text('{"short_id":"SHORT_B","scenes":[]}', encoding="utf-8")
-            with patch.object(media_engine, "BASE", base):
+            with patch.object(render_engine_v2, "BASE", base):
                 with self.assertRaisesRegex(RuntimeError, "job_scope"):
-                    media_engine.validate_input(job)
+                    render_engine_v2.validate_input(job)
+
+    def test_render_main_revalidates_existing_passed_lineage(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            sid = "SHORT_PASS_REVALIDATE"
+            job = base / "render_jobs" / sid / "render_001"
+            job.mkdir(parents=True)
+            (job / "state.json").write_text(
+                __import__("json").dumps({"status": "PASSED"}), encoding="utf-8"
+            )
+            (job / "render_report.json").write_text(
+                __import__("json").dumps({"status": "PASSED", "short_id": sid}), encoding="utf-8"
+            )
+            (job / "job.json").write_text(
+                __import__("json").dumps({"short_id": sid, "render_id": "render_001", "duration_target": 1}),
+                encoding="utf-8",
+            )
+            (job / "manifest.json").write_text(
+                __import__("json").dumps({"short_id": sid, "assets": []}), encoding="utf-8"
+            )
+            (job / "timeline.json").write_text(
+                __import__("json").dumps({"short_id": sid, "scenes": []}), encoding="utf-8"
+            )
+            (base / "roteiros").mkdir()
+            (base / "audios").mkdir()
+            (base / "videos").mkdir()
+            (base / "manifests").mkdir()
+            (base / "roteiros" / ("scene_map_" + sid + ".json")).write_text(
+                __import__("json").dumps({"scenes": []}), encoding="utf-8"
+            )
+            (base / "roteiros" / ("pro_edit_plan_" + sid + ".json")).write_text(
+                __import__("json").dumps({"scenes": []}), encoding="utf-8"
+            )
+            (base / "audios" / ("short_" + sid + ".mp3")).write_bytes(b"x")
+            with patch.object(render_engine_v2, "BASE", base):
+                with patch.object(render_engine_v2, "audio_duration", return_value=1.0):
+                    with patch.object(
+                        render_engine_v2, "validate_output",
+                        side_effect=RuntimeError("QUALITY_GATE_FAIL:stale_output"),
+                    ) as validate:
+                        with patch.object(
+                            render_engine_v2.sys, "argv",
+                            ["render_engine_v2.py", "--short-id", sid],
+                        ):
+                            self.assertNotEqual(render_engine_v2.main(), 0)
+                        validate.assert_called_once()
 
     def test_render_main_does_not_trust_stale_passed_state(self):
         with tempfile.TemporaryDirectory() as td:
@@ -258,8 +305,8 @@ class AcquisitionV2Tests(unittest.TestCase):
             (job / "render_report.json").write_text('{"status":"PASSED","short_id":"SHORT_PASS"}', encoding="utf-8")
             (job / "job.json").write_text('{"short_id":"SHORT_PASS","render_id":"render_001","duration_target":1}', encoding="utf-8")
             with patch.object(media_engine, "BASE", base):
-                with patch.object(media_engine.sys, "argv", ["render_engine_v2.py", "--short-id", sid]):
-                    self.assertNotEqual(media_engine.main(), 0)
+                with patch.object(render_engine_v2.sys, "argv", ["render_engine_v2.py", "--short-id", sid]):
+                    self.assertNotEqual(render_engine_v2.main(), 0)
 
 if __name__ == "__main__":
     unittest.main()
