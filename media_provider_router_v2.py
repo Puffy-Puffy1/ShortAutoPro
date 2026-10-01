@@ -202,9 +202,19 @@ class MediaProviderRouterV2:
         blocked,reason,_=asset_blocked(url,provider=provider,asset_id=candidate.get("id"))
         if blocked: return False,"",{"error_class":"ASSET_QUARANTINED","reason":reason}
         ext=".mp4" if str(candidate.get("tipo","")).lower() in {"video","vídeo"} else ".jpg"
-        outdir=BASE/"imagens"/f"short_{short_id}"
-        outdir.mkdir(parents=True,exist_ok=True)
-        dest=outdir/f"scene_{scene_number:02d}_{provider}{ext}"
+        safe_short_id = re.sub(r"[^A-Za-z0-9._-]", "_", str(short_id))
+        if not safe_short_id or safe_short_id != str(short_id) or ".." in safe_short_id:
+            return False, "", {"error_class": "SHORT_ID_INVALID"}
+        if int(scene_number) < 1 or int(scene_number) > 999:
+            return False, "", {"error_class": "SCENE_NUMBER_INVALID"}
+        outdir = (BASE / "imagens" / f"short_{safe_short_id}").resolve()
+        base_media = (BASE / "imagens").resolve()
+        try:
+            outdir.relative_to(base_media)
+        except ValueError:
+            return False, "", {"error_class": "OUTPUT_PATH_INVALID"}
+        outdir.mkdir(parents=True, exist_ok=True)
+        dest = outdir / f"scene_{int(scene_number):02d}_{provider}{ext}"
         try:
             with requests.get(url,stream=True,timeout=DOWNLOAD_TIMEOUT) as r:
                 if not r.ok:
