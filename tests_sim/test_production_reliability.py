@@ -112,25 +112,39 @@ class ResumeReliabilityTests(unittest.TestCase):
         folder = self.base / 'roteiros'
         folder.mkdir(exist_ok=True)
         (folder / 'pro_edit_plan_one.json').write_text(json.dumps({
-            'version': 'PRO_EDIT_1', 'scenes': [{}] * 12}))
+            'schema_version': 'render-plan-v2', 'short_id': 'one', 'scenes': [{}] * 12}))
+        manifests = self.base / 'manifests'
+        manifests.mkdir(exist_ok=True)
+        (manifests / 'media_one.json').write_text(json.dumps({
+            'schema_version': 'media-manifest-v2',
+            'short_id': 'one',
+            'immutable': True,
+            'scenes': [{'scene': i, 'asset': {'validated': True, 'checksum_sha256': f'sha-{i}'}} for i in range(1, 13)]
+        }))
         for name in ('retention', 'sound_design', 'multi_asset', 'visual_score', 'visual_continuity'):
             (folder / f'{name}_one.json').write_text(json.dumps({'retention_score': score, 'padding': 'enough bytes'}))
 
-    def test_malformed_and_nonfinite_retention_cannot_crash_or_pass(self):
-        with patch.dict(os.environ, {'SHORT_QTD_CENAS': '12'}):
-            for score in ('broken', [], {}, 'NaN', 'Infinity', '-Infinity'):
-                with self.subTest(score=score):
-                    self.plans(score)
-                    self.assertFalse(resume.consolidation_plan_ok('one'))
-
-    def test_bad_environment_threshold_uses_default(self):
+    def test_malformed_v2_manifest_cannot_crash_or_pass(self):
         self.plans()
-        with patch.dict(os.environ, {'SAP_RETENTION_MIN_SCORE': 'broken', 'SHORT_QTD_CENAS': '12'}):
+        manifest = self.base / 'manifests' / 'media_one.json'
+        for payload in (
+            {'schema_version': 'wrong', 'short_id': 'one', 'immutable': True, 'scenes': [{}] * 12},
+            {'schema_version': 'media-manifest-v2', 'short_id': 'other', 'immutable': True, 'scenes': [{}] * 12},
+            {'schema_version': 'media-manifest-v2', 'short_id': 'one', 'immutable': False, 'scenes': [{}] * 12},
+        ):
+            with self.subTest(payload=payload):
+                manifest.write_text(json.dumps(payload))
+                self.assertFalse(resume.consolidation_plan_ok('one'))
+        self.plans()
+
+    def test_valid_v2_checkpoint_is_accepted(self):
+        self.plans()
+        with patch.dict(os.environ, {'SHORT_QTD_CENAS': '12'}):
             self.assertTrue(resume.consolidation_plan_ok('one'))
 
-    def test_large_but_corrupt_planning_file_is_not_a_checkpoint(self):
+    def test_large_but_corrupt_v2_manifest_is_not_a_checkpoint(self):
         self.plans()
-        (self.base / 'roteiros' / 'multi_asset_one.json').write_text('not json ' * 20)
+        (self.base / 'manifests' / 'media_one.json').write_text('not json ' * 20)
         self.assertFalse(resume.consolidation_plan_ok('one'))
 
     def test_audio_does_not_allow_resume_with_missing_media(self):
@@ -181,7 +195,7 @@ class ResumeReliabilityTests(unittest.TestCase):
                     scripts = [call.args[2] for call in run.call_args_list]
                     self.assertEqual('audio.py' in scripts, point == 'post_planning')
                     self.assertEqual('legenda_dinamica.py' in scripts, point in {'post_planning', 'post_audio'})
-                    self.assertEqual(tail.called, point in {'post_planning', 'post_audio', 'post_captions'})
+                    self.assertEqual(tail.called, point in {'post_planning', 'post_audio', 'post_captions', 'post_assembly'})
                     finish.assert_called_once_with('SUCCESS', 'one')
 
     def test_full_resume_releases_parent_lock_before_launching_child(self):
