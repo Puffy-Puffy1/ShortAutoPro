@@ -181,5 +181,32 @@ class AcquisitionV2Tests(unittest.TestCase):
             self.assertEqual(manifest["scene_count"], 1)
             self.assertTrue((base / "roteiros" / f"media_manifest_v2_{sid}.json").is_file())
 
+    def test_manifest_matches_render_engine_v2_contract(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            media_engine_v2.BASE = base
+            sid = "SHORT_CONTRACT"
+            (base / "roteiros").mkdir()
+            (base / "imagens" / f"short_{sid}").mkdir(parents=True)
+            (base / "roteiros" / f"scene_map_{sid}.json").write_text(
+                __import__("json").dumps({"scenes": [{"scene_id": "s1", "query": "test", "must_have": []}]}),
+                encoding="utf-8",
+            )
+            asset = base / "imagens" / f"short_{sid}" / "scene_01.jpg"
+            asset.write_bytes(b"x" * 2000)
+            digest = media_engine_v2.sha256(asset)
+            (asset.parent / "scene_01.json").write_text(
+                __import__("json").dumps({"checksum_sha256": digest, "must_total": 0}),
+                encoding="utf-8",
+            )
+            with patch.object(media_engine_v2, "ffprobe_asset", return_value={"width": 1080, "height": 1920}):
+                manifest = media_engine_v2.build_manifest(sid)
+            self.assertEqual(manifest["schema_version"], "media-manifest-v2")
+            self.assertEqual(manifest["short_id"], sid)
+            self.assertEqual(len(manifest["scenes"]), 1)
+            self.assertIsInstance(manifest["scenes"][0]["asset"], dict)
+            self.assertTrue(manifest["scenes"][0]["asset"]["validated"])
+            self.assertTrue((base / "manifests" / f"media_{sid}.json").is_file())
+
 if __name__ == "__main__":
     unittest.main()
