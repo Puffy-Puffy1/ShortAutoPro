@@ -282,6 +282,7 @@ class AcquisitionV2Tests(unittest.TestCase):
                 __import__("json").dumps({"scenes": []}), encoding="utf-8"
             )
             (base / "audios" / ("short_" + sid + ".mp3")).write_bytes(b"x")
+            (base / "videos" / ("short_v6_" + sid + ".mp4")).write_bytes(b"x" * 2000)
             with patch.object(render_engine_v2, "BASE", base):
                 with patch.object(render_engine_v2, "audio_duration", return_value=1.0):
                     with patch.object(
