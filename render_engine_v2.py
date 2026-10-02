@@ -147,6 +147,21 @@ def choose_render_id(job_root: Path) -> str:
 
 def build_job(short_id: str) -> Path:
     short_id = validate_short_id(short_id)
+    root = BASE / "render_jobs" / short_id
+    render_id = choose_render_id(root)
+    existing_job = root / render_id
+    existing_state = existing_job / "state.json"
+    if (
+        (existing_job / "job.json").is_file()
+        and (existing_job / "manifest.json").is_file()
+        and (existing_job / "timeline.json").is_file()
+        and existing_state.is_file()
+        and read_json(existing_state).get("status") == "PASSED"
+    ):
+        meta = read_json(existing_job / "job.json")
+        if meta.get("short_id") != short_id or meta.get("render_id") != render_id:
+            raise RuntimeError("RENDER_RESUME_INVALID:passed_identity")
+        return existing_job
     source = BASE / "roteiros"
     scene_map_path = source / f"scene_map_{short_id}.json"
     edit_path = source / f"pro_edit_plan_{short_id}.json"
@@ -178,15 +193,15 @@ def build_job(short_id: str) -> Path:
         if not isinstance(asset, dict) or asset.get("validated") is not True:
             raise RuntimeError("RENDER_INPUT_INVALID:media_manifest_asset_%02d" % idx)
         asset_path = Path(str(asset.get("path") or "")).expanduser().resolve()
+        try:
+            asset_path.relative_to(media_root)
+        except ValueError:
+            raise RuntimeError("RENDER_INPUT_INVALID:media_manifest_asset_scope_%02d" % idx)
         if not asset_path.is_file() or asset_path.stat().st_size <= 1000:
             raise RuntimeError("RENDER_INPUT_INVALID:media_manifest_asset_missing_%02d" % idx)
         expected_sha = str(asset.get("checksum_sha256") or "")
         if not expected_sha or sha256(asset_path) != expected_sha:
             raise RuntimeError("RENDER_INPUT_INVALID:media_manifest_asset_checksum_%02d" % idx)
-        try:
-            asset_path.relative_to(media_root)
-        except ValueError:
-            raise RuntimeError("RENDER_INPUT_INVALID:media_manifest_asset_scope_%02d" % idx)
     if not isinstance(scenes_raw, list) or not scenes_raw:
         raise RuntimeError("RENDER_INPUT_INVALID:scene_map")
     if not isinstance(planned, list) or len(planned) != len(scenes_raw):
