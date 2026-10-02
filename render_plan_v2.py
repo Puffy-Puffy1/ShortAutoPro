@@ -7,6 +7,7 @@ It does not acquire media or render anything.
 from __future__ import annotations
 import json, os, tempfile
 from pathlib import Path
+import re
 BASE=Path(os.getenv("SHORTAUTOPRO_BASE",Path.home()/"ShortAutoPro")).resolve()
 
 def atomic(path:Path,data:dict):
@@ -21,6 +22,12 @@ def atomic(path:Path,data:dict):
             try: os.unlink(tmp)
             except OSError: pass
 
+def validate_short_id(value):
+    sid = str(value or "").strip()
+    if not sid or len(sid) > 96 or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", sid) or ".." in sid:
+        raise RuntimeError("RENDER_PLAN_INVALID:short_id")
+    return sid
+
 def main(short_id=None):
     import argparse
     if short_id is None:
@@ -28,17 +35,22 @@ def main(short_id=None):
         ap.add_argument("--short-id",required=True)
         args=ap.parse_args()
         short_id=args.short_id
-    sid=short_id
+    sid=validate_short_id(short_id)
     scene_path=BASE/"roteiros"/f"scene_map_{sid}.json"
     out=BASE/"roteiros"/f"pro_edit_plan_{sid}.json"
     data=json.loads(scene_path.read_text(encoding="utf-8"))
     scenes=data.get("scenes") if isinstance(data,dict) else data
     if not isinstance(scenes,list) or not scenes: raise RuntimeError("RENDER_PLAN_INVALID:scene_map")
     plan={"schema_version":"render-plan-v2","short_id":sid,"scenes":[]}
+    seen_ids=set()
     for i,scene in enumerate(scenes,1):
         if not isinstance(scene,dict): raise RuntimeError(f"RENDER_PLAN_INVALID:scene_{i:02d}")
+        scene_id=str(scene.get("scene_id",scene.get("scene",i))).strip()
+        if not scene_id or scene_id in seen_ids:
+            raise RuntimeError(f"RENDER_PLAN_INVALID:scene_id_{i:02d}")
+        seen_ids.add(scene_id)
         plan["scenes"].append({
-            "scene_id":str(scene.get("scene_id",scene.get("scene",i))),
+            "scene_id":scene_id,
             "pace_multiplier":1.0,
             "zoom_start":1.0,
             "zoom_end":1.04,
