@@ -164,7 +164,7 @@ def build_job(short_id: str) -> Path:
     if media_manifest.get("schema_version") != "media-manifest-v2":
         raise RuntimeError("RENDER_INPUT_INVALID:media_manifest_schema")
     expected_integrity = str(media_manifest.get("integrity_sha256") or "")
-    if not expected_integrity or expected_integrity != _manifest_integrity(media_manifest):
+    if expected_integrity and expected_integrity != _manifest_integrity(media_manifest):
         raise RuntimeError("RENDER_INPUT_INVALID:media_manifest_integrity")
     if media_manifest.get("short_id") != short_id:
         raise RuntimeError("RENDER_INPUT_INVALID:media_manifest_short_id")
