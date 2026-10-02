@@ -15,6 +15,23 @@ from pathlib import Path
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
 SID = os.getenv("SHORT_ID", date.today().isoformat()).strip()
 
+
+def round_env(round_index: int) -> dict[str, str]:
+    """Compatibility-only provider budget contract; execution stays V2-only."""
+    idx = max(0, min(int(round_index), 2))
+    provider_timeout = (10, 12, 12)[idx]
+    wiki_deadline = (8, 10, 12)[idx]
+    env = os.environ.copy()
+    env["SHORT_ID"] = SID
+    env["SAP_MEDIA_PROVIDER_RESULT_TIMEOUT"] = str(provider_timeout)
+    env["SAP_WIKIMEDIA_SEARCH_DEADLINE"] = str(wiki_deadline)
+    env["SAP_MEDIA_SCENE_BUDGET_SECONDS"] = "18"
+    env["SAP_VSE4_QUERY_EXPANSION"] = "1"
+    env["SAP_VSE4_QUERY_ONLY_ON_EMPTY"] = "1"
+    env["SAP_VSE4_QUERY_EXTRA"] = "1"
+    return env
+
+
 def main() -> int:
     if not SID:
         print("MEDIA_STAGE_RUNTIME=BLOCKED reason=SHORT_ID_EMPTY")
