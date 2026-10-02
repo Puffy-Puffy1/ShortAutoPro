@@ -216,6 +216,8 @@ def acquire_scene(short_id: str, number: int, scene: dict[str, Any], media_dir: 
         raise RuntimeError(f"MEDIA_INPUT_INVALID:scene_{number:02d}:query_empty")
 
     candidates = PROVIDER.search(query, must, avoid, segmento=segment, visual_mode=visual_mode)
+    for candidate in candidates:
+        candidate["_sap_must_total"] = len(must)
     strict = PROVIDER.prepare(candidates, len(must))
     failures = []
 
