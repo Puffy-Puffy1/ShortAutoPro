@@ -25,6 +25,28 @@ class MediaProviderV2Tests(unittest.TestCase):
         self.assertNotIn("ffmpeg", source.lower())
         self.assertNotIn("SHORT_ID", source)
 
+    def test_prepare_prefers_strict_must_verification(self):
+        provider = MediaProviderV2(router=object())
+        candidates = [
+            {"id": "strict", "fonte": "Mock", "must_hits": 2, "avoid_hits": 0, "score": 50},
+            {"id": "partial", "fonte": "Mock", "must_hits": 1, "avoid_hits": 0, "score": 90},
+        ]
+        result = provider.prepare(candidates, 2)
+        self.assertEqual([x["id"] for x in result], ["strict"])
+
+    def test_prepare_uses_bounded_progressive_fallback_when_strict_is_empty(self):
+        provider = MediaProviderV2(router=object())
+        candidates = [
+            {"id": "weak", "fonte": "Mock", "must_hits": 1, "avoid_hits": 0, "score": 30},
+            {"id": "good", "fonte": "Mock", "must_hits": 1, "avoid_hits": 0, "score": 60},
+            {"id": "wrong", "fonte": "Mock", "must_hits": 0, "avoid_hits": 0, "score": 100},
+            {"id": "unsafe", "fonte": "Mock", "must_hits": 2, "avoid_hits": 1, "score": 100},
+        ]
+        result = provider.prepare(candidates, 2)
+        self.assertEqual([x["id"] for x in result], ["good"])
+        self.assertEqual(result[0]["verification_mode"], "progressive_must")
+        self.assertIn("strict_must=2", result[0]["verification_note"])
+
 
 if __name__ == "__main__":
     unittest.main()
