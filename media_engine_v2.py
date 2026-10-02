@@ -163,8 +163,14 @@ def _existing_asset_record(
         if (
             not expected
             or int(record.get("must_total", 0)) != must_total
-            or str(record.get("short_id") or "") != media_dir.name.removeprefix("short_")
-            or int(record.get("scene_number", 0) or 0) != number
+            or (
+                record.get("short_id") is not None
+                and str(record.get("short_id") or "") != media_dir.name.removeprefix("short_")
+            )
+            or (
+                record.get("scene_number") is not None
+                and int(record.get("scene_number", 0) or 0) not in {0, number}
+            )
         ):
             return None
         if sha256(path) != expected:
