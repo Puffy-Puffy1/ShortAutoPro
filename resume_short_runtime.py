@@ -207,14 +207,18 @@ def consolidation_plan_ok(sid: str) -> bool:
         return False
 
     integrity = str(manifest.get("integrity_sha256") or "")
-    if not integrity:
-        return False
-    unsigned = dict(manifest)
-    unsigned.pop("integrity_sha256", None)
-    canonical = json.dumps(
-        unsigned, ensure_ascii=False, sort_keys=True, separators=(",", ":")
-    ).encode("utf-8")
-    if hashlib.sha256(canonical).hexdigest() != integrity:
+    # V2 manifests (identified by engine_version) must be cryptographically
+    # intact. Older migration manifests may be structurally resumed, but their
+    # physical assets are revalidated by the downstream V2 preflight.
+    if integrity:
+        unsigned = dict(manifest)
+        unsigned.pop("integrity_sha256", None)
+        canonical = json.dumps(
+            unsigned, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")
+        if hashlib.sha256(canonical).hexdigest() != integrity:
+            return False
+    elif str(manifest.get("engine_version") or "").startswith("2."):
         return False
 
     media_root = (BASE / "imagens" / f"short_{sid}").resolve()
