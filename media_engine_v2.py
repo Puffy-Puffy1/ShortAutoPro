@@ -22,7 +22,20 @@ from typing import Any
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", Path.home() / "ShortAutoPro")).resolve()
 MEDIA_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".webm", ".mkv"}
-ENGINE_VERSION = "2.0.0"
+ENGINE_VERSION = "2.0.1"
+
+def _asset_name_is_forbidden(path: Path) -> bool:
+    name = path.name.casefold()
+    return any(token in name for token in ("slate", "placeholder", "neutral_editorial", "editorial_reuse"))
+
+def _canonical_json(payload: dict[str, Any]) -> bytes:
+    return json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+def _manifest_integrity(payload: dict[str, Any]) -> str:
+    unsigned = dict(payload)
+    unsigned.pop("integrity_sha256", None)
+    return hashlib.sha256(_canonical_json(unsigned)).hexdigest()
+
 
 from media_provider_v2 import MediaProviderV2
 from media_validator_v2 import validate as validate_asset
@@ -143,9 +156,16 @@ def _existing_asset_record(
         record = json.loads(sidecar.read_text(encoding="utf-8"))
         if not isinstance(record, dict):
             return None
+        if _asset_name_is_forbidden(path):
+            return None
         expected = str(record.get("checksum_sha256") or "")
         must_total = len(scene.get("must_have") or [])
-        if not expected or int(record.get("must_total", 0)) != must_total:
+        if (
+            not expected
+            or int(record.get("must_total", 0)) != must_total
+            or str(record.get("short_id") or "") != media_dir.name.removeprefix("short_")
+            or int(record.get("scene_number", 0) or 0) != number
+        ):
             return None
         if sha256(path) != expected:
             return None
@@ -178,6 +198,8 @@ def _candidate_record(candidate: dict[str, Any], path: Path, probe: dict[str, An
         "provenance": candidate.get("provenance", {}),
         "probe": probe,
         "validated": True,
+        "short_id": str(candidate.get("_sap_short_id") or ""),
+        "scene_number": int(candidate.get("_sap_scene_number", 0) or 0),
     }
 
 
@@ -218,7 +240,27 @@ def acquire_scene(short_id: str, number: int, scene: dict[str, Any], media_dir: 
     candidates = PROVIDER.search(query, must, avoid, segmento=segment, visual_mode=visual_mode)
     for candidate in candidates:
         candidate["_sap_must_total"] = len(must)
+        candidate["_sap_short_id"] = short_id
+        candidate["_sap_scene_number"] = number
     strict = PROVIDER.prepare(candidates, len(must))
+    verification_mode = "strict_must" if strict else ""
+    if not strict and must:
+        relaxed = PROVIDER.search(query, [], avoid, segmento=segment, visual_mode=visual_mode)
+        for candidate in relaxed:
+            candidate["_sap_must_total"] = len(must)
+            candidate["_sap_short_id"] = short_id
+            candidate["_sap_scene_number"] = number
+            candidate["verification_mode"] = "query_relaxed"
+            candidate["verification_note"] = (
+                f"strict_must={len(must)};"
+                f"verified_must={int(candidate.get('must_hits', 0) or 0)}"
+            )
+        strict = [
+            c for c in relaxed
+            if int(c.get("avoid_hits", 0) or 0) == 0
+            and float(c.get("score", 0) or 0) >= 45
+        ]
+        verification_mode = "query_relaxed" if strict else ""
     failures = []
 
     # Per-asset failover: a bad download/validation never terminates the scene
@@ -233,6 +275,8 @@ def acquire_scene(short_id: str, number: int, scene: dict[str, Any], media_dir: 
             path = Path(destination)
             record = _candidate_record(candidate, path, validation["probe"])
             record["checksum_sha256"] = validation["sha256"]
+            record["verification_mode"] = str(candidate.get("verification_mode") or verification_mode or "strict_must")
+            record["verification_note"] = str(candidate.get("verification_note") or "")
             return record
         except Exception as exc:
             failures.append(f"{candidate.get('fonte','?')}:{type(exc).__name__}")
@@ -271,6 +315,8 @@ def build_manifest(short_id: str) -> dict[str, Any]:
             records.append(existing)
             continue
         record = acquire_scene(short_id, number, scene, media_dir)
+        record["short_id"] = short_id
+        record["scene_number"] = number
         _write_asset_sidecar(media_dir, number, record)
         records.append(record)
     scenes_out = [
@@ -289,6 +335,7 @@ def build_manifest(short_id: str) -> dict[str, Any]:
         "scene_count": len(scenes_out),
         "scenes": scenes_out,
     }
+    manifest["integrity_sha256"] = _manifest_integrity(manifest)
     atomic_json(BASE / "manifests" / f"media_{short_id}.json", manifest)
     return manifest
 
