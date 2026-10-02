@@ -264,6 +264,7 @@ def acquire_scene(short_id: str, number: int, scene: dict[str, Any], media_dir: 
         strict = [
             c for c in relaxed
             if int(c.get("avoid_hits", 0) or 0) == 0
+            and int(c.get("must_hits", 0) or 0) >= 1
             and float(c.get("score", 0) or 0) >= 45
         ]
         verification_mode = "query_relaxed" if strict else ""
