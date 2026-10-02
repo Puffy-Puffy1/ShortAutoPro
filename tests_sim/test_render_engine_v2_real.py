@@ -36,7 +36,7 @@ class RenderEngineV2RealTests(unittest.TestCase):
             plan=[{"scene":i,"pace_multiplier":1.0,"zoom_start":1.0,"zoom_end":1.01,"pan":"center","transition_duration":0.05} for i in range(1,7)]
             (base/"roteiros"/f"scene_map_{sid}.json").write_text(json.dumps({"scenes":scenes}),encoding="utf-8")
             (base/"roteiros"/f"pro_edit_plan_{sid}.json").write_text(json.dumps({"scenes":plan}),encoding="utf-8")
-            ass="[Script Info]\n[Events]\nFormat: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text\nDialogue: 0,0:00:00.00,0:00:03.00,Default,,0,0,0,,Render V2\n"
+            ass="[Script Info]\nScriptType: v4.00+\nPlayResX: 1080\nPlayResY: 1920\n\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\nStyle: Default,Arial,48,&H00FFFFFF,&H000000FF,&H00000000,&H64000000,0,0,0,0,100,100,0,0,1,2,0,2,40,40,80,1\n\n[Events]\nFormat: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text\nDialogue: 0,0:00:00.00,0:00:03.00,Default,,0,0,0,,Render V2\n"
             (base/"videos"/f"short_{sid}.ass").write_text(ass,encoding="utf-8")
             env=os.environ.copy(); env.update({"SHORTAUTOPRO_BASE":str(base),"HOME":str(home),"USERPROFILE":str(home)})
             proc=subprocess.run([sys.executable,str(ROOT/"render_engine_v2.py"),"--short-id",sid],cwd=ROOT,env=env,text=True,capture_output=True,timeout=1200)

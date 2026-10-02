@@ -275,7 +275,7 @@ class AcquisitionV2Tests(unittest.TestCase):
                 __import__("json").dumps({"scenes": []}), encoding="utf-8"
             )
             (base / "audios" / ("short_" + sid + ".mp3")).write_bytes(b"x")
-            (base / "videos" / ("short_" + sid + ".ass")).write_text("", encoding="utf-8")
+            (base / "videos" / ("short_" + sid + ".ass")).write_text("[Script Info]\nScriptType: v4.00+\nPlayResX: 1080\nPlayResY: 1920\n\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\nStyle: Default,Arial,48,&H00FFFFFF,&H000000FF,&H00000000,&H64000000,0,0,0,0,100,100,0,0,1,2,0,2,40,40,80,1\n\n[Events]\nFormat: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text\nDialogue: 0,0:00:00.00,0:00:01.00,Default,,0,0,0,,Test\n", encoding="utf-8")
             (base / "videos" / ("short_v6_" + sid + ".mp4")).write_bytes(b"x" * 2000)
             media = base / "imagens" / ("short_" + sid)
             media.mkdir(parents=True)
@@ -318,7 +318,7 @@ class AcquisitionV2Tests(unittest.TestCase):
             (base / "roteiros" / ("pro_edit_plan_" + sid + ".json")).write_text('{"scenes":[{"scene":1,"pace_multiplier":1.0}]}', encoding="utf-8")
             (base / "audios" / ("short_" + sid + ".mp3")).write_bytes(b"x")
             (base / "videos").mkdir()
-            (base / "videos" / ("short_" + sid + ".ass")).write_text("", encoding="utf-8")
+            (base / "videos" / ("short_" + sid + ".ass")).write_text("[Script Info]\nScriptType: v4.00+\nPlayResX: 1080\nPlayResY: 1920\n\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\nStyle: Default,Arial,48,&H00FFFFFF,&H000000FF,&H00000000,&H64000000,0,0,0,0,100,100,0,0,1,2,0,2,40,40,80,1\n\n[Events]\nFormat: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text\nDialogue: 0,0:00:00.00,0:00:01.00,Default,,0,0,0,,Test\n", encoding="utf-8")
             asset = base / "imagens" / ("short_" + sid) / "scene_01.jpg"
             media_manifest = {"schema_version":"media-manifest-v2","short_id":sid,"immutable":True,"scene_count":1,
                               "scenes":[{"scene_id":"1","scene_number":1,"asset":{"validated":True,"path":str(asset)}}]}
