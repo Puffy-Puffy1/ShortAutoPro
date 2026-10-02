@@ -73,9 +73,24 @@ def ass_time(value: str) -> float:
     s, cs = rest.split(".")
     return int(h) * 3600 + int(m) * 60 + int(s) + int(cs) / 100.0
 
-def parse_ass(path: Path) -> list[dict[str, Any]]:
+def validate_ass_contract(path: Path) -> None:
+    """Fail early when an ASS file is structurally incompatible with libass."""
     if not path.is_file():
-        return []
+        raise ValueError("SUBTITLE_INVALID: subtitle file missing")
+    text = path.read_text(encoding="utf-8", errors="strict")
+    sections = {line.strip().lower() for line in text.splitlines() if line.strip().startswith("[") and line.strip().endswith("]")}
+    if "[script info]" not in sections:
+        raise ValueError("SUBTITLE_INVALID: missing [Script Info]")
+    if "[events]" not in sections:
+        raise ValueError("SUBTITLE_INVALID: missing [Events]")
+    if not ({"[v4+ styles]", "[v4 styles]"} & sections):
+        raise ValueError("SUBTITLE_INVALID: missing ASS styles section")
+    if not any(line.strip().lower().startswith("dialogue:") for line in text.splitlines()):
+        raise ValueError("SUBTITLE_INVALID: no dialogue events")
+
+
+def parse_ass(path: Path) -> list[dict[str, Any]]:
+    validate_ass_contract(path)
     cues = []
     for raw in path.read_text(encoding="utf-8", errors="strict").splitlines():
         if not raw.startswith("Dialogue:"):
@@ -194,6 +209,7 @@ def build_job(short_id: str) -> Path:
             raise RuntimeError("RENDER_RESUME_INVALID:timeline_short_id")
         if job_meta.get("render_id") != render_id:
             raise RuntimeError("RENDER_RESUME_INVALID:render_id")
+        validate_ass_contract(ass)
         frozen_existing = job / "subtitles" / f"{short_id}.ass"
         if not frozen_existing.is_file():
             frozen_existing.parent.mkdir(parents=True, exist_ok=True)
@@ -253,9 +269,10 @@ def build_job(short_id: str) -> Path:
         t += logical
     frozen_audio = job / "audio" / audio.name
     shutil.copy2(audio, frozen_audio)
-    cues = parse_ass(ass) if ass.is_file() else []
     if not ass.is_file():
         raise RuntimeError("SUBTITLE_INVALID:subtitle file missing")
+    validate_ass_contract(ass)
+    cues = parse_ass(ass)
     subtitle_dir = job / "subtitles"
     subtitle_dir.mkdir(parents=True, exist_ok=True)
     frozen_ass = subtitle_dir / f"{short_id}.ass"
@@ -356,7 +373,14 @@ def validate_input(job: Path) -> dict[str, Any]:
     audio=Path(str(manifest.get("audio",{}).get("path","")))
     if not audio.is_file(): errors.append("AUDIO_STREAM_MISSING")
     subtitle=Path(str(manifest.get("subtitles",{}).get("path","")))
-    if not subtitle.is_file(): errors.append("SUBTITLE_INVALID:frozen_ass_missing")
+    if not subtitle.is_file():
+        errors.append("SUBTITLE_INVALID:frozen_ass_missing")
+    else:
+        try:
+            validate_ass_contract(subtitle)
+            parse_ass(subtitle)
+        except (OSError, UnicodeError, ValueError) as exc:
+            errors.append(str(exc))
     if timeline.get("short_id") != manifest.get("short_id"): errors.append("RENDER_INPUT_INVALID:identity")
     if len(timeline.get("scenes",[])) != len(assets): errors.append("RENDER_INPUT_INVALID:timeline")
     if errors: raise RuntimeError(";".join(errors))
