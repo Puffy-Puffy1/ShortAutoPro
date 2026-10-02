@@ -1,57 +1,24 @@
 #!/usr/bin/env python3
-"""Provider compatibility boundary for Media Engine V2.
-
-The engine owns acquisition policy; this module owns the adapter to the
-repository's existing provider implementation. Keeping the import here makes
-the V2 engine independently testable and gives us one seam for provider
-extraction without changing mature provider behavior in the first migration.
-"""
+"""Compatibility facade for the independent Media Acquisition V2 router."""
 from __future__ import annotations
-
 from typing import Any
-
-
-def _legacy():
-    from midia import (
-        buscar_todos_candidatos,
-        preparar_candidatos,
-        baixar_candidato_5_2,
-    )
-    return buscar_todos_candidatos, preparar_candidatos, baixar_candidato_5_2
-
+from media_provider_router_v2 import MediaProviderRouterV2
 
 class MediaProviderV2:
-    """Bounded adapter; no render, batch, or production-ID responsibilities."""
+    name = "provider-router-v2"
 
-    name = "legacy-provider-adapter"
+    def __init__(self, router=None):
+        self.router = router or MediaProviderRouterV2()
 
-    def search(
-        self,
-        query: str,
-        must: list[str],
-        avoid: list[str],
-        *,
-        segmento: str = "",
-        visual_mode: str = "",
-    ) -> list[dict[str, Any]]:
-        search, _, _ = _legacy()
-        result = search(query, must, avoid, segmento=segmento, visual_mode=visual_mode)
-        return result if isinstance(result, list) else []
+    def search(self, query: str, must: list[str], avoid: list[str], *, segmento: str = "", visual_mode: str = "") -> list[dict[str, Any]]:
+        return self.router.search(query, must, avoid, segmento=segmento, visual_mode=visual_mode)
 
-    def prepare(
-        self,
-        candidates: list[dict[str, Any]],
-        total_must: int,
-    ) -> list[dict[str, Any]]:
-        _, prepare, _ = _legacy()
-        result = prepare(candidates, total_must, relaxado=False, descricao_anterior="")
-        return result if isinstance(result, list) else []
+    def prepare(self, candidates: list[dict[str, Any]], total_must: int) -> list[dict[str, Any]]:
+        return [
+            c for c in candidates
+            if int(c.get("must_hits", 0) or 0) >= total_must
+            and int(c.get("avoid_hits", 0) or 0) == 0
+        ]
 
-    def download(
-        self,
-        candidate: dict[str, Any],
-        scene_number: int,
-    ) -> tuple[bool, str]:
-        _, _, download = _legacy()
-        ok, destination = download(candidate, scene_number, "MEDIA_ENGINE_V2")
-        return bool(ok), str(destination or "")
+    def download(self, candidate: dict[str, Any], scene_number: int, short_id: str) -> tuple[bool, str, dict[str, Any]]:
+        return self.router.download(candidate, scene_number, short_id)

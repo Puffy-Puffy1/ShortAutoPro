@@ -43,7 +43,7 @@ class RenderEngineV2ConsecutiveTests(unittest.TestCase):
                     (base/"manifests").mkdir(parents=True, exist_ok=True)
                     (base/"manifests"/f"media_{sid}.json").write_text(json.dumps({
                         "schema_version":"media-manifest-v2","version":2,"engine":"Media Engine V2",
-                        "short_id":sid,"immutable":True,
+                        "short_id":sid,"immutable":True,"scene_count":3,
                         "scenes":[{"scene_id":str(i),"scene_number":i,"query":"fixture","must_have":[],"avoid":[],"asset":assets[i-1]} for i in range(1,4)]
                     }), encoding="utf-8")
                     audio = base/"audios"/f"short_{sid}.mp3"

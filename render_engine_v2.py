@@ -17,8 +17,10 @@ import hashlib
 import json
 import math
 import os
+import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 from datetime import datetime
@@ -99,23 +101,28 @@ def audio_duration(path: Path) -> float:
         raise RuntimeError("INVALID_DURATION: audio")
     return value
 
+def validate_short_id(short_id: str) -> str:
+    sid = str(short_id or "").strip()
+    if not sid or not re.fullmatch(r"[A-Za-z0-9._-]+", sid) or ".." in sid:
+        raise RuntimeError("RENDER_INPUT_INVALID:short_id")
+    return sid
+
 def choose_render_id(job_root: Path) -> str:
     if not job_root.exists():
         return "render_001"
-    existing = sorted(p.name for p in job_root.iterdir() if p.is_dir() and p.name.startswith("render_"))
+    existing = sorted(
+        (p.name for p in job_root.iterdir() if p.is_dir() and p.name.startswith("render_")),
+        reverse=True,
+    )
     if not existing:
         return "render_001"
-    for name in existing:
-        state = job_root / name / "state.json"
-        if state.is_file():
-            try:
-                if read_json(state).get("status") != "PASSED":
-                    return name
-            except Exception:
-                return name
-    return f"render_{len(existing)+1:03d}"
+    # A given SHORT_ID owns one resumable render lineage. Reusing the latest
+    # render directory is important: a persisted PASSED state must be revalidated
+    # instead of silently creating a fresh render that bypasses stale-state checks.
+    return existing[0]
 
 def build_job(short_id: str) -> Path:
+    short_id = validate_short_id(short_id)
     source = BASE / "roteiros"
     scene_map_path = source / f"scene_map_{short_id}.json"
     edit_path = source / f"pro_edit_plan_{short_id}.json"
@@ -134,6 +141,20 @@ def build_job(short_id: str) -> Path:
         raise RuntimeError("RENDER_INPUT_INVALID:media_manifest_schema")
     if media_manifest.get("short_id") != short_id:
         raise RuntimeError("RENDER_INPUT_INVALID:media_manifest_short_id")
+    if media_manifest.get("scene_count") != len(frozen_assets or []):
+        raise RuntimeError("RENDER_INPUT_INVALID:media_manifest_scene_count")
+    media_root = (BASE / "imagens" / ("short_" + short_id)).resolve()
+    for idx, row in enumerate(frozen_assets or [], 1):
+        if not isinstance(row, dict):
+            raise RuntimeError("RENDER_INPUT_INVALID:media_manifest_scene_%02d" % idx)
+        asset = row.get("asset")
+        if not isinstance(asset, dict) or asset.get("validated") is not True:
+            raise RuntimeError("RENDER_INPUT_INVALID:media_manifest_asset_%02d" % idx)
+        asset_path = Path(str(asset.get("path") or "")).expanduser().resolve()
+        try:
+            asset_path.relative_to(media_root)
+        except ValueError:
+            raise RuntimeError("RENDER_INPUT_INVALID:media_manifest_asset_scope_%02d" % idx)
     if not isinstance(scenes_raw, list) or not scenes_raw:
         raise RuntimeError("RENDER_INPUT_INVALID:scene_map")
     if not isinstance(planned, list) or len(planned) != len(scenes_raw):
@@ -163,6 +184,16 @@ def build_job(short_id: str) -> Path:
         # the frozen-subtitle contract, repair only that missing derived artifact.
         manifest_path = job / "manifest.json"
         manifest = read_json(manifest_path)
+        job_meta = read_json(job / "job.json")
+        timeline = read_json(job / "timeline.json")
+        if manifest.get("short_id") != short_id:
+            raise RuntimeError("RENDER_RESUME_INVALID:manifest_short_id")
+        if job_meta.get("short_id") != short_id:
+            raise RuntimeError("RENDER_RESUME_INVALID:job_short_id")
+        if timeline.get("short_id") != short_id:
+            raise RuntimeError("RENDER_RESUME_INVALID:timeline_short_id")
+        if job_meta.get("render_id") != render_id:
+            raise RuntimeError("RENDER_RESUME_INVALID:render_id")
         frozen_existing = job / "subtitles" / f"{short_id}.ass"
         if not frozen_existing.is_file():
             frozen_existing.parent.mkdir(parents=True, exist_ok=True)
@@ -302,8 +333,19 @@ def run_cmd(cmd: list[str], cwd: Path, timeout: int) -> subprocess.CompletedProc
     return run_group(cmd, cwd=cwd, capture_output=True, text=True, check=False, timeout=timeout)
 
 def validate_input(job: Path) -> dict[str, Any]:
+    job_meta = read_json(job/"job.json")
     manifest = read_json(job/"manifest.json")
     timeline = read_json(job/"timeline.json")
+    expected_short_id = validate_short_id(str(job_meta.get("short_id") or ""))
+    expected_root = (BASE / "render_jobs" / expected_short_id).resolve()
+    try:
+        job.resolve().relative_to(expected_root)
+    except ValueError:
+        raise RuntimeError("RENDER_INPUT_INVALID:job_scope")
+    if manifest.get("short_id") != expected_short_id:
+        raise RuntimeError("RENDER_INPUT_INVALID:manifest_short_id")
+    if timeline.get("short_id") != expected_short_id:
+        raise RuntimeError("RENDER_INPUT_INVALID:timeline_short_id")
     errors=[]
     assets=manifest.get("assets",[])
     if not assets: errors.append("RENDER_ASSET_MISSING")
@@ -470,8 +512,21 @@ def main() -> int:
         job=build_job(sid)
         state=read_json(job/"state.json") if (job/"state.json").is_file() else {"status":"CREATED"}
         if state.get("status")=="PASSED":
-            report=read_json(job/"render_report.json")
-            print(json.dumps(report,ensure_ascii=False)); return 0
+            report_path = job/"render_report.json"
+            final_path = BASE/"videos"/f"short_v6_{sid}.mp4"
+            if not report_path.is_file() or not final_path.is_file():
+                transition(job,"FAILED",error_code="PASSED_STATE_INVALID",error="missing_passed_artifact")
+                raise RuntimeError("PASSED_STATE_INVALID:missing_artifact")
+            report=read_json(report_path)
+            job_meta=read_json(job/"job.json")
+            if report.get("status")!="PASSED" or report.get("short_id")!=sid or job_meta.get("short_id")!=sid:
+                transition(job,"FAILED",error_code="PASSED_STATE_INVALID",error="identity_or_report")
+                raise RuntimeError("PASSED_STATE_INVALID:identity_or_report")
+            verified=validate_output(final_path,job)
+            if verified.get("status")!="PASSED" or verified.get("short_id")!=sid:
+                transition(job,"FAILED",error_code="PASSED_STATE_INVALID",error="final_revalidation")
+                raise RuntimeError("PASSED_STATE_INVALID:final_revalidation")
+            print(json.dumps(verified,ensure_ascii=False)); return 0
         transition(job,"VALIDATING_INPUT")
         detail=validate_input(job)
         transition(job,"READY",input=detail)

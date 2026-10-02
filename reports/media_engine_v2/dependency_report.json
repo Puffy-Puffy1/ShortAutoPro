@@ -1,0 +1,48 @@
+{
+  "repository": "Puffy-Puffy1/ShortAutoPro",
+  "audited_head": "929f982a13fde6c6513506916603394630941ead",
+  "branch": "audit/media-acquisition-v2",
+  "production_graph": [
+    "main.py",
+    "media_engine_v2.py",
+    "media_provider_v2.py",
+    "midia.py provider primitives",
+    "provider APIs / Asset Library",
+    "media-manifest-v2",
+    "render_plan_v2.py",
+    "render_engine_v2.py"
+  ],
+  "legacy_graph": [
+    "midia.py",
+    "media_stage_runtime.py",
+    "VI6 family",
+    "VSE42/VG4X family"
+  ],
+  "critical_edges": [
+    {
+      "from": "media_engine_v2.py",
+      "to": "media_provider_v2.py",
+      "evidence": "import MediaProviderV2"
+    },
+    {
+      "from": "media_provider_v2.py",
+      "to": "midia.py",
+      "evidence": "_legacy() imports buscar_todos_candidatos/preparar_candidatos/baixar_candidato_5_2"
+    },
+    {
+      "from": "midia.py",
+      "to": "Pexels/Pixabay/Coverr/Wikimedia/Local/Asset Library",
+      "evidence": "provider functions + buscar_todos_candidatos"
+    },
+    {
+      "from": "media_engine_v2.py",
+      "to": "media-manifest-v2",
+      "evidence": "build_manifest/run/validate_manifest"
+    },
+    {
+      "from": "render_engine_v2.py",
+      "to": "media-manifest-v2",
+      "evidence": "renderer validates frozen assets"
+    }
+  ]
+}

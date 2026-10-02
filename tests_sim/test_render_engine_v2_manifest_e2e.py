@@ -30,7 +30,7 @@ class RenderManifestE2ETests(unittest.TestCase):
                                "probe":{"width":1080,"height":1920},"validated":True})
             (base/"manifests"/f"media_{sid}.json").write_text(json.dumps({
                 "schema_version":"media-manifest-v2","version":2,"engine":"Media Engine V2",
-                "short_id":sid,"immutable":True,"scenes":[{"scene_id":str(i),"scene_number":i,
+                "short_id":sid,"immutable":True,"scene_count":2,"scenes":[{"scene_id":str(i),"scene_number":i,
                 "query":"fixture","must_have":[],"avoid":[],"asset":assets[i-1]} for i in (1,2)]
             }),encoding="utf-8")
             subprocess.run(["ffmpeg","-y","-loglevel","error","-f","lavfi","-i",

@@ -25,6 +25,7 @@ MEDIA_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".webm", ".mkv"}
 ENGINE_VERSION = "2.0.0"
 
 from media_provider_v2 import MediaProviderV2
+from media_validator_v2 import validate as validate_asset
 
 PROVIDER = MediaProviderV2()
 
@@ -91,7 +92,7 @@ def ffprobe_asset(path: Path) -> dict[str, Any]:
         raise RuntimeError(f"MEDIA_INVALID:invalid_dimensions:{path.name}")
     fmt = data.get("format", {}) if isinstance(data, dict) else {}
     duration = float(fmt.get("duration") or 0.0)
-    if duration < 0:
+    if path.suffix.lower() in {".mp4", ".mov", ".webm", ".mkv"} and duration <= 0:
         raise RuntimeError(f"MEDIA_INVALID:invalid_duration:{path.name}")
     return {
         "codec": str(video.get("codec_name") or ""),
@@ -136,6 +137,9 @@ def _existing_asset_record(
     if path is None or not sidecar.is_file():
         return None
     try:
+        media_root = media_dir.resolve()
+        resolved = path.resolve()
+        resolved.relative_to(media_root)
         record = json.loads(sidecar.read_text(encoding="utf-8"))
         if not isinstance(record, dict):
             return None
@@ -211,127 +215,93 @@ def acquire_scene(short_id: str, number: int, scene: dict[str, Any], media_dir: 
     if not query:
         raise RuntimeError(f"MEDIA_INPUT_INVALID:scene_{number:02d}:query_empty")
 
-    # Provider acquisition is bounded and sequential. LocalLibrary is only a
-    # fallback after provider search/verification/download has failed.
-    os.environ.setdefault("SAP_MEDIA_PARALLEL_PROVIDERS", "0")
-    os.environ.setdefault("SAP_MEDIA_PROVIDER_WORKERS", "1")
+    candidates = PROVIDER.search(query, must, avoid, segmento=segment, visual_mode=visual_mode)
+    strict = PROVIDER.prepare(candidates, len(must))
+    failures = []
 
-    candidates = PROVIDER.search(
-        query, must, avoid, segmento=segment, visual_mode=visual_mode
-    )
-    total_must = len(must)
-    strict = PROVIDER.prepare(candidates, total_must) if candidates else []
-    if strict:
-        candidate = strict[0]
-        ok, destination = PROVIDER.download(candidate, number)
-        if ok and destination:
+    # Per-asset failover: a bad download/validation never terminates the scene
+    # while another verified provider candidate remains available.
+    for candidate in strict:
+        try:
+            ok, destination, download_meta = PROVIDER.download(candidate, number, short_id)
+            if not ok or not destination:
+                failures.append(f"{candidate.get('fonte','?')}:DOWNLOAD_FAILED")
+                continue
+            validation = validate_asset(destination)
             path = Path(destination)
-            probe = ffprobe_asset(path)
-            return _candidate_record(candidate, path, probe)
+            record = _candidate_record(candidate, path, validation["probe"])
+            record["checksum_sha256"] = validation["sha256"]
+            return record
+        except Exception as exc:
+            failures.append(f"{candidate.get('fonte','?')}:{type(exc).__name__}")
 
+    # Local Library is an explicit provider in the Router. Keep this secondary
+    # compatibility path for libraries created by the previous pipeline.
     local = _local_library_asset(query, must, avoid)
     if local is not None:
         return local
 
     if not candidates:
-        raise RuntimeError(
-            f"MEDIA_INCOMPLETE:scene_{number:02d}:providers_empty_and_library_miss"
-        )
+        raise RuntimeError(f"MEDIA_INCOMPLETE:scene_{number:02d}:providers_empty")
     if not strict:
         raise RuntimeError(
             f"MEDIA_INCOMPLETE:scene_{number:02d}:no_verified_asset:"
             f"must={','.join(must) or '-'}"
         )
-    raise RuntimeError(f"MEDIA_DOWNLOAD_FAILED:scene_{number:02d}")
-
-def build_manifest(short_id: str, scenes: list[dict[str, Any]], assets: list[dict[str, Any]]) -> dict[str, Any]:
-    return {
-        "schema_version": "media-manifest-v2",
-        "version": 2,
-        "engine": "Media Engine V2",
-        "engine_version": ENGINE_VERSION,
-        "short_id": short_id,
-        "immutable": True,
-        "created_at_epoch": __import__("time").time(),
-        "scenes": [
-            {
-                "scene_id": str(scene.get("scene_id", scene.get("scene", i))),
-                "scene_number": i,
-                "query": str(scene.get("query") or scene.get("busca") or ""),
-                "must_have": [str(x) for x in (scene.get("must_have") or [])],
-                "avoid": [str(x) for x in (scene.get("avoid") or [])],
-                "asset": asset,
-            }
-            for i, (scene, asset) in enumerate(zip(scenes, assets), 1)
-        ],
-    }
+    raise RuntimeError(
+        f"MEDIA_DOWNLOAD_FAILED:scene_{number:02d}:"
+        + (";".join(failures) if failures else "no_candidate_attempted")
+    )
 
 
-def validate_manifest(path: Path, short_id: str, expected: int) -> None:
-    if not path.is_file():
-        raise RuntimeError("MEDIA_MANIFEST_MISSING")
-    data = json.loads(path.read_text(encoding="utf-8"))
-    if (
-        data.get("schema_version") != "media-manifest-v2"
-        or data.get("short_id") != short_id
-        or data.get("immutable") is not True
-    ):
-        raise RuntimeError("MEDIA_MANIFEST_INVALID")
-    rows = data.get("scenes")
-    if not isinstance(rows, list) or len(rows) != expected:
-        raise RuntimeError(f"MEDIA_MANIFEST_INCOMPLETE:{len(rows) if isinstance(rows, list) else 0}/{expected}")
-    for row in rows:
-        asset = row.get("asset", {}) if isinstance(row, dict) else {}
-        must_total = len(row.get("must_have") or []) if isinstance(row, dict) else 0
-        must_hits = int(asset.get("must_hits", 0) or 0)
-        if not asset.get("validated") or not asset.get("checksum_sha256"):
-            raise RuntimeError("MEDIA_MANIFEST_UNVALIDATED")
-        if must_hits < must_total:
-            raise RuntimeError("MEDIA_MANIFEST_MUST_EVIDENCE_MISSING")
-        path_value = Path(str(asset.get("path") or ""))
-        if not path_value.is_file() or sha256(path_value) != asset.get("checksum_sha256"):
-            raise RuntimeError("MEDIA_MANIFEST_ASSET_IDENTITY_MISMATCH")
-        ffprobe_asset(path_value)
 
 
-def run(short_id: str) -> Path:
+def build_manifest(short_id: str) -> dict[str, Any]:
+    if not short_id or not __import__("re").fullmatch(r"[A-Za-z0-9._-]+", short_id) or ".." in short_id:
+        raise RuntimeError("MEDIA_INPUT_INVALID:short_id")
     scenes = load_scene_map(short_id)
     media_dir = BASE / "imagens" / f"short_{short_id}"
     media_dir.mkdir(parents=True, exist_ok=True)
-    manifest_path = BASE / "manifests" / f"media_{short_id}.json"
-
-    # A completed frozen manifest is authoritative on resume.
-    if manifest_path.is_file():
-        validate_manifest(manifest_path, short_id, len(scenes))
-        print(f"MEDIA_ENGINE_V2=FROZEN_MANIFEST_PASS short_id={short_id}")
-        return manifest_path
-
-    assets: list[dict[str, Any]] = []
+    records = []
     for number, scene in enumerate(scenes, 1):
         existing = _existing_asset_record(media_dir, number, scene)
         if existing is not None:
-            assets.append(existing)
+            records.append(existing)
             continue
-        asset = acquire_scene(short_id, number, scene, media_dir)
-        _write_asset_sidecar(media_dir, number, asset)
-        assets.append(asset)
+        record = acquire_scene(short_id, number, scene, media_dir)
+        _write_asset_sidecar(media_dir, number, record)
+        records.append(record)
+    scenes_out = [
+        {
+            "scene_id": str(scene.get("scene_id", scene.get("scene", number))),
+            "scene_number": number,
+            "asset": record,
+        }
+        for number, (scene, record) in enumerate(zip(scenes, records), 1)
+    ]
+    manifest = {
+        "schema_version": "media-manifest-v2",
+        "engine_version": ENGINE_VERSION,
+        "short_id": short_id,
+        "immutable": True,
+        "scene_count": len(scenes_out),
+        "scenes": scenes_out,
+    }
+    atomic_json(BASE / "manifests" / f"media_{short_id}.json", manifest)
+    return manifest
 
-    manifest = build_manifest(short_id, scenes, assets)
-    atomic_json(manifest_path, manifest)
-    validate_manifest(manifest_path, short_id, len(scenes))
-    print(f"MEDIA_ENGINE_V2=PASS short_id={short_id} scenes={len(assets)} manifest={manifest_path}")
-    return manifest_path
 
-
-def main() -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--short-id", required=True)
-    args = parser.parse_args()
-    try:
-        run(args.short_id)
-    except Exception as exc:
-        print(f"MEDIA_ENGINE_V2=FAIL error={type(exc).__name__}:{exc}")
-        return 1
+def main(short_id: str | None = None) -> int:
+    if short_id is None:
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--short-id", required=True)
+        args = parser.parse_args()
+        short_id = args.short_id
+    manifest = build_manifest(short_id)
+    print(
+        f"MEDIA_ENGINE_V2=PASS short_id={short_id} "
+        f"scenes={manifest['scene_count']} assets={len(manifest['scenes'])}"
+    )
     return 0
 
 
