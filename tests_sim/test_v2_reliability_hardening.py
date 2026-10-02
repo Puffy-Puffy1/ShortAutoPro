@@ -6,7 +6,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 import media_engine_v2
-import media_provider_v2
 import render_engine_v2
 
 
@@ -36,13 +35,35 @@ class V2ReliabilityHardeningTests(unittest.TestCase):
                 media_engine_v2._manifest_integrity(payload),
             )
 
-    def test_progressive_fallback_is_bounded_to_query_relaxation(self):
-        provider = media_provider_v2.MediaProviderV2(router=object())
-        candidates = [{"id": "partial", "must_hits": 0, "avoid_hits": 0, "score": 70}]
-        with patch.object(provider, "search", side_effect=[candidates, candidates]):
-            first = provider.search("ship radio", ["ship", "radio"], [])
-            prepared = provider.prepare(first, 2)
-            self.assertEqual(prepared, [])
+    def test_query_relaxation_can_recover_real_candidate(self):
+        with tempfile.TemporaryDirectory() as td:
+            media = Path(td)
+            asset = media / "scene_01.jpg"
+            asset.write_bytes(b"x" * 2000)
+            candidate = {
+                "fonte": "Mock",
+                "id": "partial",
+                "tipo": "imagem",
+                "must_hits": 0,
+                "avoid_hits": 0,
+                "score": 70,
+                "url": "https://example.invalid/asset.jpg",
+            }
+
+            def fake_download(_candidate, _number, _sid):
+                return True, str(asset), {"sha256": "fixture", "probe": {"width": 100, "height": 100}}
+
+            with patch.object(media_engine_v2.PROVIDER, "search", side_effect=[ [candidate], [candidate] ]),                  patch.object(media_engine_v2.PROVIDER, "prepare", return_value=[]),                  patch.object(media_engine_v2.PROVIDER, "download", side_effect=fake_download),                  patch.object(media_engine_v2, "validate_asset", return_value={
+                     "sha256": "fixture",
+                     "probe": {"width": 100, "height": 100},
+                     "validated": True,
+                 }):
+                result = media_engine_v2.acquire_scene(
+                    "RELAX_001", 1,
+                    {"query": "ship radio", "must_have": ["ship", "radio"], "avoid": []},
+                    media,
+                )
+            self.assertEqual(result["verification_mode"], "query_relaxed")
 
     def test_render_input_rejects_tampered_frozen_asset(self):
         with tempfile.TemporaryDirectory() as td:
