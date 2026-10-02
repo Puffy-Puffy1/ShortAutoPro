@@ -216,14 +216,17 @@ class MediaProviderRouterV2:
         outdir.mkdir(parents=True, exist_ok=True)
         dest = outdir / f"scene_{int(scene_number):02d}_{provider}{ext}"
         try:
+            dest.unlink(missing_ok=True)
             with requests.get(url,stream=True,timeout=DOWNLOAD_TIMEOUT) as r:
                 if not r.ok:
                     note_response(provider,r)
                     mark_asset_bad(url,provider=provider,asset_id=candidate.get("id"),status=r.status_code)
+                    dest.unlink(missing_ok=True)
                     return False,"",{"error_class":"DOWNLOAD_FAILED","status":r.status_code}
                 with dest.open("wb") as fh:
                     for chunk in r.iter_content(1024*1024):
-                        if chunk: fh.write(chunk)
+                        if chunk:
+                            fh.write(chunk)
             result=validate(dest)
             candidate["asset_id"]=candidate.get("id")
             candidate["provenance"]=dict(candidate.get("provenance") or {})
@@ -231,7 +234,12 @@ class MediaProviderRouterV2:
             return True,str(dest),result
         except requests.Timeout as exc:
             note_exception(provider,exc); mark_asset_bad(url,provider=provider,asset_id=candidate.get("id"),reason="TIMEOUT")
+            dest.unlink(missing_ok=True)
             return False,"",{"error_class":"PROVIDER_TIMEOUT"}
+        except requests.RequestException as exc:
+            note_exception(provider,exc); mark_asset_bad(url,provider=provider,asset_id=candidate.get("id"),reason="REQUEST_ERROR")
+            dest.unlink(missing_ok=True)
+            return False,"",{"error_class":"DOWNLOAD_FAILED"}
         except Exception as exc:
             note_exception(provider,exc); mark_asset_bad(url,provider=provider,asset_id=candidate.get("id"),reason="CORRUPT")
             try: dest.unlink()

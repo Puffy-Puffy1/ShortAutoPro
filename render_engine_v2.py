@@ -32,7 +32,16 @@ from render_v2.ffmpeg_visual_renderer import render_visual_ffmpeg
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", Path.home() / "ShortAutoPro")).resolve()
 RENDER_PROJECT = Path(__file__).resolve().parent / "render_v2"
-ENGINE_VERSION = "2.0.0"
+ENGINE_VERSION = "2.0.1"
+
+def _canonical_json(payload: dict[str, Any]) -> bytes:
+    return json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+def _manifest_integrity(payload: dict[str, Any]) -> str:
+    unsigned = dict(payload)
+    unsigned.pop("integrity_sha256", None)
+    return hashlib.sha256(_canonical_json(unsigned)).hexdigest()
+
 FPS = 30
 WIDTH = 1080
 HEIGHT = 1920
@@ -138,6 +147,21 @@ def choose_render_id(job_root: Path) -> str:
 
 def build_job(short_id: str) -> Path:
     short_id = validate_short_id(short_id)
+    root = BASE / "render_jobs" / short_id
+    render_id = choose_render_id(root)
+    existing_job = root / render_id
+    existing_state = existing_job / "state.json"
+    if (
+        (existing_job / "job.json").is_file()
+        and (existing_job / "manifest.json").is_file()
+        and (existing_job / "timeline.json").is_file()
+        and existing_state.is_file()
+        and read_json(existing_state).get("status") == "PASSED"
+    ):
+        meta = read_json(existing_job / "job.json")
+        if meta.get("short_id") != short_id or meta.get("render_id") != render_id:
+            raise RuntimeError("RENDER_RESUME_INVALID:passed_identity")
+        return existing_job
     source = BASE / "roteiros"
     scene_map_path = source / f"scene_map_{short_id}.json"
     edit_path = source / f"pro_edit_plan_{short_id}.json"
@@ -154,6 +178,9 @@ def build_job(short_id: str) -> Path:
     frozen_assets = media_manifest.get("scenes")
     if media_manifest.get("schema_version") != "media-manifest-v2":
         raise RuntimeError("RENDER_INPUT_INVALID:media_manifest_schema")
+    expected_integrity = str(media_manifest.get("integrity_sha256") or "")
+    if expected_integrity and expected_integrity != _manifest_integrity(media_manifest):
+        raise RuntimeError("RENDER_INPUT_INVALID:media_manifest_integrity")
     if media_manifest.get("short_id") != short_id:
         raise RuntimeError("RENDER_INPUT_INVALID:media_manifest_short_id")
     if media_manifest.get("scene_count") != len(frozen_assets or []):
@@ -170,6 +197,11 @@ def build_job(short_id: str) -> Path:
             asset_path.relative_to(media_root)
         except ValueError:
             raise RuntimeError("RENDER_INPUT_INVALID:media_manifest_asset_scope_%02d" % idx)
+        if not asset_path.is_file() or asset_path.stat().st_size <= 1000:
+            raise RuntimeError("RENDER_INPUT_INVALID:media_manifest_asset_missing_%02d" % idx)
+        expected_sha = str(asset.get("checksum_sha256") or "")
+        if not expected_sha or sha256(asset_path) != expected_sha:
+            raise RuntimeError("RENDER_INPUT_INVALID:media_manifest_asset_checksum_%02d" % idx)
     if not isinstance(scenes_raw, list) or not scenes_raw:
         raise RuntimeError("RENDER_INPUT_INVALID:scene_map")
     if not isinstance(planned, list) or len(planned) != len(scenes_raw):
@@ -203,6 +235,8 @@ def build_job(short_id: str) -> Path:
         timeline = read_json(job / "timeline.json")
         if manifest.get("short_id") != short_id:
             raise RuntimeError("RENDER_RESUME_INVALID:manifest_short_id")
+        if manifest.get("schema_version") != "render-manifest-v2":
+            raise RuntimeError("RENDER_RESUME_INVALID:manifest_schema")
         if job_meta.get("short_id") != short_id:
             raise RuntimeError("RENDER_RESUME_INVALID:job_short_id")
         if timeline.get("short_id") != short_id:
@@ -367,15 +401,31 @@ def validate_input(job: Path) -> dict[str, Any]:
     assets=manifest.get("assets",[])
     if not assets: errors.append("RENDER_ASSET_MISSING")
     for item in assets:
+        if not isinstance(item, dict):
+            errors.append("RENDER_ASSET_INVALID:row")
+            continue
         path=Path(str(item.get("asset_path","")))
-        if not path.is_file(): errors.append(f"RENDER_ASSET_MISSING:{item.get('scene_id')}")
-        if item.get("validation_status")!="FROZEN_LOCAL": errors.append(f"RENDER_ASSET_INVALID:{item.get('scene_id')}")
+        if not path.is_file() or path.stat().st_size <= 1000:
+            errors.append(f"RENDER_ASSET_MISSING:{item.get('scene_id')}")
+            continue
+        if item.get("validation_status")!="FROZEN_LOCAL":
+            errors.append(f"RENDER_ASSET_INVALID:{item.get('scene_id')}")
+        expected_sha=str(item.get("checksum_sha256") or "")
+        if not expected_sha or sha256(path)!=expected_sha:
+            errors.append(f"RENDER_ASSET_CHECKSUM:{item.get('scene_id')}")
     audio=Path(str(manifest.get("audio",{}).get("path","")))
     if not audio.is_file(): errors.append("AUDIO_STREAM_MISSING")
+    else:
+        expected_audio=str(manifest.get("audio",{}).get("checksum_sha256") or "")
+        if not expected_audio or sha256(audio)!=expected_audio:
+            errors.append("AUDIO_CHECKSUM_INVALID")
     subtitle=Path(str(manifest.get("subtitles",{}).get("path","")))
     if not subtitle.is_file():
         errors.append("SUBTITLE_INVALID:frozen_ass_missing")
     else:
+        expected_subtitle=str(manifest.get("subtitles",{}).get("checksum_sha256") or "")
+        if not expected_subtitle or sha256(subtitle)!=expected_subtitle:
+            errors.append("SUBTITLE_CHECKSUM_INVALID")
         try:
             validate_ass_contract(subtitle)
             parse_ass(subtitle)

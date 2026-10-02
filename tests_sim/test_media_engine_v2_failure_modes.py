@@ -15,7 +15,7 @@ class MediaEngineV2FailureTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             base=Path(td); media=base/"imagens"/"short_X"; media.mkdir(parents=True)
             candidate={"fonte":"Mock","id":"1","tipo":"imagem","must_hits":1}
-            with patch.object(media_engine_v2.PROVIDER, "search", return_value=[candidate]),                  patch.object(media_engine_v2.PROVIDER, "prepare", return_value=[candidate]),                  patch.object(media_engine_v2.PROVIDER, "download", return_value=(False, str(media/"scene_01.jpg"))),                  patch.object(media_engine_v2, "_local_library_asset", return_value=None):
+            with patch.object(media_engine_v2.PROVIDER, "search", return_value=[candidate]),                  patch.object(media_engine_v2.PROVIDER, "prepare", return_value=[candidate]),                  patch.object(media_engine_v2.PROVIDER, "download", return_value=(False, str(media/"scene_01.jpg"), {"error_class":"DOWNLOAD_FAILED"})),                  patch.object(media_engine_v2, "_local_library_asset", return_value=None):
                 with self.assertRaisesRegex(RuntimeError, "MEDIA_DOWNLOAD_FAILED"):
                     media_engine_v2.acquire_scene("X",1,{"query":"ship","must_have":["ship"]},media)
 
