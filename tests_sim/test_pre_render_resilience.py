@@ -94,7 +94,7 @@ class PreRenderResilienceTests(unittest.TestCase):
         block = text[start:end]
         recovery_pos = block.index('"production_recovery.py"')
         preflight_pos = block.index('"render_preflight.py"')
-        renderer_pos = block.index('"video_professional.py"')
+        renderer_pos = block.index('"render_engine_v2.py"')
         self.assertLess(recovery_pos, renderer_pos)
         self.assertLess(preflight_pos, renderer_pos)
         self.assertIn("production_watchdog.record_heartbeat", text)
