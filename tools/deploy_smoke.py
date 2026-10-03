@@ -78,11 +78,11 @@ def main() -> int:
         if token not in main_text:
             fail(f"main_contract:{token}")
 
-    # V2 owns media acquisition and render planning; the retired Stage 6
+    # V3 owns media acquisition and render planning; the retired Stage 6
     # controller must not remain on the production path.
     # This check is authoritative on the exact PR HEAD, not a legacy merge artifact.
-    if '"media_engine_v2.py"' not in main_text:
-        fail("main_media_engine_v2_contract")
+    if '"media_acquisition_v3.py"' not in main_text:
+        fail("main_media_acquisition_v3_contract")
     if '"render_plan_v2.py"' not in main_text:
         fail("main_render_plan_v2_contract")
     if "media_stage_runtime.py" in main_text:
@@ -110,9 +110,9 @@ def main() -> int:
         fail("recovery_retention_review_is_fatal")
 
     resume_text = (ROOT / "resume_short_runtime.py").read_text(encoding="utf-8")
-    for token in ("media_engine_v2.py", "render_plan_v2.py", "render_engine_v2.py"):
+    for token in ("media_acquisition_v3.py", "render_plan_v2.py", "render_engine_v2.py"):
         if token not in resume_text:
-            fail("resume_v2_contract:" + token)
+            fail("resume_v3_contract:" + token)
     for legacy in (
         "media_stage_runtime.py",
         "professional_edit_director.py",
@@ -128,11 +128,11 @@ def main() -> int:
     media_stage_text = (ROOT / "media_stage_runtime.py").read_text(encoding="utf-8")
     if "def round_env(round_index: int)" not in media_stage_text:
         fail("stage6_budget_compatibility_contract_missing")
-    if "media_engine_v2.py" not in media_stage_text:
-        fail("stage6_v2_delegate_contract_missing")
+    if "media_acquisition_v3.py" not in media_stage_text:
+        fail("stage6_v3_delegate_contract_missing")
     if "from midia" in media_stage_text or "str(MIDIA)" in media_stage_text:
         fail("legacy_stage6_runtime_reference_present")
-    if '"post_scene_plan"' not in resume_text or "RESUME_FROM_V2_MEDIA=YES" not in resume_text:
+    if '"post_scene_plan"' not in resume_text or "RESUME_FROM_V3_MEDIA=YES" not in resume_text:
         fail("resume_v2_checkpoint_contract")
 
     if (
