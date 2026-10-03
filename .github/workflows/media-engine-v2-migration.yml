@@ -44,6 +44,8 @@ jobs:
       - name: Install deterministic test dependencies
         run: |
           python -m pip install --disable-pip-version-check --quiet requests
+      - name: Install FFmpeg and FFprobe
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - name: Python compile
         run: python -m compileall -q media_engine_v2.py media_provider_v2.py media_provider_router_v2.py media_validator_v2.py render_plan_v2.py render_engine_v2.py tests tests_sim
       - name: Media Engine V2 unit and failure tests
