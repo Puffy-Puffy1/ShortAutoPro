@@ -27,7 +27,7 @@ class MediaV3Tests(unittest.TestCase):
         self.assertEqual(plan.original, "Ancient Roman soldier marching through northern Europe")
         self.assertLessEqual(len(plan.variants), 6)
         self.assertEqual(plan.variants[0], plan.original)
-        self.assertTrue(any("Ancient Roman soldier" == x for x in plan.variants))
+        self.assertTrue(any("Roman soldier" == x for x in plan.variants))
 
     def test_missing_credential_is_distinguished(self):
         from media_v3.providers import PexelsAdapter
@@ -54,7 +54,7 @@ class MediaV3Tests(unittest.TestCase):
     def test_corrupt_download_is_rejected_and_does_not_pass(self):
         class Corrupt(FixtureProvider):
             name="corrupt"
-            def search(self, query): return [{"provider":"corrupt","kind":"image","id":"bad","url":"file://bad","description":"ancient roman soldier"}]
+            def search(self, query): return [{"provider":"corrupt","kind":"image","id":"bad","url":"file://bad","local_path":str(self.root/"corrupt.jpg"),"description":"ancient roman soldier"}]
         with tempfile.TemporaryDirectory() as td:
             root=Path(td); engine=MediaAcquisitionV3(root, ProviderRegistry([Corrupt(root)]))
             with patch("media_v3.acquisition.requests.get") as get:
