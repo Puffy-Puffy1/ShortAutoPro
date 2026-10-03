@@ -64,7 +64,11 @@ class CanonicalRenderContractTests(unittest.TestCase):
 
     def test_main_uses_render_engine_v2_as_canonical_route(self):
         source = (ROOT / "main.py").read_text(encoding="utf-8")
-        self.assertIn('p.run("9 - RENDER ENGINE V2 (REMOTION + FFMPEG + FFPROBE)", "render_engine_v2.py"', source)
+        self.assertIn('"9 - RENDER ENGINE V2 (REMOTION + FFMPEG + FFPROBE"', source)
+        self.assertIn('"render_engine_v2.py"', source)
+        self.assertIn("RENDER_ENGINE_LEGACY_DISABLED", source)
+        self.assertNotIn('p.run("9L - PROFESSIONAL MULTI-BEAT ASSEMBLER"', source)
+        self.assertNotIn('p.run("10L - FINAL RENDER V6 PROFESSIONAL"', source)
         self.assertNotIn("v6_runtime.py", source)
         self.assertNotIn('"v6.py"', source)
         self.assertIn('os.getenv("RENDER_ENGINE", "v2")', source)
