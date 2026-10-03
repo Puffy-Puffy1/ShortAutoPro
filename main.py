@@ -259,8 +259,8 @@ class Pipeline:
             return env_int("SAP_STAGE_TIMEOUT_AI_SECONDS", 240, 60, 900)
 
         # Media acquisition is explicitly bounded and has emergency completion.
-        if name == "media_engine_v2.py":
-            return env_int("SAP_STAGE_TIMEOUT_MEDIA_ENGINE_V2_SECONDS", 900, 180, 1800)
+        if name == "media_acquisition_v3.py":
+            return env_int("SAP_STAGE_TIMEOUT_MEDIA_ACQUISITION_V3_SECONDS", 1200, 180, 1800)
 
         # Pre-render recovery may rerun media plus downstream planning once.
         if name == "production_recovery.py":
@@ -411,7 +411,7 @@ def stages_before_render(p: Pipeline) -> None:
     # Stage 6 is no longer a production dependency. Media acquisition and
     # asset validation are owned by Media Engine V2; render planning is a
     # deterministic input contract for Render Engine V2.
-    p.run("MEDIA ENGINE V2 - ACQUIRE + VALIDATE + FREEZE MANIFEST", "media_engine_v2.py", "--short-id", p.sid)
+    p.run("MEDIA ACQUISITION V3 - ACQUIRE + VALIDATE + FREEZE MANIFEST", "media_acquisition_v3.py", "--short-id", p.sid)
     p.run("RENDER PLAN V2 - DETERMINISTIC TIMELINE INPUT", "render_plan_v2.py", "--short-id", p.sid)
     p.run("6F - SPEECH DIRECTOR", "speech_director.py")
     p.run("7 - VOZ PIPER", "audio.py", retries=1)
