@@ -16,7 +16,12 @@ REQUIRED = (
     "visual_query_guard.py",
     "visual_media_refresh.py",
     "resume_short_runtime.py",
-    "media_stage_runtime.py",
+    "media_acquisition_v3.py",
+    "media_v3/__init__.py",
+    "media_v3/acquisition.py",
+    "media_v3/providers.py",
+    "media_v3/query.py",
+    "media_v3/diagnostics.py",
     "media_emergency_fallback.py",
     "media_master_gate.py",
     "visual_qa.py",
@@ -127,13 +132,12 @@ def main() -> int:
         if legacy in resume_text:
             fail("resume_legacy_route:" + legacy)
 
-    media_stage_text = (ROOT / "media_stage_runtime.py").read_text(encoding="utf-8")
-    if "def round_env(round_index: int)" not in media_stage_text:
-        fail("stage6_budget_compatibility_contract_missing")
-    if "media_engine_v2.py" not in media_stage_text:
-        fail("stage6_compatibility_delegate_contract_missing")
-    if "from midia" in media_stage_text or "str(MIDIA)" in media_stage_text:
-        fail("legacy_stage6_runtime_reference_present")
+    v3_text = (ROOT / "media_acquisition_v3.py").read_text(encoding="utf-8")
+    if "MediaAcquisitionV3" not in v3_text or "media-manifest-v2" not in v3_text:
+        fail("media_acquisition_v3_contract_missing")
+    for module in ("acquisition.py", "providers.py", "query.py", "diagnostics.py"):
+        if not (ROOT / "media_v3" / module).is_file():
+            fail("media_v3_module_missing:" + module)
     if '"post_scene_plan"' not in resume_text or "RESUME_FROM_V3_MEDIA=YES" not in resume_text:
         fail("resume_v2_checkpoint_contract")
 
