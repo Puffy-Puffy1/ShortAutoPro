@@ -14,7 +14,7 @@ is only an outer-process diagnosis. The earlier confirmed V2 failure was `MEDIA_
 
 PR #140 added bounded query variants, but the Termux production run still demonstrated that patching the V2 block was not sufficient. The architectural decision is therefore to move acquisition responsibility to V3 rather than add another recovery layer around V2.
 
-The current V3 branch removes V2 from the canonical `main.py` execution path. V2 remains only as compatibility/test material until the final qualification gates are complete.
+The V3 branch removes V2 from the canonical `main.py` execution path and, after green qualification, removes the obsolete V2 acquisition/controller files. Render Engine V2 remains active and is not part of this retirement.
 
 ## 2. Canonical production flow
 
@@ -101,10 +101,10 @@ The migration does not replace the renderer. It replaces only the unstable acqui
 
 | Component | Classification during migration |
 |---|---|
-| `media_engine_v2.py` | LEGACY / rollback reference; no canonical execution |
-| `media_provider_v2.py` | LEGACY compatibility facade |
-| `media_provider_router_v2.py` | LEGACY compatibility router |
-| `media_stage_runtime.py` | LEGACY Stage 6 compatibility boundary; not canonical |
+| `media_engine_v2.py` | REMOVED |
+| `media_provider_v2.py` | REMOVED |
+| `media_provider_router_v2.py` | REMOVED |
+| `media_stage_runtime.py` | REMOVED |
 | `midia.py` | LEGACY provider implementation retained only until final parity/cleanup gate |
 | `render_plan_v2.py` | ACTIVE |
 | `render_engine_v2.py` | ACTIVE |
@@ -121,7 +121,7 @@ The branch has already produced real GitHub evidence for:
 - Render V2 stress workflow: still under qualification
 - Portable validation: previous run exposed one repository-audit defect; that defect was isolated to the architecture graph and is being corrected, not suppressed
 
-The branch is **not yet declared complete**. Final 1/2/5/10 end-to-end, failure injection, resume, CI/main and Termux gates remain mandatory.
+The GitHub qualification gates now include real 1/2/5/10 end-to-end FFmpeg jobs, failure injection, resume/isolation coverage and green portable/render checks. The migration is still not complete until this cleanup branch itself is merged to `main`, `main` is green, `termux-stable` is synchronized, and Termux 1/2/5/10 validation is performed.
 
 ## 10. Non-negotiables
 
