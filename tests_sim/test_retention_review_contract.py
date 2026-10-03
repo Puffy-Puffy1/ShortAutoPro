@@ -31,7 +31,7 @@ class RetentionReviewContractTests(unittest.TestCase):
             rc = retention_engine.main()
         self.assertEqual(rc, 1)
 
-    def test_canonical_pipeline_uses_v2_and_does_not_invoke_legacy_stage6(self):
+    def test_canonical_pipeline_uses_v3_and_does_not_invoke_legacy_stage6(self):
         calls = []
 
         class FakePipeline:
@@ -43,14 +43,14 @@ class RetentionReviewContractTests(unittest.TestCase):
 
         main.stages_before_render(FakePipeline())
         scripts = [x[1] for x in calls]
-        self.assertIn("media_engine_v2.py", scripts)
+        self.assertIn("media_acquisition_v3.py", scripts)
         self.assertIn("render_plan_v2.py", scripts)
         self.assertNotIn("media_stage_runtime.py", scripts)
         self.assertNotIn("retention_engine.py", scripts)
 
     def test_pre_render_recovery_repairs_only_v2_inputs(self):
         source = open(production_recovery.__file__, encoding="utf-8").read()
-        self.assertIn("media_engine_v2.py", source)
+        self.assertIn("media_acquisition_v3.py", source)
         self.assertIn("render_plan_v2.py", source)
         self.assertNotIn("retention_engine.py", source)
         self.assertNotIn("media_stage_runtime.py", source)
