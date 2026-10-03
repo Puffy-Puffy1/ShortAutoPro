@@ -200,6 +200,7 @@ def consolidation_plan_ok(sid: str) -> bool:
     if (
         manifest.get("schema_version") != "media-manifest-v2"
         or manifest.get("short_id") != sid
+        or not str(manifest.get("engine_version") or "").startswith("2.")
         or manifest.get("immutable") is not True
         or not isinstance(media_scenes, list)
         or len(media_scenes) != expected_scenes()
@@ -229,8 +230,16 @@ def consolidation_plan_ok(sid: str) -> bool:
 
     media_root = (BASE / "imagens" / f"short_{sid}").resolve()
     seen = set()
-    for row in media_scenes:
+    for index, row in enumerate(media_scenes, 1):
         if not isinstance(row, dict):
+            return False
+        expected_scene_id = str(
+            scenes[index - 1].get("scene_id", scenes[index - 1].get("scene", index))
+        ).strip()
+        if (
+            int(row.get("scene_number", 0) or 0) != index
+            or str(row.get("scene_id", "") or "").strip() != expected_scene_id
+        ):
             return False
         asset = row.get("asset")
         if not isinstance(asset, dict) or asset.get("validated") is not True:
