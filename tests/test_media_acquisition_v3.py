@@ -51,6 +51,44 @@ class MediaV3Tests(unittest.TestCase):
             self.assertIsNotNone(record); self.assertEqual(record["provider"],"good")
             self.assertEqual(diag.final_status,"RESOLVED")
 
+    def test_rejected_candidates_trigger_next_query_variant(self):
+        class Progressive(FixtureProvider):
+            name = "progressive"
+            def search(self, query):
+                self.calls.append(query)
+                if len(self.calls) == 1:
+                    return [{
+                        "provider": self.name,
+                        "kind": "image",
+                        "id": "bad",
+                        "url": "file://bad",
+                        "local_path": str(self.root / "bad.jpg"),
+                        "description": "unrelated subject",
+                    }]
+                return [{
+                    "provider": self.name,
+                    "kind": "image",
+                    "id": "good",
+                    "url": "file://good",
+                    "local_path": str(self.root / "good.png"),
+                    "description": "roman soldier",
+                }]
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            fixture = root / "good.png"
+            fixture.write_bytes(PNG + b"x" * 2000)
+            (root / "bad.jpg").write_bytes(b"x" * 2000)
+            provider = Progressive(root)
+            engine = MediaAcquisitionV3(root, ProviderRegistry([provider]))
+            record, diag = engine.acquire_scene(
+                "SID3", 1,
+                {"scene_id": "scene_01", "query": "roman soldier", "must_have": ["roman soldier"]},
+            )
+            self.assertIsNotNone(record)
+            self.assertEqual(record["asset_id"], "good")
+            self.assertGreaterEqual(len(provider.calls), 2)
+            self.assertTrue(any(item["reason"] == "MUST_NOT_MATCH" for item in diag.rejections))
+
     def test_corrupt_download_is_rejected_and_does_not_pass(self):
         class Corrupt(FixtureProvider):
             name="corrupt"
