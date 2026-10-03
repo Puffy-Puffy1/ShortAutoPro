@@ -5,9 +5,9 @@ import media_acquisition_v3, render_engine_v2
 from media_v3.providers import ProviderAdapter,ProviderRegistry,ProviderStatus
 
 def make_png():
-    w=h=64; raw=b"".join(b"\\x00"+b"".join(bytes(((x*4)%256,(y*4)%256,180)) for x in range(w)) for y in range(h))
+    w=h=64; raw=b"".join(b"\x00"+b"".join(bytes(((x*4)%256,(y*4)%256,180)) for x in range(w)) for y in range(h))
     def chunk(t,d): return struct.pack(">I",len(d))+t+d+struct.pack(">I",zlib.crc32(t+d)&0xffffffff)
-    return b"\\x89PNG\\r\\n\\x1a\\n"+chunk(b"IHDR",struct.pack(">IIBBBBB",w,h,8,2,0,0,0))+chunk(b"IDAT",zlib.compress(raw,9))+chunk(b"IEND",b"")
+    return b"\x89PNG\\r\\n\x1a\\n"+chunk(b"IHDR",struct.pack(">IIBBBBB",w,h,8,2,0,0,0))+chunk(b"IDAT",zlib.compress(raw,9))+chunk(b"IEND",b"")
 
 class FixtureProvider(ProviderAdapter):
     name="fixture"
