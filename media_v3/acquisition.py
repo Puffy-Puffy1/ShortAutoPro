@@ -132,6 +132,7 @@ class MediaAcquisitionV3:
             for qindex,q in enumerate(plan.variants):
                 rows=None
                 for attempt in range(2):
+                    detail=""
                     try:
                         rows=provider.search(q)
                         diag.provider_results[provider.name]["queries"].append({"query":q,"count":len(rows),"attempt":attempt+1})
