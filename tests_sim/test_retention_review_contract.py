@@ -48,7 +48,7 @@ class RetentionReviewContractTests(unittest.TestCase):
         self.assertNotIn("media_stage_runtime.py", scripts)
         self.assertNotIn("retention_engine.py", scripts)
 
-    def test_pre_render_recovery_repairs_only_v2_inputs(self):
+    def test_pre_render_recovery_uses_only_v3_inputs(self):
         source = open(production_recovery.__file__, encoding="utf-8").read()
         self.assertIn("media_acquisition_v3.py", source)
         self.assertIn("render_plan_v2.py", source)
