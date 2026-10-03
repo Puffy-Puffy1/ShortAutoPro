@@ -221,11 +221,11 @@ def consolidation_plan_ok(sid: str) -> bool:
     elif str(manifest.get("engine_version") or "").startswith("2."):
         return False
 
-    # Migration-era manifests without engine_version/integrity are accepted
-    # structurally so the resume boundary can hand them to V2 preflight.
-    # New V2 manifests are cryptographically verified above.
+    # A manifest without V2 engine metadata is not trusted for resume.
+    # It must be rebuilt by Media Engine V2 so resume can never skip acquisition
+    # based on a legacy or partially migrated manifest.
     if not integrity and not str(manifest.get("engine_version") or ""):
-        return True
+        return False
 
     media_root = (BASE / "imagens" / f"short_{sid}").resolve()
     seen = set()
