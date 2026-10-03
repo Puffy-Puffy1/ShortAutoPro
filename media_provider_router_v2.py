@@ -181,19 +181,79 @@ class LocalLibraryProvider(Provider):
         except Exception:
             return []
 
+def _query_variants(query: str) -> list[str]:
+    """Return bounded, deterministic fallbacks for providers that return no hits.
+
+    The fallback only changes the provider search query. It never relaxes MUST
+    or AVOID verification; MediaProviderV2.prepare() remains the semantic gate.
+    This prevents a single overly-specific/empty provider query from becoming
+    an immediate scene-level providers_empty failure.
+    """
+    raw = " ".join(str(query or "").split()).strip()
+    if not raw:
+        return []
+    variants = [raw]
+    # Strip punctuation while preserving the original word order.
+    normalized = re.sub(r"[^A-Za-z0-9À-ÿ]+", " ", raw).strip()
+    if normalized and normalized.casefold() not in {v.casefold() for v in variants}:
+        variants.append(normalized)
+    words = normalized.split()
+    # Provider APIs can fail on long natural-language queries. Try the most
+    # informative bounded prefixes, then a compact two-term query.
+    if len(words) > 4:
+        variants.append(" ".join(words[:4]))
+    if len(words) > 2:
+        variants.append(" ".join(words[:2]))
+    # Deduplicate case-insensitively and cap network amplification.
+    out = []
+    seen = set()
+    for item in variants:
+        key = item.casefold()
+        if key and key not in seen:
+            seen.add(key)
+            out.append(item)
+    return out[:4]
+
+
 class MediaProviderRouterV2:
     def __init__(self, providers=None):
         self.providers = providers or [
             PexelsProvider(), PixabayProvider(), WikimediaProvider(), CoverrProvider(), LocalLibraryProvider()
         ]
+
     def search(self, query, must, avoid, **_: Any):
-        candidates=[]
+        candidates = []
+        variants = _query_variants(query)
         for provider in self.providers:
-            candidates.extend(provider.search(query,must,avoid))
-        # deterministic ordering: evidence/MUST first, then score, then provider/id.
-        candidates=[c for c in candidates if int(c.get("avoid_hits",0) or 0)==0]
-        candidates.sort(key=lambda c:(int(c.get("must_hits",0) or 0),float(c.get("score",0) or 0),
-                                     str(c.get("fonte","")),str(c.get("id",""))),reverse=True)
+            provider_candidates = []
+            # First attempt preserves the exact editorial query. If a provider
+            # returns no candidates, bounded query variants provide resilience
+            # against provider-side tokenization/search quirks.
+            for index, variant in enumerate(variants):
+                try:
+                    found = provider.search(variant, must, avoid)
+                except Exception:
+                    found = []
+                if found:
+                    provider_candidates.extend(found)
+                    break
+            candidates.extend(provider_candidates)
+
+        # Deterministic ordering: evidence/MUST first, then score, then provider/id.
+        # AVOID is never relaxed here; prepare() still enforces the MUST contract.
+        candidates = [
+            c for c in candidates
+            if int(c.get("avoid_hits", 0) or 0) == 0
+        ]
+        candidates.sort(
+            key=lambda c: (
+                int(c.get("must_hits", 0) or 0),
+                float(c.get("score", 0) or 0),
+                str(c.get("fonte", "")),
+                str(c.get("id", "")),
+            ),
+            reverse=True,
+        )
         return candidates
     def download(self, candidate: dict[str,Any], scene_number: int, short_id: str) -> tuple[bool,str,dict[str,Any]]:
         provider=str(candidate.get("fonte") or candidate.get("source") or "unknown")
