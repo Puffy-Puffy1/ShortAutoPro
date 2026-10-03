@@ -1,7 +1,7 @@
 name: ShortAutoPro Portable Validation
-# portable-v2-final-checkpoint
-# V2 migration checkpoint: portable validation is authoritative before merge.
-# Resume/checkpoint contracts are validated against the frozen V2 manifest.
+# portable-v3-final-checkpoint
+# V3 migration checkpoint: portable validation is authoritative before merge.
+# Resume/checkpoint contracts are validated against the frozen frozen-media manifest.
 
 on:
   workflow_dispatch:
@@ -94,47 +94,30 @@ jobs:
           python -m unittest discover -s tests_sim -p "test_*.py" -v
           echo "PORTABLE_SIM_TESTS=PASS"
 
-      - name: Legacy Compatibility and V2 Production Gate
+      - name: Media Acquisition V3 Production Gate
         shell: bash
         run: |
           set -euo pipefail
-          # Legacy contracts remain regression-protected while the old Stage 6
-          # controller is removed from the production path.
           python -m unittest -v \
-            tests_sim.test_stage6_completion_contract \
-            tests_sim.test_stage6_anchor_timeout_id_fix \
-            tests_sim.test_stage6_early_must_recovery \
-            tests_sim.test_stage6_fast_strict_path \
-            tests_sim.test_stage6_recovery_unwrap \
-            tests_sim.test_stage6_semantic_anchor_recovery \
-            tests_sim.test_media_stage_runtime \
-            tests_sim.test_media_stage_resilience \
-            tests_sim.test_media_strict_must_guard \
-            tests_sim.test_final_render_contract \
-            tests_sim.test_mobile_render_performance \
-            tests_sim.test_subtitle_alignment \
-            tests_sim.test_termux_bridge_deploy \
-            tests_sim.test_termux_stable_promotion \
-            tests_sim.test_render_preflight \
-            tests_sim.test_media_two_pass_recovery \
-            tests_sim.test_pre_render_resilience \
-            tests_sim.test_resume_media_suffix \
-            tests_sim.test_production_watchdog_health \
-            tests_sim.test_visual_query_guard \
-            tests_sim.test_rendered_visual_diversity \
-            tests_sim.test_canonical_visual_score \
-            tests_sim.test_retention_review_contract \
-            tests_sim.test_stage6_timeout_resume \
-            tests_sim.test_visual_content_integrity \
-            tests_sim.test_fresh_run_after_success \
-            tests_sim.test_media_external_resilience
-          # V2 unit/E2E/stress qualification runs in dedicated authoritative
-          # workflows above; Portable keeps the architecture boundary here so
-          # this job does not duplicate long FFmpeg workloads.
-          ! grep -q "media_stage_runtime.py" main.py
-          grep -q "media_engine_v2.py" main.py
-          grep -q "media-manifest-v2" render_engine_v2.py
-          echo "PORTABLE_V2_ARCHITECTURE_GATE=PASS"
+            tests.test_media_acquisition_v3 \
+            tests.test_media_acquisition_v3_stress \
+            tests.test_media_v3_render_integration
+          python - <<'PY'
+          from pathlib import Path
+          main = Path("main.py").read_text(encoding="utf-8")
+          checks = {
+              "main_uses_v3": '"media_acquisition_v3.py"' in main,
+              "main_uses_render_plan_v2": '"render_plan_v2.py"' in main,
+              "main_uses_render_v2": '"render_engine_v2.py"' in main,
+              "main_does_not_execute_v2": 'p.run("MEDIA ENGINE V2 - ACQUIRE + VALIDATE + FREEZE MANIFEST", "media_engine_v2.py"' not in main,
+              "stage6_controller_not_in_main": "media_stage_runtime.py" not in main,
+              "legacy_renderer_disabled": "RENDER_ENGINE_LEGACY_DISABLED" in main,
+          }
+          for name, ok in checks.items():
+              print(f"{name}={'PASS' if ok else 'FAIL'}")
+          assert all(checks.values()), checks
+          print("MEDIA_ACQUISITION_V3_PRODUCTION_CONTRACT=PASS")
+          PY
 
       - name: JSON Integrity Audit
         shell: bash
@@ -188,7 +171,7 @@ jobs:
           find . -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
           echo "PORTABLE_BASH_SYNTAX=PASS"
 
-      - name: V2 Production Pipeline Contract
+      - name: Canonical V3 Production Pipeline Contract
         shell: bash
         run: |
           set -euo pipefail
@@ -203,7 +186,8 @@ jobs:
           done
 
           grep -q 'PROFESSIONAL_CANONICAL' main.py
-          grep -q 'media_engine_v2.py' main.py
+          grep -q 'media_acquisition_v3.py' main.py
+          ! grep -q 'p.run("MEDIA ENGINE V2 - ACQUIRE + VALIDATE + FREEZE MANIFEST", "media_engine_v2.py"' main.py
           grep -q 'render_plan_v2.py' main.py
           grep -q 'render_engine_v2.py' main.py
           grep -q 'media-manifest-v2' render_engine_v2.py
@@ -212,7 +196,7 @@ jobs:
           ! grep -q 'gerar_short.sh' main.py
           ! grep -q 'STANDARD_ROLLBACK' main.py
           grep -q 'MAIN="$BASE/main.py"' profile_run.sh
-          echo "V2_PRODUCTION_PIPELINE_CONTRACT=PASS"
+          echo "V3_PRODUCTION_PIPELINE_CONTRACT=PASS"
 
       - name: Consolidation Repository Audit
         shell: bash
