@@ -118,8 +118,21 @@ def ffprobe_asset(path: Path) -> dict[str, Any]:
     }
 
 
+def validate_short_id(value: str) -> str:
+    sid = str(value or "").strip()
+    if (
+        not sid
+        or len(sid) > 96
+        or not __import__("re").fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", sid)
+        or ".." in sid
+    ):
+        raise RuntimeError("MEDIA_INPUT_INVALID:short_id")
+    return sid
+
+
 def load_scene_map(short_id: str) -> list[dict[str, Any]]:
-    path = BASE / "roteiros" / f"scene_map_{short_id}.json"
+    sid = validate_short_id(short_id)
+    path = BASE / "roteiros" / f"scene_map_{sid}.json"
     if not path.is_file():
         raise RuntimeError("MEDIA_INPUT_INVALID:scene_map_missing")
     raw = json.loads(path.read_text(encoding="utf-8"))
@@ -129,6 +142,14 @@ def load_scene_map(short_id: str) -> list[dict[str, Any]]:
     rows = [x for x in scenes if isinstance(x, dict)]
     if len(rows) != len(scenes):
         raise RuntimeError("MEDIA_INPUT_INVALID:scene_map_scene_not_object")
+    seen_ids: set[str] = set()
+    for index, scene in enumerate(rows, 1):
+        scene_id = str(scene.get("scene_id", scene.get("scene", index))).strip()
+        if not scene_id:
+            raise RuntimeError(f"MEDIA_INPUT_INVALID:scene_{index:02d}:scene_id_empty")
+        if scene_id in seen_ids:
+            raise RuntimeError(f"MEDIA_INPUT_INVALID:scene_{index:02d}:duplicate_scene_id")
+        seen_ids.add(scene_id)
     return rows
 
 
@@ -160,22 +181,21 @@ def _existing_asset_record(
             return None
         expected = str(record.get("checksum_sha256") or "")
         must_total = len(scene.get("must_have") or [])
+        expected_short_id = media_dir.name.removeprefix("short_")
         if (
             not expected
-            or int(record.get("must_total", 0)) != must_total
-            or (
-                record.get("short_id") is not None
-                and str(record.get("short_id") or "") != media_dir.name.removeprefix("short_")
-            )
-            or (
-                record.get("scene_number") is not None
-                and int(record.get("scene_number", 0) or 0) not in {0, number}
-            )
+            or record.get("validated") is not True
+            or str(record.get("short_id") or "") != expected_short_id
+            or int(record.get("scene_number", 0) or 0) != number
+            or int(record.get("must_total", 0) or 0) != must_total
         ):
             return None
         if sha256(path) != expected:
             return None
-        probe = ffprobe_asset(path)
+        validated = validate_asset(path)
+        if validated.get("sha256") != expected:
+            return None
+        probe = validated["probe"]
         record["path"] = str(path)
         record["probe"] = probe
         record["validated"] = True
@@ -310,8 +330,7 @@ def acquire_scene(short_id: str, number: int, scene: dict[str, Any], media_dir: 
 
 
 def build_manifest(short_id: str) -> dict[str, Any]:
-    if not short_id or not __import__("re").fullmatch(r"[A-Za-z0-9._-]+", short_id) or ".." in short_id:
-        raise RuntimeError("MEDIA_INPUT_INVALID:short_id")
+    short_id = validate_short_id(short_id)
     scenes = load_scene_map(short_id)
     media_dir = BASE / "imagens" / f"short_{short_id}"
     media_dir.mkdir(parents=True, exist_ok=True)

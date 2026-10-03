@@ -63,6 +63,8 @@ class Stage6CompletionContractTests(unittest.TestCase):
         self.assertIn("completion_override", text)
         self.assertIn("invalid_scenes", text)
         self.assertIn("MEDIA_STAGE_RUNTIME=V2_RETRY_MISSING_ONLY", text)
+        self.assertIn("V2_FINAL_FAIL", text)
+        self.assertNotIn("if final_editorial_completion(final_missing):", text)
 
     def test_complete_assets_pass(self):
         with tempfile.TemporaryDirectory() as tmp:

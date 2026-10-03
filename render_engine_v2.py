@@ -197,6 +197,15 @@ def build_job(short_id: str) -> Path:
             asset_path.relative_to(media_root)
         except ValueError:
             raise RuntimeError("RENDER_INPUT_INVALID:media_manifest_asset_scope_%02d" % idx)
+        expected_scene = scenes_raw[idx - 1] if isinstance(scenes_raw, list) and idx <= len(scenes_raw) else {}
+        expected_scene_id = str(
+            expected_scene.get("scene_id", expected_scene.get("scene", idx))
+        ).strip() if isinstance(expected_scene, dict) else str(idx)
+        if (
+            int(row.get("scene_number", 0) or 0) != idx
+            or str(row.get("scene_id", "") or "").strip() != expected_scene_id
+        ):
+            raise RuntimeError("RENDER_INPUT_INVALID:media_manifest_scene_identity_%02d" % idx)
         if not asset_path.is_file() or asset_path.stat().st_size <= 1000:
             raise RuntimeError("RENDER_INPUT_INVALID:media_manifest_asset_missing_%02d" % idx)
         expected_sha = str(asset.get("checksum_sha256") or "")
@@ -370,7 +379,7 @@ def transition(job: Path, status: str, **extra: Any) -> None:
         "FAILED":{"RECOVERY_PENDING","RETRYING","CANCELLED"},
         "RECOVERY_PENDING":{"RETRYING","CANCELLED"},
         "RETRYING":{"RENDERING","FAILED"},
-        "PASSED":set(),
+        "PASSED":{"FAILED"},
         "CANCELLED":set(),
     }
     if status != current and status not in allowed.get(current, set()):

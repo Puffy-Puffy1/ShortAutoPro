@@ -56,35 +56,62 @@ class RetentionReviewContractTests(unittest.TestCase):
         self.assertNotIn("media_stage_runtime.py", source)
 
     def test_resume_requires_frozen_v2_manifest(self):
-        valid_plan = {
-            "schema_version": "render-plan-v2",
-            "short_id": "case",
-            "scenes": [{"scene": i} for i in range(1, 13)],
-        }
-        valid_manifest = {
-            "schema_version": "media-manifest-v2",
-            "short_id": "case",
-            "immutable": True,
-            "scenes": [
-                {"scene": i, "asset": {"validated": True, "checksum_sha256": f"sha-{i}"}}
-                for i in range(1, 13)
-            ],
-        }
-        with mock.patch.object(
-            resume_short_runtime,
-            "read_json",
-            side_effect=lambda path: valid_plan if "pro_edit_plan_" in str(path) else valid_manifest,
-        ):
-            self.assertTrue(resume_short_runtime.consolidation_plan_ok("case"))
+        import hashlib
+        import json
+        import tempfile
+        from pathlib import Path
+        import media_engine_v2
 
-        blocked_manifest = dict(valid_manifest)
-        blocked_manifest["immutable"] = False
-        with mock.patch.object(
-            resume_short_runtime,
-            "read_json",
-            side_effect=lambda path: valid_plan if "pro_edit_plan_" in str(path) else blocked_manifest,
-        ):
-            self.assertFalse(resume_short_runtime.consolidation_plan_ok("case"))
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            sid = "case"
+            (base / "roteiros").mkdir(parents=True)
+            (base / "manifests").mkdir(parents=True)
+            (base / "imagens" / f"short_{sid}").mkdir(parents=True)
+            plan = {
+                "schema_version": "render-plan-v2",
+                "short_id": sid,
+                "scenes": [{"scene_id": str(i)} for i in range(1, 13)],
+            }
+            (base / "roteiros" / f"pro_edit_plan_{sid}.json").write_text(
+                json.dumps(plan), encoding="utf-8"
+            )
+            rows = []
+            for i in range(1, 13):
+                asset = base / "imagens" / f"short_{sid}" / f"scene_{i:02d}.jpg"
+                asset.write_bytes(b"x" * 2000)
+                digest = hashlib.sha256(asset.read_bytes()).hexdigest()
+                rows.append({
+                    "scene_id": str(i),
+                    "scene_number": i,
+                    "asset": {
+                        "validated": True,
+                        "checksum_sha256": digest,
+                        "path": str(asset),
+                    },
+                })
+            manifest = {
+                "schema_version": "media-manifest-v2",
+                "engine_version": "2.0.1",
+                "short_id": sid,
+                "immutable": True,
+                "scene_count": 12,
+                "scenes": rows,
+            }
+            manifest["integrity_sha256"] = media_engine_v2._manifest_integrity(manifest)
+            (base / "manifests" / f"media_{sid}.json").write_text(
+                json.dumps(manifest), encoding="utf-8"
+            )
+            with mock.patch.object(resume_short_runtime, "BASE", base),                  mock.patch.dict(sys.modules, {"media_engine_v2": media_engine_v2}):
+                self.assertTrue(resume_short_runtime.consolidation_plan_ok(sid))
+
+            manifest["immutable"] = False
+            (base / "manifests" / f"media_{sid}.json").write_text(
+                json.dumps(manifest), encoding="utf-8"
+            )
+            with mock.patch.object(resume_short_runtime, "BASE", base):
+                self.assertFalse(resume_short_runtime.consolidation_plan_ok(sid))
+
 
 
 if __name__ == "__main__":

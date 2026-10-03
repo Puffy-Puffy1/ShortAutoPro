@@ -87,6 +87,12 @@ def main() -> int:
         fail("main_render_plan_v2_contract")
     if "media_stage_runtime.py" in main_text:
         fail("legacy_stage6_controller_still_in_production_path")
+    if "RENDER_ENGINE_LEGACY_DISABLED" not in main_text:
+        fail("legacy_renderer_route_not_disabled")
+    if 'p.run("9L - PROFESSIONAL MULTI-BEAT ASSEMBLER"' in main_text:
+        fail("legacy_render_assembler_route_present")
+    if 'p.run("10L - FINAL RENDER V6 PROFESSIONAL"' in main_text:
+        fail("legacy_render_v6_route_present")
 
     render_engine_text = (ROOT / "render_engine_v2.py").read_text(encoding="utf-8")
     if "media-manifest-v2" not in render_engine_text:

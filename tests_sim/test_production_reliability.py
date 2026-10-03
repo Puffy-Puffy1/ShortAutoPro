@@ -14,6 +14,7 @@ import unittest
 from unittest.mock import patch, Mock
 
 import main as pipeline
+import media_engine_v2
 import media_stage_runtime as media
 import resume_short_runtime as resume
 import storage_manager as storage
@@ -112,15 +113,38 @@ class ResumeReliabilityTests(unittest.TestCase):
         folder = self.base / 'roteiros'
         folder.mkdir(exist_ok=True)
         (folder / 'pro_edit_plan_one.json').write_text(json.dumps({
-            'schema_version': 'render-plan-v2', 'short_id': 'one', 'scenes': [{}] * 12}))
+            'schema_version': 'render-plan-v2',
+            'short_id': 'one',
+            'scenes': [{'scene_id': str(i)} for i in range(1, 13)]
+        }))
         manifests = self.base / 'manifests'
         manifests.mkdir(exist_ok=True)
-        (manifests / 'media_one.json').write_text(json.dumps({
+        media_dir = self.base / 'imagens' / 'short_one'
+        media_dir.mkdir(parents=True, exist_ok=True)
+        rows = []
+        for i in range(1, 13):
+            asset = media_dir / f'scene_{i:02d}.jpg'
+            asset.write_bytes(b'\\xff\\xd8\\xff' + bytes([i]) * 2000)
+            digest = __import__('hashlib').sha256(asset.read_bytes()).hexdigest()
+            rows.append({
+                'scene_id': str(i),
+                'scene_number': i,
+                'asset': {
+                    'validated': True,
+                    'checksum_sha256': digest,
+                    'path': str(asset),
+                },
+            })
+        manifest = {
             'schema_version': 'media-manifest-v2',
+            'engine_version': '2.0.1',
             'short_id': 'one',
             'immutable': True,
-            'scenes': [{'scene': i, 'asset': {'validated': True, 'checksum_sha256': f'sha-{i}'}} for i in range(1, 13)]
-        }))
+            'scene_count': 12,
+            'scenes': rows,
+        }
+        manifest['integrity_sha256'] = media_engine_v2._manifest_integrity(manifest)
+        (manifests / 'media_one.json').write_text(json.dumps(manifest))
         for name in ('retention', 'sound_design', 'multi_asset', 'visual_score', 'visual_continuity'):
             (folder / f'{name}_one.json').write_text(json.dumps({'retention_score': score, 'padding': 'enough bytes'}))
 
@@ -129,8 +153,8 @@ class ResumeReliabilityTests(unittest.TestCase):
         manifest = self.base / 'manifests' / 'media_one.json'
         for payload in (
             {'schema_version': 'wrong', 'short_id': 'one', 'immutable': True, 'scenes': [{}] * 12},
-            {'schema_version': 'media-manifest-v2', 'short_id': 'other', 'immutable': True, 'scenes': [{}] * 12},
-            {'schema_version': 'media-manifest-v2', 'short_id': 'one', 'immutable': False, 'scenes': [{}] * 12},
+            {'schema_version': 'media-manifest-v2', 'engine_version': '2.0.1', 'short_id': 'other', 'immutable': True, 'scenes': [{}] * 12},
+            {'schema_version': 'media-manifest-v2', 'engine_version': '2.0.1', 'short_id': 'one', 'immutable': False, 'scenes': [{}] * 12},
         ):
             with self.subTest(payload=payload):
                 manifest.write_text(json.dumps(payload))
@@ -226,7 +250,7 @@ class MediaRecoveryTests(unittest.TestCase):
                 for n in range(1, 13)
             ]
         }))
-        for key, value in dict(BASE=self.base, REPORT=self.report, SID='one', MIDIA=self.script).items():
+        for key, value in dict(BASE=self.base, REPORT=self.report, SID='one').items():
             patcher = patch.object(media, key, value)
             patcher.start()
             self.addCleanup(patcher.stop)

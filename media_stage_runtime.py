@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Canonical Stage 6 multi-round recovery controller.
+"""Compatibility recovery boundary for the retired Stage 6.
 
-Runs midia.py incrementally. The selector itself remains authoritative and
-fail-closed. Successful scenes are preserved by midia.py's existing incremental
-checkpoint; only missing scenes are retried. Search budgets increase gradually
-without relaxing MUST verification.
+Production acquisition is owned by Media Engine V2. This module exists only for
+older recovery/checkpoint contracts and delegates every acquisition attempt to
+media_engine_v2.py. It must never certify editorial placeholders or bypass the
+frozen V2 manifest contract.
 """
 from __future__ import annotations
 
@@ -30,8 +30,6 @@ import visual_engine_unified
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
 SID = os.getenv("SHORT_ID", date.today().isoformat()).strip()
 REPORT = BASE / "reports" / "media" / f"acquisition_missing_{SID}.json"
-MIDIA = BASE / "midia.py"
-
 
 def read_report() -> dict[str, Any]:
     try:
@@ -763,9 +761,13 @@ def main() -> int:
         f"missing={','.join(map(str, final_missing)) or '?'}"
     )
 
-    if final_editorial_completion(final_missing):
-        return 0
-
+    # The retired Stage 6 must never turn a bounded media failure into a PASS
+    # through editorial reuse. Media Engine V2 must produce a verified frozen
+    # manifest; otherwise the pipeline remains failed and fail-closed.
+    print(
+        "MEDIA_STAGE_RUNTIME=V2_FINAL_FAIL "
+        f"reason=NO_VERIFIED_V2_MANIFEST missing={','.join(map(str, final_missing)) or '?'}"
+    )
     return 1
 
 

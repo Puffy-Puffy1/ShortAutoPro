@@ -79,10 +79,11 @@ class AcquisitionV2Tests(unittest.TestCase):
             asset.write_bytes(b"x" * 2000)
             digest = media_engine_v2.sha256(asset)
             sidecar.write_text(
-                __import__("json").dumps({"checksum_sha256": digest, "must_total": 1}),
+                __import__("json").dumps({"checksum_sha256": digest, "must_total": 1, "validated": True, "short_id": media_dir.name.removeprefix("short_"), "scene_number": 1}),
                 encoding="utf-8",
             )
-            with patch.object(media_engine_v2, "ffprobe_asset", return_value={"width": 1080, "height": 1920}):
+            with patch.object(media_engine_v2, "ffprobe_asset", return_value={"width": 1080, "height": 1920}), \
+                 patch.object(media_engine_v2, "validate_asset", return_value={"sha256": digest, "probe": {"width": 1080, "height": 1920}, "validated": True}):
                 record = media_engine_v2._existing_asset_record(
                     media_dir, 1, {"must_have": ["test"]}
                 )
@@ -128,10 +129,11 @@ class AcquisitionV2Tests(unittest.TestCase):
             asset.write_bytes(b"x" * 2000)
             digest = media_engine_v2.sha256(asset)
             (media_a / "scene_01.json").write_text(
-                __import__("json").dumps({"checksum_sha256": digest, "must_total": 1}),
+                __import__("json").dumps({"checksum_sha256": digest, "must_total": 1, "validated": True, "short_id": media_a.name.removeprefix("short_"), "scene_number": 1}),
                 encoding="utf-8",
             )
-            with patch.object(media_engine_v2, "ffprobe_asset", return_value={"width": 1080, "height": 1920}):
+            with patch.object(media_engine_v2, "ffprobe_asset", return_value={"width": 1080, "height": 1920}), \
+                 patch.object(media_engine_v2, "validate_asset", return_value={"sha256": digest, "probe": {"width": 1080, "height": 1920}, "validated": True}):
                 self.assertIsNotNone(media_engine_v2._existing_asset_record(media_a, 1, {"must_have": ["x"]}))
                 self.assertIsNone(media_engine_v2._existing_asset_record(media_b, 1, {"must_have": ["x"]}))
 
@@ -166,10 +168,12 @@ class AcquisitionV2Tests(unittest.TestCase):
             asset.write_bytes(b"x" * 2000)
             digest = media_engine_v2.sha256(asset)
             (asset.parent / "scene_01.json").write_text(
-                __import__("json").dumps({"checksum_sha256": digest, "must_total": 1}),
+                __import__("json").dumps({"checksum_sha256": digest, "must_total": 1, "validated": True, "short_id": sid, "scene_number": 1}),
                 encoding="utf-8",
             )
-            with patch.object(media_engine_v2, "ffprobe_asset", return_value={"width": 1080, "height": 1920}),                  patch.object(media_engine_v2.PROVIDER, "search", side_effect=AssertionError("resume must not query")):
+            with patch.object(media_engine_v2, "ffprobe_asset", return_value={"width": 1080, "height": 1920}), \
+                 patch.object(media_engine_v2, "validate_asset", return_value={"sha256": digest, "probe": {"width": 1080, "height": 1920}, "validated": True}), \
+                 patch.object(media_engine_v2.PROVIDER, "search", side_effect=AssertionError("resume must not query")):
                 manifest = media_engine_v2.build_manifest(sid)
             self.assertEqual(manifest["short_id"], sid)
             self.assertEqual(manifest["scene_count"], 1)
@@ -190,10 +194,11 @@ class AcquisitionV2Tests(unittest.TestCase):
             asset.write_bytes(b"x" * 2000)
             digest = media_engine_v2.sha256(asset)
             (asset.parent / "scene_01.json").write_text(
-                __import__("json").dumps({"checksum_sha256": digest, "must_total": 0}),
+                __import__("json").dumps({"checksum_sha256": digest, "must_total": 0, "validated": True, "short_id": sid, "scene_number": 1}),
                 encoding="utf-8",
             )
-            with patch.object(media_engine_v2, "ffprobe_asset", return_value={"width": 1080, "height": 1920}):
+            with patch.object(media_engine_v2, "ffprobe_asset", return_value={"width": 1080, "height": 1920}), \
+                 patch.object(media_engine_v2, "validate_asset", return_value={"sha256": digest, "probe": {"width": 1080, "height": 1920}, "validated": True}):
                 manifest = media_engine_v2.build_manifest(sid)
             self.assertEqual(manifest["schema_version"], "media-manifest-v2")
             self.assertEqual(manifest["short_id"], sid)

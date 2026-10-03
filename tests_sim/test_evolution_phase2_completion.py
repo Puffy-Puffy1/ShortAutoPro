@@ -120,15 +120,35 @@ class ResumeBoundaryTests(unittest.TestCase):
         }), encoding="utf-8")
         manifest_dir = self.base / "manifests"
         manifest_dir.mkdir(parents=True, exist_ok=True)
-        (manifest_dir / f"media_{self.sid}.json").write_text(json.dumps({
+        media = self.base / "imagens" / f"short_{self.sid}"
+        media.mkdir(parents=True)
+        media_rows = []
+        for i in range(1, 13):
+            asset_path = media / f"scene_{i:02d}.jpg"
+            asset_path.write_bytes(b"asset-" + bytes([i]) * 2000)
+            digest = __import__("hashlib").sha256(asset_path.read_bytes()).hexdigest()
+            media_rows.append({
+                "scene_id": str(i),
+                "scene_number": i,
+                "asset": {
+                    "validated": True,
+                    "checksum_sha256": digest,
+                    "path": str(asset_path),
+                },
+            })
+        manifest = {
             "schema_version": "media-manifest-v2",
+            "engine_version": "2.0.1",
             "short_id": self.sid,
             "immutable": True,
-            "scenes": [
-                {"scene": i, "asset": {"validated": True, "checksum_sha256": f"sha-{i}"}}
-                for i in range(1, 13)
-            ],
-        }), encoding="utf-8")
+            "scene_count": 12,
+            "scenes": media_rows,
+        }
+        import media_engine_v2
+        manifest["integrity_sha256"] = media_engine_v2._manifest_integrity(manifest)
+        (manifest_dir / f"media_{self.sid}.json").write_text(
+            json.dumps(manifest), encoding="utf-8"
+        )
 
         planning = {
             f"retention_{self.sid}.json": {"status": "PASS", "retention_score": 95, "notes": ["validated"]},
@@ -147,10 +167,7 @@ class ResumeBoundaryTests(unittest.TestCase):
             "stages": {"production_supervisor.py": {"status": "PASS"}},
         }), encoding="utf-8")
 
-        media = self.base / "imagens" / f"short_{self.sid}"
-        media.mkdir(parents=True)
-        for i in range(1, 13):
-            (media / f"scene_{i}.jpg").write_bytes(b"x" * 2000)
+        # Media files are created above as part of the immutable V2 manifest fixture.
 
     def tearDown(self):
         rsr.BASE = self.old["rsr_base"]

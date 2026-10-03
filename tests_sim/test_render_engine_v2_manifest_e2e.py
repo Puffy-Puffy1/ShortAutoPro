@@ -28,11 +28,15 @@ class RenderManifestE2ETests(unittest.TestCase):
                 assets.append({"source":"fixture","asset_id":str(i),"asset_type":"image","path":str(path),
                                "checksum_sha256":hashlib.sha256(path.read_bytes()).hexdigest(),
                                "probe":{"width":1080,"height":1920},"validated":True})
-            (base/"manifests"/f"media_{sid}.json").write_text(json.dumps({
+            manifest = {
                 "schema_version":"media-manifest-v2","version":2,"engine":"Media Engine V2",
-                "short_id":sid,"immutable":True,"scene_count":2,"scenes":[{"scene_id":str(i),"scene_number":i,
+                "engine_version":"2.0.1",
+                "short_id":sid,"immutable":True,"scene_count":2,
+                "scenes":[{"scene_id":f"{i:02d}","scene_number":i,
                 "query":"fixture","must_have":[],"avoid":[],"asset":assets[i-1]} for i in (1,2)]
-            }),encoding="utf-8")
+            }
+            manifest["integrity_sha256"] = __import__("media_engine_v2")._manifest_integrity(manifest)
+            (base/"manifests"/f"media_{sid}.json").write_text(json.dumps(manifest),encoding="utf-8")
             subprocess.run(["ffmpeg","-y","-loglevel","error","-f","lavfi","-i",
                             "sine=frequency=440:sample_rate=48000:duration=2.0",
                             "-c:a","libmp3lame",str(base/"audios"/f"short_{sid}.mp3")],
