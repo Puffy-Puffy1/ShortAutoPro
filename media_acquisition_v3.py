@@ -51,7 +51,10 @@ def _existing_record(base,sid,number,scene):
         row=json.loads(sidecar.read_text(encoding="utf-8"))
         path=Path(str(row.get("path") or "")).resolve()
         root=media.resolve(); path.relative_to(root)
-        if row.get("short_id")!=sid or int(row.get("scene_number",0))!=number or row.get("validated") is not True:
+        expected_scene_id=str(scene.get("scene_id",scene.get("scene",number))).strip()
+        if (row.get("short_id")!=sid or int(row.get("scene_number",0))!=number
+                or str(row.get("scene_id","")).strip()!=expected_scene_id
+                or row.get("validated") is not True):
             return None
         if any(x in path.name.casefold() for x in ("slate","placeholder","neutral_editorial","editorial_reuse")):
             return None
@@ -82,7 +85,7 @@ def build_manifest(short_id, engine=None):
             report={"schema_version":"media-diagnostics-v3","short_id":sid,"engine_version":ENGINE_VERSION,"scenes":diagnostics,"final_status":"FAILED"}
             atomic_json(BASE/"reports"/"media"/f"acquisition_{sid}.json",report)
             raise RuntimeError(f"MEDIA_ACQUISITION_V3_FAILED:scene_{number:02d}:{diag.error}")
-        record.update({"short_id":sid,"scene_number":number,"must_total":len(diag.must),"validated":True,"checksum_sha256":record.get("sha256","")})
+        record.update({"short_id":sid,"scene_number":number,"scene_id":str(scene.get("scene_id",scene.get("scene",number))).strip(),"must_total":len(diag.must),"validated":True,"checksum_sha256":record.get("sha256","")})
         atomic_json(BASE/"imagens"/f"short_{sid}"/f"scene_{number:02d}.json",record)
         records.append(record)
     manifest={"schema_version":"media-manifest-v2","engine_version":ENGINE_VERSION,"short_id":sid,"immutable":True,"scene_count":len(records),
