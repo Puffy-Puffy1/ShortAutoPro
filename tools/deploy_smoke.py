@@ -83,6 +83,8 @@ def main() -> int:
     # This check is authoritative on the exact PR HEAD, not a legacy merge artifact.
     if '"media_acquisition_v3.py"' not in main_text:
         fail("main_media_acquisition_v3_contract")
+    if 'p.run("MEDIA ENGINE V2 - ACQUIRE + VALIDATE + FREEZE MANIFEST", "media_engine_v2.py"' in main_text:
+        fail("main_media_engine_v2_execution_contract")
     if '"render_plan_v2.py"' not in main_text:
         fail("main_render_plan_v2_contract")
     if "media_stage_runtime.py" in main_text:
