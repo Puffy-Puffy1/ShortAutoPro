@@ -1,8 +1,8 @@
-import base64, tempfile, unittest
+import base64, struct, tempfile, unittest, zlib
 from pathlib import Path
 import media_acquisition_v3
 
-PNG=base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=")
+def make_png():\n    w=h=64; rows=[]\n    for y in range(h):\n        rows.append(b"\\x00" + bytes(((x*4)%256,(y*4)%256,180) for x in range(w) for _ in [0]))\n    raw=b"".join(rows)\n    def chunk(t,d): return struct.pack(">I",len(d))+t+d+struct.pack(">I",zlib.crc32(t+d)&0xffffffff)\n    return b"\\x89PNG\\r\\n\\x1a\\n"+chunk(b"IHDR",struct.pack(">IIBBBBB",w,h,8,2,0,0,0))+chunk(b"IDAT",zlib.compress(raw,9))+chunk(b"IEND",b"")
 
 class FakeEngine:
     def __init__(self,fixture,fail_sid=None):
@@ -22,7 +22,7 @@ class AcquisitionV3StressTests(unittest.TestCase):
     def _scene(self): return {"scene_id":"scene_01","query":"fixture"}
     def test_sequential_1_2_5_10_jobs_are_isolated(self):
         with tempfile.TemporaryDirectory() as td:
-            base=Path(td); media_acquisition_v3.BASE=base; fixture=base/"fixture.png"; fixture.write_bytes(PNG)
+            base=Path(td); media_acquisition_v3.BASE=base; fixture=base/"fixture.png"; fixture.write_bytes(make_png())
             engine=FakeEngine(fixture)
             (base/"roteiros").mkdir()
             for n in range(1,11):
