@@ -50,16 +50,39 @@ class MediaAcquisitionV3:
             if not url.startswith(("http://","https://")): diag.reject("INVALID_URL",provider=provider,asset_id=candidate.get("id")); return None
             ext=".mp4" if str(candidate.get("kind"))=="video" else ".jpg"; dest=outdir/f"scene_{scene_no:02d}_{provider}{ext}"
             tmp=dest.with_suffix(dest.suffix+".part")
-            try:
-                with requests.get(url,stream=True,timeout=(5,15)) as r:
-                    if r.status_code==429: diag.reject("RATE_LIMIT",provider=provider,asset_id=candidate.get("id")); return None
-                    if not r.ok: diag.reject("HTTP_ERROR",provider=provider,asset_id=candidate.get("id"),status=r.status_code); return None
-                    with tmp.open("wb") as fh:
-                        for chunk in r.iter_content(1024*1024):
-                            if chunk: fh.write(chunk)
-                os.replace(tmp,dest)
-            except requests.Timeout: diag.reject("TIMEOUT",provider=provider,asset_id=candidate.get("id")); tmp.unlink(missing_ok=True); return None
-            except requests.RequestException as exc: diag.reject("DOWNLOAD_FAILED",provider=provider,asset_id=candidate.get("id"),detail=type(exc).__name__); tmp.unlink(missing_ok=True); return None
+            last_reason="DOWNLOAD_FAILED"
+            for attempt in range(2):
+                try:
+                    with requests.get(url,stream=True,timeout=(5,15)) as r:
+                        if r.status_code == 429:
+                            last_reason="RATE_LIMIT"
+                        elif r.status_code >= 500:
+                            last_reason="HTTP_ERROR"
+                        elif not r.ok:
+                            last_reason="HTTP_ERROR"
+                        else:
+                            with tmp.open("wb") as fh:
+                                for chunk in r.iter_content(1024*1024):
+                                    if chunk:
+                                        fh.write(chunk)
+                            os.replace(tmp,dest)
+                            last_reason=""
+                            break
+                    tmp.unlink(missing_ok=True)
+                except requests.Timeout:
+                    last_reason="TIMEOUT"
+                    tmp.unlink(missing_ok=True)
+                except requests.RequestException as exc:
+                    last_reason="DOWNLOAD_FAILED"
+                    tmp.unlink(missing_ok=True)
+                    if attempt == 1:
+                        diag.reject(last_reason,provider=provider,asset_id=candidate.get("id"),detail=type(exc).__name__)
+                        return None
+                if attempt == 0:
+                    time.sleep(0.25)
+            if last_reason:
+                diag.reject(last_reason,provider=provider,asset_id=candidate.get("id"))
+                return None
         diag.candidates_downloaded += 1
         try:
             result=validate_media(dest); diag.candidates_valid += 1
@@ -71,10 +94,12 @@ class MediaAcquisitionV3:
         m=message.upper()
         if "TOO_SMALL" in m: return "FILE_TOO_SMALL"
         if "NO_VIDEO" in m: return "NO_VIDEO_STREAM"
-        if "NO_STREAM" in m: return "CORRUPTED_FILE"
+        if "NO_IMAGE" in m: return "NO_IMAGE_STREAM"
+        if "NO_STREAM" in m or "PROBE_FAIL" in m or "PROBE_INVALID" in m: return "CORRUPTED_FILE"
         if "DURATION" in m: return "DURATION_INVALID"
-        if "EXTENSION" in m: return "UNSUPPORTED_FORMAT"
+        if "EXTENSION" in m or "UNSUPPORTED" in m: return "UNSUPPORTED_FORMAT"
         if "DIMENSION" in m: return "RESOLUTION_INVALID"
+        if "SIGNATURE" in m: return "CORRUPTED_FILE"
         return "VALIDATION_FAILED"
     def acquire_scene(self,sid,number,scene):
         sid=str(sid).strip(); scene_id=str(scene.get("scene_id",scene.get("scene",number)))
