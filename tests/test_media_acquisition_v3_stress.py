@@ -36,7 +36,7 @@ class FixtureProvider(ProviderAdapter):
     def search(self, query):
         self.calls.append(query)
         q = query.casefold()
-        if self.fail_token and (self.fail_token.casefold() in q or (self.fail_token.casefold() == "fail_job_02" and "fail" in q and "job" in q)):
+        if self.fail_token and (self.fail_token.casefold() in q or (self.fail_token.casefold() == "fail_job_02" and "fail" in q and "job" in q and ("02" in q or q.strip() == "fail job"))):
             raise RuntimeError("TIMEOUT")
         return [{
             "provider": self.name,
