@@ -241,7 +241,7 @@ class MediaRecoveryTests(unittest.TestCase):
         engine = self.base / "media_engine_v2.py"
         engine.write_text("pass\n", encoding="utf-8")
         with patch.object(media, "run_group", return_value=Mock(returncode=0)) as run:
-            self.assertEqual(media.main(), 0)
+            self.assertEqual(media.main(), 65)
         command = run.call_args.args[0]
         self.assertIn("media_engine_v2.py", str(command))
         self.assertIn("--short-id", command)
