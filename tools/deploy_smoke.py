@@ -128,8 +128,8 @@ def main() -> int:
     media_stage_text = (ROOT / "media_stage_runtime.py").read_text(encoding="utf-8")
     if "def round_env(round_index: int)" not in media_stage_text:
         fail("stage6_budget_compatibility_contract_missing")
-    if "media_acquisition_v3.py" not in media_stage_text:
-        fail("stage6_v3_delegate_contract_missing")
+    if "media_engine_v2.py" not in media_stage_text:
+        fail("stage6_compatibility_delegate_contract_missing")
     if "from midia" in media_stage_text or "str(MIDIA)" in media_stage_text:
         fail("legacy_stage6_runtime_reference_present")
     if '"post_scene_plan"' not in resume_text or "RESUME_FROM_V3_MEDIA=YES" not in resume_text:
