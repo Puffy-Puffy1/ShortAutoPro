@@ -122,6 +122,14 @@ def refs_from_python(path: Path, files, modules):
                 names = [alias.name for alias in node.names]
             elif isinstance(node, ast.ImportFrom):
                 names = [node.module or ""]
+                # Resolve relative imports such as from .diagnostics against the
+                # importing package so V3 submodules remain in the active graph.
+                if node.level and node.module:
+                    package = path.parent.relative_to(ROOT).as_posix().replace("/", ".")
+                    base = package
+                    for _ in range(max(0, node.level - 1)):
+                        base = base.rpartition(".")[0]
+                    names = [f"{base}.{node.module}".strip(".")]
             else:
                 continue
             for name in names:
@@ -145,6 +153,8 @@ def build():
             graph[rel] = refs_from_text(path.read_text(encoding="utf-8", errors="ignore"), files, modules)
 
     seeds = set(DEFAULT_SEEDS)
+    # Unit/integration tests are executable graph roots as well.
+    seeds |= {rel for rel in files if rel.startswith("tests/") and rel.endswith(".py")}
     seeds |= {rel for rel in files if rel.startswith("tests_sim/") and rel.endswith(".py")}
     seeds |= {rel for rel in files if rel.startswith(".github/workflows/") and rel.endswith((".yml", ".yaml"))}
     seeds = {seed for seed in seeds if seed in files}
