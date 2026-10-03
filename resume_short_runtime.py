@@ -25,8 +25,6 @@ from media_emergency_fallback import editorial_scene_metadata
 import shortautopro_evolution as evo
 import hashlib
 
-# LEGACY_MEDIA_ENGINE_V2_COMPAT = "media_engine_v2.py" — retired from canonical execution; retained only as an explicit migration reference.
-
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
 
 
