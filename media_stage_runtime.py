@@ -539,33 +539,234 @@ def final_editorial_completion(missing: list[int]) -> bool:
 
 
 def main() -> int:
-    """Compatibility entrypoint: execute Media Engine V2 only."""
     if not SID:
-        print("MEDIA_STAGE_RUNTIME=BLOCKED reason=SHORT_ID_EMPTY")
+        print("ERRO MEDIA STAGE: SHORT_ID vazio")
         return 1
     engine = BASE / "media_engine_v2.py"
     if not engine.is_file():
-        print(f"MEDIA_STAGE_RUNTIME=BLOCKED reason=MEDIA_ENGINE_V2_MISSING path={engine}")
+        print(f"ERRO MEDIA STAGE: ausente {engine}")
         return 1
-    env = os.environ.copy()
-    env["SHORTAUTOPRO_BASE"] = str(BASE)
-    env["SHORT_ID"] = SID
+
+    expected, contract_errors = scene_contract()
+    if contract_errors:
+        print(
+            "MEDIA_STAGE_RUNTIME=V2_PREFLIGHT_FAIL "
+            f"expected={expected} errors={'|'.join(contract_errors)}"
+        )
+        return 2
+    print(f"MEDIA_STAGE_RUNTIME=PREFLIGHT_PASS scenes={expected}")
+
+    max_rounds = env_int("SAP_MEDIA_STAGE_ROUNDS", 2, 1, 3)
+
+    previous_missing: set[int] | None = None
+    previous_total = -1
+    no_progress_rounds = 0
+
+    for round_index in range(max_rounds):
+        print()
+        print("================================")
+        print(f"MEDIA V2 RECOVERY {round_index + 1}/{max_rounds}")
+        print("================================")
+        print(
+            "Policy: incremental cache + retrieve more; "
+            "MUST verification remains strict"
+        )
+
+        started = time.monotonic()
+        round_timeout, remaining_hint = round_timeout_seconds()
+        print(
+            "MEDIA_STAGE_RUNTIME=BUDGET "
+            f"round={round_index + 1} remaining={remaining_hint} "
+            f"timeout={round_timeout}s "
+            f"scene_budget={env_float('SAP_MEDIA_SCENE_BUDGET_SECONDS', 18.0, 10.0, 35.0):.0f}s"
+        )
+
+        previous_report = report_signature()
+        try:
+            proc = run_group(
+                [sys.executable, str(engine), "--short-id", SID],
+                cwd=str(BASE),
+                env=round_env(round_index),
+                check=False,
+                timeout=round_timeout,
+            )
+            returncode = proc.returncode
+        except subprocess.TimeoutExpired:
+            returncode = 124
+            print(
+                "MEDIA_STAGE_RUNTIME=V2_ROUND_TIMEOUT "
+                f"round={round_index + 1} limit={round_timeout}s"
+            )
+
+        elapsed = time.monotonic() - started
+        completion_override: dict[str, Any] | None = None
+
+        if returncode == 0:
+            valid_completion, completion = validate_media_completion()
+            if valid_completion:
+                print(
+                    f"MEDIA_STAGE_RUNTIME=V2_PASS round={round_index + 1} "
+                    f"scenes={completion['valid']}/{completion['expected']} "
+                    f"elapsed={elapsed:.1f}s"
+                )
+                return 0
+
+            returncode = 65
+            completion_override = completion
+            print(
+                "MEDIA_STAGE_RUNTIME=V2_FALSE_SUCCESS "
+                f"round={round_index + 1} "
+                f"valid={completion['valid']}/{completion['expected']} "
+                f"missing={','.join(map(str, completion['missing'])) or '-'} "
+                f"invalid={len(completion['invalid'])} "
+                f"errors={'|'.join(completion['errors']) or '-'}"
+            )
+
+        if completion_override is None:
+            if report_signature() == previous_report:
+                # Preserve unrelated failures and stale timeouts unless physical
+                # files prove the interrupted selector actually made progress.
+                stale_report = read_report()
+                stale_total = total_from(stale_report)
+                physical_ok, physical = validate_media_completion(ignore_report=True)
+                physical_total = int(physical.get("valid", 0) or 0)
+
+                if physical_ok:
+                    _clear_missing_report()
+                    print(
+                        "MEDIA_STAGE_RUNTIME=V2_PASS_PHYSICAL_RECONCILE "
+                        f"scenes={physical['valid']}/{physical['expected']}"
+                    )
+                    return 0
+
+                if returncode != 124:
+                    print(
+                        "MEDIA_STAGE_RUNTIME=V2_HARD_FAIL "
+                        f"code={returncode} reason=STALE_MISSING_REPORT"
+                    )
+                    return returncode or 1
+
+                if physical_total <= stale_total:
+                    print(
+                        "MEDIA_STAGE_RUNTIME=HARD_FAIL "
+                        "code=124 reason=STALE_MISSING_REPORT_NO_PHYSICAL_PROGRESS"
+                    )
+                    return 124
+
+                completion_override = physical
+                missing = set(physical.get("missing", []))
+                missing.update(
+                    int(item.get("scene"))
+                    for item in physical.get("invalid", [])
+                    if isinstance(item, dict) and item.get("scene") is not None
+                )
+                total = physical_total
+                expected = int(physical.get("expected", 0) or 0)
+                report = stale_report
+                print(
+                    "MEDIA_STAGE_RUNTIME=V2_STALE_REPORT_PHYSICAL_RECOVERY "
+                    f"code={returncode} valid={total}/{expected or '?'} "
+                    f"previous_valid={stale_total} "
+                    f"missing={','.join(map(str, sorted(missing))) or '-'}"
+                )
+            else:
+                report = read_report()
+                missing = set(missing_numbers(report))
+                total = total_from(report)
+                expected = expected_from(report)
+        else:
+            report = read_report()
+            missing = set(completion_override.get("missing", []))
+            invalid_scenes = {
+                int(item.get("scene"))
+                for item in completion_override.get("invalid", [])
+                if isinstance(item, dict) and item.get("scene") is not None
+            }
+            missing.update(invalid_scenes)
+            total = int(completion_override.get("valid", 0) or 0)
+            expected = int(completion_override.get("expected", 0) or 0)
+
+        print(
+            "MEDIA_STAGE_RUNTIME=V2_PARTIAL "
+            f"round={round_index + 1} total={total}/{expected or '?'} "
+            f"missing={','.join(map(str, sorted(missing))) or '?'} "
+            f"elapsed={elapsed:.1f}s"
+        )
+
+        # If midia failed for a reason unrelated to an incomplete-media report,
+        # preserve that real failure instead of masking it with retries.
+        if not report or not missing:
+            print(
+                f"MEDIA_STAGE_RUNTIME=HARD_FAIL code={returncode} "
+                "reason=NO_VALID_MISSING_REPORT"
+            )
+            return returncode or 1
+
+        if previous_missing is not None:
+            made_progress = total > previous_total or missing < previous_missing
+            if made_progress:
+                no_progress_rounds = 0
+            else:
+                no_progress_rounds += 1
+                action = (
+                    "STOP_BOUNDED_RECOVERY"
+                    if no_progress_rounds >= 1
+                    else "ESCALATE_NEXT_ROUND"
+                )
+                print(
+                    "MEDIA_STAGE_RUNTIME=V2_NO_PROGRESS "
+                    f"round={round_index + 1} "
+                    f"streak={no_progress_rounds} "
+                    f"missing={','.join(map(str, sorted(missing)))} "
+                    f"action={action}"
+                )
+                if no_progress_rounds >= 1:
+                    print(
+                        "MEDIA_STAGE_RUNTIME=V2_EARLY_STOP "
+                        "reason=ONE_NO_PROGRESS_ROUND_AFTER_RETRY"
+                    )
+                    break
+
+        previous_missing = missing
+        previous_total = total
+
+        if round_index + 1 < max_rounds:
+            next_budget = (1, 2, 3)[min(round_index + 1, 2)]
+            print(
+                "MEDIA_STAGE_RUNTIME=V2_RETRY_MISSING_ONLY "
+                f"next_round={round_index + 2} "
+                f"next_budget={next_budget} "
+                f"missing={','.join(map(str, sorted(missing)))}"
+            )
+
+    final = read_report()
+    final_missing = missing_numbers(final)
+    if not final_missing:
+        physical_ok, physical = validate_media_completion(ignore_report=True)
+        if physical_ok:
+            _clear_missing_report()
+            print(
+                "MEDIA_STAGE_RUNTIME=V2_PASS_FINAL_RECONCILE "
+                f"scenes={physical['valid']}/{physical['expected']}"
+            )
+            return 0
+        final_missing = list(physical.get("missing", []))
+        final_missing.extend(
+            int(item.get("scene"))
+            for item in physical.get("invalid", [])
+            if isinstance(item, dict) and item.get("scene") is not None
+        )
+        final_missing = sorted(set(final_missing))
+
     print(
-        "MEDIA_STAGE_RUNTIME=DEPRECATED_SHIM "
-        f"delegate=media_engine_v2.py short_id={SID}"
+        "MEDIA_STAGE_RUNTIME=EXHAUSTED "
+        f"missing={','.join(map(str, final_missing)) or '?'}"
     )
-    proc = run_group(
-        [sys.executable, str(engine), "--short-id", SID],
-        cwd=str(BASE),
-        env=env,
-        check=False,
-        timeout=env_int("SAP_STAGE_TIMEOUT_MEDIA_ENGINE_V2_SECONDS", 900, 180, 1800),
-    )
-    print(
-        "MEDIA_STAGE_RUNTIME=V2_RESULT "
-        f"returncode={proc.returncode} short_id={SID}"
-    )
-    return proc.returncode
+
+    if final_editorial_completion(final_missing):
+        return 0
+
+    return 1
 
 
 if __name__ == "__main__":
