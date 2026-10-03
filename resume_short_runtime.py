@@ -200,7 +200,7 @@ def consolidation_plan_ok(sid: str) -> bool:
     if (
         manifest.get("schema_version") != "media-manifest-v2"
         or manifest.get("short_id") != sid
-        or not str(manifest.get("engine_version") or "").startswith("2.")
+        or not str(manifest.get("engine_version") or "").startswith("3.")
         or manifest.get("immutable") is not True
         or not isinstance(media_scenes, list)
         or len(media_scenes) != expected_scenes()
@@ -208,9 +208,9 @@ def consolidation_plan_ok(sid: str) -> bool:
         return False
 
     integrity = str(manifest.get("integrity_sha256") or "")
-    # V2 manifests (identified by engine_version) must be cryptographically
+    # V3 manifests (identified by engine_version) must be cryptographically
     # intact. Older migration manifests may be structurally resumed, but their
-    # physical assets are revalidated by the downstream V2 preflight.
+    # physical assets are revalidated by the downstream V3 preflight.
     if integrity:
         unsigned = dict(manifest)
         unsigned.pop("integrity_sha256", None)
@@ -219,11 +219,11 @@ def consolidation_plan_ok(sid: str) -> bool:
         ).encode("utf-8")
         if hashlib.sha256(canonical).hexdigest() != integrity:
             return False
-    elif str(manifest.get("engine_version") or "").startswith("2."):
+    elif str(manifest.get("engine_version") or "").startswith("3."):
         return False
 
-    # A manifest without V2 engine metadata is not trusted for resume.
-    # It must be rebuilt by Media Engine V2 so resume can never skip acquisition
+    # A manifest without V3 engine metadata is not trusted for resume.
+    # It must be rebuilt by Media Acquisition V3 so resume can never skip acquisition
     # based on a legacy or partially migrated manifest.
     if not integrity and not str(manifest.get("engine_version") or ""):
         return False
@@ -502,30 +502,30 @@ def final_gates(sid: str) -> int:
 
 
 def media_planning_tail(sid: str) -> None:
-    """Resume only through Media Engine V2 and deterministic Render Plan V2."""
+    """Resume only through Media Acquisition V3 and deterministic Render Plan V3."""
     run_python(
         sid,
-        "MEDIA ENGINE V2 - ACQUIRE + VALIDATE + FREEZE MANIFEST",
-        "media_engine_v2.py",
+        "MEDIA ENGINE V3 - ACQUIRE + VALIDATE + FREEZE MANIFEST",
+        "media_acquisition_v3.py",
         "--short-id",
         sid,
     )
     run_python(
         sid,
-        "RENDER PLAN V2 - DETERMINISTIC TIMELINE INPUT",
+        "RENDER PLAN V3 - DETERMINISTIC TIMELINE INPUT",
         "render_plan_v2.py",
         "--short-id",
         sid,
     )
 
 def render_tail(sid: str) -> None:
-    """Render only from the frozen V2 manifest; acquisition stays outside the renderer."""
+    """Render only from the frozen V3 manifest; acquisition stays outside the renderer."""
     run_python(sid, "PRE-RENDER VALIDATION + BOUNDED AUTO-RECOVERY", "production_recovery.py", "--short-id", sid)
     run_python(sid, "RENDER PREFLIGHT CERTIFICATION", "render_preflight.py", "--short-id", sid)
     run_python(sid, "PRODUCTION HEALTH SNAPSHOT", "production_health.py", "--short-id", sid, "--phase", "pre_render")
-    run_python(sid, "RENDER ENGINE V2 (REMOTION + FFMPEG + FFPROBE)", "render_engine_v2.py", "--short-id", sid)
+    run_python(sid, "RENDER ENGINE V3 (REMOTION + FFMPEG + FFPROBE)", "render_engine_v2.py", "--short-id", sid)
     if not render_ok(sid):
-        raise RuntimeError("Render Engine V2 terminou sem artefato técnico válido")
+        raise RuntimeError("Render Engine V3 terminou sem artefato técnico válido")
     run_python(sid, "FINAL AUDIO MASTER", "audio_finalizer.py")
     run_python(sid, "VISUAL QA", "visual_qa.py")
 
@@ -544,7 +544,7 @@ def _resume_locked(sid: str, point: str) -> int:
         rank = order[point]
 
         if rank <= 0:
-            print("RESUME_FROM_V2_MEDIA=YES")
+            print("RESUME_FROM_V3_MEDIA=YES")
             media_planning_tail(sid)
 
         if rank <= 1:
