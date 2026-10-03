@@ -38,6 +38,11 @@ FORBIDDEN_EXACT = {
 REQUIRED = {
     "main.py",
     "media_acquisition_v3.py",
+    "media_v3/__init__.py",
+    "media_v3/acquisition.py",
+    "media_v3/providers.py",
+    "media_v3/query.py",
+    "media_v3/diagnostics.py",
     "runtime_config.py",
     "subprocess_guard.py",
     "production_profiler.py",
@@ -234,15 +239,12 @@ def main() -> int:
     for token in ("media_acquisition_v3.py", "render_plan_v2.py", "render_engine_v2.py"):
         if token not in resume_text:
             issues.append(f"resume_v3_contract_missing:{token}")
-    if "LEGACY_MEDIA_ENGINE_V2_COMPAT" not in resume_text:
-        issues.append("resume_v2_compatibility_reference_missing")
     for token in ("STANDARD_ROLLBACK", "SAP_PRO_EDIT", '"video.py"', '"v6_runtime.py"', "media_stage_runtime.py", "video_professional.py", "v6_professional.py", "retention_engine.py"):
         if token in resume_text:
             issues.append(f"resume_legacy_token:{token}")
 
-    # Canonical media runtime: V1 owns normalization/strict MUST verification;
-    # V2 is the production reliability layer that preserves Visual Unified as
-    # the single winner authority while query expansion only enriches pools.
+    # Canonical visual runtime remains responsible for normalization/strict MUST
+    # verification; Media Acquisition V3 owns provider acquisition and freezing.
     for token in sorted(MEDIA_ADAPTER_V1_REQUIRED_TOKENS):
         if token not in adapter_v1_text:
             issues.append(f"media_runtime_v1_contract_missing:{token}")
