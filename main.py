@@ -29,7 +29,7 @@ import production_profiler
 import production_watchdog
 from subprocess_guard import run_group
 from runtime_config import env_int
-
+\n# LEGACY_MEDIA_ENGINE_V2_COMPAT = "media_engine_v2.py" — retired from production execution; retained only as an explicit migration/rollback reference.\n
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
 EVOLUTION = BASE / "shortautopro_evolution.py"
 STATE_DIR = BASE / ".sap_state"
