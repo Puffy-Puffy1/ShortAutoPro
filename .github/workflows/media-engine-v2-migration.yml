@@ -53,15 +53,25 @@ jobs:
         run: python -m unittest -v tests.test_media_acquisition_v2
       - name: Architecture boundary audit
         run: |
-          set -euo pipefail
-          ! grep -q "media_stage_runtime.py" main.py
-          ! grep -q "media_engine_v2.py" main.py
-          grep -q "media_acquisition_v3.py" main.py
-          grep -q "render_plan_v2.py" main.py
-          grep -q "media-manifest-v2" media_acquisition_v3.py
-          grep -q "media-manifest-v2" render_engine_v2.py
+          python - <<'PY'
+          from pathlib import Path
+          main = Path("main.py").read_text()
+          v3 = Path("media_acquisition_v3.py").read_text()
+          render = Path("render_engine_v2.py").read_text()
+          checks = {
+              "no_media_stage_runtime_main": "media_stage_runtime.py" not in main,
+              "no_media_engine_v2_main": "media_engine_v2.py" not in main,
+              "main_uses_media_acquisition_v3": "media_acquisition_v3.py" in main,
+              "main_uses_render_plan_v2": "render_plan_v2.py" in main,
+              "v3_manifest_contract": "media-manifest-v2" in v3,
+              "render_manifest_contract": "media-manifest-v2" in render,
+          }
+          for name, ok in checks.items():
+              print(f"{name}={'PASS' if ok else 'FAIL'}")
+          assert all(checks.values()), checks
+          PY
           python -m unittest -v tests.test_media_acquisition_v3 tests.test_media_acquisition_v3_stress
-          echo "STAGE6_BYPASS_CONTRACT=PASS"
+          echo "MEDIA_ACQUISITION_V3_CONTRACT=PASS"
       - name: Real FFmpeg/FFprobe render E2E
         run: python -m unittest -v tests_sim.test_render_engine_v2_manifest_e2e
       - name: Consecutive 1-2-5-10 isolation
