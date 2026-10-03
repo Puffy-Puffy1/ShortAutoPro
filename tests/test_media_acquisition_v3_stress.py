@@ -21,8 +21,12 @@ class FakeEngine:
             return None,d
         from media_v3.diagnostics import SceneDiagnostics
         from media_validator_v2 import validate
-        v=validate(self.fixture); d=SceneDiagnostics("scene_01","fixture",must=[],avoid=[]); d.final_status="RESOLVED"; d.selected_provider="fixture"; d.selected_asset_id=sid
-        return {"path":str(self.fixture),"sha256":v["sha256"],"probe":v["probe"],"provider":"fixture","asset_id":sid,"verification_mode":"fixture","provenance":{"provider":"fixture"}},d
+        target_dir=Path(media_acquisition_v3.BASE)/"imagens"/("short_"+sid)
+        target_dir.mkdir(parents=True,exist_ok=True)
+        target=target_dir/("scene_%02d_fixture.png" % number)
+        target.write_bytes(self.fixture.read_bytes())
+        v=validate(target); d=SceneDiagnostics("scene_01","fixture",must=[],avoid=[]); d.final_status="RESOLVED"; d.selected_provider="fixture"; d.selected_asset_id=sid
+        return {"path":str(target),"sha256":v["sha256"],"probe":v["probe"],"provider":"fixture","asset_id":sid,"verification_mode":"fixture","provenance":{"provider":"fixture"}},d
 
 class AcquisitionV3StressTests(unittest.TestCase):
     def _scene(self): return {"scene_id":"scene_01","query":"fixture"}
