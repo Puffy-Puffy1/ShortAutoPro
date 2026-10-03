@@ -1,10 +1,10 @@
-import base64,json,subprocess,tempfile,unittest
+import base64,json,subprocess,tempfile,unittest,struct,zlib
 from pathlib import Path
 from unittest.mock import patch
 import media_acquisition_v3, render_engine_v2
 from media_v3.providers import ProviderAdapter,ProviderRegistry,ProviderStatus
 
-PNG=base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=")
+def make_png():\n    w=h=64; raw=b"".join(b"\\x00"+b"".join(bytes(((x*4)%256,(y*4)%256,180)) for x in range(w)) for y in range(h))\n    def chunk(t,d): return struct.pack(">I",len(d))+t+d+struct.pack(">I",zlib.crc32(t+d)&0xffffffff)\n    return b"\\x89PNG\\r\\n\\x1a\\n"+chunk(b"IHDR",struct.pack(">IIBBBBB",w,h,8,2,0,0,0))+chunk(b"IDAT",zlib.compress(raw,9))+chunk(b"IEND",b"")
 
 class FixtureProvider(ProviderAdapter):
     name="fixture"
@@ -15,7 +15,7 @@ class FixtureProvider(ProviderAdapter):
 class V3RenderIntegration(unittest.TestCase):
     def test_v3_manifest_to_real_ffmpeg_render(self):
         with tempfile.TemporaryDirectory() as td:
-            base=Path(td); sid="INTEGRATION_01"; fixture=base/"fixture.png"; fixture.write_bytes(PNG)
+            base=Path(td); sid="INTEGRATION_01"; fixture=base/"fixture.png"; fixture.write_bytes(make_png())
             for p in ("roteiros","imagens","audios","videos","manifests"): (base/p).mkdir(parents=True,exist_ok=True)
             (base/"roteiros"/f"scene_map_{sid}.json").write_text(json.dumps({"scenes":[{"scene_id":"scene_01","scene":1,"query":"roman soldier","words":1}]}),encoding="utf-8")
             (base/"roteiros"/f"pro_edit_plan_{sid}.json").write_text(json.dumps({"scenes":[{"scene_id":"scene_01","pace_multiplier":1.0,"zoom_start":1.0,"zoom_end":1.02,"pan":"center","cut_style":"editorial_cut","transition_duration":0}]}),encoding="utf-8")
