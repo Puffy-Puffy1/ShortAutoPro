@@ -200,7 +200,7 @@ def consolidation_plan_ok(sid: str) -> bool:
     if (
         manifest.get("schema_version") != "media-manifest-v2"
         or manifest.get("short_id") != sid
-        or not str(manifest.get("engine_version") or "").startswith("3.")
+        or not str(manifest.get("engine_version") or "").startswith(("2.","3."))
         or manifest.get("immutable") is not True
         or not isinstance(media_scenes, list)
         or len(media_scenes) != expected_scenes()
@@ -219,7 +219,7 @@ def consolidation_plan_ok(sid: str) -> bool:
         ).encode("utf-8")
         if hashlib.sha256(canonical).hexdigest() != integrity:
             return False
-    elif str(manifest.get("engine_version") or "").startswith("3."):
+    elif str(manifest.get("engine_version") or "").startswith(("2.","3.")):
         return False
 
     # A manifest without V3 engine metadata is not trusted for resume.
