@@ -40,7 +40,7 @@ class ProductionIncrementalMediaTests(unittest.TestCase):
         resume = (ROOT / "resume_after_semantic_fix.py").read_text(encoding="utf-8")
         main = (ROOT / "main.py").read_text(encoding="utf-8")
         runtime = (ROOT / "media_stage_runtime.py").read_text(encoding="utf-8")
-        self.assertIn('"media_engine_v2.py"', main)
+        self.assertIn('"media_acquisition_v3.py"', main)
         self.assertIn('"render_plan_v2.py"', main)
         self.assertNotIn('p.run("6 - SMART MEDIA SELECTOR", "media_stage_runtime.py")', main)
         self.assertNotIn('p.run("6 - SMART MEDIA SELECTOR", "midia.py", retries=1)', main)
