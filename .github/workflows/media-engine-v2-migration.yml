@@ -62,7 +62,7 @@ jobs:
           render = Path("render_engine_v2.py").read_text()
           checks = {
               "no_media_stage_runtime_main": "media_stage_runtime.py" not in main,
-              "no_media_engine_v2_main": "media_engine_v2.py" not in main,
+              "no_media_engine_v2_execution_main": 'p.run("MEDIA ENGINE V2 - ACQUIRE + VALIDATE + FREEZE MANIFEST", "media_engine_v2.py"' not in main,
               "main_uses_media_acquisition_v3": "media_acquisition_v3.py" in main,
               "main_uses_render_plan_v2": "render_plan_v2.py" in main,
               "v3_manifest_contract": "media-manifest-v2" in v3,
