@@ -37,7 +37,7 @@ Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text
 Dialogue: 0,0:00:00.00,0:00:02.00,Default,,0,0,0,,Integration test
 """,encoding="utf-8")
             audio=base/"audios"/f"short_{sid}.mp3"
-            p=subprocess.run(["ffmpeg","-y","-hide_banner","-loglevel","error","-f","lavfi","-i","sine=frequency=440:duration=2","-c:a","aac","-b:a","96k",str(audio)],capture_output=True,text=True,check=False,timeout=60)
+            p=subprocess.run(["ffmpeg","-y","-hide_banner","-loglevel","error","-f","lavfi","-i","sine=frequency=440:duration=2","-c:a","libmp3lame","-b:a","96k",str(audio)],capture_output=True,text=True,check=False,timeout=60)
             self.assertEqual(p.returncode,0,p.stderr)
             media_acquisition_v3.BASE=base; render_engine_v2.BASE=base
             provider=FixtureProvider(fixture)
