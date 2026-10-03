@@ -43,7 +43,7 @@ class FixtureProvider(ProviderAdapter):
             "id": "fixture-" + query.replace(" ", "-"),
             "url": "file://fixture",
             "local_path": str(self.fixture),
-            "description": "fixture visual scene",
+            "description": query + " fixture visual scene",
             "tags": "fixture visual",
         }]
 
