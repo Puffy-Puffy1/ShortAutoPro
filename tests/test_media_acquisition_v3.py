@@ -82,7 +82,7 @@ class MediaV3Tests(unittest.TestCase):
             engine = MediaAcquisitionV3(root, ProviderRegistry([provider]))
             record, diag = engine.acquire_scene(
                 "SID3", 1,
-                {"scene_id": "scene_01", "query": "roman soldier", "must_have": ["roman soldier"]},
+                {"scene_id": "scene_01", "query": "Ancient Roman soldier marching north", "must_have": ["roman soldier"]},
             )
             self.assertIsNotNone(record)
             self.assertEqual(record["asset_id"], "good")
