@@ -34,8 +34,18 @@ class MediaAcquisitionV3:
         outdir=self.base/"imagens"/f"short_{sid}"; outdir.mkdir(parents=True,exist_ok=True)
         if candidate.get("local_path"):
             src=Path(str(candidate["local_path"])).expanduser().resolve()
-            if not src.is_file(): diag.reject("DOWNLOAD_FAILED",provider=provider,asset_id=candidate.get("id"),detail="local_missing"); return None
-            dest=outdir/f"scene_{scene_no:02d}_{provider}{src.suffix.lower()}"; shutil.copy2(src,dest)
+            if not src.is_file():
+                diag.reject("DOWNLOAD_FAILED",provider=provider,asset_id=candidate.get("id"),detail="local_missing")
+                return None
+            dest=outdir/f"scene_{scene_no:02d}_{provider}{src.suffix.lower()}"
+            tmp=dest.with_suffix(dest.suffix+".part")
+            try:
+                shutil.copy2(src,tmp)
+                os.replace(tmp,dest)
+            except OSError as exc:
+                tmp.unlink(missing_ok=True)
+                diag.reject("DOWNLOAD_FAILED",provider=provider,asset_id=candidate.get("id"),detail=type(exc).__name__)
+                return None
         else:
             if not url.startswith(("http://","https://")): diag.reject("INVALID_URL",provider=provider,asset_id=candidate.get("id")); return None
             ext=".mp4" if str(candidate.get("kind"))=="video" else ".jpg"; dest=outdir/f"scene_{scene_no:02d}_{provider}{ext}"
@@ -77,29 +87,77 @@ class MediaAcquisitionV3:
         plan=build_query_plan(query,hard,soft); diag.query_variants=list(plan.variants)
         pool=[]; seen=set()
         for provider,status in self.registry.enabled():
-            diag.providers_attempted.append(provider.name); diag.provider_results[provider.name]={"status":status.reason,"queries":[]}
-            if not status.enabled: diag.provider_results[provider.name]["skipped"]=True; continue
+            diag.providers_attempted.append(provider.name)
+            diag.provider_results[provider.name]={"status":status.reason,"queries":[]}
+            if not status.enabled:
+                diag.provider_results[provider.name]["skipped"]=True
+                if status.reason == "NO_API_KEY":
+                    diag.fallbacks.append({"type":"provider","provider":provider.name,"reason":"NO_API_KEY"})
+                else:
+                    diag.fallbacks.append({"type":"provider","provider":provider.name,"reason":status.reason})
+                continue
             circuit=self.circuits[provider.name]
-            if not circuit.allow(): diag.provider_results[provider.name]["circuit"]="OPEN"; diag.fallbacks.append({"type":"provider","provider":provider.name,"reason":"CIRCUIT_OPEN"}); continue
-            found=[]
+            if not circuit.allow():
+                diag.provider_results[provider.name]["circuit"]="OPEN"
+                diag.fallbacks.append({"type":"provider","provider":provider.name,"reason":"CIRCUIT_OPEN"})
+                continue
+
+            accepted_from_provider=0
+            provider_seen=set()
             for qindex,q in enumerate(plan.variants):
                 try:
-                    rows=provider.search(q); diag.provider_results[provider.name]["queries"].append({"query":q,"count":len(rows)})
-                    if rows: found.extend(rows); break
+                    rows=provider.search(q)
+                    diag.provider_results[provider.name]["queries"].append({"query":q,"count":len(rows)})
                 except Exception as exc:
-                    reason=str(exc) if str(exc) in {"RATE_LIMIT"} else "PROVIDER_UNAVAILABLE"
-                    diag.provider_results[provider.name]["queries"].append({"query":q,"error":reason}); diag.fallbacks.append({"type":"query","provider":provider.name,"query":q,"reason":reason}); circuit.fail();
-                    if reason=="RATE_LIMIT": break
-            if found: circuit.success()
-            for row in found:
-                score,hh,sh,ah=self._score(row, q, hard, soft, avoid); row.update({"score":score,"hard_hits":hh,"soft_hits":sh,"avoid_hits":ah})
-                diag.candidates_found += 1
-                if ah: diag.reject("AVOID_MATCH",provider=provider.name,asset_id=row.get("id")); continue
-                if hard and hh < len(hard): diag.reject("MUST_NOT_MATCH",provider=provider.name,asset_id=row.get("id"),hits=hh,total=len(hard)); continue
-                if score < 35: diag.reject("LOW_RELEVANCE",provider=provider.name,asset_id=row.get("id"),score=round(score,2)); continue
-                key=(provider.name,str(row.get("id") or row.get("url") or ""))
-                if key in seen: diag.reject("DUPLICATE",provider=provider.name,asset_id=row.get("id")); continue
-                seen.add(key); pool.append(row)
+                    reason=str(exc) if str(exc) in {"RATE_LIMIT","TIMEOUT"} else "PROVIDER_UNAVAILABLE"
+                    diag.provider_results[provider.name]["queries"].append({"query":q,"error":reason})
+                    diag.fallbacks.append({"type":"query","provider":provider.name,"query":q,"reason":reason})
+                    circuit.fail()
+                    if reason in {"RATE_LIMIT","TIMEOUT"}:
+                        break
+                    continue
+
+                if not rows:
+                    diag.fallbacks.append({"type":"query","provider":provider.name,"query":q,"reason":"ZERO_RESULTS"})
+                    continue
+
+                query_accepted=0
+                for row in rows:
+                    if not isinstance(row,dict):
+                        diag.reject("VALIDATION_FAILED",provider=provider.name,detail="candidate_not_object")
+                        continue
+                    score,hh,sh,ah=self._score(row,q,hard,soft,avoid)
+                    row.update({"provider":provider.name,"score":score,"hard_hits":hh,"soft_hits":sh,"avoid_hits":ah})
+                    diag.candidates_found += 1
+                    key=(provider.name,str(row.get("id") or row.get("url") or ""))
+                    if key in seen or key in provider_seen:
+                        diag.reject("DUPLICATE",provider=provider.name,asset_id=row.get("id"))
+                        continue
+                    provider_seen.add(key)
+                    if ah:
+                        diag.reject("AVOID_MATCH",provider=provider.name,asset_id=row.get("id"))
+                        continue
+                    if hard and hh < len(hard):
+                        diag.reject("MUST_NOT_MATCH",provider=provider.name,asset_id=row.get("id"),hits=hh,total=len(hard))
+                        continue
+                    if score < 35:
+                        diag.reject("LOW_RELEVANCE",provider=provider.name,asset_id=row.get("id"),score=round(score,2))
+                        continue
+                    seen.add(key)
+                    pool.append(row)
+                    query_accepted += 1
+                    accepted_from_provider += 1
+
+                # A query that yielded usable candidates is sufficient for this
+                # provider. If every candidate was rejected, keep searching with
+                # the next progressive query variant instead of stopping early.
+                if query_accepted:
+                    break
+
+            if accepted_from_provider:
+                circuit.success()
+            elif diag.provider_results[provider.name]["queries"]:
+                circuit.fail()
         pool.sort(key=lambda x:(float(x.get("score",0)),int(x.get("hard_hits",0)),int(x.get("soft_hits",0)),str(x.get("provider","")),str(x.get("id",""))),reverse=True)
         for candidate in pool:
             result=self._download(candidate,sid,number,diag)
