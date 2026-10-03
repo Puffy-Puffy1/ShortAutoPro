@@ -189,6 +189,15 @@ def build_job(short_id: str) -> Path:
     for idx, row in enumerate(frozen_assets or [], 1):
         if not isinstance(row, dict):
             raise RuntimeError("RENDER_INPUT_INVALID:media_manifest_scene_%02d" % idx)
+        expected_scene = scenes_raw[idx - 1] if isinstance(scenes_raw, list) and idx <= len(scenes_raw) else {}
+        expected_scene_id = str(
+            expected_scene.get("scene_id", expected_scene.get("scene", idx))
+        ).strip() if isinstance(expected_scene, dict) else str(idx)
+        if (
+            int(row.get("scene_number", 0) or 0) != idx
+            or str(row.get("scene_id", "") or "").strip() != expected_scene_id
+        ):
+            raise RuntimeError("RENDER_INPUT_INVALID:media_manifest_scene_identity_%02d" % idx)
         asset = row.get("asset")
         if not isinstance(asset, dict) or asset.get("validated") is not True:
             raise RuntimeError("RENDER_INPUT_INVALID:media_manifest_asset_%02d" % idx)
