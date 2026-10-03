@@ -153,8 +153,8 @@ def _visual_quality_state(short_id: str) -> dict[str, Any]:
 
 
 def _repair_media(short_id: str, actions: list[dict[str, Any]]) -> bool:
-    # Recovery never re-enters Stage 6. Media Engine V2 owns acquisition and
-    # manifest validation; a frozen manifest is authoritative on resume.
+    # Recovery never re-enters Stage 6. Media Acquisition V3 owns acquisition,
+    # validation and the frozen manifest; resume never switches back to V2.
     return _append_action(actions, _run(short_id, "media_acquisition_v3.py", "--short-id", short_id))
 
 
