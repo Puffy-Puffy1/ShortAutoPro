@@ -139,7 +139,7 @@ def pro_plan_ok(sid: str) -> bool:
 
 
 def pre_media_plan_ok(sid: str) -> bool:
-    """Return True when Stage 1-5E artifacts are safe to resume from Stage 6."""
+    """Return True when upstream planning artifacts are safe to resume from Media Acquisition V3."""
     script = BASE / "roteiros" / f"short_{sid}.txt"
     source = BASE / "roteiros" / f"fonte_{sid}.txt"
     topic_real = BASE / "roteiros" / f"used_topic_{sid}.txt"
@@ -167,7 +167,7 @@ def pre_media_plan_ok(sid: str) -> bool:
         return False
 
     # Continuity may legitimately be REVIEW, but its existence proves the
-    # Stage 5 visual planning chain completed before Stage 6.
+    # upstream visual planning chain completed before media acquisition.
     if not nonempty(continuity_path, 20) or not read_json(continuity_path):
         return False
     return True
@@ -364,12 +364,12 @@ def boundary(sid: str) -> str:
 
     # A previously "successful" Short can predate the visual-content contract.
     # If its physical media is now known to contain a neutral placeholder (or
-    # exceeds the editorial reuse limit), force reacquisition from Stage 6.
+    # exceeds the editorial reuse limit), force reacquisition through V3.
     if pre_media_plan_ok(sid) and not media_integrity_ok(sid):
         return "post_scene_plan"
 
-    # Prefer the deepest validated checkpoint. If the Short completed Stage 5E
-    # but failed during Stage 6, resume media acquisition directly instead of
+    # Prefer the deepest validated checkpoint. If the Short completed upstream
+    # planning but failed during media acquisition, resume V3 directly instead of
     # regenerating topic/script/scenes under the same Short ID.
     if not consolidation_plan_ok(sid):
         if pre_media_plan_ok(sid):
