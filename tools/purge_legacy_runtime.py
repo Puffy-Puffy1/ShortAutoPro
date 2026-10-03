@@ -26,6 +26,10 @@ FORBIDDEN_RELATIVE = (
     Path("tools/apply_consolidation_1_0.py"),
     Path("_arquivo_historico"),
     Path("temp_v3"),
+    Path("media_engine_v2.py"),
+    Path("media_provider_v2.py"),
+    Path("media_provider_router_v2.py"),
+    Path("media_stage_runtime.py"),
 )
 
 
