@@ -2,7 +2,13 @@ import base64, struct, tempfile, unittest, zlib
 from pathlib import Path
 import media_acquisition_v3
 
-def make_png():\n    w=h=64; rows=[]\n    for y in range(h):\n        rows.append(b"\\x00" + b"".join(bytes(((x*4)%256,(y*4)%256,180)) for x in range(w)))\n    raw=b"".join(rows)\n    def chunk(t,d): return struct.pack(">I",len(d))+t+d+struct.pack(">I",zlib.crc32(t+d)&0xffffffff)\n    return b"\\x89PNG\\r\\n\\x1a\\n"+chunk(b"IHDR",struct.pack(">IIBBBBB",w,h,8,2,0,0,0))+chunk(b"IDAT",zlib.compress(raw,9))+chunk(b"IEND",b"")
+def make_png():
+    w=h=64; rows=[]
+    for y in range(h):
+        rows.append(b"\\x00" + b"".join(bytes(((x*4)%256,(y*4)%256,180)) for x in range(w)))
+    raw=b"".join(rows)
+    def chunk(t,d): return struct.pack(">I",len(d))+t+d+struct.pack(">I",zlib.crc32(t+d)&0xffffffff)
+    return b"\\x89PNG\\r\\n\\x1a\\n"+chunk(b"IHDR",struct.pack(">IIBBBBB",w,h,8,2,0,0,0))+chunk(b"IDAT",zlib.compress(raw,9))+chunk(b"IEND",b"")
 
 class FakeEngine:
     def __init__(self,fixture,fail_sid=None):
