@@ -94,7 +94,7 @@ class MediaV3Tests(unittest.TestCase):
             name="corrupt"
             def search(self, query): return [{"provider":"corrupt","kind":"image","id":"bad","url":"file://bad","local_path":str(self.root/"corrupt.jpg"),"description":"ancient roman soldier"}]
         with tempfile.TemporaryDirectory() as td:
-            root=Path(td); engine=MediaAcquisitionV3(root, ProviderRegistry([Corrupt(root)]))
+            root=Path(td); (root/"corrupt.jpg").write_bytes(b"not-a-real-image" + b"x"*2000); engine=MediaAcquisitionV3(root, ProviderRegistry([Corrupt(root)]))
             with patch("media_v3.acquisition.requests.get") as get:
                 get.side_effect=AssertionError("network must not be used for file:// in this fixture")
                 record,diag=engine.acquire_scene("SID2",1,{"scene_id":"scene_01","query":"roman soldier","must_have":["roman soldier"]})
