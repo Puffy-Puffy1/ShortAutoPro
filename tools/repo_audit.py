@@ -33,6 +33,10 @@ FORBIDDEN_EXACT = {
     "tests_sim/test_termux_render_speed_v2.py",
     "tests_sim/test_v6_runtime.py",
     "tests_sim/test_v6_runtime_codecs.py",
+    "media_engine_v2.py",
+    "media_provider_v2.py",
+    "media_provider_router_v2.py",
+    "media_stage_runtime.py",
 }
 
 REQUIRED = {
