@@ -1,11 +1,12 @@
-name: ShortAutoPro Media Engine V2 Migration
+name: ShortAutoPro Media Acquisition V3 Migration
 
 on:
   workflow_dispatch:
   pull_request:
     branches: [main]
     paths:
-      - "media_engine_v2.py"
+      - "media_acquisition_v3.py"
+      - "media_v3/**"
       - "render_plan_v2.py"
       - "render_engine_v2.py"
       - "main.py"
@@ -54,11 +55,12 @@ jobs:
         run: |
           set -euo pipefail
           ! grep -q "media_stage_runtime.py" main.py
-          ! grep -q "media_stage_runtime" media_engine_v2.py
-          grep -q "media_engine_v2.py" main.py
+          ! grep -q "media_engine_v2.py" main.py
+          grep -q "media_acquisition_v3.py" main.py
           grep -q "render_plan_v2.py" main.py
-          grep -q "media-manifest-v2" media_engine_v2.py
+          grep -q "media-manifest-v2" media_acquisition_v3.py
           grep -q "media-manifest-v2" render_engine_v2.py
+          python -m unittest -v tests.test_media_acquisition_v3 tests.test_media_acquisition_v3_stress
           echo "STAGE6_BYPASS_CONTRACT=PASS"
       - name: Real FFmpeg/FFprobe render E2E
         run: python -m unittest -v tests_sim.test_render_engine_v2_manifest_e2e
