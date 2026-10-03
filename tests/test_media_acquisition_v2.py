@@ -13,6 +13,53 @@ class FakeProvider:
     def search(self,query,must,avoid,**kwargs): return list(self.candidates)
 
 class AcquisitionV2Tests(unittest.TestCase):
+    def test_router_retries_bounded_query_when_provider_returns_empty(self):
+        class QuerySensitiveProvider:
+            name = "test"
+            def __init__(self):
+                self.queries = []
+            def search(self, query, must, avoid, **kwargs):
+                self.queries.append(query)
+                if query == "very long overly specific maritime documentary visual query":
+                    return []
+                return [{
+                    "fonte": "test",
+                    "tipo": "image",
+                    "id": "fallback-1",
+                    "url": "https://example.invalid/fallback.jpg",
+                    "descricao": "maritime ship",
+                    "must_hits": 1,
+                    "avoid_hits": 0,
+                    "score": 60,
+                }]
+        provider = QuerySensitiveProvider()
+        router = MediaProviderRouterV2([provider])
+        candidates = router.search(
+            "very long overly specific maritime documentary visual query",
+            ["ship"],
+            [],
+        )
+        self.assertEqual([c["id"] for c in candidates], ["fallback-1"])
+        self.assertGreaterEqual(len(provider.queries), 2)
+        self.assertEqual(provider.queries[0], "very long overly specific maritime documentary visual query")
+
+    def test_router_query_fallback_does_not_relax_avoid_filter(self):
+        class Provider:
+            name = "test"
+            def search(self, query, must, avoid, **kwargs):
+                return [{
+                    "fonte": "test",
+                    "tipo": "image",
+                    "id": "bad",
+                    "url": "https://example.invalid/bad.jpg",
+                    "descricao": "ship radio",
+                    "must_hits": 1,
+                    "avoid_hits": 1,
+                    "score": 90,
+                }]
+        router = MediaProviderRouterV2([Provider()])
+        self.assertEqual(router.search("very long query", ["ship"], ["radio"]), [])
+
     def test_router_falls_back_per_asset(self):
         a={"fonte":"pexels","tipo":"video","id":"a","url":"https://invalid/a.mp4","must_hits":1,"avoid_hits":0,"score":90}
         b={"fonte":"pixabay","tipo":"video","id":"b","url":"https://invalid/b.mp4","must_hits":1,"avoid_hits":0,"score":80}
