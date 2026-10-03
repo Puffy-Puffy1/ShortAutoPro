@@ -79,7 +79,7 @@ class AcquisitionV2Tests(unittest.TestCase):
             asset.write_bytes(b"x" * 2000)
             digest = media_engine_v2.sha256(asset)
             sidecar.write_text(
-                __import__("json").dumps({"checksum_sha256": digest, "must_total": 1}),
+                __import__("json").dumps({"checksum_sha256": digest, "must_total": 1, "validated": True, "short_id": media_dir.name.removeprefix("short_"), "scene_number": 1}),
                 encoding="utf-8",
             )
             with patch.object(media_engine_v2, "ffprobe_asset", return_value={"width": 1080, "height": 1920}):
@@ -128,7 +128,7 @@ class AcquisitionV2Tests(unittest.TestCase):
             asset.write_bytes(b"x" * 2000)
             digest = media_engine_v2.sha256(asset)
             (media_a / "scene_01.json").write_text(
-                __import__("json").dumps({"checksum_sha256": digest, "must_total": 1}),
+                __import__("json").dumps({"checksum_sha256": digest, "must_total": 1, "validated": True, "short_id": sid, "scene_number": 1}),
                 encoding="utf-8",
             )
             with patch.object(media_engine_v2, "ffprobe_asset", return_value={"width": 1080, "height": 1920}):
@@ -190,7 +190,7 @@ class AcquisitionV2Tests(unittest.TestCase):
             asset.write_bytes(b"x" * 2000)
             digest = media_engine_v2.sha256(asset)
             (asset.parent / "scene_01.json").write_text(
-                __import__("json").dumps({"checksum_sha256": digest, "must_total": 0}),
+                __import__("json").dumps({"checksum_sha256": digest, "must_total": 0, "validated": True, "short_id": sid, "scene_number": 1}),
                 encoding="utf-8",
             )
             with patch.object(media_engine_v2, "ffprobe_asset", return_value={"width": 1080, "height": 1920}):
