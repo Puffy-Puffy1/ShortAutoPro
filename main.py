@@ -410,9 +410,9 @@ def stages_before_render(p: Pipeline) -> None:
     p.run("5D2 - POST-SCRIPT TRUTH LOCK", "post_script_truth_lock.py")
     p.run("5E - SEMANTIC INTEGRITY GATE", "semantic_integrity_gate.py")
 
-    # Stage 6 is no longer a production dependency. Media acquisition and
-    # asset validation are owned by Media Engine V2; render planning is a
-    # deterministic input contract for Render Engine V2.
+    # Stage 6 is no longer a production dependency. Media Acquisition V3 owns
+    # acquisition/validation/freeze; Render Plan V2 owns deterministic timeline
+    # planning; Render Engine V2 owns rendering only.
     p.run("MEDIA ACQUISITION V3 - ACQUIRE + VALIDATE + FREEZE MANIFEST", "media_acquisition_v3.py", "--short-id", p.sid)
     p.run("RENDER PLAN V2 - DETERMINISTIC TIMELINE INPUT", "render_plan_v2.py", "--short-id", p.sid)
     p.run("6F - SPEECH DIRECTOR", "speech_director.py")
