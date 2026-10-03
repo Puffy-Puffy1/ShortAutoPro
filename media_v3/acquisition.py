@@ -20,7 +20,7 @@ class CircuitState:
 
 class MediaAcquisitionV3:
     def __init__(self, base: Path, registry: ProviderRegistry | None = None):
-        self.base=Path(base).resolve(); self.registry=registry or ProviderRegistry(); self.circuits={p.name:CircuitState() for p in self.registry.providers}
+        self.base=Path(base).resolve(); self.registry=registry or ProviderRegistry(); self._circuits_by_sid={}
     def _score(self, candidate, query, hard, soft, avoid):
         text=" ".join(str(candidate.get(k) or "") for k in ("description","title","tags","url")).casefold()
         tokens=set(__import__("re").findall(r"[a-z0-9À-ÿ]+",text)); q=set(__import__("re").findall(r"[a-z0-9À-ÿ]+",query.casefold()))
@@ -121,7 +121,8 @@ class MediaAcquisitionV3:
                 else:
                     diag.fallbacks.append({"type":"provider","provider":provider.name,"reason":status.reason})
                 continue
-            circuit=self.circuits[provider.name]
+            circuits=self._circuits_by_sid.setdefault(sid,{p.name:CircuitState() for p in self.registry.providers})
+            circuit=circuits[provider.name]
             if not circuit.allow():
                 diag.provider_results[provider.name]["circuit"]="OPEN"
                 diag.fallbacks.append({"type":"provider","provider":provider.name,"reason":"CIRCUIT_OPEN"})
