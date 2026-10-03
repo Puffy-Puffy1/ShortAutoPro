@@ -22,7 +22,8 @@ class ConsolidationArchitectureTests(unittest.TestCase):
     def test_single_canonical_pipeline_and_resume(self):
         main=(ROOT/"main.py").read_text(encoding="utf-8"); profile=(ROOT/"profile_run.sh").read_text(encoding="utf-8"); resume=(ROOT/"resume_short_runtime.py").read_text(encoding="utf-8")
         self.assertIn("CONSOLIDATION_3_0",main); self.assertIn("PROFESSIONAL_CANONICAL",main)
-        self.assertIn("media_engine_v2.py",main); self.assertIn("render_plan_v2.py",main)
+        self.assertIn("media_acquisition_v3.py",main); self.assertIn("render_plan_v2.py",main)
+        self.assertNotIn('p.run("MEDIA ENGINE V2 - ACQUIRE + VALIDATE + FREEZE MANIFEST", "media_engine_v2.py"',main)
         self.assertNotIn("media_stage_runtime.py",main)
         self.assertIn('MAIN="$BASE/main.py"',profile); self.assertIn('"$MAIN" run',profile)
         self.assertIn("import main as canonical",resume); self.assertIn("PROFESSIONAL_CANONICAL",resume)
