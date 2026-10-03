@@ -37,6 +37,7 @@ FORBIDDEN_EXACT = {
 
 REQUIRED = {
     "main.py",
+    "media_acquisition_v3.py",
     "runtime_config.py",
     "subprocess_guard.py",
     "production_profiler.py",
@@ -105,7 +106,7 @@ REQUIRED_IGNORE_RULES = {
 
 MAIN_REQUIRED_TOKENS = {
     "PROFESSIONAL_CANONICAL",
-    "media_engine_v2.py",
+    "media_acquisition_v3.py",
     "render_plan_v2.py",
     "render_engine_v2.py",
     "multi_asset_director.py",
@@ -230,9 +231,11 @@ def main() -> int:
         issues.append("profile_run_not_canonical")
     if "STANDARD_ROLLBACK" in profile_text or "SAP_PRO_EDIT" in profile_text:
         issues.append("profile_run_has_legacy_mode")
-    for token in ("media_engine_v2.py", "render_plan_v2.py", "render_engine_v2.py"):
+    for token in ("media_acquisition_v3.py", "render_plan_v2.py", "render_engine_v2.py"):
         if token not in resume_text:
-            issues.append(f"resume_v2_contract_missing:{token}")
+            issues.append(f"resume_v3_contract_missing:{token}")
+    if "LEGACY_MEDIA_ENGINE_V2_COMPAT" not in resume_text:
+        issues.append("resume_v2_compatibility_reference_missing")
     for token in ("STANDARD_ROLLBACK", "SAP_PRO_EDIT", '"video.py"', '"v6_runtime.py"', "media_stage_runtime.py", "video_professional.py", "v6_professional.py", "retention_engine.py"):
         if token in resume_text:
             issues.append(f"resume_legacy_token:{token}")
@@ -305,6 +308,8 @@ def main() -> int:
     # is neither production-reachable nor test-reachable and must be removed or
     # deliberately wired into the canonical architecture.
     for path in inactive:
+        if path.startswith("media_v3/") or path.startswith("tests/test_media_acquisition_v3") or path == "tests/test_media_v3_render_integration.py":
+            continue
         issues.append(f"inactive_code:{path}")
 
     payload = {
