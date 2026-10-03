@@ -130,17 +130,43 @@ class MediaAcquisitionV3:
             accepted_from_provider=0
             provider_seen=set()
             for qindex,q in enumerate(plan.variants):
-                try:
-                    rows=provider.search(q)
-                    diag.provider_results[provider.name]["queries"].append({"query":q,"count":len(rows)})
-                except Exception as exc:
-                    reason=str(exc) if str(exc) in {"RATE_LIMIT","TIMEOUT"} else "PROVIDER_UNAVAILABLE"
-                    diag.provider_results[provider.name]["queries"].append({"query":q,"error":reason})
+                rows=None
+                for attempt in range(2):
+                    try:
+                        rows=provider.search(q)
+                        diag.provider_results[provider.name]["queries"].append({"query":q,"count":len(rows),"attempt":attempt+1})
+                        break
+                    except requests.Timeout:
+                        reason="TIMEOUT"
+                    except requests.HTTPError as exc:
+                        reason="HTTP_ERROR"
+                        detail=getattr(getattr(exc,"response",None),"status_code",None)
+                    except requests.RequestException as exc:
+                        reason="PROVIDER_UNAVAILABLE"
+                        detail=type(exc).__name__
+                    except Exception as exc:
+                        raw=str(exc).upper()
+                        if "RATE_LIMIT" in raw or "429" in raw:
+                            reason="RATE_LIMIT"
+                        elif "TIMEOUT" in raw:
+                            reason="TIMEOUT"
+                        elif "HTTP_ERROR" in raw or "HTTP 5" in raw:
+                            reason="HTTP_ERROR"
+                        else:
+                            reason="PROVIDER_UNAVAILABLE"
+                        detail=str(exc)
+                    diag.provider_results[provider.name]["queries"].append(
+                        {"query":q,"error":reason,"attempt":attempt+1,**({"detail":detail} if "detail" in locals() else {})}
+                    )
                     diag.fallbacks.append({"type":"query","provider":provider.name,"query":q,"reason":reason})
                     circuit.fail()
-                    if reason in {"RATE_LIMIT","TIMEOUT"}:
-                        break
-                    continue
+                    if attempt == 0 and reason in {"RATE_LIMIT","TIMEOUT","HTTP_ERROR","PROVIDER_UNAVAILABLE"}:
+                        time.sleep(0.25)
+                        continue
+                    rows=[]
+                    break
+                if rows is None:
+                    rows=[]
 
                 if not rows:
                     diag.fallbacks.append({"type":"query","provider":provider.name,"query":q,"reason":"ZERO_RESULTS"})
