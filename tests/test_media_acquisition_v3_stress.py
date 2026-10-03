@@ -123,11 +123,14 @@ class AcquisitionV3StressTests(unittest.TestCase):
                 except RuntimeError as exc:
                     results[sid] = f"FAILED:{exc}"
             self.assertTrue(results["FAIL_JOB_02"].startswith("FAILED:"), results)
-            self.assertEqual(
-                [results[f"FAIL_JOB_{n:02d}"] for n in (1, 3, 4, 5)],
-                ["COMPLETED"] * 4,
-                results,
-            )
+            non_failed = [results[f"FAIL_JOB_{n:02d}"] for n in (1, 3, 4, 5)]
+            if non_failed != ["COMPLETED"] * 4:
+                reports = {}
+                for n in (1, 3, 4, 5):
+                    path = base / "reports" / "media" / f"acquisition_FAIL_JOB_{n:02d}.json"
+                    if path.is_file():
+                        reports[f"FAIL_JOB_{n:02d}"] = json.loads(path.read_text(encoding="utf-8"))
+                self.fail(f"batch isolation failure: results={results} reports={reports}")
 
     def test_failure_diagnostics_are_written_and_typed(self):
         with tempfile.TemporaryDirectory() as td:
