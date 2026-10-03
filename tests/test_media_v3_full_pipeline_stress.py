@@ -233,8 +233,8 @@ class MediaV3FullPipelineStressTests(unittest.TestCase):
                 "argv",
                 ["render_engine_v2.py", "--short-id", "FAIL_RENDER_01"],
             ):
-                with self.assertRaises(RuntimeError):
-                    render_engine_v2.main()
+                rc = render_engine_v2.main()
+            self.assertNotEqual(rc, 0)
             self._render(base, "OK_RENDER_02")
             self.assertTrue((base / "videos" / "short_v6_OK_RENDER_02.mp4").is_file())
 
