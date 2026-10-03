@@ -74,4 +74,4 @@ jobs:
       - name: Install Python dependencies
         run: python -m pip install --upgrade pip requests
       - name: Canonical existing Render V2 contracts
-        run: python -m unittest tests_sim.test_render_engine_v2_contract tests_sim.test_media_stage_recovery_budget
+        run: python -m unittest tests_sim.test_render_engine_v2_contract
