@@ -41,7 +41,7 @@ Dialogue: 0,0:00:00.00,0:00:02.00,Default,,0,0,0,,Integration test
             with patch.object(media_acquisition_v3,"MediaAcquisitionV3",lambda base: __import__("media_v3.acquisition",fromlist=["MediaAcquisitionV3"]).MediaAcquisitionV3(base,ProviderRegistry([provider]))):
                 manifest=media_acquisition_v3.build_manifest(sid)
             self.assertEqual(manifest["schema_version"],"media-manifest-v2")
-            with patch.dict("os.environ",{"SAP_RENDER_V2_BACKEND":"ffmpeg","SAP_RENDER_V2_CRF":"28"},clear=False):
+            with patch.dict("os.environ",{"SAP_RENDER_V2_BACKEND":"ffmpeg","SAP_RENDER_V2_CRF":"28"},clear=False), patch.object(render_engine_v2.sys,"argv",["render_engine_v2.py","--short-id",sid]):
                 rc=render_engine_v2.main()
             self.assertEqual(rc,0)
             final=base/"videos"/f"short_v6_{sid}.mp4"
