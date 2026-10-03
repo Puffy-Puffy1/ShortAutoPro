@@ -72,7 +72,7 @@ class CanonicalRenderContractTests(unittest.TestCase):
         self.assertNotIn("v6_runtime.py", source)
         self.assertNotIn('"v6.py"', source)
         self.assertIn('os.getenv("RENDER_ENGINE", "v2")', source)
-        self.assertIn('render_engine == "legacy"', source)
+        self.assertNotIn('render_engine == "legacy"', source)
         self.assertNotIn("SAP_PRO_EDIT", source)
         self.assertFalse((ROOT / "v6_runtime.py").exists())
         self.assertFalse((ROOT / "v6.py").exists())
