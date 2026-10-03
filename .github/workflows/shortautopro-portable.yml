@@ -101,7 +101,8 @@ jobs:
           python -m unittest -v \
             tests.test_media_acquisition_v3 \
             tests.test_media_acquisition_v3_stress \
-            tests.test_media_v3_render_integration
+            tests.test_media_v3_render_integration \
+            tests.test_media_v3_full_pipeline_stress
           python - <<'PY'
           from pathlib import Path
           main = Path("main.py").read_text(encoding="utf-8")
