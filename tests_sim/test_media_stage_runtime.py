@@ -54,7 +54,7 @@ class MediaStageRuntimeTests(unittest.TestCase):
         text = Path("media_stage_runtime.py").read_text(encoding="utf-8")
         self.assertIn("MUST verification remains strict", text)
         self.assertIn("NO_VALID_MISSING_REPORT", text)
-        self.assertIn("MEDIA_STAGE_RUNTIME=NO_PROGRESS", text)
+        self.assertIn("MEDIA_STAGE_RUNTIME=V2_NO_PROGRESS", text)
         self.assertIn("MEDIA_STAGE_RUNTIME=EXHAUSTED", text)
 
     def test_preflight_and_health_require_runtime(self):
