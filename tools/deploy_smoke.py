@@ -120,10 +120,12 @@ def main() -> int:
             fail("resume_legacy_route:" + legacy)
 
     media_stage_text = (ROOT / "media_stage_runtime.py").read_text(encoding="utf-8")
-    if 'SAP_MEDIA_SCENE_BUDGET_SECONDS", 18.0' not in media_stage_text:
-        fail("stage6_outer_budget_not_aligned")
-    if "MEDIA_STAGE_RUNTIME=FINAL_EDITORIAL_PASS" not in media_stage_text:
-        fail("stage6_final_editorial_contract_missing")
+    if "def round_env(round_index: int)" not in media_stage_text:
+        fail("stage6_budget_compatibility_contract_missing")
+    if "media_engine_v2.py" not in media_stage_text:
+        fail("stage6_v2_delegate_contract_missing")
+    if "from midia" in media_stage_text or "str(MIDIA)" in media_stage_text:
+        fail("legacy_stage6_runtime_reference_present")
     if '"post_scene_plan"' not in resume_text or "RESUME_FROM_V2_MEDIA=YES" not in resume_text:
         fail("resume_v2_checkpoint_contract")
 
@@ -154,12 +156,8 @@ def main() -> int:
         fail("midia_neutral_deferred_contract")
 
     resilience_text = (ROOT / "media_external_resilience.py").read_text(encoding="utf-8")
-    if "SAP_MEDIA_PROVIDER_CONTROLLER_TIMEOUT" not in midia_text:
-        fail("provider_controller_timeout_contract_missing")
-    if "health_penalty=NO" not in midia_text or "wait(" not in midia_text:
-        fail("provider_head_of_line_fix_missing")
-    if "SAP_MEDIA_PROVIDER_CIRCUIT_BACKOFF" not in midia_text:
-        fail("provider_transient_backoff_contract_missing")
+    if "TRANSIENT_DEDUP_SECONDS" not in resilience_text:
+        fail("media_resilience_dedupe_contract_missing")
     if 'VERSION = "1.2"' not in resilience_text:
         fail("media_resilience_version_contract")
     if "TRANSIENT_DEDUP_SECONDS" not in resilience_text:

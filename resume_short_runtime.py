@@ -23,6 +23,7 @@ from subprocess_guard import check_output_group, run_group
 from runtime_config import env_int, env_float
 from media_emergency_fallback import editorial_scene_metadata
 import shortautopro_evolution as evo
+import hashlib
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
 
@@ -172,8 +173,18 @@ def pre_media_plan_ok(sid: str) -> bool:
     return True
 
 
+def _sha256(path: Path) -> str:
+    h = hashlib.sha256()
+    try:
+        with path.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                h.update(chunk)
+        return h.hexdigest()
+    except OSError:
+        return ""
+
+
 def consolidation_plan_ok(sid: str) -> bool:
-    """Validate the frozen V2 media manifest and deterministic render plan."""
     plan = read_json(BASE / "roteiros" / f"pro_edit_plan_{sid}.json")
     scenes = plan.get("scenes", []) if isinstance(plan, dict) else []
     if (
@@ -195,13 +206,52 @@ def consolidation_plan_ok(sid: str) -> bool:
     ):
         return False
 
+    integrity = str(manifest.get("integrity_sha256") or "")
+    # V2 manifests (identified by engine_version) must be cryptographically
+    # intact. Older migration manifests may be structurally resumed, but their
+    # physical assets are revalidated by the downstream V2 preflight.
+    if integrity:
+        unsigned = dict(manifest)
+        unsigned.pop("integrity_sha256", None)
+        canonical = json.dumps(
+            unsigned, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")
+        if hashlib.sha256(canonical).hexdigest() != integrity:
+            return False
+    elif str(manifest.get("engine_version") or "").startswith("2."):
+        return False
+
+    # Migration-era manifests without engine_version/integrity are accepted
+    # structurally so the resume boundary can hand them to V2 preflight.
+    # New V2 manifests are cryptographically verified above.
+    if not integrity and not str(manifest.get("engine_version") or ""):
+        return True
+
+    media_root = (BASE / "imagens" / f"short_{sid}").resolve()
+    seen = set()
     for row in media_scenes:
-        asset = row.get("asset") if isinstance(row, dict) else None
+        if not isinstance(row, dict):
+            return False
+        asset = row.get("asset")
         if not isinstance(asset, dict) or asset.get("validated") is not True:
             return False
-        if not asset.get("checksum_sha256"):
+        scene_number = int(row.get("scene_number", 0) or 0)
+        if scene_number in seen or not 1 <= scene_number <= expected_scenes():
             return False
-    return True
+        seen.add(scene_number)
+        path = Path(str(asset.get("path") or "")).expanduser().resolve()
+        try:
+            path.relative_to(media_root)
+        except ValueError:
+            return False
+        if not path.is_file() or path.stat().st_size <= 1000:
+            return False
+        expected_sha = str(asset.get("checksum_sha256") or "")
+        if not expected_sha or _sha256(path) != expected_sha:
+            return False
+    return seen == set(range(1, expected_scenes() + 1))
+
+
 def audio_ok(sid: str) -> bool:
     return nonempty(BASE / "audios" / f"short_{sid}.mp3", 5000)
 

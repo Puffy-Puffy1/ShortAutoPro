@@ -237,41 +237,37 @@ class MediaRecoveryTests(unittest.TestCase):
                                     'total': 12-len(missing), 'expected': 12}))
         temp.replace(self.report)
 
-    def test_old_report_does_not_retry_unrelated_failure(self):
-        self.write_report([1, 2])
-        with patch.object(media, 'run_group', return_value=Mock(returncode=7)) as run:
+    def test_runtime_delegates_to_v2_engine(self):
+        engine = self.base / "media_engine_v2.py"
+        engine.write_text("pass\n", encoding="utf-8")
+        with patch.object(media, "run_group", return_value=Mock(returncode=0)) as run:
+            self.assertEqual(media.main(), 65)
+        command = run.call_args.args[0]
+        self.assertIn("media_engine_v2.py", str(command))
+        self.assertIn("--short-id", command)
+        self.assertIn("one", command)
+
+    def test_runtime_propagates_v2_failure(self):
+        engine = self.base / "media_engine_v2.py"
+        engine.write_text("pass\n", encoding="utf-8")
+        with patch.object(media, "run_group", return_value=Mock(returncode=7)):
             self.assertEqual(media.main(), 7)
+
+    def test_runtime_timeout_keeps_timeout_contract(self):
+        engine = self.base / "media_engine_v2.py"
+        engine.write_text("pass\n", encoding="utf-8")
+        with patch.object(media, "run_group", side_effect=subprocess.TimeoutExpired("media_engine_v2.py", 10)):
+            self.assertEqual(media.main(), 124)
+
+    def test_runtime_does_not_retry_without_explicit_v2_controller(self):
+        engine = self.base / "media_engine_v2.py"
+        engine.write_text("pass\n", encoding="utf-8")
+        with patch.object(media, "run_group", return_value=Mock(returncode=1)) as run:
+            self.assertEqual(media.main(), 1)
         self.assertEqual(run.call_count, 1)
 
-    def test_fresh_partial_report_recovers_on_next_round(self):
-        def run(*args, **kwargs):
-            self.write_report([1])
-            return Mock(returncode=1)
-        with patch.object(media, 'run_group', side_effect=[None]) as call, \
-             patch.object(media, 'validate_media_completion', return_value=(True, {
-                 'valid': 12, 'expected': 12, 'missing': [], 'invalid': [], 'errors': []
-             })):
-            def attempt(*args, **kwargs):
-                return run() if call.call_count == 1 else Mock(returncode=0)
-            call.side_effect = attempt
-            self.assertEqual(media.main(), 0)
-            self.assertEqual(call.call_count, 2)
-
-    def test_repeated_fresh_reports_stop_after_no_progress(self):
-        def run(*args, **kwargs):
-            self.write_report([1, 2])
-            return Mock(returncode=1)
-        with patch.dict(os.environ, {'SAP_MEDIA_STAGE_ROUNDS': '5'}), patch.object(media, 'run_group', side_effect=run) as call:
-            self.assertEqual(media.main(), 1)
-            self.assertEqual(call.call_count, 2)
-
-    def test_timeout_without_fresh_report_keeps_timeout_code(self):
-        self.write_report([1])
-        with patch.object(media, 'run_group', side_effect=subprocess.TimeoutExpired('midia', 10)) as call:
-            self.assertEqual(media.main(), 124)
-            self.assertEqual(call.call_count, 1)
-
     def test_budget_counts_media_only_not_placeholders_or_duplicate_formats(self):
+
         folder = self.base / 'imagens' / 'short_one'
         folder.mkdir(parents=True)
         for name, size in [('scene_1.jpg', 2000), ('scene_1.mp4', 2000), ('scene_2.json', 2000),

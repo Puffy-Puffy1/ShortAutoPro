@@ -542,14 +542,15 @@ def main() -> int:
     if not SID:
         print("ERRO MEDIA STAGE: SHORT_ID vazio")
         return 1
-    if not MIDIA.is_file():
-        print(f"ERRO MEDIA STAGE: ausente {MIDIA}")
+    engine = BASE / "media_engine_v2.py"
+    if not engine.is_file():
+        print(f"ERRO MEDIA STAGE: ausente {engine}")
         return 1
 
     expected, contract_errors = scene_contract()
     if contract_errors:
         print(
-            "MEDIA_STAGE_RUNTIME=PREFLIGHT_FAIL "
+            "MEDIA_STAGE_RUNTIME=V2_PREFLIGHT_FAIL "
             f"expected={expected} errors={'|'.join(contract_errors)}"
         )
         return 2
@@ -564,7 +565,7 @@ def main() -> int:
     for round_index in range(max_rounds):
         print()
         print("================================")
-        print(f"MEDIA STAGE RECOVERY {round_index + 1}/{max_rounds}")
+        print(f"MEDIA V2 RECOVERY {round_index + 1}/{max_rounds}")
         print("================================")
         print(
             "Policy: incremental cache + retrieve more; "
@@ -583,7 +584,7 @@ def main() -> int:
         previous_report = report_signature()
         try:
             proc = run_group(
-                [sys.executable, str(MIDIA)],
+                [sys.executable, str(engine), "--short-id", SID],
                 cwd=str(BASE),
                 env=round_env(round_index),
                 check=False,
@@ -593,7 +594,7 @@ def main() -> int:
         except subprocess.TimeoutExpired:
             returncode = 124
             print(
-                "MEDIA_STAGE_RUNTIME=ROUND_TIMEOUT "
+                "MEDIA_STAGE_RUNTIME=V2_ROUND_TIMEOUT "
                 f"round={round_index + 1} limit={round_timeout}s"
             )
 
@@ -604,7 +605,7 @@ def main() -> int:
             valid_completion, completion = validate_media_completion()
             if valid_completion:
                 print(
-                    f"MEDIA_STAGE_RUNTIME=PASS round={round_index + 1} "
+                    f"MEDIA_STAGE_RUNTIME=V2_PASS round={round_index + 1} "
                     f"scenes={completion['valid']}/{completion['expected']} "
                     f"elapsed={elapsed:.1f}s"
                 )
@@ -613,7 +614,7 @@ def main() -> int:
             returncode = 65
             completion_override = completion
             print(
-                "MEDIA_STAGE_RUNTIME=FALSE_SUCCESS "
+                "MEDIA_STAGE_RUNTIME=V2_FALSE_SUCCESS "
                 f"round={round_index + 1} "
                 f"valid={completion['valid']}/{completion['expected']} "
                 f"missing={','.join(map(str, completion['missing'])) or '-'} "
@@ -633,14 +634,14 @@ def main() -> int:
                 if physical_ok:
                     _clear_missing_report()
                     print(
-                        "MEDIA_STAGE_RUNTIME=PASS_PHYSICAL_RECONCILE "
+                        "MEDIA_STAGE_RUNTIME=V2_PASS_PHYSICAL_RECONCILE "
                         f"scenes={physical['valid']}/{physical['expected']}"
                     )
                     return 0
 
                 if returncode != 124:
                     print(
-                        "MEDIA_STAGE_RUNTIME=HARD_FAIL "
+                        "MEDIA_STAGE_RUNTIME=V2_HARD_FAIL "
                         f"code={returncode} reason=STALE_MISSING_REPORT"
                     )
                     return returncode or 1
@@ -663,7 +664,7 @@ def main() -> int:
                 expected = int(physical.get("expected", 0) or 0)
                 report = stale_report
                 print(
-                    "MEDIA_STAGE_RUNTIME=STALE_REPORT_PHYSICAL_RECOVERY "
+                    "MEDIA_STAGE_RUNTIME=V2_STALE_REPORT_PHYSICAL_RECOVERY "
                     f"code={returncode} valid={total}/{expected or '?'} "
                     f"previous_valid={stale_total} "
                     f"missing={','.join(map(str, sorted(missing))) or '-'}"
@@ -686,7 +687,7 @@ def main() -> int:
             expected = int(completion_override.get("expected", 0) or 0)
 
         print(
-            "MEDIA_STAGE_RUNTIME=PARTIAL "
+            "MEDIA_STAGE_RUNTIME=V2_PARTIAL "
             f"round={round_index + 1} total={total}/{expected or '?'} "
             f"missing={','.join(map(str, sorted(missing))) or '?'} "
             f"elapsed={elapsed:.1f}s"
@@ -713,7 +714,7 @@ def main() -> int:
                     else "ESCALATE_NEXT_ROUND"
                 )
                 print(
-                    "MEDIA_STAGE_RUNTIME=NO_PROGRESS "
+                    "MEDIA_STAGE_RUNTIME=V2_NO_PROGRESS "
                     f"round={round_index + 1} "
                     f"streak={no_progress_rounds} "
                     f"missing={','.join(map(str, sorted(missing)))} "
@@ -721,7 +722,7 @@ def main() -> int:
                 )
                 if no_progress_rounds >= 1:
                     print(
-                        "MEDIA_STAGE_RUNTIME=EARLY_STOP "
+                        "MEDIA_STAGE_RUNTIME=V2_EARLY_STOP "
                         "reason=ONE_NO_PROGRESS_ROUND_AFTER_RETRY"
                     )
                     break
@@ -732,7 +733,7 @@ def main() -> int:
         if round_index + 1 < max_rounds:
             next_budget = (1, 2, 3)[min(round_index + 1, 2)]
             print(
-                "MEDIA_STAGE_RUNTIME=RETRY_MISSING_ONLY "
+                "MEDIA_STAGE_RUNTIME=V2_RETRY_MISSING_ONLY "
                 f"next_round={round_index + 2} "
                 f"next_budget={next_budget} "
                 f"missing={','.join(map(str, sorted(missing)))}"
@@ -745,7 +746,7 @@ def main() -> int:
         if physical_ok:
             _clear_missing_report()
             print(
-                "MEDIA_STAGE_RUNTIME=PASS_FINAL_RECONCILE "
+                "MEDIA_STAGE_RUNTIME=V2_PASS_FINAL_RECONCILE "
                 f"scenes={physical['valid']}/{physical['expected']}"
             )
             return 0

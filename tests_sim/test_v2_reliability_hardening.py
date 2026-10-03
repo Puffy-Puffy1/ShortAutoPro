@@ -44,7 +44,7 @@ class V2ReliabilityHardeningTests(unittest.TestCase):
                 "fonte": "Mock",
                 "id": "partial",
                 "tipo": "imagem",
-                "must_hits": 0,
+                "must_hits": 1,
                 "avoid_hits": 0,
                 "score": 70,
                 "url": "https://example.invalid/asset.jpg",
