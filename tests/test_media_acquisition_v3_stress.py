@@ -120,12 +120,13 @@ class AcquisitionV3StressTests(unittest.TestCase):
                 try:
                     media_acquisition_v3.build_manifest(sid, engine)
                     results[sid] = "COMPLETED"
-                except RuntimeError:
-                    results[sid] = "FAILED"
-            self.assertEqual(results["FAIL_JOB_02"], "FAILED")
+                except RuntimeError as exc:
+                    results[sid] = f"FAILED:{exc}"
+            self.assertTrue(results["FAIL_JOB_02"].startswith("FAILED:"), results)
             self.assertEqual(
                 [results[f"FAIL_JOB_{n:02d}"] for n in (1, 3, 4, 5)],
                 ["COMPLETED"] * 4,
+                results,
             )
 
     def test_failure_diagnostics_are_written_and_typed(self):
