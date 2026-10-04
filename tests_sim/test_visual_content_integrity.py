@@ -144,7 +144,7 @@ class VisualContentIntegrityTests(unittest.TestCase):
     def test_media_and_release_contracts_are_fail_closed(self):
         media_text = Path("media_master_gate.py").read_text(encoding="utf-8")
         release_text = Path("release_gate.py").read_text(encoding="utf-8")
-        stage_text = Path("media_stage_runtime.py").read_text(encoding="utf-8")
+        v3_text = Path("media_acquisition_v3.py").read_text(encoding="utf-8")
         midia_text = Path("midia.py").read_text(encoding="utf-8")
 
         self.assertIn("neutral_editorial_scene_", media_text)
@@ -152,7 +152,8 @@ class VisualContentIntegrityTests(unittest.TestCase):
         self.assertIn("visual_qa_missing", release_text)
         self.assertIn("media_quality_report_missing", release_text)
         self.assertIn("rendered_visual_content_not_verified", release_text)
-        self.assertIn("allow_neutral=False", stage_text)
+        self.assertIn("validated", v3_text)
+        self.assertIn("media-manifest-v2", v3_text)
         self.assertIn('SAP_MEDIA_INROUND_EDITORIAL", "0"', midia_text)
         self.assertIn("QUALITY_PARTIAL_RESTORE", midia_text)
 
