@@ -178,7 +178,7 @@ jobs:
           set -euo pipefail
           for f in \
             main.py profile_run.sh resume_short_runtime.py \
-            media_engine_v2.py media_provider_v2.py render_plan_v2.py render_engine_v2.py \
+            media_acquisition_v3.py media_acquisition_recovery.py render_plan_v2.py render_engine_v2.py \
             professional_caption_director.py caption_layout_guard.py audio_finalizer.py \
             visual_qa.py professional_quality_gate.py release_gate.py \
             production_recovery.py production_watchdog.py production_health.py \
