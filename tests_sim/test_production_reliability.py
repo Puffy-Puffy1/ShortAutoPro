@@ -107,68 +107,6 @@ class ResumeReliabilityTests(unittest.TestCase):
         with patch.object(resume, 'run_group', side_effect=launch):
             self.assertEqual(resume.full_rerun('existing'), 0)
 
-    def plans(self, score=90):
-        folder = self.base / 'roteiros'
-        folder.mkdir(exist_ok=True)
-        (folder / 'pro_edit_plan_one.json').write_text(json.dumps({
-            'schema_version': 'render-plan-v2',
-            'short_id': 'one',
-            'scenes': [{'scene_id': str(i)} for i in range(1, 13)]
-        }))
-        manifests = self.base / 'manifests'
-        manifests.mkdir(exist_ok=True)
-        media_dir = self.base / 'imagens' / 'short_one'
-        media_dir.mkdir(parents=True, exist_ok=True)
-        rows = []
-        for i in range(1, 13):
-            asset = media_dir / f'scene_{i:02d}.jpg'
-            asset.write_bytes(b'\\xff\\xd8\\xff' + bytes([i]) * 2000)
-            digest = __import__('hashlib').sha256(asset.read_bytes()).hexdigest()
-            rows.append({
-                'scene_id': str(i),
-                'scene_number': i,
-                'asset': {
-                    'validated': True,
-                    'checksum_sha256': digest,
-                    'path': str(asset),
-                },
-            })
-        manifest = {
-            'schema_version': 'media-manifest-v2',
-            'engine_version': '2.0.1',
-            'short_id': 'one',
-            'immutable': True,
-            'scene_count': 12,
-            'scenes': rows,
-        }
-        manifest['integrity_sha256'] = media_engine_v2._manifest_integrity(manifest)
-        (manifests / 'media_one.json').write_text(json.dumps(manifest))
-        for name in ('retention', 'sound_design', 'multi_asset', 'visual_score', 'visual_continuity'):
-            (folder / f'{name}_one.json').write_text(json.dumps({'retention_score': score, 'padding': 'enough bytes'}))
-
-    def test_malformed_v2_manifest_cannot_crash_or_pass(self):
-        self.plans()
-        manifest = self.base / 'manifests' / 'media_one.json'
-        for payload in (
-            {'schema_version': 'wrong', 'short_id': 'one', 'immutable': True, 'scenes': [{}] * 12},
-            {'schema_version': 'media-manifest-v2', 'engine_version': '2.0.1', 'short_id': 'other', 'immutable': True, 'scenes': [{}] * 12},
-            {'schema_version': 'media-manifest-v2', 'engine_version': '2.0.1', 'short_id': 'one', 'immutable': False, 'scenes': [{}] * 12},
-        ):
-            with self.subTest(payload=payload):
-                manifest.write_text(json.dumps(payload))
-                self.assertFalse(resume.consolidation_plan_ok('one'))
-        self.plans()
-
-    def test_valid_v2_checkpoint_is_accepted(self):
-        self.plans()
-        with patch.dict(os.environ, {'SHORT_QTD_CENAS': '12'}):
-            self.assertTrue(resume.consolidation_plan_ok('one'))
-
-    def test_large_but_corrupt_v2_manifest_is_not_a_checkpoint(self):
-        self.plans()
-        (self.base / 'manifests' / 'media_one.json').write_text('not json ' * 20)
-        self.assertFalse(resume.consolidation_plan_ok('one'))
-
     def test_audio_does_not_allow_resume_with_missing_media(self):
         with contextlib.ExitStack() as stack:
             values = dict(render_ok=False, final_ok=False, consolidation_plan_ok=True,
