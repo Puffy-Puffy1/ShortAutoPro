@@ -235,7 +235,10 @@ CRITICOS=(
     hook_runtime.py
     scene_director.py
     semantic_integrity_gate.py
-    media_stage_runtime.py
+    media_acquisition_v3.py
+    media_acquisition_recovery.py
+    render_plan_v2.py
+    render_engine_v2.py
     midia.py
     media_master_gate.py
     audio.py
