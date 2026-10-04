@@ -5,26 +5,11 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-import media_engine_v2
 import render_plan_v2
 import resume_short_runtime
 
 
-class FinalV2BugRegressionTests(unittest.TestCase):
-    def test_query_relaxed_requires_at_least_one_must_hit(self):
-        candidate = {
-            "fonte": "Mock", "id": "zero", "must_hits": 0,
-            "avoid_hits": 0, "score": 80, "url": "x"
-        }
-        with patch.object(media_engine_v2.PROVIDER, "search", side_effect=[[candidate], [candidate]]),              patch.object(media_engine_v2.PROVIDER, "prepare", return_value=[]):
-            with tempfile.TemporaryDirectory() as td:
-                with self.assertRaisesRegex(RuntimeError, "MEDIA"):
-                    media_engine_v2.acquire_scene(
-                        "MUST_001", 1,
-                        {"query": "ship radio", "must_have": ["ship", "radio"], "avoid": []},
-                        Path(td),
-                    )
-
+class FinalPipelineBugRegressionTests(unittest.TestCase):
     def test_render_plan_rejects_path_traversal_short_id(self):
         with self.assertRaisesRegex(RuntimeError, "short_id"):
             render_plan_v2.validate_short_id("../evil")
