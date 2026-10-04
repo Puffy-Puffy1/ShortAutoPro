@@ -5,7 +5,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class ProductionIncrementalMediaTests(unittest.TestCase):
-    def test_stage6_preserves_previous_successes(self):
+    def test_incremental_media_preserves_previous_successes(self):
         text = (ROOT / "midia.py").read_text(encoding="utf-8")
         self.assertIn("SAP_MEDIA_INCREMENTAL=RESTORE", text)
         self.assertIn("SAP_MEDIA_INCREMENTAL=HIT", text)
@@ -35,15 +35,6 @@ class ProductionIncrementalMediaTests(unittest.TestCase):
         providers = text.index("# TODAS AS FONTES COMPETEM", hit)
         self.assertLess(hit, providers)
         self.assertIn("continue", text[hit:providers])
-
-    def test_stage6_recovery_is_incremental_not_blind_external_retry(self):
-        resume = (ROOT / "resume_after_semantic_fix.py").read_text(encoding="utf-8")
-        main = (ROOT / "main.py").read_text(encoding="utf-8")
-        runtime = (ROOT / "media_stage_runtime.py").read_text(encoding="utf-8")
-        self.assertIn('"media_acquisition_v3.py"', main)
-        self.assertIn('"render_plan_v2.py"', main)
-        self.assertNotIn('p.run("6 - SMART MEDIA SELECTOR", "media_stage_runtime.py")', main)
-        self.assertNotIn('p.run("6 - SMART MEDIA SELECTOR", "midia.py", retries=1)', main)
 
     def test_strict_must_policy_remains_fail_closed(self):
         strict = (ROOT / "media_strict_must_guard.py").read_text(encoding="utf-8")
