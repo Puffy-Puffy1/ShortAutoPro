@@ -55,12 +55,12 @@ class RetentionReviewContractTests(unittest.TestCase):
         self.assertNotIn("retention_engine.py", source)
         self.assertNotIn("media_stage_runtime.py", source)
 
-    def test_resume_requires_frozen_v2_manifest(self):
+    def test_resume_requires_frozen_v3_manifest(self):
         import hashlib
         import json
         import tempfile
         from pathlib import Path
-        import media_engine_v2
+        import media_acquisition_v3
 
         with tempfile.TemporaryDirectory() as td:
             base = Path(td)
@@ -92,17 +92,17 @@ class RetentionReviewContractTests(unittest.TestCase):
                 })
             manifest = {
                 "schema_version": "media-manifest-v2",
-                "engine_version": "2.0.1",
+                "engine_version": "3.0.0",
                 "short_id": sid,
                 "immutable": True,
                 "scene_count": 12,
                 "scenes": rows,
             }
-            manifest["integrity_sha256"] = media_engine_v2._manifest_integrity(manifest)
+            manifest["integrity_sha256"] = media_acquisition_v3.digest(manifest)
             (base / "manifests" / f"media_{sid}.json").write_text(
                 json.dumps(manifest), encoding="utf-8"
             )
-            with mock.patch.object(resume_short_runtime, "BASE", base),                  mock.patch.dict(sys.modules, {"media_engine_v2": media_engine_v2}):
+            with mock.patch.object(resume_short_runtime, "BASE", base):
                 self.assertTrue(resume_short_runtime.consolidation_plan_ok(sid))
 
             manifest["immutable"] = False
