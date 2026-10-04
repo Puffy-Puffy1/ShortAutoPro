@@ -30,22 +30,21 @@ class MediaTwoPassRecoveryTests(unittest.TestCase):
         self.assertLessEqual(len(queries), 8)
 
     def test_runtime_preserves_first_pass_then_targeted_recovery(self):
-        text = Path("media_stage_runtime.py").read_text(encoding="utf-8")
-        self.assertIn("SAP_MEDIA_RECOVERY_ROUND", text)
-        self.assertIn("SAP_MEDIA_INCREMENTAL", text)
+        text = Path("media_acquisition_recovery.py").read_text(encoding="utf-8")
         self.assertIn("SAP_MUST_RESCUE_MAX_QUERIES", text)
         self.assertIn("SAP_STOCK_RESCUE_MAX_QUERIES", text)
-        self.assertIn("acquisition_missing_", text)
+        self.assertIn("SAP_MUST_ACQUISITION_RESCUE", text)
+        self.assertIn("strict MUST", text)
 
     def test_main_uses_media_runtime_not_raw_midia(self):
         text = Path("main.py").read_text(encoding="utf-8")
-        self.assertIn('"media_engine_v2.py"', text)
+        self.assertIn('"media_acquisition_v3.py"', text)
         self.assertIn('"render_plan_v2.py"', text)
         self.assertNotIn('p.run("6 - SMART MEDIA SELECTOR", "media_stage_runtime.py")', text)
 
     def test_semantic_resume_uses_same_runtime(self):
         text = Path("resume_after_semantic_fix.py").read_text(encoding="utf-8")
-        self.assertIn('"media_stage_runtime.py"', text)
+        self.assertIn('"media_acquisition_v3.py"', text)
 
     def test_recovery_does_not_modify_strict_guard(self):
         guard = Path("media_strict_must_guard.py").read_text(encoding="utf-8")

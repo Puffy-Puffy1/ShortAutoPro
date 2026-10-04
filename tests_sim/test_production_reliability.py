@@ -14,8 +14,6 @@ import unittest
 from unittest.mock import patch, Mock
 
 import main as pipeline
-import media_engine_v2
-import media_stage_runtime as media
 import resume_short_runtime as resume
 import storage_manager as storage
 import subprocess_guard as guard
@@ -109,68 +107,6 @@ class ResumeReliabilityTests(unittest.TestCase):
         with patch.object(resume, 'run_group', side_effect=launch):
             self.assertEqual(resume.full_rerun('existing'), 0)
 
-    def plans(self, score=90):
-        folder = self.base / 'roteiros'
-        folder.mkdir(exist_ok=True)
-        (folder / 'pro_edit_plan_one.json').write_text(json.dumps({
-            'schema_version': 'render-plan-v2',
-            'short_id': 'one',
-            'scenes': [{'scene_id': str(i)} for i in range(1, 13)]
-        }))
-        manifests = self.base / 'manifests'
-        manifests.mkdir(exist_ok=True)
-        media_dir = self.base / 'imagens' / 'short_one'
-        media_dir.mkdir(parents=True, exist_ok=True)
-        rows = []
-        for i in range(1, 13):
-            asset = media_dir / f'scene_{i:02d}.jpg'
-            asset.write_bytes(b'\\xff\\xd8\\xff' + bytes([i]) * 2000)
-            digest = __import__('hashlib').sha256(asset.read_bytes()).hexdigest()
-            rows.append({
-                'scene_id': str(i),
-                'scene_number': i,
-                'asset': {
-                    'validated': True,
-                    'checksum_sha256': digest,
-                    'path': str(asset),
-                },
-            })
-        manifest = {
-            'schema_version': 'media-manifest-v2',
-            'engine_version': '2.0.1',
-            'short_id': 'one',
-            'immutable': True,
-            'scene_count': 12,
-            'scenes': rows,
-        }
-        manifest['integrity_sha256'] = media_engine_v2._manifest_integrity(manifest)
-        (manifests / 'media_one.json').write_text(json.dumps(manifest))
-        for name in ('retention', 'sound_design', 'multi_asset', 'visual_score', 'visual_continuity'):
-            (folder / f'{name}_one.json').write_text(json.dumps({'retention_score': score, 'padding': 'enough bytes'}))
-
-    def test_malformed_v2_manifest_cannot_crash_or_pass(self):
-        self.plans()
-        manifest = self.base / 'manifests' / 'media_one.json'
-        for payload in (
-            {'schema_version': 'wrong', 'short_id': 'one', 'immutable': True, 'scenes': [{}] * 12},
-            {'schema_version': 'media-manifest-v2', 'engine_version': '2.0.1', 'short_id': 'other', 'immutable': True, 'scenes': [{}] * 12},
-            {'schema_version': 'media-manifest-v2', 'engine_version': '2.0.1', 'short_id': 'one', 'immutable': False, 'scenes': [{}] * 12},
-        ):
-            with self.subTest(payload=payload):
-                manifest.write_text(json.dumps(payload))
-                self.assertFalse(resume.consolidation_plan_ok('one'))
-        self.plans()
-
-    def test_valid_v2_checkpoint_is_accepted(self):
-        self.plans()
-        with patch.dict(os.environ, {'SHORT_QTD_CENAS': '12'}):
-            self.assertTrue(resume.consolidation_plan_ok('one'))
-
-    def test_large_but_corrupt_v2_manifest_is_not_a_checkpoint(self):
-        self.plans()
-        (self.base / 'manifests' / 'media_one.json').write_text('not json ' * 20)
-        self.assertFalse(resume.consolidation_plan_ok('one'))
-
     def test_audio_does_not_allow_resume_with_missing_media(self):
         with contextlib.ExitStack() as stack:
             values = dict(render_ok=False, final_ok=False, consolidation_plan_ok=True,
@@ -229,76 +165,6 @@ class ResumeReliabilityTests(unittest.TestCase):
                     return 0
             with patch.object(resume, 'boundary', return_value='full'), patch.object(resume, 'full_rerun', side_effect=launch):
                 self.assertEqual(resume.resume('one'), 0)
-
-
-class MediaRecoveryTests(unittest.TestCase):
-    def setUp(self):
-        environment = patch.dict(os.environ, {})
-        environment.start()
-        self.addCleanup(environment.stop)
-        temp = tempfile.TemporaryDirectory()
-        self.addCleanup(temp.cleanup)
-        self.base = Path(temp.name)
-        self.report = self.base / 'report.json'
-        self.script = self.base / 'midia.py'
-        self.script.touch()
-        scene_dir = self.base / 'roteiros'
-        scene_dir.mkdir(parents=True, exist_ok=True)
-        (scene_dir / 'scene_map_one.json').write_text(json.dumps({
-            'scenes': [
-                {'scene_id': f'scene_{n:02d}', 'scene': n}
-                for n in range(1, 13)
-            ]
-        }))
-        for key, value in dict(BASE=self.base, REPORT=self.report, SID='one').items():
-            patcher = patch.object(media, key, value)
-            patcher.start()
-            self.addCleanup(patcher.stop)
-
-    def write_report(self, missing):
-        temp = self.base / 'report.tmp'
-        temp.write_text(json.dumps({'missing_scenes': [{'scene': n} for n in missing],
-                                    'total': 12-len(missing), 'expected': 12}))
-        temp.replace(self.report)
-
-    def test_runtime_delegates_to_v2_engine(self):
-        engine = self.base / "media_engine_v2.py"
-        engine.write_text("pass\n", encoding="utf-8")
-        with patch.object(media, "run_group", return_value=Mock(returncode=0)) as run:
-            self.assertEqual(media.main(), 65)
-        command = run.call_args.args[0]
-        self.assertIn("media_engine_v2.py", str(command))
-        self.assertIn("--short-id", command)
-        self.assertIn("one", command)
-
-    def test_runtime_propagates_v2_failure(self):
-        engine = self.base / "media_engine_v2.py"
-        engine.write_text("pass\n", encoding="utf-8")
-        with patch.object(media, "run_group", return_value=Mock(returncode=7)):
-            self.assertEqual(media.main(), 7)
-
-    def test_runtime_timeout_keeps_timeout_contract(self):
-        engine = self.base / "media_engine_v2.py"
-        engine.write_text("pass\n", encoding="utf-8")
-        with patch.object(media, "run_group", side_effect=subprocess.TimeoutExpired("media_engine_v2.py", 10)):
-            self.assertEqual(media.main(), 124)
-
-    def test_runtime_does_not_retry_without_explicit_v2_controller(self):
-        engine = self.base / "media_engine_v2.py"
-        engine.write_text("pass\n", encoding="utf-8")
-        with patch.object(media, "run_group", return_value=Mock(returncode=1)) as run:
-            self.assertEqual(media.main(), 1)
-        self.assertEqual(run.call_count, 1)
-
-    def test_budget_counts_media_only_not_placeholders_or_duplicate_formats(self):
-
-        folder = self.base / 'imagens' / 'short_one'
-        folder.mkdir(parents=True)
-        for name, size in [('scene_1.jpg', 2000), ('scene_1.mp4', 2000), ('scene_2.json', 2000),
-                           ('scene_3.jpg', 0), ('scene_99.jpg', 2000), ('scene_4.part', 2000)]:
-            (folder / name).write_bytes(b'x' * size)
-        with patch.dict(os.environ, {'SHORT_QTD_CENAS': '12'}):
-            self.assertEqual(media.current_completed_hint(), 1)
 
 
 class ProcessCleanupTests(unittest.TestCase):

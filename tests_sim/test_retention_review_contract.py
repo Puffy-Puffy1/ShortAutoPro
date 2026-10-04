@@ -31,7 +31,7 @@ class RetentionReviewContractTests(unittest.TestCase):
             rc = retention_engine.main()
         self.assertEqual(rc, 1)
 
-    def test_canonical_pipeline_uses_v2_and_does_not_invoke_legacy_stage6(self):
+    def test_canonical_pipeline_uses_v3_and_does_not_invoke_legacy_stage6(self):
         calls = []
 
         class FakePipeline:
@@ -43,24 +43,24 @@ class RetentionReviewContractTests(unittest.TestCase):
 
         main.stages_before_render(FakePipeline())
         scripts = [x[1] for x in calls]
-        self.assertIn("media_engine_v2.py", scripts)
+        self.assertIn("media_acquisition_v3.py", scripts)
         self.assertIn("render_plan_v2.py", scripts)
         self.assertNotIn("media_stage_runtime.py", scripts)
         self.assertNotIn("retention_engine.py", scripts)
 
-    def test_pre_render_recovery_repairs_only_v2_inputs(self):
+    def test_pre_render_recovery_uses_only_v3_inputs(self):
         source = open(production_recovery.__file__, encoding="utf-8").read()
-        self.assertIn("media_engine_v2.py", source)
+        self.assertIn("media_acquisition_v3.py", source)
         self.assertIn("render_plan_v2.py", source)
         self.assertNotIn("retention_engine.py", source)
         self.assertNotIn("media_stage_runtime.py", source)
 
-    def test_resume_requires_frozen_v2_manifest(self):
+    def test_resume_requires_frozen_v3_manifest(self):
         import hashlib
         import json
         import tempfile
         from pathlib import Path
-        import media_engine_v2
+        import media_acquisition_v3
 
         with tempfile.TemporaryDirectory() as td:
             base = Path(td)
@@ -92,17 +92,17 @@ class RetentionReviewContractTests(unittest.TestCase):
                 })
             manifest = {
                 "schema_version": "media-manifest-v2",
-                "engine_version": "2.0.1",
+                "engine_version": "3.0.0",
                 "short_id": sid,
                 "immutable": True,
                 "scene_count": 12,
                 "scenes": rows,
             }
-            manifest["integrity_sha256"] = media_engine_v2._manifest_integrity(manifest)
+            manifest["integrity_sha256"] = media_acquisition_v3.digest(manifest)
             (base / "manifests" / f"media_{sid}.json").write_text(
                 json.dumps(manifest), encoding="utf-8"
             )
-            with mock.patch.object(resume_short_runtime, "BASE", base),                  mock.patch.dict(sys.modules, {"media_engine_v2": media_engine_v2}):
+            with mock.patch.object(resume_short_runtime, "BASE", base):
                 self.assertTrue(resume_short_runtime.consolidation_plan_ok(sid))
 
             manifest["immutable"] = False

@@ -11,7 +11,7 @@ class RenderManifestE2ETests(unittest.TestCase):
             home=Path(td); base=home/"ShortAutoPro"
             for p in ("roteiros","audios","videos","manifests"):
                 (base/p).mkdir(parents=True)
-            sid="E2E_V2"
+            sid="E2E_V3"
             media=base/"imagens"/f"short_{sid}"; media.mkdir(parents=True)
             scenes=[{"scene_id":"01","scene":1,"segment":"fixture","words":4},
                     {"scene_id":"02","scene":2,"segment":"fixture","words":4}]
@@ -29,13 +29,13 @@ class RenderManifestE2ETests(unittest.TestCase):
                                "checksum_sha256":hashlib.sha256(path.read_bytes()).hexdigest(),
                                "probe":{"width":1080,"height":1920},"validated":True})
             manifest = {
-                "schema_version":"media-manifest-v2","version":2,"engine":"Media Engine V2",
-                "engine_version":"2.0.1",
+                "schema_version":"media-manifest-v2","version":3,"engine":"Media Acquisition V3",
+                "engine_version":"3.0.0",
                 "short_id":sid,"immutable":True,"scene_count":2,
                 "scenes":[{"scene_id":f"{i:02d}","scene_number":i,
                 "query":"fixture","must_have":[],"avoid":[],"asset":assets[i-1]} for i in (1,2)]
             }
-            manifest["integrity_sha256"] = __import__("media_engine_v2")._manifest_integrity(manifest)
+            manifest["integrity_sha256"] = __import__("media_acquisition_v3").digest(manifest)
             (base/"manifests"/f"media_{sid}.json").write_text(json.dumps(manifest),encoding="utf-8")
             subprocess.run(["ffmpeg","-y","-loglevel","error","-f","lavfi","-i",
                             "sine=frequency=440:sample_rate=48000:duration=2.0",
@@ -47,7 +47,7 @@ class RenderManifestE2ETests(unittest.TestCase):
                 "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, TertiaryColour, BackColour, Bold, Italic, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, AlphaLevel, Encoding\n"
                 "Style: Default,Arial,48,&H00FFFFFF,&H000000FF,&H00000000,&H64000000,0,0,1,2,0,2,30,30,60,0,1\n"
                 "[Events]\nFormat: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text\n"
-                "Dialogue: 0,0:00:00.00,0:00:02.00,Default,,0,0,0,,V2 fixture\n",encoding="utf-8")
+                "Dialogue: 0,0:00:00.00,0:00:02.00,Default,,0,0,0,,V3 fixture\n",encoding="utf-8")
             env=os.environ.copy(); env.update({"SHORTAUTOPRO_BASE":str(base),"SAP_RENDER_V2_BACKEND":"ffmpeg","HOME":str(home)})
             p=subprocess.run([sys.executable,str(ROOT/"render_engine_v2.py"),"--short-id",sid],
                              cwd=ROOT,env=env,text=True,capture_output=True,timeout=300)

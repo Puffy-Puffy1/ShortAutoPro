@@ -16,7 +16,12 @@ REQUIRED = (
     "visual_query_guard.py",
     "visual_media_refresh.py",
     "resume_short_runtime.py",
-    "media_stage_runtime.py",
+    "media_acquisition_v3.py",
+    "media_v3/__init__.py",
+    "media_v3/acquisition.py",
+    "media_v3/providers.py",
+    "media_v3/query.py",
+    "media_v3/diagnostics.py",
     "media_emergency_fallback.py",
     "media_master_gate.py",
     "visual_qa.py",
@@ -78,11 +83,13 @@ def main() -> int:
         if token not in main_text:
             fail(f"main_contract:{token}")
 
-    # V2 owns media acquisition and render planning; the retired Stage 6
+    # V3 owns media acquisition and render planning; the retired Stage 6
     # controller must not remain on the production path.
     # This check is authoritative on the exact PR HEAD, not a legacy merge artifact.
-    if '"media_engine_v2.py"' not in main_text:
-        fail("main_media_engine_v2_contract")
+    if '"media_acquisition_v3.py"' not in main_text:
+        fail("main_media_acquisition_v3_contract")
+    if 'p.run("MEDIA ENGINE V2 - ACQUIRE + VALIDATE + FREEZE MANIFEST", "media_engine_v2.py"' in main_text:
+        fail("main_media_engine_v2_execution_contract")
     if '"render_plan_v2.py"' not in main_text:
         fail("main_render_plan_v2_contract")
     if "media_stage_runtime.py" in main_text:
@@ -110,9 +117,9 @@ def main() -> int:
         fail("recovery_retention_review_is_fatal")
 
     resume_text = (ROOT / "resume_short_runtime.py").read_text(encoding="utf-8")
-    for token in ("media_engine_v2.py", "render_plan_v2.py", "render_engine_v2.py"):
+    for token in ("media_acquisition_v3.py", "render_plan_v2.py", "render_engine_v2.py"):
         if token not in resume_text:
-            fail("resume_v2_contract:" + token)
+            fail("resume_v3_contract:" + token)
     for legacy in (
         "media_stage_runtime.py",
         "professional_edit_director.py",
@@ -125,14 +132,13 @@ def main() -> int:
         if legacy in resume_text:
             fail("resume_legacy_route:" + legacy)
 
-    media_stage_text = (ROOT / "media_stage_runtime.py").read_text(encoding="utf-8")
-    if "def round_env(round_index: int)" not in media_stage_text:
-        fail("stage6_budget_compatibility_contract_missing")
-    if "media_engine_v2.py" not in media_stage_text:
-        fail("stage6_v2_delegate_contract_missing")
-    if "from midia" in media_stage_text or "str(MIDIA)" in media_stage_text:
-        fail("legacy_stage6_runtime_reference_present")
-    if '"post_scene_plan"' not in resume_text or "RESUME_FROM_V2_MEDIA=YES" not in resume_text:
+    v3_text = (ROOT / "media_acquisition_v3.py").read_text(encoding="utf-8")
+    if "MediaAcquisitionV3" not in v3_text or "media-manifest-v2" not in v3_text:
+        fail("media_acquisition_v3_contract_missing")
+    for module in ("acquisition.py", "providers.py", "query.py", "diagnostics.py"):
+        if not (ROOT / "media_v3" / module).is_file():
+            fail("media_v3_module_missing:" + module)
+    if '"post_scene_plan"' not in resume_text or "RESUME_FROM_V3_MEDIA=YES" not in resume_text:
         fail("resume_v2_checkpoint_contract")
 
     if (

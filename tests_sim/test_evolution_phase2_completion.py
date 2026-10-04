@@ -112,7 +112,7 @@ class ResumeBoundaryTests(unittest.TestCase):
         (roteiros / f"media_quality_{self.sid}.json").write_text(
             json.dumps({"status": "PASS", "critical": []}), encoding="utf-8"
         )
-        # V2 checkpoint artifacts: deterministic render plan + immutable media manifest.
+        # V3 checkpoint artifacts: deterministic render plan + immutable media manifest.
         (roteiros / f"pro_edit_plan_{self.sid}.json").write_text(json.dumps({
             "schema_version": "render-plan-v2",
             "short_id": self.sid,
@@ -144,8 +144,9 @@ class ResumeBoundaryTests(unittest.TestCase):
             "scene_count": 12,
             "scenes": media_rows,
         }
-        import media_engine_v2
-        manifest["integrity_sha256"] = media_engine_v2._manifest_integrity(manifest)
+        import media_acquisition_v3
+        manifest["engine_version"] = media_acquisition_v3.ENGINE_VERSION
+        manifest["integrity_sha256"] = media_acquisition_v3.digest(manifest)
         (manifest_dir / f"media_{self.sid}.json").write_text(
             json.dumps(manifest), encoding="utf-8"
         )
@@ -206,7 +207,7 @@ class ResumeBoundaryTests(unittest.TestCase):
         }), encoding="utf-8")
         self.assertEqual(rsr.boundary(self.sid), "full")
 
-    def test_resume_falls_back_to_full_without_v2_manifest(self):
+    def test_resume_falls_back_to_full_without_v3_manifest(self):
         (self.base / "manifests" / f"media_{self.sid}.json").unlink()
         self.assertEqual(rsr.boundary(self.sid), "full")
 
