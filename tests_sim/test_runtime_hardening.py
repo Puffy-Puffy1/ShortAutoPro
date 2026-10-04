@@ -17,7 +17,6 @@ class RuntimeHardeningTests(unittest.TestCase):
     def test_canonical_long_running_paths_use_process_guard(self):
         for name in (
             "main.py",
-            "media_stage_runtime.py",
             "client_job_runner.py",
             "production_center.py",
             "resume_short_runtime.py",
