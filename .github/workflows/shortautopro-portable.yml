@@ -1,5 +1,6 @@
 name: ShortAutoPro Portable Validation
 # portable-v3-final-checkpoint
+# V3 migration: legacy Media V2/Stage 6 files are intentionally retired and must remain absent.
 # V3 migration checkpoint: portable validation is authoritative before merge.
 # Resume/checkpoint contracts are validated against the frozen frozen-media manifest.
 
