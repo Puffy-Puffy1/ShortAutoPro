@@ -112,6 +112,19 @@ def _phrase_present(text: str, phrase: str) -> bool:
 
 
 STRICT_VISUAL_ALIASES = {
+    "female pilots": (
+        "female pilot", "female pilots", "woman pilot", "women pilots",
+        "woman pilots", "women pilot", "female aviator", "female aviators",
+        "woman aviator", "women aviators", "women aviator",
+    ),
+    "airplane": (
+        "airplane", "airplanes", "aeroplane", "aeroplanes", "aircraft",
+        "plane", "planes",
+    ),
+    "aircraft": (
+        "aircraft", "airplane", "airplanes", "aeroplane", "aeroplanes",
+        "plane", "planes",
+    ),
     # Conservative visual equivalences used only for explicit-MUST evidence.
     # These affect acceptance only when the asset itself contains the alias.
     "ship": (
