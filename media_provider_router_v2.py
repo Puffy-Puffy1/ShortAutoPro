@@ -246,17 +246,17 @@ class MediaProviderRouterV2:
         variants = _query_variants(query, must)
         for provider in self.providers:
             provider_candidates = []
-            # First attempt preserves the exact editorial query. If a provider
-            # returns no candidates, bounded query variants provide resilience
-            # against provider-side tokenization/search quirks.
-            for index, variant in enumerate(variants):
+            # Query variants are bounded retrieval fallbacks. Do not stop at the
+            # first non-empty result: a provider may return generic assets for
+            # the editorial query while a MUST-specific variant contains assets
+            # whose metadata can actually prove the explicit requirements.
+            for variant in variants:
                 try:
                     found = provider.search(variant, must, avoid)
                 except Exception:
                     found = []
                 if found:
                     provider_candidates.extend(found)
-                    break
             candidates.extend(provider_candidates)
 
         # Deterministic ordering: evidence/MUST first, then score, then provider/id.
