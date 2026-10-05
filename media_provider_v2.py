@@ -16,8 +16,9 @@ def _legacy():
         buscar_todos_candidatos,
         preparar_candidatos,
         baixar_candidato_5_2,
+        simplificar_busca,
     )
-    return buscar_todos_candidatos, preparar_candidatos, baixar_candidato_5_2
+    return buscar_todos_candidatos, preparar_candidatos, baixar_candidato_5_2, simplificar_busca
 
 
 class MediaProviderV2:
@@ -34,9 +35,53 @@ class MediaProviderV2:
         segmento: str = "",
         visual_mode: str = "",
     ) -> list[dict[str, Any]]:
-        search, _, _ = _legacy()
-        result = search(query, must, avoid, segmento=segmento, visual_mode=visual_mode)
-        return result if isinstance(result, list) else []
+        search, _, _, simplify = _legacy()
+
+        # Bounded retrieval recovery: a transiently empty exact query must not
+        # immediately become a fatal scene failure. Retry only with deterministic
+        # query variants; explicit MUST terms are always preserved and are still
+        # verified later by Media Engine V2. No relaxed semantic acceptance.
+        queries = [str(query or "").strip()]
+        try:
+            for variant in simplify(str(query or ""), must):
+                variant = str(variant or "").strip()
+                if variant and variant not in queries:
+                    queries.append(variant)
+        except Exception:
+            pass
+
+        merged: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        max_queries = 3
+        for attempt, current_query in enumerate(queries[:max_queries], 1):
+            if not current_query:
+                continue
+            result = search(
+                current_query,
+                must,
+                avoid,
+                segmento=segmento,
+                visual_mode=visual_mode,
+            )
+            rows = result if isinstance(result, list) else []
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+                key = str(
+                    row.get("id")
+                    or row.get("url")
+                    or row.get("arquivo")
+                    or row.get("file")
+                    or ""
+                )
+                if key and key in seen:
+                    continue
+                if key:
+                    seen.add(key)
+                merged.append(row)
+            if merged:
+                break
+        return merged
 
     def prepare(
         self,
