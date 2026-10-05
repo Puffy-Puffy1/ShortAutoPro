@@ -181,7 +181,7 @@ class LocalLibraryProvider(Provider):
         except Exception:
             return []
 
-def _query_variants(query: str) -> list[str]:
+def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
     """Return bounded, deterministic fallbacks for providers that return no hits.
 
     The fallback only changes the provider search query. It never relaxes MUST
@@ -235,7 +235,7 @@ class MediaProviderRouterV2:
 
     def search(self, query, must, avoid, **_: Any):
         candidates = []
-        variants = _query_variants(query)
+        variants = _query_variants(query, must)
         for provider in self.providers:
             provider_candidates = []
             # First attempt preserves the exact editorial query. If a provider
