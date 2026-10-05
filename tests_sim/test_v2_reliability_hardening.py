@@ -48,6 +48,7 @@ class V2ReliabilityHardeningTests(unittest.TestCase):
                 "avoid_hits": 0,
                 "score": 70,
                 "url": "https://example.invalid/asset.jpg",
+                "descricao": "ship radio",
             }
 
             def fake_download(_candidate, _number, _sid):
@@ -63,7 +64,7 @@ class V2ReliabilityHardeningTests(unittest.TestCase):
                     {"query": "ship radio", "must_have": ["ship", "radio"], "avoid": []},
                     media,
                 )
-            self.assertEqual(result["verification_mode"], "query_relaxed")
+            self.assertEqual(result["verification_mode"], "strict_evidence_query_relaxed")
 
     def test_render_input_rejects_tampered_frozen_asset(self):
         with tempfile.TemporaryDirectory() as td:

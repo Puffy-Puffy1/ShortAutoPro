@@ -270,24 +270,45 @@ def acquire_scene(short_id: str, number: int, scene: dict[str, Any], media_dir: 
         candidate["_sap_scene_number"] = number
     strict = PROVIDER.prepare(candidates, len(must))
     verification_mode = "strict_must" if strict else ""
+
+    # If the editorial query was too restrictive, a second retrieval may use
+    # query text without MUST constraints. Acceptance remains fail-closed:
+    # every explicit MUST is independently verified against asset evidence
+    # before any download is attempted.
     if not strict and must:
-        relaxed = PROVIDER.search(query, [], avoid, segmento=segment, visual_mode=visual_mode)
-        for candidate in relaxed:
-            candidate["_sap_must_total"] = len(must)
-            candidate["_sap_short_id"] = short_id
-            candidate["_sap_scene_number"] = number
-            candidate["verification_mode"] = "query_relaxed"
-            candidate["verification_note"] = (
-                f"strict_must={len(must)};"
-                f"verified_must={int(candidate.get('must_hits', 0) or 0)}"
-            )
-        strict = [
-            c for c in relaxed
-            if int(c.get("avoid_hits", 0) or 0) == 0
-            and int(c.get("must_hits", 0) or 0) >= 1
-            and float(c.get("score", 0) or 0) >= 45
-        ]
-        verification_mode = "query_relaxed" if strict else ""
+        relaxed = PROVIDER.search(
+            query,
+            [],
+            avoid,
+            segmento=segment,
+            visual_mode=visual_mode,
+        )
+        verifier = None
+        try:
+            from media_must_verifier import verified_must
+            verifier = verified_must
+        except Exception:
+            verifier = None
+
+        verified_relaxed = []
+        if verifier is not None:
+            for candidate in relaxed:
+                evidence = verifier(candidate, {"must_have": must})
+                if (
+                    int(evidence.get("hits", 0) or 0) == len(must)
+                    and len(must) > 0
+                ):
+                    candidate["_sap_must_total"] = len(must)
+                    candidate["_sap_short_id"] = short_id
+                    candidate["_sap_scene_number"] = number
+                    candidate["verification_mode"] = "strict_evidence_query_relaxed"
+                    candidate["verification_note"] = (
+                        "editorial_query_relaxed;explicit_must_reverified"
+                    )
+                    verified_relaxed.append(candidate)
+        strict = verified_relaxed
+        verification_mode = "strict_evidence_query_relaxed" if strict else ""
+
     failures = []
 
     # Per-asset failover: a bad download/validation never terminates the scene

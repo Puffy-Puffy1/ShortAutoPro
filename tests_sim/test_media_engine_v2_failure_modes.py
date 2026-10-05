@@ -37,4 +37,60 @@ class MediaEngineV2FailureTests(unittest.TestCase):
                 local.assert_called_once()
                 self.assertEqual(result["source"], "LocalLibrary")
 
+    def test_query_relaxation_requires_independent_must_evidence(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            media = base/"imagens"/"short_X"
+            media.mkdir(parents=True)
+            candidate = {
+                "fonte": "Mock", "id": "1", "tipo": "imagem",
+                "must_hits": 0, "avoid_hits": 0, "score": 80,
+                "descricao": "ship on the ocean",
+            }
+            with patch.object(
+                media_engine_v2.PROVIDER,
+                "search",
+                side_effect=[[candidate], [candidate]],
+            ), patch.object(
+                media_engine_v2.PROVIDER,
+                "prepare",
+                return_value=[],
+            ), patch(
+                "media_must_verifier.verified_must",
+                return_value={"hits": 0, "total": 1},
+            ), patch.object(
+                media_engine_v2,
+                "_local_library_asset",
+                return_value=None,
+            ):
+                with self.assertRaisesRegex(RuntimeError, "no_verified_asset"):
+                    media_engine_v2.acquire_scene(
+                        "X", 1, {"query": "long query", "must_have": ["ship"]}, media
+                    )
+
+            with patch.object(
+                media_engine_v2.PROVIDER,
+                "search",
+                side_effect=[[candidate], [candidate]],
+            ), patch.object(
+                media_engine_v2.PROVIDER,
+                "prepare",
+                return_value=[],
+            ), patch(
+                "media_must_verifier.verified_must",
+                return_value={"hits": 1, "total": 1},
+            ), patch.object(
+                media_engine_v2.PROVIDER,
+                "download",
+                return_value=(False, "", {"error_class": "DOWNLOAD_FAILED"}),
+            ), patch.object(
+                media_engine_v2,
+                "_local_library_asset",
+                return_value=None,
+            ):
+                with self.assertRaisesRegex(RuntimeError, "MEDIA_DOWNLOAD_FAILED"):
+                    media_engine_v2.acquire_scene(
+                        "X", 1, {"query": "long query", "must_have": ["ship"]}, media
+                    )
+
 if __name__=="__main__": unittest.main()

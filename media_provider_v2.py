@@ -38,27 +38,10 @@ class MediaProviderV2:
                 ]
             return strict
 
-        progressive = [
-            c for c in clean
-            if int(c.get("must_hits", 0) or 0) >= 1
-            and float(c.get("score", 0) or 0) >= 45
-        ]
-        progressive.sort(
-            key=lambda c: (
-                int(c.get("must_hits", 0) or 0),
-                float(c.get("score", 0) or 0),
-                str(c.get("fonte", "")),
-                str(c.get("id", "")),
-            ),
-            reverse=True,
-        )
-        for candidate in progressive:
-            candidate["verification_mode"] = "progressive_must"
-            candidate["verification_note"] = (
-                f"strict_must={total_must};"
-                f"verified_must={int(candidate.get('must_hits', 0) or 0)}"
-            )
-        return progressive
+        # Explicit MUST acceptance is fail-closed here. Retrieval may use
+        # relaxed query text in Media Engine V2, but this adapter never converts
+        # partial provider metadata into an accepted asset.
+        return []
 
     def download(self, candidate: dict[str, Any], scene_number: int, short_id: str) -> tuple[bool, str, dict[str, Any]]:
         return self.router.download(candidate, scene_number, short_id)
