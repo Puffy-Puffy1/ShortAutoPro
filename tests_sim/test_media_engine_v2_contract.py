@@ -48,3 +48,15 @@ class MediaEngineContractTests(unittest.TestCase):
                     "X", 1, {"query": "ship", "must_have": ["ship"]}, Path(tempfile.mkdtemp())
                 )
             self.assertIn("provider timeout", str(ctx.exception))
+
+
+    def test_provider_router_query_recovery_preserves_must_anchors(self):
+        from media_provider_router_v2 import _query_variants
+        variants = _query_variants(
+            "long editorial query with noisy historical context",
+            ["ship", "ocean"],
+        )
+        self.assertIn("ship ocean", variants)
+        self.assertIn("ship", variants)
+        self.assertIn("ocean", variants)
+        self.assertLessEqual(len(variants), 4)
