@@ -181,7 +181,7 @@ class LocalLibraryProvider(Provider):
         except Exception:
             return []
 
-def _query_variants(query: str) -> list[str]:
+def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
     """Return bounded, deterministic fallbacks for providers that return no hits.
 
     The fallback only changes the provider search query. It never relaxes MUST
@@ -193,6 +193,18 @@ def _query_variants(query: str) -> list[str]:
     if not raw:
         return []
     variants = [raw]
+    # Explicit MUST anchors are part of retrieval recovery. They do not relax
+    # acceptance; they give providers a chance to return assets whose metadata
+    # proves the required visual concept even when the editorial query is noisy.
+    must_terms = [str(item).strip() for item in (must or []) if str(item).strip()]
+    if must_terms:
+        combined = " ".join(must_terms)
+        if combined and combined.casefold() not in {v.casefold() for v in variants}:
+            variants.append(combined)
+        for term in must_terms:
+            if term.casefold() not in {v.casefold() for v in variants}:
+                variants.append(term)
+
     # Strip punctuation while preserving the original word order.
     normalized = re.sub(r"[^A-Za-z0-9À-ÿ]+", " ", raw).strip()
     if normalized and normalized.casefold() not in {v.casefold() for v in variants}:
@@ -223,7 +235,7 @@ class MediaProviderRouterV2:
 
     def search(self, query, must, avoid, **_: Any):
         candidates = []
-        variants = _query_variants(query)
+        variants = _query_variants(query, must)
         for provider in self.providers:
             provider_candidates = []
             # First attempt preserves the exact editorial query. If a provider
