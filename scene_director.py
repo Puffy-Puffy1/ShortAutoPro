@@ -172,7 +172,7 @@ try:
         scenes = [item for item in dados.get("scenes", []) if isinstance(item, dict)]
 except Exception as exc:
     print(
-        "SCENE_DIRECTOR_AI=FAIL_OPEN "
+        "SCENE_DIRECTOR_AI=FALLBACK_LOCAL "
         f"{type(exc).__name__}:{str(exc)[:180]}"
     )
 
