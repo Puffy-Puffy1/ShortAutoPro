@@ -9,6 +9,7 @@ extraction without changing mature provider behavior in the first migration.
 from __future__ import annotations
 
 from typing import Any
+import time
 
 
 def _legacy():
@@ -81,6 +82,33 @@ class MediaProviderV2:
                 merged.append(row)
             if merged:
                 break
+        if not merged:
+            # One bounded retry covers transient provider/circuit/network misses
+            # without turning a scene into an unbounded wait.
+            time.sleep(1.0)
+            result = search(
+                queries[0] if queries else str(query or "").strip(),
+                must,
+                avoid,
+                segmento=segmento,
+                visual_mode=visual_mode,
+            )
+            rows = result if isinstance(result, list) else []
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+                key = str(
+                    row.get("id")
+                    or row.get("url")
+                    or row.get("arquivo")
+                    or row.get("file")
+                    or ""
+                )
+                if key and key in seen:
+                    continue
+                if key:
+                    seen.add(key)
+                merged.append(row)
         return merged
 
     def prepare(
