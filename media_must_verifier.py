@@ -163,6 +163,13 @@ STRICT_VISUAL_ALIASES = {
         "underground passage",
         "passageway",
     ),
+    "security sensor": (
+        "security sensor",
+        "motion sensor",
+        "alarm sensor",
+        "door sensor",
+        "security alarm sensor",
+    ),
     "picture frame": (
         "picture frame",
         "photo frame",
