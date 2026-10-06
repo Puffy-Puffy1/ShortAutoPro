@@ -274,6 +274,19 @@ class MediaProviderRouterV2:
                     provider_candidates.extend(found)
             candidates.extend(provider_candidates)
 
+        # The same provider asset can be returned by multiple retrieval
+        # variants. Keep one canonical candidate so query expansion cannot
+        # duplicate downloads or distort ranking.
+        unique = {}
+        for candidate in candidates:
+            key = (
+                str(candidate.get("fonte") or candidate.get("source") or ""),
+                str(candidate.get("id") or ""),
+                str(candidate.get("url") or ""),
+            )
+            unique.setdefault(key, candidate)
+        candidates = list(unique.values())
+
         # Deterministic ordering: evidence/MUST first, then score, then provider/id.
         # AVOID is never relaxed here; prepare() still enforces the MUST contract.
         candidates = [
