@@ -163,6 +163,13 @@ STRICT_VISUAL_ALIASES = {
         "underground passage",
         "passageway",
     ),
+    "security sensor": (
+        "security sensor",
+        "motion sensor",
+        "alarm sensor",
+        "door sensor",
+        "security alarm sensor",
+    ),
     "picture frame": (
         "picture frame",
         "photo frame",
@@ -177,6 +184,8 @@ STRICT_VISUAL_ALIASES = {
 def _strict_alias_match(requirement: str, evidence: str) -> bool:
     req = _canonical_phrase(requirement)
     aliases = STRICT_VISUAL_ALIASES.get(req, ())
+    if not aliases:
+        aliases = STRICT_VISUAL_ALIASES.get(_norm(requirement), ())
     return any(_phrase_present(evidence, alias) for alias in aliases)
 
 

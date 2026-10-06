@@ -1,6 +1,7 @@
 name: ShortAutoPro Portable Validation
 # portable-v2-final-checkpoint
 # V2 migration checkpoint: portable validation is authoritative before merge.
+# Security-sensor retrieval fix checkpoint.
 # Resume/checkpoint contracts are validated against the frozen V2 manifest.
 
 on:

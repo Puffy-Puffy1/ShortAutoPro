@@ -35,6 +35,33 @@ class MediaEngineContractTests(unittest.TestCase):
             self.assertEqual(data["scenes"][0]["asset"]["checksum_sha256"], "a")
             self.assertEqual(data["scenes"][1]["asset"]["checksum_sha256"], "b")
 
+    def test_security_sensor_retrieval_variants_are_bounded(self):
+        from media_provider_router_v2 import _query_variants
+        variants = _query_variants(
+            "historical building security equipment",
+            ["security sensor"],
+        )
+        self.assertIn("security sensor", variants)
+        self.assertIn("motion sensor", variants)
+        self.assertIn("alarm sensor", variants)
+        self.assertIn("door sensor", variants)
+        self.assertLessEqual(len(variants), 8)
+
+    def test_security_sensor_requires_visual_evidence(self):
+        from media_must_verifier import requirement_matches
+        self.assertTrue(
+            requirement_matches(
+                "security sensor",
+                {"description": "motion sensor on a security door"},
+            )
+        )
+        self.assertFalse(
+            requirement_matches(
+                "security sensor",
+                {"description": "security camera monitoring a building"},
+            )
+        )
+
     def test_no_render_or_stage6_import(self):
         source = Path("media_engine_v2.py").read_text(encoding="utf-8")
         self.assertNotIn("media_stage_runtime", source)
