@@ -213,6 +213,17 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
             if term.casefold() not in {v.casefold() for v in variants}:
                 variants.append(term)
 
+    # Retrieval aliases are query expansion only. Acceptance remains fail-closed
+    # because media_must_verifier independently proves the explicit MUST from
+    # the returned asset evidence.
+    retrieval_aliases = {
+        "security sensor": ("motion sensor", "alarm sensor", "door sensor"),
+    }
+    for term in must_terms:
+        for alias in retrieval_aliases.get(term.casefold(), ()):
+            if alias.casefold() not in {v.casefold() for v in variants}:
+                variants.append(alias)
+
     # Strip punctuation while preserving the original word order.
     normalized = re.sub(r"[^A-Za-z0-9À-ÿ]+", " ", raw).strip()
     if normalized and normalized.casefold() not in {v.casefold() for v in variants}:
@@ -232,7 +243,7 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
         if key and key not in seen:
             seen.add(key)
             out.append(item)
-    return out[:4]
+    return out[:8]
 
 
 class MediaProviderRouterV2:
