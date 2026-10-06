@@ -243,7 +243,11 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
         if key and key not in seen:
             seen.add(key)
             out.append(item)
-    return out[:8]
+    max_variants = 8 if any(
+        str(item).strip().casefold() == "security sensor"
+        for item in (must or [])
+    ) else 4
+    return out[:max_variants]
 
 
 class MediaProviderRouterV2:
