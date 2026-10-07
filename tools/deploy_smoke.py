@@ -15,6 +15,7 @@ REQUIRED = (
     "media_v3/providers.py",
     "media_v3/diagnostics.py",
     "media_v3/health.py",
+    "media_v3/library.py",
     "media_validator_v2.py",
     "shortauto_asset_library.py",
     "render_plan_v2.py",
