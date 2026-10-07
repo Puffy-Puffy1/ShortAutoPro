@@ -157,7 +157,7 @@ class MediaAcquisitionV3:
                     detail=""
                     started_at=time.monotonic()
                     try:
-                        rows=provider.search(q, hard, soft, avoid)
+                        rows=self.registry.search(provider, q, hard, soft, avoid)
                         diag.provider_results[provider.name]["queries"].append({"query":q,"count":len(rows),"attempt":attempt+1})
                         record_provider_health(provider.name,"SUCCESS",query=q,latency_ms=round((time.monotonic()-started_at)*1000,2),status=200)
                         break
