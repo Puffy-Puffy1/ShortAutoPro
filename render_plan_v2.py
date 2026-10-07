@@ -36,11 +36,11 @@ def main(short_id=None):
         args=ap.parse_args()
         short_id=args.short_id
     sid=validate_short_id(short_id)
-    scene_path=BASE/"roteiros"/f"scene_map_{sid}.json"
+    scene_path=BASE/"manifests"/f"scene_map_{sid}.json"
     out=BASE/"roteiros"/f"pro_edit_plan_{sid}.json"
     data=json.loads(scene_path.read_text(encoding="utf-8"))
     scenes=data.get("scenes") if isinstance(data,dict) else data
-    if not isinstance(scenes,list) or not scenes: raise RuntimeError("RENDER_PLAN_INVALID:scene_map")
+    if not isinstance(scenes,list) or not scenes: raise RuntimeError("RENDER_PLAN_INVALID:frozen_scene_map")
     media_path=BASE/"manifests"/f"media_{sid}.json"
     audio_path=BASE/"audios"/f"short_{sid}.mp3"
     caption_path=BASE/"videos"/f"short_{sid}.ass"
