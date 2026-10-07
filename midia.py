@@ -8,7 +8,6 @@ or extend this runtime.
 """
 
 # SHORTAUTOPRO VSE42 IMPORT
-
 from visual_pipeline_bridge_v42 import (
     enabled as _vse42_enabled,
     finalize_pool as _vse42_finalize_pool,
