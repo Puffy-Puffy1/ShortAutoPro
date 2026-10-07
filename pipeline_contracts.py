@@ -49,3 +49,30 @@ class PipelineContext:
 
     def to_dict(self):
         return asdict(self)
+
+
+@dataclass
+class PipelineManifest:
+    """Canonical immutable summary of one pipeline execution.
+
+    Stage-specific manifests may keep their existing schemas; this object is
+    the cross-stage index that ties them together without making any stage own
+    another stage's internals.
+    """
+    schema_version: str
+    run_id: str
+    short_id: str
+    generated_at: str = field(default_factory=_now)
+    status: str = "RUNNING"
+    artifacts: list[PipelineArtifact] = field(default_factory=list)
+    stages: list[PipelineStageResult] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def add_artifact(self, artifact: PipelineArtifact):
+        self.artifacts.append(artifact)
+
+    def add_stage(self, result: PipelineStageResult):
+        self.stages.append(result)
+
+    def to_dict(self):
+        return asdict(self)
