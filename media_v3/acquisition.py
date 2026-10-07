@@ -8,6 +8,7 @@ from .query import build_query_plan
 from .providers import ProviderRegistry, ProviderAdapter
 from media_validator_v2 import validate as validate_media
 from .health import record as record_provider_health
+from .library import LocalLibraryV3
 
 FORBIDDEN=("slate","placeholder","neutral_editorial","editorial_reuse")
 
@@ -21,7 +22,7 @@ class CircuitState:
 
 class MediaAcquisitionV3:
     def __init__(self, base: Path, registry: ProviderRegistry | None = None):
-        self.base=Path(base).resolve(); self.registry=registry or ProviderRegistry(); self._circuits_by_sid={}
+        self.base=Path(base).resolve(); self.registry=registry or ProviderRegistry(); self.library=LocalLibraryV3(self.base); self._circuits_by_sid={}
     def _score(self, candidate, query, hard, soft, avoid):
         import re
         text = " ".join(str(candidate.get(k) or "") for k in ("description", "title", "tags", "url")).casefold()
@@ -92,7 +93,23 @@ class MediaAcquisitionV3:
             result=validate_media(dest); diag.candidates_valid += 1
         except Exception as exc:
             diag.reject(self._map_validation_error(str(exc)),provider=provider,asset_id=candidate.get("id"),detail=str(exc)); dest.unlink(missing_ok=True); return None
-        return result | {"path":str(dest),"provider":provider,"asset_id":str(candidate.get("id") or ""),"description":str(candidate.get("description") or ""),"kind":str(candidate.get("kind") or "image"),"provenance":candidate}
+        enriched = result | {"path":str(dest),"provider":provider,"asset_id":str(candidate.get("id") or ""), "description":str(candidate.get("description") or ""), "kind":str(candidate.get("kind") or "image"), "provenance":candidate}
+        try:
+            cache_record = self.library.store(
+                dest,
+                provider=provider,
+                asset_id=str(candidate.get("id") or ""),
+                query=str(candidate.get("query") or candidate.get("source_query") or ""),
+                description=str(candidate.get("description") or ""),
+                tags=candidate.get("tags") or "",
+                provenance=candidate.get("provenance") or candidate,
+                license_name=str(candidate.get("license") or ""),
+            )
+            enriched["cache"] = {"status": "STORED", "asset_id": cache_record.get("asset_id")}
+        except Exception as exc:
+            # Cache failure never invalidates an otherwise validated acquisition.
+            enriched["cache"] = {"status": "SKIPPED", "reason": type(exc).__name__}
+        return enriched
     @staticmethod
     def _map_validation_error(message):
         m=message.upper()
