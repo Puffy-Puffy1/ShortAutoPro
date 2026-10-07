@@ -69,7 +69,7 @@ class ProfessionalPipelinePolishTests(unittest.TestCase):
         self.assertIn("professional_caption_director.py", text)
         self.assertLess(text.index("professional_caption_director.py"), text.index('"caption-audit"'))
         self.assertIn("SAP_PRO_MEDIA_MIN_PIXELS", text)
-        self.assertIn("media_engine_v2.py", text)
+        self.assertIn("media_acquisition_v3.py", text)
         self.assertIn("render_plan_v2.py", text)
         self.assertNotIn("media_stage_runtime.py", text)
         self.assertNotIn("gerar_short.sh", text)
