@@ -479,63 +479,46 @@ def final_gates(p: Pipeline) -> int:
 
 
 def repair_cycle(p: Pipeline) -> None:
-    print("\nRELEASE GATE solicitou auto-reparo limitado (1 ciclo).")
+    """Run the single canonical bounded recovery boundary.
+
+    Release recovery is deliberately delegated to production_recovery.py.
+    No second repair engine is allowed to orchestrate media, audio, captions,
+    or rerender decisions independently.
+    """
+    print("\nRELEASE GATE solicitou auto-reparo limitado (1 passe).")
     code = p.run(
-        "REPAIR - EVIDENCE-DRIVEN REPAIR ENGINE",
-        "shortauto_repair_engine.py",
-        "--short-id", p.sid, "--execute", "--max-cycles", "1",
+        "REPAIR - CANONICAL BOUNDED RECOVERY",
+        "production_recovery.py",
+        "--short-id", p.sid,
+        "--json",
         allow_codes={0, 20},
     )
-    if code == 20:
-        print(
-            "REPAIR ENGINE=HOLD; mantendo gates rígidos e "
-            "seguindo para revalidação canônica."
-        )
 
-    repair_report = BASE / "reports" / "repair" / f"repair_{p.sid}.json"
-    performed: set[str] = set()
+    report_path = BASE / "reports" / "production" / f"recovery_{p.sid}.json"
     try:
-        data = json.loads(repair_report.read_text(encoding="utf-8"))
-        history = data.get("history", []) if isinstance(data, dict) else []
-        for cycle in history if isinstance(history, list) else []:
-            if not isinstance(cycle, dict):
-                continue
-            for action in cycle.get("actions", []) if isinstance(cycle.get("actions"), list) else []:
-                if not isinstance(action, dict):
-                    continue
-                if str(action.get("status", "")).upper() == "PASS":
-                    action_id = str(action.get("id", "") or "").strip()
-                    if action_id:
-                        performed.add(action_id)
+        report = json.loads(report_path.read_text(encoding="utf-8"))
     except Exception as exc:
         print(
-            "REPAIR_ACTION_HISTORY=UNAVAILABLE "
+            "RECOVERY_REPORT=UNAVAILABLE "
             f"{type(exc).__name__}:{str(exc)[:140]}"
         )
+        report = {}
 
-    rerender_actions = {
-        "media_reacquire",
-        "media_quality_refresh",
-        "retention_repair",
-        "professional_edit_repair",
-        "caption_repair",
-    }
-
-    if performed.intersection(rerender_actions):
-        print(
-            "REPAIR_RERENDER=YES actions="
-            + ",".join(sorted(performed))
-        )
+    status = str(report.get("status", "")).upper()
+    if status == "RECOVERED":
+        print("RECOVERY_STATUS=RECOVERED; reconstruindo render com entradas reparadas.")
         p.run("REPAIR - MULTI-ASSET", "multi_asset_director.py")
         p.run("REPAIR - SOUND PLAN", "sound_design_engine.py")
         assemble_and_render(p)
+    elif status == "READY":
+        print("RECOVERY_STATUS=READY; nenhuma reconstrução necessária.")
     else:
         print(
-            "REPAIR_RERENDER=NO actions="
-            + (",".join(sorted(performed)) or "none")
+            "RECOVERY_STATUS=BLOCKED "
+            f"reason={report.get('reason', 'unknown')}"
         )
-        # audio_remaster mutates the final MP4 in place; rebuilding here would
-        # discard that correction. Final gates below will revalidate it.
+        if code == 20:
+            print("RECOVERY=HOLD; mantendo gates rígidos para a revalidação canônica.")
 
 
 def export(p: Pipeline) -> Path:
