@@ -27,8 +27,9 @@ class MediaAcquisitionV3:
         tokens=set(__import__("re").findall(r"[a-z0-9À-ÿ]+",text)); q=set(__import__("re").findall(r"[a-z0-9À-ÿ]+",query.casefold()))
         hard_hits=sum(1 for x in hard if set(__import__("re").findall(r"[a-z0-9À-ÿ]+",x.casefold())) <= tokens)
         soft_hits=sum(1 for x in soft if set(__import__("re").findall(r"[a-z0-9À-ÿ]+",x.casefold())) <= tokens)
-        # Avoid rules are phrase-aware: a multi-word rule matches only when all\n        # of its meaningful tokens are present. This prevents rules such as\n        # "container ship" from rejecting every valid "ship" candidate.\n        avoid_hits=sum(1 for x in avoid if set(__import__("re").findall(r"[a-z0-9À-ÿ]+",x.casefold())) <= tokens)\n        overlap=len(q&tokens)/max(1,len(q)); score=overlap*50+soft_hits*12+hard_hits*30-avoid_hits*70
-        return score,hard_hits,soft_hits,avoid_hits
+        # Avoid rules are phrase-aware: a multi-word rule matches only when all\n        # of its meaningful tokens are present. This prevents rules such as\n        # "container ship" from rejecting every valid "ship" candidate.\n        avoid_hits=sum(1 for x in avoid if set(__import__("re").findall(r"[a-z0-9À-ÿ]+",x.casefold())) <= tokens)\n        overlap = len(q & tokens) / max(1, len(q))
+        score_value = overlap * 50 + soft_hits * 12 + hard_hits * 30 - avoid_hits * 70
+        return score_value, hard_hits, soft_hits, avoid_hits
     def _download(self, candidate, sid, scene_no, diag):
         provider=str(candidate.get("provider") or "unknown"); url=str(candidate.get("url") or "")
         outdir=self.base/"imagens"/f"short_{sid}"; outdir.mkdir(parents=True,exist_ok=True)
