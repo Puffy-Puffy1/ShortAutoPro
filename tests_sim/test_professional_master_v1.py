@@ -90,7 +90,7 @@ class CanonicalProfessionalPipelineTests(unittest.TestCase):
         source = (ROOT / "main.py").read_text(encoding="utf-8")
         self.assertIn("PROFESSIONAL_CANONICAL", source)
         for required in (
-            "media_engine_v2.py",
+            "media_acquisition_v3.py",
             "render_plan_v2.py",
             "render_engine_v2.py",
             "multi_asset_director.py",
@@ -147,7 +147,7 @@ class CanonicalResumeTests(unittest.TestCase):
     def test_resume_contains_only_v2_render_route(self):
         text = (ROOT / "resume_short_runtime.py").read_text(encoding="utf-8")
         for required in (
-            "media_engine_v2.py",
+            "media_acquisition_v3.py",
             "render_plan_v2.py",
             "render_engine_v2.py",
             "production_recovery.py",
