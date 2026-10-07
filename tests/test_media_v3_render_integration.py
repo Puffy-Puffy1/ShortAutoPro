@@ -13,7 +13,7 @@ class FixtureProvider(ProviderAdapter):
     name="fixture"
     def __init__(self,fixture): self.fixture=Path(fixture)
     def status(self): return ProviderStatus(True)
-    def search(self,query): return [{"provider":"fixture","kind":"image","id":"fixture-1","url":"file://fixture","local_path":str(self.fixture),"description":"roman soldier"}]
+    def search(self,query,must=None,soft_must=None,avoid=None): return [{"provider":"fixture","kind":"image","id":"fixture-1","url":"file://fixture","local_path":str(self.fixture),"description":"roman soldier"}]
 
 class V3RenderIntegration(unittest.TestCase):
     def test_v3_manifest_to_real_ffmpeg_render(self):
