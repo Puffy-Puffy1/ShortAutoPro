@@ -6,6 +6,7 @@ on:
       - "media_v3/**"
       - "media_validator_v2.py"
       - "tests/test_media_acquisition_v3.py"
+      - "tests/test_media_v3_local_library.py"
       - "tests/test_media_acquisition_v3_stress.py"
       - "tests/test_media_v3_render_integration.py"
       - "tests/test_media_v3_full_pipeline_stress.py"
@@ -30,7 +31,7 @@ jobs:
       - name: Install FFmpeg
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - name: Acquisition V3 unit tests
-        run: python -m unittest tests.test_media_acquisition_v3 tests.test_media_acquisition_v3_stress
+        run: python -m unittest tests.test_media_acquisition_v3 tests.test_media_acquisition_v3_stress tests.test_media_v3_local_library
   acquisition-render-integration:
     runs-on: ubuntu-latest
     timeout-minutes: 20
