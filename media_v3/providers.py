@@ -175,7 +175,8 @@ class LocalLibraryAdapter(ProviderAdapter):
 class ProviderRegistry:
     """Compatibility name for the canonical provider router boundary."""
 
-    def __init__(self, providers=None):
+    def __init__(self, providers=None, max_attempts=2):
+        self.max_attempts=max(1, min(int(max_attempts), 3))
         self.providers=list(providers or [
             LocalLibraryAdapter(), PexelsAdapter(), PixabayAdapter(),
             WikimediaAdapter(), CoverrAdapter()
@@ -183,5 +184,13 @@ class ProviderRegistry:
 
     def enabled(self):
         return [(p, p.status()) for p in self.providers]
+
+    def search(self, provider, query, must=None, soft_must=None, avoid=None):
+        for attempt in range(self.max_attempts):
+            try:
+                return provider.search(query, must, soft_must, avoid)
+            except Exception:
+                if attempt + 1 >= self.max_attempts:
+                    raise
 
 ProviderRouter = ProviderRegistry
