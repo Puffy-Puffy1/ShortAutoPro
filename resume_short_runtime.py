@@ -501,11 +501,11 @@ def final_gates(sid: str) -> int:
 
 
 def media_planning_tail(sid: str) -> None:
-    """Resume only through Media Engine V2 and deterministic Render Plan V2."""
+    """Resume through canonical Media Acquisition V3 and deterministic Render Plan V2."""
     run_python(
         sid,
-        "MEDIA ENGINE V2 - ACQUIRE + VALIDATE + FREEZE MANIFEST",
-        "media_engine_v2.py",
+        "MEDIA ACQUISITION V3 - ACQUIRE + VALIDATE + FREEZE MANIFEST",
+        "media_acquisition_v3.py",
         "--short-id",
         sid,
     )
@@ -518,7 +518,7 @@ def media_planning_tail(sid: str) -> None:
     )
 
 def render_tail(sid: str) -> None:
-    """Render only from the frozen V2 manifest; acquisition stays outside the renderer."""
+    """Render only from the frozen media manifest; acquisition stays outside the renderer."""
     run_python(sid, "PRE-RENDER VALIDATION + BOUNDED AUTO-RECOVERY", "production_recovery.py", "--short-id", sid)
     run_python(sid, "RENDER PREFLIGHT CERTIFICATION", "render_preflight.py", "--short-id", sid)
     run_python(sid, "PRODUCTION HEALTH SNAPSHOT", "production_health.py", "--short-id", sid, "--phase", "pre_render")
