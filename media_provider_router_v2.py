@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
-"""Independent provider router for Media Acquisition V2.
+"""LEGACY compatibility provider router for Media Engine V2.
 
-Providers are isolated adapters. No provider imports midia.py.
+Canonical provider routing is owned by media_v3.providers / ProviderRouter.
+This module remains only while old consumers are being mapped and retired.
+It must not be used as a second production provider authority.
 """
 from __future__ import annotations
 
