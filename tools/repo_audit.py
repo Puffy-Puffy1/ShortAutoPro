@@ -201,6 +201,30 @@ def main() -> int:
     health_text = read_text("health_check.sh")
     purge_text = read_text("tools/purge_legacy_runtime.py")
 
+    canonical_runtime_files = {
+        "main.py",
+        "first_video.py",
+        "media_acquisition_v3.py",
+        "media_v3/acquisition.py",
+        "media_v3/providers.py",
+        "media_v3/library.py",
+        "render_plan_v2.py",
+        "render_engine_v2.py",
+        "production_recovery.py",
+        "pipeline_contracts.py",
+    }
+    forbidden_runtime_refs = {
+        "media_stage_runtime.py",
+        "media_engine_v2.py",
+        "media_provider_v2.py",
+        "media_provider_router_v2.py",
+    }
+    for path in sorted(canonical_runtime_files):
+        text = read_text(path)
+        for token in sorted(forbidden_runtime_refs):
+            if token in text:
+                issues.append(f"canonical_runtime_legacy_reference:{path}:{token}")
+
     for token in sorted(MAIN_REQUIRED_TOKENS):
         if token not in main_text:
             issues.append(f"canonical_pipeline_missing:{token}")
