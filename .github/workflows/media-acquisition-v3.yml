@@ -10,6 +10,9 @@ on:
       - "tests/test_media_acquisition_v3_stress.py"
       - "tests/test_media_v3_render_integration.py"
       - "tests/test_media_v3_full_pipeline_stress.py"
+      - "tests/test_canonical_architecture_boundaries.py"
+      - "tools/repo_audit.py"
+      - "docs/CANONICAL_ARCHITECTURE_LEGACY_CLASSIFICATION.md"
       - "render_engine_v2.py"
       - "render_v2/**"
       - "production_recovery.py"
@@ -31,7 +34,7 @@ jobs:
       - name: Install FFmpeg
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - name: Acquisition V3 unit tests
-        run: python -m unittest tests.test_media_acquisition_v3 tests.test_media_acquisition_v3_stress tests.test_media_v3_local_library
+        run: python -m unittest tests.test_media_acquisition_v3 tests.test_media_acquisition_v3_stress tests.test_media_v3_local_library tests.test_canonical_architecture_boundaries
   acquisition-render-integration:
     runs-on: ubuntu-latest
     timeout-minutes: 20
