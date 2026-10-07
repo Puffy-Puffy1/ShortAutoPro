@@ -114,3 +114,28 @@ Evidence for retirement:
 5. The canonical runtime uses Media Acquisition V3 + ProviderRegistry + RecoveryController.
 
 This is a retirement, not a destructive rewrite: the implementation remains recoverable from Git history, while the active branch no longer exposes the retired engines as runtime modules.
+
+
+## Second legacy retirement — 2026-10-07
+
+A second compatibility/recovery block has now been retired from the active branch:
+
+- `media_acquisition_recovery.py`
+- `media_master_gate.py`
+- `media_strict_must_guard.py`
+- `midia.py`
+- `vg4x_bridge.py`
+- `vi6_13_recovery_planner.py`
+- `vi6_17_recovery_router.py`
+- `vi6_19_true_recovery.py`
+- `vi6_20_recovery_normalizer.py`
+- `vi6_21_recovery_circuit.py`
+
+Evidence:
+1. Canonical production seeds were checked for imports and none of these modules are part of the canonical graph.
+2. `media_v3` owns provider selection/acquisition; `RecoveryController` owns bounded recovery orchestration.
+3. The old bridge only connected retired adapters/policy helpers and therefore no longer has a legitimate canonical boundary to serve.
+4. Historical compatibility tests for `media_acquisition_recovery`, `media_strict_must_guard`, and `midia.py` are archived as `.py.disabled`.
+5. `media_external_resilience.py` is intentionally retained for now because `wikimedia_source.py` still imports it; it will not be removed until that dependency is migrated or explicitly classified.
+
+The retirement is non-destructive: all retired implementations remain recoverable from Git history. The active branch now prevents these modules from silently becoming production authorities.

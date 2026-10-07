@@ -13,7 +13,17 @@ LEGACY_MODULES = {
     "media_stage_runtime",
     "media_strict_must_guard",
     "midia",
+    "media_master_gate",
+    "vg4x_bridge",
+    "vi6_13_recovery_planner",
+    "vi6_17_recovery_router",
+    "vi6_19_true_recovery",
+    "vi6_20_recovery_normalizer",
+    "vi6_21_recovery_circuit",
+    "shortauto_repair_engine",
 }
+
+RETIRED_ACTIVE_FILES = {f"{name}.py" for name in LEGACY_MODULES}
 
 LEGACY_TEST_NAMES = {
     "test_media_acquisition_recovery.py",
@@ -60,18 +70,25 @@ def test_legacy_tests_are_quarantined_outside_canonical_tests():
     assert not leaked, f"legacy compatibility tests leaked into canonical tests/: {leaked}"
 
 
+def test_retired_runtime_files_are_not_active():
+    for filename in RETIRED_ACTIVE_FILES:
+        assert not (ROOT / filename).exists(), f"retired runtime is active: {filename}"
+
+
 def test_legacy_suite_has_explicit_compatibility_root():
     compat = ROOT / "tests_compat" / "legacy_media"
     assert compat.is_dir()
     for name in LEGACY_TEST_NAMES:
+        path = compat / name
         if name in {
             "test_media_engine_v2_contract.py",
             "test_media_engine_v2_failure_modes.py",
             "test_media_engine_v2_integration.py",
             "test_media_provider_v2.py",
             "test_media_stage_runtime.py",
+            "test_media_acquisition_recovery.py",
+            "test_media_strict_must_guard.py",
+            "test_midia_integrated.py",
         }:
             path = compat / f"{name}.disabled"
-        else:
-            path = compat / name
         assert path.is_file(), f"missing quarantined compatibility test: {path.name}"
