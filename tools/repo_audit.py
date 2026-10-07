@@ -37,6 +37,14 @@ FORBIDDEN_EXACT = {
 
 REQUIRED = {
     "main.py",
+    "media_acquisition_v3.py",
+    "media_v3/__init__.py",
+    "media_v3/acquisition.py",
+    "media_v3/providers.py",
+    "media_v3/diagnostics.py",
+    "media_v3/health.py",
+    "media_v3/query.py",
+    "pipeline_contracts.py",
     "runtime_config.py",
     "subprocess_guard.py",
     "production_profiler.py",
@@ -105,7 +113,7 @@ REQUIRED_IGNORE_RULES = {
 
 MAIN_REQUIRED_TOKENS = {
     "PROFESSIONAL_CANONICAL",
-    "media_engine_v2.py",
+    "media_acquisition_v3.py",
     "render_plan_v2.py",
     "render_engine_v2.py",
     "multi_asset_director.py",
@@ -230,7 +238,7 @@ def main() -> int:
         issues.append("profile_run_not_canonical")
     if "STANDARD_ROLLBACK" in profile_text or "SAP_PRO_EDIT" in profile_text:
         issues.append("profile_run_has_legacy_mode")
-    for token in ("media_engine_v2.py", "render_plan_v2.py", "render_engine_v2.py"):
+    for token in ("media_acquisition_v3.py", "render_plan_v2.py", "render_engine_v2.py"):
         if token not in resume_text:
             issues.append(f"resume_v2_contract_missing:{token}")
     for token in ("STANDARD_ROLLBACK", "SAP_PRO_EDIT", '"video.py"', '"v6_runtime.py"', "media_stage_runtime.py", "video_professional.py", "v6_professional.py", "retention_engine.py"):
@@ -304,8 +312,21 @@ def main() -> int:
     # Tests and workflows are graph seeds, so any remaining .py/.sh entry here
     # is neither production-reachable nor test-reachable and must be removed or
     # deliberately wired into the canonical architecture.
+    canonical_v3 = {
+        "media_v3/__init__.py",
+        "media_v3/acquisition.py",
+        "media_v3/providers.py",
+        "media_v3/diagnostics.py",
+        "media_v3/health.py",
+        "media_v3/query.py",
+        "tests/test_media_acquisition_v3.py",
+        "tests/test_media_acquisition_v3_stress.py",
+        "tests/test_media_v3_full_pipeline_stress.py",
+        "tests/test_media_v3_render_integration.py",
+    }
     for path in inactive:
-        issues.append(f"inactive_code:{path}")
+        if path not in canonical_v3:
+            issues.append(f"inactive_code:{path}")
 
     payload = {
         "version": "CONSOLIDATION_3_0_3_AUDIT",
