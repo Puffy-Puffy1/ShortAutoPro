@@ -26,8 +26,9 @@ Compatibility code may remain temporarily, but it must not become the production
 
 ## C — Recovery
 
-- `production_recovery.py` is the intended orchestration boundary.
-- Specialized repair helpers may remain while their call graph is audited.
+- `recovery_controller.py` is the single orchestration boundary.
+- `production_recovery.py` is a compatibility entrypoint that delegates one bounded pass to `RecoveryController`.
+- Specialized repair helpers may remain while their call graph is audited; they do not orchestrate one another.
 - Recovery must be bounded: retry/fallback/repair, then fail with evidence.
 - No recovery helper may select render providers or own the render pipeline.
 
@@ -38,6 +39,8 @@ Compatibility code may remain temporarily, but it must not become the production
 - `media_provider_v2.py`
 - `media_provider_router_v2.py`
 - older VI6 recovery/gate modules
+- `media_acquisition_recovery.py` when used as a standalone orchestration layer; its retrieval policy must terminate at the V3 acquisition contract
+- `media_master_gate.py` and `media_strict_must_guard.py` are policy/compatibility layers, not competing acquisition engines
 - `midia.py` if present in a checked-out historical/runtime copy
 
 The correct retirement sequence is:
