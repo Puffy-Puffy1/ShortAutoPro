@@ -163,24 +163,25 @@ class NASAAdapter(ProviderAdapter):
         return out
 
 class LocalLibraryAdapter(ProviderAdapter):
-    name="local"
+    name="local_v3"
+
     def search(self, query, must=None, soft_must=None, avoid=None):
         try:
-            from shortauto_asset_library import search_candidates
-            rows=search_candidates(query,must or [],avoid or [],limit=12)
+            from .library import search_candidates
+            return search_candidates(query, must or [], soft_must or [], avoid or [], limit=12)
         except Exception:
             return []
-        out=[]
-        for row in rows or []:
-            path=str(row.get("local_path") or ""); digest=str(row.get("sha256") or "")
-            if path:
-                out.append({"provider":self.name,"kind":"image","id":str(row.get("id") or path),"url":"file://"+path,
-                            "description":str(row.get("description") or row.get("title") or query),
-                            "local_path":path,"sha256":digest,
-                            "provenance":row.get("provenance") or {"provider":self.name,"source":"local_library"}})
-        return out
 
 class ProviderRegistry:
+    """Compatibility name for the canonical provider router boundary."""
+
     def __init__(self, providers=None):
-        self.providers=list(providers or [PexelsAdapter(),PixabayAdapter(),WikimediaAdapter(),CoverrAdapter(),LocalLibraryAdapter()])
-    def enabled(self): return [(p,p.status()) for p in self.providers]
+        self.providers=list(providers or [
+            LocalLibraryAdapter(), PexelsAdapter(), PixabayAdapter(),
+            WikimediaAdapter(), CoverrAdapter()
+        ])
+
+    def enabled(self):
+        return [(p, p.status()) for p in self.providers]
+
+ProviderRouter = ProviderRegistry
