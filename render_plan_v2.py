@@ -41,7 +41,21 @@ def main(short_id=None):
     data=json.loads(scene_path.read_text(encoding="utf-8"))
     scenes=data.get("scenes") if isinstance(data,dict) else data
     if not isinstance(scenes,list) or not scenes: raise RuntimeError("RENDER_PLAN_INVALID:scene_map")
-    plan={"schema_version":"render-plan-v2","short_id":sid,"scenes":[]}
+    media_path=BASE/"manifests"/f"media_{sid}.json"
+    audio_path=BASE/"audios"/f"short_{sid}.mp3"
+    caption_path=BASE/"videos"/f"short_{sid}.ass"
+    if not media_path.is_file(): raise RuntimeError("RENDER_PLAN_INVALID:media_manifest_missing")
+    if not audio_path.is_file(): raise RuntimeError("RENDER_PLAN_INVALID:audio_missing")
+    if not caption_path.is_file(): raise RuntimeError("RENDER_PLAN_INVALID:caption_missing")
+    media=json.loads(media_path.read_text(encoding="utf-8"))
+    if media.get("short_id") != sid or media.get("schema_version") != "media-manifest-v2":
+        raise RuntimeError("RENDER_PLAN_INVALID:media_manifest_identity")
+    media_rows=media.get("scenes") if isinstance(media,dict) else []
+    if not isinstance(media_rows,list) or len(media_rows)!=len(scenes):
+        raise RuntimeError("RENDER_PLAN_INVALID:media_manifest_scene_count")
+    plan={"schema_version":"render-plan-v2","short_id":sid,
+          "inputs":{"media_manifest":str(media_path),"audio":str(audio_path),"captions":str(caption_path)},
+          "scenes":[]}
     seen_ids=set()
     for i,scene in enumerate(scenes,1):
         if not isinstance(scene,dict): raise RuntimeError(f"RENDER_PLAN_INVALID:scene_{i:02d}")
@@ -49,8 +63,16 @@ def main(short_id=None):
         if not scene_id or scene_id in seen_ids:
             raise RuntimeError(f"RENDER_PLAN_INVALID:scene_id_{i:02d}")
         seen_ids.add(scene_id)
+        media_row=media_rows[i-1]
+        asset=media_row.get("asset",{}) if isinstance(media_row,dict) else {}
+        if not isinstance(asset,dict) or asset.get("validated") is not True:
+            raise RuntimeError(f"RENDER_PLAN_INVALID:scene_{i:02d}:media_not_validated")
         plan["scenes"].append({
             "scene_id":scene_id,
+            "media":{"path":str(asset.get("path") or ""),"checksum_sha256":str(asset.get("checksum_sha256") or ""),
+                     "provider":str(asset.get("source") or ""),"asset_id":str(asset.get("asset_id") or "")},
+            "audio":{"path":str(audio_path)},
+            "caption":{"path":str(caption_path),"required":True},
             "pace_multiplier":1.0,
             "zoom_start":1.0,
             "zoom_end":1.04,
