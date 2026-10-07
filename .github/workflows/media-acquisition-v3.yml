@@ -13,6 +13,7 @@ on:
       - "tests/test_canonical_architecture_boundaries.py"
       - "tests/test_recovery_architecture_boundaries.py"
       - "tests/test_recovery_controller.py"
+      - "tests/test_suite_boundaries.py"
       - "tools/repo_audit.py"
       - "docs/CANONICAL_ARCHITECTURE_LEGACY_CLASSIFICATION.md"
       - "render_engine_v2.py"
@@ -36,7 +37,7 @@ jobs:
       - name: Install FFmpeg
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - name: Acquisition V3 unit tests
-        run: python -m unittest tests.test_media_acquisition_v3 tests.test_media_acquisition_v3_stress tests.test_media_v3_local_library tests.test_canonical_architecture_boundaries tests.test_recovery_architecture_boundaries tests.test_recovery_controller
+        run: python -m unittest tests.test_media_acquisition_v3 tests.test_media_acquisition_v3_stress tests.test_media_v3_local_library tests.test_canonical_architecture_boundaries tests.test_recovery_architecture_boundaries tests.test_recovery_controller tests.test_suite_boundaries
   acquisition-render-integration:
     runs-on: ubuntu-latest
     timeout-minutes: 20
