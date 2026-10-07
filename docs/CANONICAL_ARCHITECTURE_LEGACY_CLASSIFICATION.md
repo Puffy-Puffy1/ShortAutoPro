@@ -43,6 +43,8 @@ Compatibility code may remain temporarily, but it must not become the production
 - `shortauto_repair_engine.py` is a legacy compatibility/planning engine only; canonical production entrypoints must use `production_recovery.py` → `RecoveryController`
 - `media_master_gate.py` and `media_strict_must_guard.py` are policy/compatibility layers, not competing acquisition engines
 - `midia.py` if present in a checked-out historical/runtime copy
+- `vi6_13_recovery_planner.py`, `vi6_17_recovery_router.py`, `vi6_19_true_recovery.py`, `vi6_20_recovery_normalizer.py`, `vi6_21_recovery_circuit.py` — legacy VI6 recovery chain; retained only while compatibility tests/older tooling still reference them
+- `vg4x_bridge.py` — compatibility bridge; it may install legacy policy helpers for older callers, but it is not a canonical production seed
 
 The correct retirement sequence is:
 1. prove no canonical production import;
@@ -63,3 +65,19 @@ An orphan is not automatically safe to delete: generated/runtime files, manual r
 The canonical runtime must never import or invoke the old Media Stage/Media Engine V2/provider-router runtime.
 
 The repository audit now fails if those legacy runtime references are reintroduced into the canonical path.
+
+
+## Legacy dependency audit — 2026-10-07
+
+The current canonical seeds were checked for direct imports of the legacy recovery/gate set. The canonical seeds do not import:
+
+- `media_acquisition_recovery`
+- `media_external_resilience`
+- `media_master_gate`
+- `media_strict_must_guard`
+- `shortauto_repair_engine`
+- the VI6 recovery chain listed above
+
+Important exception: `vg4x_bridge.py` remains a compatibility bridge and still contains legacy policy installation hooks. It is therefore not classified as canonical. It must not be introduced into `main.py`, `first_video.py`, Media Acquisition V3, Render Plan V2, Render Engine V2, or RecoveryController.
+
+The remaining legacy files are **not deleted in this phase** because the repository still contains dedicated compatibility/simulation tests for older media/recovery behavior. Their retirement requires either migrating those tests to canonical contracts or explicitly quarantining them before deletion.
