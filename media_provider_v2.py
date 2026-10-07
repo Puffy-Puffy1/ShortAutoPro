@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Compatibility facade for the independent Media Acquisition V2 router."""
+"""LEGACY compatibility facade for the retired Media Provider V2 stack.
+
+Provider routing for the canonical pipeline is owned by media_v3.providers.
+This facade remains temporarily for compatibility only and must not be imported
+by canonical Media Acquisition V3 code.
+"""
 from __future__ import annotations
 from typing import Any
 from media_provider_router_v2 import MediaProviderRouterV2
