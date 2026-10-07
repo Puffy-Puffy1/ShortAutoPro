@@ -26,6 +26,14 @@ def build_query_plan(query: str, must: list[str], soft_must: list[str] | None = 
     if len(words) > 2:
         variants.append(" ".join(words[:2]))
     anchors = [_clean(x) for x in (soft_must or []) + must if _clean(x)]
+    aliases = {
+        "security sensor": ("motion sensor","alarm sensor","door sensor"),
+        "security sensors": ("motion sensors","alarm sensors","door sensors"),
+    }
+    for anchor in list(anchors):
+        for alias in aliases.get(anchor.casefold(), ()):
+            if alias.casefold() not in {v.casefold() for v in variants}:
+                variants.append(alias)
     if anchors:
         anchor = " ".join(anchors[:2])
         if anchor and anchor.casefold() not in {v.casefold() for v in variants}:
