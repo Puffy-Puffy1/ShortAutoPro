@@ -144,7 +144,7 @@ def pre_media_plan_ok(sid: str) -> bool:
     source = BASE / "roteiros" / f"fonte_{sid}.txt"
     topic_real = BASE / "roteiros" / f"used_topic_{sid}.txt"
     topic = BASE / "roteiros" / f"topic_{sid}.txt"
-    scene_map_path = BASE / "roteiros" / f"scene_map_{sid}.json"
+    scene_map_path = BASE / "manifests" / f"scene_map_{sid}.json"
     truth_path = BASE / "roteiros" / f"post_script_truth_{sid}.json"
     semantic_path = BASE / "roteiros" / f"semantic_integrity_{sid}.json"
     continuity_path = BASE / "roteiros" / f"visual_continuity_{sid}.json"
