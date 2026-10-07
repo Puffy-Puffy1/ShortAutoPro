@@ -41,6 +41,12 @@ def test_main_does_not_call_a_second_recovery_engine():
     assert '"production_recovery.py"' in source
 
 
+def test_control_center_does_not_expose_legacy_repair_engine():
+    source = _parse("control_center.sh")
+    assert "shortauto_repair_engine.py" not in source
+    assert "production_recovery.py" in source
+
+
 
 
 def test_compat_repair_engine_cannot_reenter_retired_stage6():
