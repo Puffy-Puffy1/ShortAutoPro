@@ -81,3 +81,16 @@ The current canonical seeds were checked for direct imports of the legacy recove
 Important exception: `vg4x_bridge.py` remains a compatibility bridge and still contains legacy policy installation hooks. It is therefore not classified as canonical. It must not be introduced into `main.py`, `first_video.py`, Media Acquisition V3, Render Plan V2, Render Engine V2, or RecoveryController.
 
 The remaining legacy files are **not deleted in this phase** because the repository still contains dedicated compatibility/simulation tests for older media/recovery behavior. Their retirement requires either migrating those tests to canonical contracts or explicitly quarantining them before deletion.
+
+
+## Test-suite separation — 2026-10-07
+
+The test corpus now has an explicit boundary:
+
+- `tests/` is the canonical contract suite. Tests here may not import the retired Media V2/Stage 6 runtime.
+- `tests_compat/legacy_media/` is the quarantined compatibility suite for historical Media V2, Stage 6, `midia.py`, and recovery behavior.
+- `tests_sim/` remains a historical simulation corpus. It is not treated as a production graph root and is not allowed to make legacy runtime code appear production-reachable.
+- The canonical CI workflow executes the canonical suite and the boundary guard; it does not use the quarantined legacy suite as production qualification.
+- Legacy compatibility tests remain preserved for migration/reference. They are not evidence that the retired architecture is part of the canonical runtime.
+
+This separation is intentional: a test that proves legacy behavior is useful during retirement, but it must not silently define the architecture that the production pipeline is required to use.
