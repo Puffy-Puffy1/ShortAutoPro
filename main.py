@@ -408,16 +408,18 @@ def stages_before_render(p: Pipeline) -> None:
     p.run("5D2 - POST-SCRIPT TRUTH LOCK", "post_script_truth_lock.py")
     p.run("5E - SEMANTIC INTEGRITY GATE", "semantic_integrity_gate.py")
 
-    # Stage 6 is retired. Media acquisition is owned by Media Acquisition V3;
-    # render planning is a deterministic input contract for Render Engine V2.
+    # Stage 6 is retired. Scene preparation remains a mutable editorial
+    # phase; once semantic integrity passes, SceneMap is frozen as a bridge
+    # contract. Media and rendering consume only that immutable artifact.
+    p.run("5F - FREEZE SCENE MAP BRIDGE", "scene_map_freeze.py", "--short-id", p.sid)
     p.run("MEDIA ACQUISITION V3 - ACQUIRE + VALIDATE + FREEZE MANIFEST", "media_acquisition_v3.py", "--short-id", p.sid)
-    p.run("RENDER PLAN V2 - DETERMINISTIC TIMELINE INPUT", "render_plan_v2.py", "--short-id", p.sid)
     p.run("6F - SPEECH DIRECTOR", "speech_director.py")
     p.run("7 - VOZ PIPER", "audio.py", retries=1)
     p.run("8 - WHISPER + LEGENDA DINÂMICA", "legenda_dinamica.py", retries=1)
     p.run("8A - PROFESSIONAL CAPTION DIRECTOR", "professional_caption_director.py")
     p.run("8A1 - CAPTION SAFE-ZONE GUARD", "caption_layout_guard.py")
     p.run("8B - EVOLUTION CAPTION AUDIT", "shortautopro_evolution.py", "caption-audit")
+    p.run("8B1 - RENDER PLAN V2 - DETERMINISTIC TIMELINE INPUT", "render_plan_v2.py", "--short-id", p.sid)
 
 
 def assemble_and_render(p: Pipeline) -> None:
