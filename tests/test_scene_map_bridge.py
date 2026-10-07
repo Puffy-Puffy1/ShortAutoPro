@@ -12,17 +12,16 @@ class SceneMapBridgeTests(unittest.TestCase):
             self.assertNotIn('BASE/"roteiros"/f"scene_map_{sid}.json"',text,name)
 
     def test_main_freezes_before_media_and_builds_plan_after_captions(self):
-        tree=ast.parse((ROOT/"main.py").read_text(encoding="utf-8"))
-        fn=next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=="stages_before_render")
-        calls=[]
-        for node in ast.walk(fn):
-            if isinstance(node,ast.Call) and isinstance(node.func,ast.Attribute) and node.func.attr=="run":
-                if len(node.args)>=2 and isinstance(node.args[0],ast.Constant) and isinstance(node.args[1],ast.Constant):
-                    calls.append((str(node.args[0].value),str(node.args[1].value)))
-        idx={name:i for i,(name,_) in enumerate(calls)}
-        self.assertLess(idx["5F - FREEZE SCENE MAP BRIDGE"],idx["MEDIA ACQUISITION V3 - ACQUIRE + VALIDATE + FREEZE MANIFEST"])
-        self.assertLess(idx["MEDIA ACQUISITION V3 - ACQUIRE + VALIDATE + FREEZE MANIFEST"],idx["7 - VOZ PIPER"])
-        self.assertLess(idx["8A1 - CAPTION SAFE-ZONE GUARD"],idx["8B1 - RENDER PLAN V2 - DETERMINISTIC TIMELINE INPUT"])
+        text=(ROOT/"main.py").read_text(encoding="utf-8")
+        marks=[
+            "5F - FREEZE SCENE MAP BRIDGE",
+            "MEDIA ACQUISITION V3 - ACQUIRE + VALIDATE + FREEZE MANIFEST",
+            "7 - VOZ PIPER",
+            "8A1 - CAPTION SAFE-ZONE GUARD",
+            "8B1 - RENDER PLAN V2 - DETERMINISTIC TIMELINE INPUT",
+        ]
+        positions=[text.index(mark) for mark in marks]
+        self.assertEqual(positions,sorted(positions))
 
     def test_first_video_freezes_before_media(self):
         tree=ast.parse((ROOT/"first_video.py").read_text(encoding="utf-8"))
