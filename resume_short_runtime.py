@@ -200,7 +200,7 @@ def consolidation_plan_ok(sid: str) -> bool:
     if (
         manifest.get("schema_version") != "media-manifest-v2"
         or manifest.get("short_id") != sid
-        or not str(manifest.get("engine_version") or "").startswith("2.")
+        or not str(manifest.get("engine_version") or "").startswith(("2.","3."))
         or manifest.get("immutable") is not True
         or not isinstance(media_scenes, list)
         or len(media_scenes) != expected_scenes()
@@ -208,9 +208,8 @@ def consolidation_plan_ok(sid: str) -> bool:
         return False
 
     integrity = str(manifest.get("integrity_sha256") or "")
-    # V2 manifests (identified by engine_version) must be cryptographically
-    # intact. Older migration manifests may be structurally resumed, but their
-    # physical assets are revalidated by the downstream V2 preflight.
+    # Canonical V2/V3 manifests must be cryptographically intact.
+    # V2 remains a compatibility format; V3 is the canonical acquisition engine.
     if integrity:
         unsigned = dict(manifest)
         unsigned.pop("integrity_sha256", None)
@@ -222,9 +221,9 @@ def consolidation_plan_ok(sid: str) -> bool:
     elif str(manifest.get("engine_version") or "").startswith("2."):
         return False
 
-    # A manifest without V2 engine metadata is not trusted for resume.
-    # It must be rebuilt by Media Engine V2 so resume can never skip acquisition
-    # based on a legacy or partially migrated manifest.
+    # A manifest without a recognized engine version is not trusted for resume.
+    # It must be rebuilt by Media Acquisition V3 so resume can never skip
+    # acquisition based on legacy or partially migrated state.
     if not integrity and not str(manifest.get("engine_version") or ""):
         return False
 
