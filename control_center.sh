@@ -6,7 +6,7 @@ MAIN="$BASE/main.py"
 BRAIN="$BASE/shortauto_brain.py"
 DIRECTOR_AI="$BASE/shortauto_director_ai.py"
 ASSET_LIBRARY="$BASE/shortauto_asset_library.py"
-REPAIR_ENGINE="$BASE/shortauto_repair_engine.py"
+RECOVERY="$BASE/production_recovery.py"
 INTELLIGENCE="$BASE/shortauto_intelligence_layer.py"
 PRODUCTION_CENTER="$BASE/production_center.py"
 RESET="\033[0m";BOLD="\033[1m";GREEN="\033[32m";YELLOW="\033[33m";RED="\033[31m";CYAN="\033[36m"
@@ -17,7 +17,7 @@ rodar_main(){ [ -f "$MAIN" ]||{ echo "ERRO: main.py não encontrado.";return 1;}
 rodar_brain(){ [ -f "$BRAIN" ]||{ echo "ERRO: shortauto_brain.py não encontrado.";return 1;};python "$BRAIN" "$@"; }
 rodar_director(){ [ -f "$DIRECTOR_AI" ]||{ echo "ERRO: shortauto_director_ai.py não encontrado.";return 1;};python "$DIRECTOR_AI" "$@"; }
 rodar_assets(){ [ -f "$ASSET_LIBRARY" ]||{ echo "ERRO: shortauto_asset_library.py não encontrado.";return 1;};python "$ASSET_LIBRARY" "$@"; }
-rodar_repair(){ [ -f "$REPAIR_ENGINE" ]||{ echo "ERRO: shortauto_repair_engine.py não encontrado.";return 1;};python "$REPAIR_ENGINE" "$@"; }
+rodar_recovery(){ [ -f "$RECOVERY" ]||{ echo "ERRO: production_recovery.py não encontrado.";return 1;};python "$RECOVERY" "$@"; }
 rodar_intelligence(){ [ -f "$INTELLIGENCE" ]||{ echo "ERRO: shortauto_intelligence_layer.py não encontrado.";return 1;};python "$INTELLIGENCE" "$@"; }
 rodar_production_center(){ [ -f "$PRODUCTION_CENTER" ]||{ echo "ERRO: production_center.py não encontrado.";return 1;};python "$PRODUCTION_CENTER" "$@"; }
 ultimo_video(){ local video;video="$(find "$BASE/videos" -maxdepth 1 -type f -name 'short_v6_*.mp4' -print0 2>/dev/null|xargs -0 -r ls -1t 2>/dev/null|head -1)";[ -n "$video" ]||{ echo "Nenhum vídeo V6 encontrado.";return;};echo "Último vídeo: $video";ffprobe -v error -show_entries format=duration,size -show_entries stream=codec_type,codec_name,width,height,avg_frame_rate -of default=noprint_wrappers=1 "$video" 2>/dev/null||true; }
@@ -38,11 +38,11 @@ brain_quality(){ local sid;read -r -p "SHORT_ID: " sid;[ -n "$sid" ]||{ echo "SH
 brain_record(){ local sid hook views avd pct likes comments subs;read -r -p "SHORT_ID: " sid;read -r -p "Hook variant [A/B/C/unknown]: " hook;read -r -p "Views: " views;read -r -p "Avg view duration (s): " avd;read -r -p "Percent viewed: " pct;read -r -p "Likes: " likes;read -r -p "Comments: " comments;read -r -p "Subscribers: " subs;rodar_brain record --short-id "$sid" --hook-variant "${hook:-unknown}" --views "${views:-0}" --avg-view-duration "${avd:-0}" --percent-viewed "${pct:-0}" --likes "${likes:-0}" --comments "${comments:-0}" --subscribers "${subs:-0}"; }
 director_plan(){ local sid;read -r -p "SHORT_ID: " sid;[ -n "$sid" ]||{ echo "SHORT_ID vazio.";return 1;};rodar_director --short-id "$sid"; }
 asset_status(){ rodar_assets status; }
-repair_plan(){ local sid r;read -r -p "SHORT_ID: " sid;[ -n "$sid" ]||{ echo "SHORT_ID vazio.";return 1;};rodar_repair --short-id "$sid";echo;read -r -p "Executar 1 ciclo seguro de reparo? [s/N]: " r;case "$r" in s|S|sim|SIM|Sim) rodar_repair --short-id "$sid" --execute --max-cycles 1;;*) echo "Somente plano exibido.";;esac; }
+repair_plan(){ local sid r;read -r -p "SHORT_ID: " sid;[ -n "$sid" ]||{ echo "SHORT_ID vazio.";return 1;};rodar_recovery --short-id "$sid" --json; }
 intelligence_phase(){ local phase="$1" sid;read -r -p "SHORT_ID: " sid;[ -n "$sid" ]||{ echo "SHORT_ID vazio.";return 1;};rodar_intelligence "$phase" --short-id "$sid"; }
 while true;do
  cabecalho
- echo "1) Gerar 1 Short (main.py)";echo "2) Gerar lote";echo "3) Retomar lote";echo "4) Status do lote";echo "5) Retomar Short";echo "6) Status da retomada";echo "7) Últimas releases";echo "8) Último Publish Pack";echo "9) Último vídeo";echo "10) Auditoria do repositório";echo "11) Storage Manager";echo "12) Status do sistema";echo "13) Preflight";echo "14) Health Check";echo "15) Diagnóstico";echo "16) Evolution Center";echo "17) Git status";echo "18) Últimos commits";echo "19) Brain - preparar Evidence/Story/A-B";echo "20) Brain - Quality Budget";echo "21) Brain - Status completo";echo "22) Brain - Registrar analytics";echo "23) Director AI - Provenance/Visual Intent";echo "24) Asset Library - Status";echo "25) Repair Engine - Plano/Executar";echo "26) Intelligence - PRE (Story/Claim Lock)";echo "27) Intelligence - SCENE (Entity/Time/Geo/Visual)";echo "28) Intelligence - MEDIA (Source/Cache/Aging)";echo "29) Intelligence - FINAL (Explainable QA/Confidence)";echo "30) Intelligence - Status completo";echo "31) Production Center - Status";echo "32) Production Doctor";echo "33) Production Profiler";echo "34) Production Watch";echo "0) Sair";echo
+ echo "1) Gerar 1 Short (main.py)";echo "2) Gerar lote";echo "3) Retomar lote";echo "4) Status do lote";echo "5) Retomar Short";echo "6) Status da retomada";echo "7) Últimas releases";echo "8) Último Publish Pack";echo "9) Último vídeo";echo "10) Auditoria do repositório";echo "11) Storage Manager";echo "12) Status do sistema";echo "13) Preflight";echo "14) Health Check";echo "15) Diagnóstico";echo "16) Evolution Center";echo "17) Git status";echo "18) Últimos commits";echo "19) Brain - preparar Evidence/Story/A-B";echo "20) Brain - Quality Budget";echo "21) Brain - Status completo";echo "22) Brain - Registrar analytics";echo "23) Director AI - Provenance/Visual Intent";echo "24) Asset Library - Status";echo "25) Recovery - Passe canônico limitado";echo "26) Intelligence - PRE (Story/Claim Lock)";echo "27) Intelligence - SCENE (Entity/Time/Geo/Visual)";echo "28) Intelligence - MEDIA (Source/Cache/Aging)";echo "29) Intelligence - FINAL (Explainable QA/Confidence)";echo "30) Intelligence - Status completo";echo "31) Production Center - Status";echo "32) Production Doctor";echo "33) Production Profiler";echo "34) Production Watch";echo "0) Sair";echo
  read -r -p "Escolha: " OP||exit 0
  case "$OP" in
   1)cabecalho;unset SHORT_ID;rodar_main run||true;pausa;;
