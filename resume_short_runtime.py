@@ -52,7 +52,7 @@ def expected_scenes() -> int:
 
 
 def scene_count(sid: str) -> int:
-    data = read_json(BASE / "roteiros" / f"scene_map_{sid}.json")
+    data = read_json(BASE / "manifests" / f"scene_map_{sid}.json")
     scenes = data.get("scenes", []) if isinstance(data, dict) else []
     return len(scenes) if isinstance(scenes, list) else 0
 
