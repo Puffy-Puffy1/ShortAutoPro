@@ -139,3 +139,12 @@ Evidence:
 5. `media_external_resilience.py` is intentionally retained for now because `wikimedia_source.py` still imports it; it will not be removed until that dependency is migrated or explicitly classified.
 
 The retirement is non-destructive: all retired implementations remain recoverable from Git history. The active branch now prevents these modules from silently becoming production authorities.
+
+
+## Third legacy retirement — 2026-10-07
+
+`media_external_resilience.py` has now been removed from the active branch. Its provider-health, retry, and asset-quarantine authority was redundant with the canonical `ProviderRegistry` + `MediaAcquisitionV3` boundary.
+
+`wikimedia_source.py` remains only as a thin compatibility shim that delegates directly to `media_v3.providers.WikimediaAdapter`; it no longer owns provider health, retries, or acquisition policy.
+
+The historical Wikimedia/resilience tests remain present only as explicitly skipped compatibility artifacts and are no longer production qualification gates.
