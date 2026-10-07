@@ -73,7 +73,7 @@ def plan(sid: str) -> dict[str, Any]:
             "commands": [
                 [sys.executable, "visual_query_guard.py"],
                 [sys.executable, "visual_media_refresh.py"],
-                [sys.executable, "media_stage_runtime.py"],
+                [sys.executable, "media_acquisition_v3.py", "--short-id", sid],
                 [sys.executable, "media_master_gate.py"],
                 [sys.executable, "visual_score_engine.py"],
                 [sys.executable, "motion_director.py"],
@@ -90,7 +90,7 @@ def plan(sid: str) -> dict[str, Any]:
             "commands": [
                 [sys.executable, "visual_query_guard.py"],
                 [sys.executable, "visual_media_refresh.py"],
-                [sys.executable, "media_stage_runtime.py"],
+                [sys.executable, "media_acquisition_v3.py", "--short-id", sid],
                 [sys.executable, "media_master_gate.py"],
                 [sys.executable, "visual_score_engine.py"],
                 [sys.executable, "motion_director.py"],
@@ -134,7 +134,7 @@ def plan(sid: str) -> dict[str, Any]:
             "commands": [
                 [sys.executable, "visual_query_guard.py"],
                 [sys.executable, "visual_media_refresh.py"],
-                [sys.executable, "media_stage_runtime.py"],
+                [sys.executable, "media_acquisition_v3.py", "--short-id", sid],
                 [sys.executable, "media_master_gate.py"],
                 [sys.executable, "visual_score_engine.py"],
                 [sys.executable, "motion_director.py"],
@@ -180,7 +180,7 @@ def plan(sid: str) -> dict[str, Any]:
             "commands": [
                 [sys.executable, "visual_query_guard.py"],
                 [sys.executable, "visual_media_refresh.py"],
-                [sys.executable, "media_stage_runtime.py"],
+                [sys.executable, "media_acquisition_v3.py", "--short-id", sid],
                 [sys.executable, "media_master_gate.py"],
                 [sys.executable, "visual_score_engine.py"],
                 [sys.executable, "motion_director.py"],
@@ -193,7 +193,7 @@ def plan(sid: str) -> dict[str, Any]:
 
     return {
         "short_id": sid,
-        "version": "REPAIR_ENGINE_1.1_VISUAL_REACQUIRE",
+        "version": "LEGACY_REPAIR_ENGINE_COMPAT_1.2_CANONICAL_MEDIA_V3",
         "generated_at": now(),
         "policy": {
             "max_cycles_default": 1,
@@ -222,7 +222,7 @@ def execute(sid: str, max_cycles: int) -> tuple[int, dict[str, Any]]:
                 command_name = Path(str(command[1] if len(command) > 1 else command[0])).name
                 if command_name in {"video_professional.py", "v6_professional.py", "audio_finalizer.py"}:
                     timeout_seconds = int(os.getenv("SAP_REPAIR_RENDER_TIMEOUT", "900") or 900)
-                elif command_name == "media_stage_runtime.py":
+                elif command_name == "media_acquisition_v3.py":
                     timeout_seconds = int(os.getenv("SAP_REPAIR_MEDIA_TIMEOUT", "420") or 420)
                 else:
                     timeout_seconds = int(os.getenv("SAP_REPAIR_ACTION_TIMEOUT", "300") or 300)
