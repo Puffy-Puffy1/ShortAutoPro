@@ -122,3 +122,13 @@ def test_canonical_pipeline_has_no_dynamic_legacy_recovery_names():
         for legacy in legacy_names:
             assert f'"{legacy}"' not in source
             assert f"'{legacy}'" not in source
+
+
+def test_operational_diagnostics_do_not_require_legacy_recovery_stack():
+    for name in ("preflight_check.sh", "health_check.sh"):
+        source = _parse(name)
+        for legacy in LEGACY_RECOVERY_MODULES:
+            assert legacy not in source, f"{name} still requires legacy module: {legacy}"
+    resume = _parse("resume_after_semantic_fix.py")
+    assert "media_master_gate.py" not in resume
+    assert '"media_acquisition_v3.py"' in resume
