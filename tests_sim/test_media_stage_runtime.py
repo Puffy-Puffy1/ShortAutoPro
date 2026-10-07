@@ -42,13 +42,13 @@ class MediaStageRuntimeTests(unittest.TestCase):
 
     def test_main_pipeline_uses_media_stage_runtime(self):
         text = Path("main.py").read_text(encoding="utf-8")
-        self.assertIn("media_engine_v2.py", text)
+        self.assertIn("media_acquisition_v3.py", text)
         self.assertIn("render_plan_v2.py", text)
         self.assertNotIn("media_stage_runtime.py", text)
 
     def test_semantic_resume_uses_media_stage_runtime(self):
         text = Path("resume_after_semantic_fix.py").read_text(encoding="utf-8")
-        self.assertIn('("6 - SMART MEDIA SELECTOR", "media_stage_runtime.py"', text)
+        self.assertIn('("6 - MEDIA ACQUISITION V3", "media_acquisition_v3.py"', text)
 
     def test_runtime_preserves_fail_closed_contract(self):
         text = Path("media_stage_runtime.py").read_text(encoding="utf-8")
