@@ -163,7 +163,7 @@ def build_job(short_id: str) -> Path:
             raise RuntimeError("RENDER_RESUME_INVALID:passed_identity")
         return existing_job
     source = BASE / "roteiros"
-    scene_map_path = source / f"scene_map_{short_id}.json"
+    scene_map_path = BASE / "manifests" / f"scene_map_{short_id}.json"
     edit_path = source / f"pro_edit_plan_{short_id}.json"
     audio = BASE / "audios" / f"short_{short_id}.mp3"
     ass = BASE / "videos" / f"short_{short_id}.ass"
@@ -171,7 +171,10 @@ def build_job(short_id: str) -> Path:
     for p in (scene_map_path, edit_path, audio, media_manifest_path):
         if not p.exists():
             raise RuntimeError(f"RENDER_INPUT_INVALID:{p.name}")
-    scenes_raw = read_json(scene_map_path).get("scenes")
+    frozen_scene_map = read_json(scene_map_path)
+    if frozen_scene_map.get("schema_version") != "SCENE_MAP_FROZEN_1.0" or frozen_scene_map.get("short_id") != short_id or frozen_scene_map.get("mutable_upstream_closed") is not True:
+        raise RuntimeError("RENDER_INPUT_INVALID:frozen_scene_map")
+    scenes_raw = frozen_scene_map.get("scenes")
     plan = read_json(edit_path)
     media_manifest = read_json(media_manifest_path)
     planned = plan.get("scenes")
