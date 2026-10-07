@@ -64,8 +64,14 @@ def test_legacy_suite_has_explicit_compatibility_root():
     compat = ROOT / "tests_compat" / "legacy_media"
     assert compat.is_dir()
     for name in LEGACY_TEST_NAMES:
-        if name == "test_media_acquisition_v2.py":
-            path = compat / name
+        if name in {
+            "test_media_engine_v2_contract.py",
+            "test_media_engine_v2_failure_modes.py",
+            "test_media_engine_v2_integration.py",
+            "test_media_provider_v2.py",
+            "test_media_stage_runtime.py",
+        }:
+            path = compat / f"{name}.disabled"
         else:
             path = compat / name
-        assert path.is_file(), f"missing quarantined compatibility test: {name}"
+        assert path.is_file(), f"missing quarantined compatibility test: {path.name}"
