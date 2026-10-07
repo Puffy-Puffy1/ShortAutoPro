@@ -47,8 +47,6 @@ def test_control_center_does_not_expose_legacy_repair_engine():
     assert "production_recovery.py" in source
 
 
-
-
 def test_compat_repair_engine_cannot_reenter_retired_stage6():
     source = _parse("shortauto_repair_engine.py")
     assert "media_stage_runtime.py" not in source
@@ -66,3 +64,61 @@ def test_canonical_recovery_has_no_dynamic_legacy_recovery_imports():
             elif isinstance(node, ast.Import):
                 for alias in node.names:
                     assert not alias.name.startswith("vi6_"), f"{name} imports legacy recovery: {alias.name}"
+
+
+CANONICAL_SEEDS = (
+    "main.py",
+    "first_video.py",
+    "media_acquisition_v3.py",
+    "media_v3/acquisition.py",
+    "media_v3/providers.py",
+    "media_v3/library.py",
+    "render_plan_v2.py",
+    "render_engine_v2.py",
+    "recovery_controller.py",
+    "production_recovery.py",
+)
+
+LEGACY_RECOVERY_MODULES = {
+    "media_acquisition_recovery",
+    "media_external_resilience",
+    "media_master_gate",
+    "media_strict_must_guard",
+    "shortauto_repair_engine",
+    "vi6_13_recovery_planner",
+    "vi6_17_recovery_router",
+    "vi6_19_true_recovery",
+    "vi6_20_recovery_normalizer",
+    "vi6_21_recovery_circuit",
+}
+
+
+def _imported_modules(source: str) -> set[str]:
+    tree = ast.parse(source)
+    found: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module:
+            found.add(node.module.split(".")[0])
+        elif isinstance(node, ast.Import):
+            found.update(alias.name.split(".")[0] for alias in node.names)
+    return found
+
+
+def test_canonical_pipeline_has_single_recovery_authority():
+    for name in CANONICAL_SEEDS:
+        source = _parse(name)
+        imported = _imported_modules(source)
+        forbidden = sorted(imported & LEGACY_RECOVERY_MODULES)
+        assert not forbidden, (
+            f"{name} imports legacy recovery/gate modules: "
+            + ", ".join(forbidden)
+        )
+
+
+def test_canonical_pipeline_has_no_dynamic_legacy_recovery_names():
+    legacy_names = tuple(sorted(LEGACY_RECOVERY_MODULES))
+    for name in CANONICAL_SEEDS:
+        source = _parse(name)
+        for legacy in legacy_names:
+            assert f'"{legacy}"' not in source
+            assert f"'{legacy}'" not in source
