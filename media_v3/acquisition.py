@@ -134,10 +134,11 @@ class MediaAcquisitionV3:
                 rows=None
                 for attempt in range(2):
                     detail=""
+                    started_at=time.monotonic()
                     try:
                         rows=provider.search(q, hard, soft, avoid)
                         diag.provider_results[provider.name]["queries"].append({"query":q,"count":len(rows),"attempt":attempt+1})
-                        record_provider_health(provider.name,"SUCCESS",query=q,latency_ms=0,status=200)
+                        record_provider_health(provider.name,"SUCCESS",query=q,latency_ms=round((time.monotonic()-started_at)*1000,2),status=200)
                         break
                     except requests.Timeout:
                         reason="TIMEOUT"
@@ -159,7 +160,7 @@ class MediaAcquisitionV3:
                             reason="PROVIDER_UNAVAILABLE"
                         detail=str(exc)
                     diag.provider_results[provider.name]["queries"].append({"query":q,"error":reason,"attempt":attempt+1,**({"detail":detail} if "detail" in locals() else {})})
-                    record_provider_health(provider.name,reason,query=q,error=detail)
+                    record_provider_health(provider.name,reason,query=q,error=detail,latency_ms=round((time.monotonic()-started_at)*1000,2))
                     diag.fallbacks.append({"type":"query","provider":provider.name,"query":q,"reason":reason})
                     circuit.fail()
                     if attempt == 0 and reason in {"RATE_LIMIT","TIMEOUT","HTTP_ERROR","PROVIDER_UNAVAILABLE"}:
