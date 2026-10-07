@@ -14,6 +14,7 @@ CANONICAL = (
     "render_plan_v2.py",
     "render_engine_v2.py",
     "production_recovery.py",
+    "recovery_controller.py",
 )
 
 LEGACY = (
@@ -21,6 +22,7 @@ LEGACY = (
     "media_engine_v2.py",
     "media_provider_v2.py",
     "media_provider_router_v2.py",
+    "midia.py",
 )
 
 class CanonicalArchitectureBoundaryTests(unittest.TestCase):
