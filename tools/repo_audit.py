@@ -314,6 +314,13 @@ def main() -> int:
     # Tests and workflows are graph seeds, so any remaining .py/.sh entry here
     # is neither production-reachable nor test-reachable and must be removed or
     # deliberately wired into the canonical architecture.
+    # tests_sim is a historical simulation corpus, not a production graph root.
+    # Quarantined legacy suites live under tests_compat/ and are intentionally
+    # reachable only as compatibility roots. They must not be counted as
+    # orphaned production code.
+    if any(path.startswith("tests_sim/") for path in inactive):
+        inactive = [path for path in inactive if not path.startswith("tests_sim/")]
+
     canonical_v3 = {
         "media_v3/__init__.py",
         "media_v3/acquisition.py",
@@ -325,6 +332,7 @@ def main() -> int:
         "tests/test_media_acquisition_v3_stress.py",
         "tests/test_media_v3_full_pipeline_stress.py",
         "tests/test_media_v3_render_integration.py",
+        "tests/test_suite_boundaries.py",
     }
     for path in inactive:
         if path not in canonical_v3:
