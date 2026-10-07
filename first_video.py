@@ -74,19 +74,24 @@ def main():
     print("FIRST_VIDEO_CONTENT=PASS")
     run_stage(
         ctx, sid, "MEDIA", "media_acquisition_v3.py", "--short-id", sid, timeout=1800,
-        artifacts=[{"name":"media_manifest","path":str(BASE/"roteiros"/f"media_manifest_{sid}.json"),"kind":"MediaManifest"}],
+        artifacts=[{"name":"media_manifest","path":str(BASE/"manifests"/f"media_{sid}.json"),"kind":"MediaManifest"}],
     )
     print("FIRST_VIDEO_MEDIA=PASS")
-    run_stage(
-        ctx, sid, "RENDER_PLAN", "render_plan_v2.py", "--short-id", sid, timeout=300,
-        artifacts=[{"name":"render_plan","path":str(BASE/"roteiros"/f"render_plan_{sid}.json"),"kind":"RenderPlan"}],
-    )
+    # RenderPlan is a bridge contract. It is produced only after all
+    # upstream runtime inputs exist, so it cannot freeze a partial plan.
     run_stage(ctx, sid, "AUDIO", "audio.py", timeout=900)
     print("FIRST_VIDEO_AUDIO=PASS")
     run_stage(ctx, sid, "CAPTIONS", "legenda_dinamica.py", timeout=900)
     run_stage(ctx, sid, "CAPTION_DIRECTOR", "professional_caption_director.py", timeout=300)
     run_stage(ctx, sid, "CAPTION_GUARD", "caption_layout_guard.py", timeout=300)
     print("FIRST_VIDEO_CAPTION=PASS")
+    run_stage(
+        ctx, sid, "RENDER_PLAN", "render_plan_v2.py", "--short-id", sid, timeout=300,
+        artifacts=[{"name":"render_plan","path":str(BASE/"roteiros"/f"pro_edit_plan_{sid}.json"),"kind":"RenderPlan"}],
+    )
+    run_stage(
+        ctx, sid, "RENDER_PREFLIGHT", "render_preflight.py", "--short-id", sid, timeout=300,
+    )
     run_stage(ctx, sid, "RENDER", "render_engine_v2.py", "--short-id", sid, timeout=2400)
     final=BASE/"videos"/f"short_v6_{sid}.mp4"
     if not final.is_file() or final.stat().st_size<=1000: raise RuntimeError("FIRST_VIDEO_OUTPUT_INVALID")
