@@ -174,7 +174,8 @@ def main() -> int:
 
     stages = [
         ("5E - SEMANTIC INTEGRITY GATE", "semantic_integrity_gate.py", (), 0),
-        ("6 - SMART MEDIA SELECTOR", "media_stage_runtime.py", (), 0),
+        ("6 - MEDIA ACQUISITION V3", "media_acquisition_v3.py", ("--short-id", sid), 0),
+        ("6A - RENDER PLAN V2", "render_plan_v2.py", ("--short-id", sid), 0),
         ("6A - MEDIA MASTER GATE", "media_master_gate.py", (), 0),
         ("6A1 - MULTIDIMENSIONAL VISUAL SCORE", "visual_score_engine.py", (), 0),
         ("6B - CINEMATIC MOTION DIRECTOR", "motion_director.py", (), 0),
