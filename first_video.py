@@ -43,7 +43,7 @@ def main():
     os.environ["SHORT_ID"]=sid
     os.environ["SHORT_TOPIC_EXACT"]=args.topic.strip()
     os.environ["SHORT_ALLOW_REPEAT_TOPIC"]="1"
-    os.environ["SHORT_QTD_CENAS"]="6"
+    os.environ["SHORT_QTD_CENAS"]="2"
     print(f"FIRST_VIDEO_START short_id={sid} topic={args.topic}")
     run_file("topic_engine_runtime.py",timeout=600)
     run_file("script_runtime.py",timeout=900)
