@@ -32,8 +32,8 @@ def validate_sid(value):
     return sid
 
 def load_scenes(sid):
-    path=BASE/"roteiros"/f"scene_map_{sid}.json"
-    if not path.is_file(): raise RuntimeError("MEDIA_INPUT_INVALID:scene_map_missing")
+    path=BASE/"manifests"/f"scene_map_{sid}.json"
+    if not path.is_file(): raise RuntimeError("MEDIA_INPUT_INVALID:frozen_scene_map_missing")
     raw=json.loads(path.read_text(encoding="utf-8")); scenes=raw.get("scenes") if isinstance(raw,dict) else raw
     if not isinstance(scenes,list) or not scenes: raise RuntimeError("MEDIA_INPUT_INVALID:scene_map_empty")
     seen=set()
