@@ -53,7 +53,7 @@ class FixtureProvider(ProviderAdapter):
     def status(self):
         return ProviderStatus(True)
 
-    def search(self, query):
+    def search(self, query, must=None, soft_must=None, avoid=None):
         self.calls += 1
         token = query.replace(" ", "_")[:24]
         return [{
