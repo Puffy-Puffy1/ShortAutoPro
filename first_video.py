@@ -73,6 +73,10 @@ def main():
     )
     print("FIRST_VIDEO_CONTENT=PASS")
     run_stage(
+        ctx, sid, "SCENE_FREEZE", "scene_map_freeze.py", "--short-id", sid, timeout=300,
+        artifacts=[{"name":"frozen_scene_map","path":str(BASE/"manifests"/f"scene_map_{sid}.json"),"kind":"SceneMap"}],
+    )
+    run_stage(
         ctx, sid, "MEDIA", "media_acquisition_v3.py", "--short-id", sid, timeout=1800,
         artifacts=[{"name":"media_manifest","path":str(BASE/"manifests"/f"media_{sid}.json"),"kind":"MediaManifest"}],
     )
