@@ -28,6 +28,7 @@ def run_stage(ctx, sid, label, name, *args, timeout=1800, artifacts=None):
             started_at=started, finished_at=finished,
             artifacts=[PipelineArtifact(**item) for item in (artifacts or [])],
         ))
+        write_manifest(ctx, sid, "RUNNING")
         return proc
     except Exception as exc:
         finished = datetime.now(timezone.utc).isoformat()
@@ -36,6 +37,7 @@ def run_stage(ctx, sid, label, name, *args, timeout=1800, artifacts=None):
             started_at=started, finished_at=finished,
             errors=[PipelineError(code=str(exc).split(":", 1)[0], message=str(exc), retryable=False)],
         ))
+        write_manifest(ctx, sid, "FAILED")
         raise
 
 
