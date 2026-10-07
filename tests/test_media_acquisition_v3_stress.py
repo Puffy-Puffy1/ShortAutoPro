@@ -33,7 +33,7 @@ class FixtureProvider(ProviderAdapter):
     def status(self):
         return ProviderStatus(True)
 
-    def search(self, query):
+    def search(self, query, must=None, soft_must=None, avoid=None):
         self.calls.append(query)
         q = query.casefold()
         if self.fail_token and (self.fail_token.casefold() in q or (self.fail_token.casefold() == "fail_job_02" and "fail" in q and "job" in q and ("02" in q or q.strip() == "fail job"))):
