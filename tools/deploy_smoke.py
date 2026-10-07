@@ -76,7 +76,7 @@ def main() -> int:
         fail("render_v2_manifest_contract")
 
     contracts = (ROOT / "pipeline_contracts.py").read_text(encoding="utf-8")
-    for token in ("PipelineContext", "PipelineStageResult", "PipelineArtifact", "PipelineError"):
+    for token in ("PipelineContext", "PipelineStageResult", "PipelineArtifact", "PipelineError", "PipelineManifest"):
         if token not in contracts:
             fail("pipeline_contract_missing:" + token)
 
