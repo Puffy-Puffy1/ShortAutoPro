@@ -501,7 +501,8 @@ def final_gates(sid: str) -> int:
 
 
 def media_planning_tail(sid: str) -> None:
-    """Resume through canonical Media Acquisition V3 and deterministic Render Plan V2."""
+    """Resume through the frozen SceneMap bridge, Media V3, and Render Plan V2."""
+    run_python(sid, "FREEZE SCENE MAP BRIDGE", "scene_map_freeze.py", "--short-id", sid)
     run_python(
         sid,
         "MEDIA ACQUISITION V3 - ACQUIRE + VALIDATE + FREEZE MANIFEST",
