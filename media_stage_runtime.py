@@ -1,10 +1,17 @@
 #!/usr/bin/env python3
-"""Compatibility recovery boundary for the retired Stage 6.
+"""LEGACY compatibility boundary for the retired Stage 6.
 
-Production acquisition is owned by Media Engine V2. This module exists only for
-older recovery/checkpoint contracts and delegates every acquisition attempt to
-media_engine_v2.py. It must never certify editorial placeholders or bypass the
-frozen V2 manifest contract.
+This module is NOT part of the canonical production pipeline.
+Canonical acquisition is owned by Media Acquisition V3
+(media_acquisition_v3.py / media_v3). This file is retained temporarily only
+for backward-compatible recovery/checkpoint consumers while dependency parity
+is being verified.
+
+Rules:
+- never select or certify production media for the canonical path;
+- never be imported by canonical runtime modules;
+- do not bypass the frozen Media Acquisition V3 manifest;
+- retirement must happen only after the dependency graph proves it is unused.
 """
 from __future__ import annotations
 
