@@ -1,0 +1,61 @@
+# ShortAutoPro — Canonical Architecture Legacy Classification
+
+Status: working classification for PR #148. This document is a safety inventory, not permission to delete files.
+
+## A — Canonical production path
+
+- `main.py`
+- `first_video.py`
+- `pipeline_contracts.py`
+- `media_acquisition_v3.py`
+- `media_v3/*`
+- `render_plan_v2.py`
+- `render_engine_v2.py`
+- canonical Technical/Professional/Release QA
+- `production_recovery.py`
+
+These components form the production contract. New code must connect through their contracts instead of bypassing them.
+
+## B — Compatibility/dependencies
+
+- legacy manifest readers/adapters that are still required by compatibility tests
+- V1/V2 adapters that explicitly terminate at the V3 boundary
+- Remotion validation/bundling checks where they do not become an Android runtime dependency
+
+Compatibility code may remain temporarily, but it must not become the production authority.
+
+## C — Recovery
+
+- `production_recovery.py` is the intended orchestration boundary.
+- Specialized repair helpers may remain while their call graph is audited.
+- Recovery must be bounded: retry/fallback/repair, then fail with evidence.
+- No recovery helper may select render providers or own the render pipeline.
+
+## D — Legacy candidates — do not delete blindly
+
+- `media_stage_runtime.py`
+- `media_engine_v2.py`
+- `media_provider_v2.py`
+- `media_provider_router_v2.py`
+- older VI6 recovery/gate modules
+- `midia.py` if present in a checked-out historical/runtime copy
+
+The correct retirement sequence is:
+1. prove no canonical production import;
+2. prove no required compatibility/test dependency;
+3. replace any remaining bridge with a V3 contract;
+4. run architecture + unit + integration tests;
+5. retire in a dedicated commit;
+6. rerun the full pipeline.
+
+## E — Orphan candidates
+
+Any tracked `.py`/ `.sh` file that is neither reachable from an approved seed nor deliberately declared as a compatibility/recovery entrypoint is an orphan candidate.
+
+An orphan is not automatically safe to delete: generated/runtime files, manual recovery entrypoints and test fixtures require explicit classification.
+
+## Non-negotiable boundary
+
+The canonical runtime must never import or invoke the old Media Stage/Media Engine V2/provider-router runtime.
+
+The repository audit now fails if those legacy runtime references are reintroduced into the canonical path.
