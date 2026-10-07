@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
+"""LEGACY monolithic media runtime.
+
+The canonical production media boundary is Media Acquisition V3
+(media_acquisition_v3.py / media_v3). This file is retained temporarily for
+compatibility/history while its callers are mapped. New code must not import
+or extend this runtime.
+"""
 
 # SHORTAUTOPRO VSE42 IMPORT
+
 from visual_pipeline_bridge_v42 import (
     enabled as _vse42_enabled,
     finalize_pool as _vse42_finalize_pool,
