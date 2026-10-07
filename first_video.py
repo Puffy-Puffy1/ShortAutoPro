@@ -70,10 +70,16 @@ def main():
     video=next((x for x in streams if x.get("codec_type")=="video"),{})
     audio=next((x for x in streams if x.get("codec_type")=="audio"),{})
     if not video or not audio: raise RuntimeError("FIRST_VIDEO_FFPROBE_MISSING_STREAM")
+    duration=float(data.get("format",{}).get("duration") or 0)
+    fps=video.get("avg_frame_rate") or ""
+    if duration <= 0 or not video.get("width") or not video.get("height") or not video.get("codec_name") or not audio.get("codec_name"):
+        raise RuntimeError("FIRST_VIDEO_TECHNICAL_QA_INVALID_METADATA")
     print(json.dumps({"short_id":sid,"path":str(final),"size_bytes":final.stat().st_size,
-                      "duration":data.get("format",{}).get("duration"),
-                      "width":video.get("width"),"height":video.get("height"),
-                      "fps":video.get("avg_frame_rate"),"video_codec":video.get("codec_name"),
-                      "audio_codec":audio.get("codec_name"),"ffprobe":"PASS","technical_qa":"PASS"},ensure_ascii=False,indent=2))
+                      "duration":duration,
+                      "resolution":f"{video.get('width')}x{video.get('height')}",
+                      "fps":fps,"video_codec":video.get("codec_name"),
+                      "audio_codec":audio.get("codec_name"),
+                      "subtitle_streams":sum(1 for x in streams if x.get("codec_type")=="subtitle"),
+                      "ffprobe":"PASS","technical_qa":"PASS"},ensure_ascii=False,indent=2))
     return 0
 if __name__=="__main__": raise SystemExit(main())
