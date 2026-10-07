@@ -7,6 +7,7 @@ from .diagnostics import SceneDiagnostics
 from .query import build_query_plan
 from .providers import ProviderRegistry, ProviderAdapter
 from media_validator_v2 import validate as validate_media
+from .health import record as record_provider_health
 
 FORBIDDEN=("slate","placeholder","neutral_editorial","editorial_reuse")
 
@@ -134,8 +135,9 @@ class MediaAcquisitionV3:
                 for attempt in range(2):
                     detail=""
                     try:
-                        rows=provider.search(q)
+                        rows=provider.search(q, hard, soft, avoid)
                         diag.provider_results[provider.name]["queries"].append({"query":q,"count":len(rows),"attempt":attempt+1})
+                        record_provider_health(provider.name,"SUCCESS",query=q,latency_ms=0,status=200)
                         break
                     except requests.Timeout:
                         reason="TIMEOUT"
@@ -156,9 +158,8 @@ class MediaAcquisitionV3:
                         else:
                             reason="PROVIDER_UNAVAILABLE"
                         detail=str(exc)
-                    diag.provider_results[provider.name]["queries"].append(
-                        {"query":q,"error":reason,"attempt":attempt+1,**({"detail":detail} if "detail" in locals() else {})}
-                    )
+                    diag.provider_results[provider.name]["queries"].append({"query":q,"error":reason,"attempt":attempt+1,**({"detail":detail} if "detail" in locals() else {})})
+                    record_provider_health(provider.name,reason,query=q,error=detail)
                     diag.fallbacks.append({"type":"query","provider":provider.name,"query":q,"reason":reason})
                     circuit.fail()
                     if attempt == 0 and reason in {"RATE_LIMIT","TIMEOUT","HTTP_ERROR","PROVIDER_UNAVAILABLE"}:
