@@ -13,20 +13,34 @@ def _parse(name: str) -> str:
 
 
 def test_recovery_controller_is_bounded_and_canonical():
-    source = _parse("production_recovery.py")
-    tree = ast.parse(source)
-    classes = [n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == "RecoveryController"]
+    controller_source = _parse("recovery_controller.py")
+    tree = ast.parse(controller_source)
+    classes = [
+        node for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "RecoveryController"
+    ]
     assert classes, "RecoveryController must be the canonical recovery boundary"
     cls = classes[0]
-    max_attempts = next(
-        n for n in cls.body
-        if isinstance(n, ast.Assign)
-        and any(isinstance(t, ast.Name) and t.id == "MAX_ATTEMPTS" for t in n.targets)
+    max_actions = next(
+        node for node in cls.body
+        if isinstance(node, ast.Assign)
+        and any(isinstance(target, ast.Name) and target.id == "MAX_ACTIONS" for target in node.targets)
     )
-    assert isinstance(max_attempts.value, ast.Constant)
-    assert max_attempts.value.value == 1
-    assert "media_stage_runtime.py" not in source
-    assert "media_engine_v2.py" not in source
+    assert isinstance(max_actions.value, ast.Constant)
+    assert max_actions.value.value == 4
+
+    production = _parse("production_recovery.py")
+    assert "RecoveryController(max_actions=1)" in production
+    assert "media_stage_runtime.py" not in production
+    assert "media_engine_v2.py" not in production
+
+
+def test_main_does_not_call_a_second_recovery_engine():
+    source = _parse("main.py")
+    assert "shortauto_repair_engine.py" not in source
+    assert '"production_recovery.py"' in source
+
+
 
 
 def test_compat_repair_engine_cannot_reenter_retired_stage6():
