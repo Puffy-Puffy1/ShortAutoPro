@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import argparse, json, os, re, secrets, subprocess, sys
+import argparse, json, os, secrets, subprocess, sys, uuid
 from pathlib import Path
 from subprocess_guard import run_group
+from pipeline_contracts import PipelineArtifact, PipelineContext, PipelineStageResult, PipelineError
 
 BASE=Path(os.getenv("SHORTAUTOPRO_BASE",Path.home()/"ShortAutoPro")).resolve()
 
@@ -16,23 +17,35 @@ def run_file(name,*args,timeout=1800):
 def sid_value():
     return os.getenv("SHORT_ID","").strip() or ("fv_"+secrets.token_hex(6))
 
-def split_script(text):
-    words=re.findall(r"\b[\wÀ-ÿ'-]+\b",text,flags=re.UNICODE)
-    if len(words)<12: raise RuntimeError("FIRST_VIDEO_SCRIPT_TOO_SHORT")
-    mid=max(6,len(words)//2)
-    return " ".join(words[:mid])," ".join(words[mid:])
+def run_stage(ctx, sid, label, name, *args, timeout=1800, artifacts=None):
+    from datetime import datetime, timezone
+    started = datetime.now(timezone.utc).isoformat()
+    try:
+        proc = run_file(name, *args, timeout=timeout)
+        finished = datetime.now(timezone.utc).isoformat()
+        ctx.add(PipelineStageResult(
+            stage=label, status="PASS", run_id=ctx.run_id, short_id=sid,
+            started_at=started, finished_at=finished,
+            artifacts=[PipelineArtifact(**item) for item in (artifacts or [])],
+        ))
+        return proc
+    except Exception as exc:
+        finished = datetime.now(timezone.utc).isoformat()
+        ctx.add(PipelineStageResult(
+            stage=label, status="FAIL", run_id=ctx.run_id, short_id=sid,
+            started_at=started, finished_at=finished,
+            errors=[PipelineError(code=str(exc).split(":", 1)[0], message=str(exc), retryable=False)],
+        ))
+        raise
 
-def write_scene_map(sid,topic,script):
-    a,b=split_script(script)
-    q1=" ".join(re.findall(r"[A-Za-z0-9]+",topic))[:90] or "documentary subject"
-    scenes=[
-      {"scene_id":"first-video-01","segment":a,"query":f"{q1} documentary","must_have":[],"avoid":["wrong person","unrelated event"],"words":len(a.split())},
-      {"scene_id":"first-video-02","segment":b,"query":f"{q1} detail","must_have":[],"avoid":["wrong person","unrelated event"],"words":len(b.split())},
-    ]
-    out=BASE/"roteiros"/f"scene_map_{sid}.json"; out.parent.mkdir(parents=True,exist_ok=True)
-    out.write_text(json.dumps({"schema_version":"scene-map-first-video-v1","short_id":sid,"scenes":scenes},ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
-    (BASE/"roteiros"/f"short_{sid}.txt").write_text(script,encoding="utf-8")
-    return out
+
+def write_manifest(ctx, sid, status):
+    out = BASE / "reports" / "first_video" / f"{sid}.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    payload = ctx.to_dict()
+    payload["status"] = status
+    out.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+
 
 def main():
     ap=argparse.ArgumentParser()
@@ -44,24 +57,35 @@ def main():
     os.environ["SHORT_TOPIC_EXACT"]=args.topic.strip()
     os.environ["SHORT_ALLOW_REPEAT_TOPIC"]="1"
     os.environ["SHORT_QTD_CENAS"]="2"
+    ctx = PipelineContext(run_id="first-video-" + uuid.uuid4().hex, short_id=sid)
     print(f"FIRST_VIDEO_START short_id={sid} topic={args.topic}")
-    run_file("topic_engine_runtime.py",timeout=600)
-    run_file("script_runtime.py",timeout=900)
-    roteiro=BASE/"roteiros"/f"short_{sid}.txt"
-    if not roteiro.is_file(): raise RuntimeError("FIRST_VIDEO_SCRIPT_MISSING")
-    script=roteiro.read_text(encoding="utf-8").strip()
-    write_scene_map(sid,args.topic,script)
+    run_stage(ctx, sid, "TOPIC", "topic_engine_runtime.py", timeout=600)
+    run_stage(ctx, sid, "SCRIPT", "script_runtime.py", timeout=900)
+    roteiro = BASE / "roteiros" / f"short_{sid}.txt"
+    if not roteiro.is_file():
+        write_manifest(ctx, sid, "FAILED")
+        raise RuntimeError("FIRST_VIDEO_SCRIPT_MISSING")
+    run_stage(
+        ctx, sid, "SCENES", "scene_director.py", timeout=900,
+        artifacts=[{"name":"scene_map","path":str(BASE/"roteiros"/f"scene_map_{sid}.json"),"kind":"SceneMap"}],
+    )
     print("FIRST_VIDEO_CONTENT=PASS")
-    run_file("media_acquisition_v3.py","--short-id",sid,timeout=1800)
+    run_stage(
+        ctx, sid, "MEDIA", "media_acquisition_v3.py", "--short-id", sid, timeout=1800,
+        artifacts=[{"name":"media_manifest","path":str(BASE/"roteiros"/f"media_manifest_{sid}.json"),"kind":"MediaManifest"}],
+    )
     print("FIRST_VIDEO_MEDIA=PASS")
-    run_file("render_plan_v2.py","--short-id",sid,timeout=300)
-    run_file("audio.py",timeout=900)
+    run_stage(
+        ctx, sid, "RENDER_PLAN", "render_plan_v2.py", "--short-id", sid, timeout=300,
+        artifacts=[{"name":"render_plan","path":str(BASE/"roteiros"/f"render_plan_{sid}.json"),"kind":"RenderPlan"}],
+    )
+    run_stage(ctx, sid, "AUDIO", "audio.py", timeout=900)
     print("FIRST_VIDEO_AUDIO=PASS")
-    run_file("legenda_dinamica.py",timeout=900)
-    run_file("professional_caption_director.py",timeout=300)
-    run_file("caption_layout_guard.py",timeout=300)
+    run_stage(ctx, sid, "CAPTIONS", "legenda_dinamica.py", timeout=900)
+    run_stage(ctx, sid, "CAPTION_DIRECTOR", "professional_caption_director.py", timeout=300)
+    run_stage(ctx, sid, "CAPTION_GUARD", "caption_layout_guard.py", timeout=300)
     print("FIRST_VIDEO_CAPTION=PASS")
-    run_file("render_engine_v2.py","--short-id",sid,timeout=2400)
+    run_stage(ctx, sid, "RENDER", "render_engine_v2.py", "--short-id", sid, timeout=2400)
     final=BASE/"videos"/f"short_v6_{sid}.mp4"
     if not final.is_file() or final.stat().st_size<=1000: raise RuntimeError("FIRST_VIDEO_OUTPUT_INVALID")
     probe=run_group(["ffprobe","-v","error","-show_streams","-show_format","-of","json",str(final)],cwd=BASE,capture_output=True,text=True,check=True,timeout=60)
@@ -74,6 +98,7 @@ def main():
     fps=video.get("avg_frame_rate") or ""
     if duration <= 0 or not video.get("width") or not video.get("height") or not video.get("codec_name") or not audio.get("codec_name"):
         raise RuntimeError("FIRST_VIDEO_TECHNICAL_QA_INVALID_METADATA")
+    write_manifest(ctx, sid, "PASSED")
     print(json.dumps({"short_id":sid,"path":str(final),"size_bytes":final.stat().st_size,
                       "duration":duration,
                       "resolution":f"{video.get('width')}x{video.get('height')}",
