@@ -1,66 +1,76 @@
-name: ShortAutoPro Media Engine V2 Migration
+name: ShortAutoPro Canonical Media Pipeline
 
 on:
   workflow_dispatch:
   pull_request:
     branches: [main]
     paths:
-      - "media_engine_v2.py"
+      - "media_acquisition_v3.py"
+      - "media_v3/**"
+      - "pipeline_contracts.py"
+      - "first_video.py"
       - "render_plan_v2.py"
       - "render_engine_v2.py"
       - "main.py"
       - "production_recovery.py"
+      - "tests/**"
       - "tests_sim/**"
-      - "docs/MEDIA_ENGINE_V2_MIGRATION_AUDIT.md"
       - ".github/workflows/media-engine-v2-migration.yml"
   push:
     branches:
-      - "feature/retire-stage6-media-engine-v2"
-      - "audit/media-acquisition-v2"
+      - "refactor/canonical-pipeline-first-video-20261006"
     paths:
-      - "media_engine_v2.py"
+      - "media_acquisition_v3.py"
+      - "media_v3/**"
+      - "pipeline_contracts.py"
+      - "first_video.py"
       - "render_plan_v2.py"
       - "render_engine_v2.py"
+      - "main.py"
+      - "tests/**"
       - "tests_sim/**"
-      - "media_provider_v2.py"
-      - "media_provider_router_v2.py"
-      - "media_validator_v2.py"
-      - "tests/test_media_acquisition_v2.py"
       - ".github/workflows/media-engine-v2-migration.yml"
 
 permissions:
   contents: read
 
 jobs:
-  migration-contract:
+  canonical-contract:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
+        with: {python-version: "3.12"}
       - name: Install deterministic test dependencies
-        run: |
-          python -m pip install --disable-pip-version-check --quiet requests
+        run: python -m pip install --disable-pip-version-check --quiet requests
       - name: Python compile
-        run: python -m compileall -q media_engine_v2.py media_provider_v2.py media_provider_router_v2.py media_validator_v2.py render_plan_v2.py render_engine_v2.py tests tests_sim
-      - name: Media Engine V2 unit and failure tests
-        run: |
-          python -m unittest -v             tests_sim.test_media_engine_v2_contract             tests_sim.test_media_engine_v2_failure_modes             tests_sim.test_media_provider_v2             tests_sim.test_media_engine_v2_integration             tests_sim.test_render_plan_v2
-      - name: Independent Media Acquisition V2 tests
-        run: python -m unittest -v tests.test_media_acquisition_v2
+        run: python -m compileall -q media_acquisition_v3.py media_v3 pipeline_contracts.py first_video.py render_plan_v2.py render_engine_v2.py tests tests_sim
+      - name: Canonical Media Acquisition V3 tests
+        run: python -m unittest -v tests.test_media_acquisition_v3 tests.test_media_acquisition_v3_stress
+      - name: Canonical render-plan contract
+        run: python -m unittest -v tests_sim.test_render_plan_v2
+      - name: Legacy V2 compatibility tests
+        run: python -m unittest -v tests_sim.test_media_engine_v2_contract tests_sim.test_media_engine_v2_failure_modes tests_sim.test_media_provider_v2 tests_sim.test_media_engine_v2_integration tests.test_media_acquisition_v2
       - name: Architecture boundary audit
         run: |
           set -euo pipefail
           ! grep -q "media_stage_runtime.py" main.py
           ! grep -q "media_stage_runtime" media_engine_v2.py
-          grep -q "media_engine_v2.py" main.py
+          grep -q "media_acquisition_v3.py" main.py
+          ! grep -q "media_engine_v2.py" main.py
           grep -q "render_plan_v2.py" main.py
-          grep -q "media-manifest-v2" media_engine_v2.py
+          grep -q "media-manifest-v2" media_acquisition_v3.py
           grep -q "media-manifest-v2" render_engine_v2.py
-          echo "STAGE6_BYPASS_CONTRACT=PASS"
+          grep -q "first-video" main.py
+          echo "STAGE6_RETIRED=PASS"
+          echo "CANONICAL_MEDIA_V3=PASS"
+          echo "LEGACY_V2_NOT_CANONICAL=PASS"
       - name: Real FFmpeg/FFprobe render E2E
+        env:
+          SAP_RENDER_V2_BACKEND: "ffmpeg"
         run: python -m unittest -v tests_sim.test_render_engine_v2_manifest_e2e
-      - name: Consecutive 1-2-5-10 isolation
+      - name: Consecutive 1-2-5-10 render isolation
+        env:
+          SAP_RENDER_V2_BACKEND: "ffmpeg"
         run: python -m unittest -v tests_sim.test_render_engine_v2_stress
