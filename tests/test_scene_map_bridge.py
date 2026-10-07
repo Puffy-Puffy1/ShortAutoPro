@@ -6,10 +6,19 @@ ROOT=Path(__file__).resolve().parents[1]
 
 class SceneMapBridgeTests(unittest.TestCase):
     def test_consumers_use_frozen_scene_map(self):
-        for name in ("media_acquisition_v3.py","render_plan_v2.py"):
+        for name in ("media_acquisition_v3.py","render_plan_v2.py","render_preflight.py","render_engine_v2.py","caption_layout_guard.py","resume_short_runtime.py"):
             text=(ROOT/name).read_text(encoding="utf-8")
             self.assertIn('BASE/"manifests"/f"scene_map_{sid}.json"',text,name)
             self.assertNotIn('BASE/"roteiros"/f"scene_map_{sid}.json"',text,name)
+
+    def test_render_engine_requires_frozen_scene_contract(self):
+        text=(ROOT/"render_engine_v2.py").read_text(encoding="utf-8")
+        self.assertIn("SCENE_MAP_FROZEN_1.0", text)
+        self.assertIn("mutable_upstream_closed", text)
+
+    def test_resume_freezes_before_media(self):
+        text=(ROOT/"resume_short_runtime.py").read_text(encoding="utf-8")
+        self.assertLess(text.index("FREEZE SCENE MAP BRIDGE"), text.index("MEDIA ACQUISITION V3 - ACQUIRE + VALIDATE + FREEZE MANIFEST"))
 
     def test_main_freezes_before_media_and_builds_plan_after_captions(self):
         text=(ROOT/"main.py").read_text(encoding="utf-8")
