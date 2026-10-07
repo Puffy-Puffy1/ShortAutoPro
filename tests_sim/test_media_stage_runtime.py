@@ -59,11 +59,11 @@ class MediaStageRuntimeTests(unittest.TestCase):
 
     def test_preflight_and_health_require_runtime(self):
         self.assertIn(
-            "media_stage_runtime.py",
+            "media_acquisition_v3.py",
             Path("preflight_check.sh").read_text(encoding="utf-8"),
         )
         self.assertIn(
-            "media_stage_runtime.py",
+            "media_acquisition_v3.py",
             Path("health_check.sh").read_text(encoding="utf-8"),
         )
 
