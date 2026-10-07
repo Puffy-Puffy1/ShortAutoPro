@@ -42,7 +42,7 @@ class MediaV3Tests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             root=Path(td); fixture=root/"real.png"; fixture.write_bytes(PNG)
             good=Good(root)
-            good.search=lambda query: [{"provider":"good","kind":"image","id":"g","url":"file://"+str(fixture),"description":"ancient roman soldier"}]
+            good.search=lambda query, must=None, soft_must=None, avoid=None: [{"provider":"good","kind":"image","id":"g","url":"file://"+str(fixture),"description":"ancient roman soldier"}]
             engine=MediaAcquisitionV3(root, ProviderRegistry([Bad(root),good]))
             with patch.object(engine,"_download", lambda candidate,sid,number,diag: {"path":str(fixture),"sha256":"fixture","probe":{},"provider":"good","asset_id":"g"}):
                 record,diag=engine.acquire_scene("SID1",1,{"scene_id":"scene_01","query":"roman soldier","must_have":["roman soldier"]})
