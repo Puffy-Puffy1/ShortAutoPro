@@ -33,6 +33,26 @@ class MediaV3Tests(unittest.TestCase):
         with patch.dict("os.environ", {"PEXELS_API_KEY":""}, clear=False):
             self.assertEqual(PexelsAdapter().status().reason, "NO_API_KEY")
 
+    def test_provider_router_retries_transient_failure(self):
+        class Flaky(FixtureProvider):
+            name = "flaky"
+            def __init__(self, root):
+                super().__init__(root)
+                self.attempts = 0
+            def search(self, query, must=None, soft_must=None, avoid=None):
+                self.attempts += 1
+                if self.attempts == 1:
+                    raise RuntimeError("TIMEOUT")
+                return [{"provider":"flaky","kind":"image","id":"ok","url":"file://ok",
+                          "description":"ancient roman soldier"}]
+
+        with tempfile.TemporaryDirectory() as td:
+            provider = Flaky(Path(td))
+            registry = ProviderRegistry([provider], max_attempts=2)
+            rows = registry.search(provider, "roman soldier", ["roman soldier"], [], [])
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(provider.attempts, 2)
+
     def test_provider_failure_falls_through_to_next_provider(self):
         class Bad(FixtureProvider):
             name="bad"
