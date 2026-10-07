@@ -33,6 +33,7 @@ RETIRED_MODULES = {
     "vi6_19_true_recovery",
     "vi6_20_recovery_normalizer",
     "vi6_21_recovery_circuit",
+    "media_external_resilience",
 }
 
 
