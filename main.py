@@ -640,6 +640,9 @@ def cli() -> int:
     resume.add_argument("--short-id", default=None)
     resume.add_argument("--status", action="store_true")
     sub.add_parser("audit")
+    first_video = sub.add_parser("first-video", help="prove one real end-to-end video")
+    first_video.add_argument("--topic", required=True)
+    first_video.add_argument("--short-id", default="")
     production = sub.add_parser("production")
     production.add_argument("production_args", nargs=argparse.REMAINDER)
     storage = sub.add_parser("storage")
@@ -678,6 +681,11 @@ def cli() -> int:
         return run_control(command)
     if command_name == "audit":
         return run_control([sys.executable, str(BASE / "tools" / "repo_audit.py")])
+    if command_name == "first-video":
+        command = [sys.executable, str(BASE / "first_video.py"), "--topic", args.topic]
+        if args.short_id:
+            command.extend(["--short-id", args.short_id])
+        return run_control(command)
     if command_name == "production":
         command = [
             sys.executable,
