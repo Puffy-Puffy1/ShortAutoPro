@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
-"""ShortAutoPro Media Engine V2.
+"""LEGACY compatibility Media Engine V2.
 
-Single responsibility:
-  scene requirements -> provider acquisition -> asset validation -> frozen manifest.
+Media Acquisition V3 is the sole canonical production acquisition boundary.
+This module is retained temporarily for compatibility, rollback and historical
+tests while its dependency graph is being verified.
 
-This module deliberately does not render, edit, encode, publish, or create SHORT_IDs.
-It uses the repository's mature provider primitives as an acquisition compatibility
-boundary; the production entrypoint calls this engine directly and never invokes the legacy
-media controller.
+It must not be called by the canonical production path and must not become a
+second acquisition authority.
 """
 from __future__ import annotations
 
