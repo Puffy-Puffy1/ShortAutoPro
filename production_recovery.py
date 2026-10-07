@@ -177,7 +177,7 @@ def _repair_captions(short_id: str, actions: list[dict[str, Any]]) -> bool:
     return True
 
 
-def repair(short_id: str) -> dict[str, Any]:
+def _repair_once(short_id: str) -> dict[str, Any]:
     sid = str(short_id or "").strip()
     if not sid:
         return {
@@ -269,6 +269,48 @@ def repair(short_id: str) -> dict[str, Any]:
     _atomic_json(REPORT_DIR / f"recovery_{sid}.json", result)
     return result
 
+
+
+class RecoveryController:
+    """Single bounded recovery boundary for the canonical pipeline.
+
+    Recovery is corrective only: it may repair an already-produced artifact or
+    rebuild a canonical upstream artifact, but it never selects providers,
+    relaxes MUST constraints, enters retired Stage 6, or starts another
+    recovery engine. One invocation performs at most one repair pass.
+    """
+
+    MAX_ATTEMPTS = 1
+
+    def __init__(self, *, max_attempts: int = 1):
+        self.max_attempts = max(1, min(int(max_attempts), self.MAX_ATTEMPTS))
+
+    def run(self, short_id: str) -> dict[str, Any]:
+        sid = str(short_id or "").strip()
+        if not sid:
+            return {"short_id": sid, "status": "BLOCKED", "reason": "short_id_empty", "attempts": 0, "history": []}
+        history: list[dict[str, Any]] = []
+        for attempt in range(1, self.max_attempts + 1):
+            result = _repair_once(sid)
+            history.append({
+                "attempt": attempt,
+                "status": result.get("status"),
+                "reason": result.get("reason"),
+                "actions": result.get("actions", []),
+            })
+            result["controller"] = "RecoveryController"
+            result["attempts"] = attempt
+            result["history"] = history
+            if result.get("status") in {"READY", "RECOVERED"}:
+                return result
+        result["status"] = "BLOCKED" if result.get("status") not in {"READY", "RECOVERED"} else result["status"]
+        result["reason"] = result.get("reason", "recovery_attempt_limit_reached")
+        return result
+
+
+def repair(short_id: str) -> dict[str, Any]:
+    """Compatibility entry point; all recovery now flows through RecoveryController."""
+    return RecoveryController().run(short_id)
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="ShortAutoPro bounded pre-render recovery")
