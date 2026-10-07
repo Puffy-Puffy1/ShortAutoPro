@@ -40,6 +40,7 @@ Compatibility code may remain temporarily, but it must not become the production
 - `media_provider_router_v2.py`
 - older VI6 recovery/gate modules
 - `media_acquisition_recovery.py` when used as a standalone orchestration layer; its retrieval policy must terminate at the V3 acquisition contract
+- `shortauto_repair_engine.py` is a legacy compatibility/planning engine only; canonical production entrypoints must use `production_recovery.py` → `RecoveryController`
 - `media_master_gate.py` and `media_strict_must_guard.py` are policy/compatibility layers, not competing acquisition engines
 - `midia.py` if present in a checked-out historical/runtime copy
 
