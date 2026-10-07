@@ -41,7 +41,6 @@ DEFAULT_SEEDS = {
     "tools/map_active_graph.py",
     "tools/repo_audit.py",
     "tools/deploy_smoke.py",
-    "tests/test_media_acquisition_v2.py",
 }
 
 FILE_REF_RE = re.compile(r"(?<![A-Za-z0-9_./-])([A-Za-z0-9_.-]+\.(?:py|sh))(?![A-Za-z0-9_.-])")
@@ -145,7 +144,10 @@ def build():
             graph[rel] = refs_from_text(path.read_text(encoding="utf-8", errors="ignore"), files, modules)
 
     seeds = set(DEFAULT_SEEDS)
-    seeds |= {rel for rel in files if rel.startswith("tests_sim/") and rel.endswith(".py")}
+    # Historical tests_sim are not production/canonical graph seeds. Only the
+    # explicitly quarantined compatibility suite is a graph root; canonical
+    # tests under tests/ are already reached from the workflow seeds.
+    seeds |= {rel for rel in files if rel.startswith("tests_compat/") and rel.endswith(".py")}
     seeds |= {rel for rel in files if rel.startswith(".github/workflows/") and rel.endswith((".yml", ".yaml"))}
     seeds = {seed for seed in seeds if seed in files}
 
