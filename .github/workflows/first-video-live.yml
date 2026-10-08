@@ -57,20 +57,43 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install --upgrade piper-tts
+
+      - name: Install Piper voice model
+        run: |
+          python -m piper.download_voices pt_BR-faber-medium --data-dir "$GITHUB_WORKSPACE/piper/voice"
+          test -s "$GITHUB_WORKSPACE/piper/voice/pt_BR-faber-medium.onnx"
+          test -s "$GITHUB_WORKSPACE/piper/voice/pt_BR-faber-medium.onnx.json"
+
+      - name: Build Whisper.cpp and download model
+        run: |
+          set -euo pipefail
+          WHISPER_ROOT="$RUNNER_TEMP/whisper.cpp"
+          git clone --depth 1 https://github.com/ggerganov/whisper.cpp.git "$WHISPER_ROOT"
+          cmake -S "$WHISPER_ROOT" -B "$WHISPER_ROOT/build"
+          cmake --build "$WHISPER_ROOT/build" --config Release -j2 --target whisper-cli
+          bash "$WHISPER_ROOT/models/download-ggml-model.sh" base
+          test -x "$WHISPER_ROOT/build/bin/whisper-cli"
+          test -s "$WHISPER_ROOT/models/ggml-base.bin"
 
       - name: Verify required live credentials
         env:
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           test -n "$PEXELS_API_KEY" || { echo "Missing PEXELS_API_KEY"; exit 1; }
           test -n "$PIXABAY_API_KEY" || { echo "Missing PIXABAY_API_KEY"; exit 1; }
+          test -n "$GEMINI_API_KEY" || { echo "Missing GEMINI_API_KEY"; exit 1; }
 
       - name: Run FIRST_VIDEO
         env:
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           SHORT_ID: ${{ inputs.short_id }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          WHISPER_CLI: ${{ runner.temp }}/whisper.cpp/build/bin/whisper-cli
+          WHISPER_MODEL: ${{ runner.temp }}/whisper.cpp/models/ggml-base.bin
         run: |
           set -euo pipefail
           if [ -n "$SHORT_ID" ]; then
