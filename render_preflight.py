@@ -8,6 +8,7 @@ and v6_professional.py. It does not select media or alter upstream outputs.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -45,6 +46,13 @@ def _atomic_json(path: Path, payload: dict[str, Any]) -> None:
         except OSError:
             pass
         raise
+
+
+def _integrity(payload: dict[str, Any]) -> str:
+    unsigned = dict(payload)
+    unsigned.pop("integrity_sha256", None)
+    raw = json.dumps(unsigned, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -197,6 +205,9 @@ def inspect(short_id: str) -> dict[str, Any]:
             raise ValueError("media_manifest: short_id incompatível")
         if int(media.get("scene_count", -1)) != expected:
             raise ValueError("media_manifest: scene_count incompatível")
+        media_integrity = str(media.get("integrity_sha256") or "")
+        if not media_integrity or media_integrity != _integrity(media):
+            raise ValueError("media_manifest: integridade inválida")
         rows = media.get("scenes", [])
         if not isinstance(rows, list) or len(rows) != expected:
             raise ValueError("media_manifest: quantidade de cenas incompatível")
@@ -240,8 +251,9 @@ def inspect(short_id: str) -> dict[str, Any]:
             raise ValueError("render_plan: quantidade de cenas incompatível")
         if plan.get("immutable") is not True:
             raise ValueError("render_plan: contrato não congelado")
-        if not plan.get("integrity_sha256"):
-            raise ValueError("render_plan: integridade ausente")
+        plan_integrity = str(plan.get("integrity_sha256") or "")
+        if not plan_integrity or plan_integrity != _integrity(plan):
+            raise ValueError("render_plan: integridade inválida")
         checks["edit_plan"] = True
     except Exception as exc:
         checks["edit_plan"] = False
