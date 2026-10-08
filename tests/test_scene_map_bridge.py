@@ -32,6 +32,35 @@ class SceneMapBridgeTests(unittest.TestCase):
         self.assertIn('"immutable":True', source)
         self.assertIn('"integrity_sha256"', source)
 
+
+    def test_render_plan_is_single_frozen_writer(self):
+        source=(ROOT/"render_plan_v2.py").read_text(encoding="utf-8")
+        self.assertEqual(source.count('BASE/"roteiros"/f"pro_edit_plan_{sid}.json"'),1)
+        self.assertIn('"immutable":True',source)
+        self.assertIn('"integrity_sha256"',source)
+        self.assertIn('media_manifest_missing',source)
+
+    def test_render_preflight_uses_media_manifest_as_canonical_source(self):
+        source=(ROOT/"render_preflight.py").read_text(encoding="utf-8")
+        self.assertIn('BASE / "manifests" / f"media_{short_id}.json"',source)
+        self.assertIn('schema_version") != "media-manifest-v2"',source)
+        self.assertIn('asset.get("validated") is not True',source)
+        self.assertNotIn('for path in sorted(media_dir.glob("scene_*"))',source)
+
+    def test_render_engine_is_acquisition_free_and_freezes_render_plan(self):
+        source=(ROOT/"render_engine_v2.py").read_text(encoding="utf-8")
+        self.assertIn('plan.get("schema_version") != "render-plan-v2"',source)
+        self.assertIn('plan.get("immutable") is not True',source)
+        self.assertIn('render_plan_integrity',source)
+        self.assertNotIn("ProviderRegistry",source)
+        self.assertNotIn("media_acquisition_v3",source)
+        self.assertNotIn("PexelsAdapter",source)
+
+    def test_first_video_has_real_output_qa(self):
+        source=(ROOT/"first_video.py").read_text(encoding="utf-8")
+        for token in ("ffprobe", "technical_qa", "resolution", "video_codec", "audio_codec"):
+            self.assertIn(token,source)
+
     def test_render_engine_requires_frozen_scene_contract(self):
         text=(ROOT/"render_engine_v2.py").read_text(encoding="utf-8")
         self.assertIn("SCENE_MAP_FROZEN_1.0", text)
