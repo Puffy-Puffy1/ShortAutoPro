@@ -10,7 +10,7 @@ import json,os,re,tempfile
 from datetime import date
 from pathlib import Path
 from typing import Any
-BASE=Path(os.getenv("SHORTAUTOPRO_BASE",os.path.expanduser("~/ShortAutoPro"))).resolve();SID=os.getenv("SHORT_ID",date.today().isoformat()).strip();ASS=BASE/"videos"/f"short_{SID}.ass";MAP=BASE/"roteiros"/f"scene_map_{SID}.json";REPORT=BASE/"roteiros"/f"caption_layout_{SID}.json"
+BASE=Path(os.getenv("SHORTAUTOPRO_BASE",os.path.expanduser("~/ShortAutoPro"))).resolve();SID=os.getenv("SHORT_ID",date.today().isoformat()).strip();ASS=BASE/"videos"/f"short_{SID}.ass";MAP=BASE/"manifests"/f"scene_map_{SID}.json";REPORT=BASE/"roteiros"/f"caption_layout_{SID}.json"
 def atomic_text(p:Path,s:str)->None:
  p.parent.mkdir(parents=True,exist_ok=True);fd,t=tempfile.mkstemp(prefix=f".{p.name}.",suffix=".tmp",dir=str(p.parent))
  try:
@@ -23,7 +23,9 @@ def atomic_text(p:Path,s:str)->None:
 def atomic_json(p:Path,x:Any)->None:atomic_text(p,json.dumps(x,ensure_ascii=False,indent=2)+"\n")
 def main()->int:
  if not ASS.is_file() or not MAP.is_file():print("ERRO CAPTION LAYOUT: artefatos ausentes");return 1
- try:data=json.loads(MAP.read_text(encoding="utf-8"));scenes=data.get("scenes",[]);zones=[str(x.get("protected_zone","center")).lower() for x in scenes if isinstance(x,dict)];bottom=sum(1 for z in zones if z=="bottom");center=sum(1 for z in zones if z=="center");margin=335
+ try:data=json.loads(MAP.read_text(encoding="utf-8"))
+  if data.get("schema_version")!="SCENE_MAP_FROZEN_1.0" or data.get("short_id")!=SID or data.get("mutable_upstream_closed") is not True: raise ValueError("SceneMap frozen contract inválido")
+  scenes=data.get("scenes",[]);zones=[str(x.get("protected_zone","center")).lower() for x in scenes if isinstance(x,dict)];bottom=sum(1 for z in zones if z=="bottom");center=sum(1 for z in zones if z=="center");margin=335
  except Exception as exc:print(f"ERRO CAPTION LAYOUT: {exc}");return 1
  if bottom>=max(2,len(zones)//4):margin=420
  elif bottom:margin=385
