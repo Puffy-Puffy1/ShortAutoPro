@@ -53,7 +53,11 @@ def main():
     ap=argparse.ArgumentParser()
     ap.add_argument("--topic",required=True)
     ap.add_argument("--short-id",default="")
+    ap.add_argument("--allow-live",action="store_true",
+                    help="Permite execução que depende de credenciais/serviços externos.")
     args=ap.parse_args()
+    if not args.allow_live and os.getenv("FIRST_VIDEO_LIVE") != "1":
+        raise RuntimeError("FIRST_VIDEO_LIVE_GUARD:use --allow-live or FIRST_VIDEO_LIVE=1")
     sid=args.short_id.strip() or sid_value()
     os.environ["SHORT_ID"]=sid
     os.environ["SHORT_TOPIC_EXACT"]=args.topic.strip()
