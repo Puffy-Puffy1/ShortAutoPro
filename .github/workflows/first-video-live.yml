@@ -90,22 +90,23 @@ jobs:
         env:
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
-          SHORT_ID: ${{ inputs.short_id }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TOPIC: ${{ inputs.topic }}
+          SHORT_ID: ${{ inputs.short_id }}
           WHISPER_CLI: ${{ runner.temp }}/whisper.cpp/build/bin/whisper-cli
           WHISPER_MODEL: ${{ runner.temp }}/whisper.cpp/models/ggml-base.bin
         run: |
           set -euo pipefail
           if [ -n "$SHORT_ID" ]; then
-            python first_video.py --topic "${{ inputs.topic }}" --short-id "$SHORT_ID" --allow-live
+            python first_video.py --topic "$TOPIC" --short-id "$SHORT_ID" --allow-live
           else
-            python first_video.py --topic "${{ inputs.topic }}" --allow-live
+            python first_video.py --topic "$TOPIC" --allow-live
           fi
 
       - name: Validate generated MP4 with FFprobe
         run: |
           set -euo pipefail
-          latest="$(find videos -maxdepth 1 -type f -name 'short_v6_*.mp4' -printf '%T@ %p\n' | sort -nr | head -n1 | cut -d' ' -f2-)"
+          latest="$(find videos -maxdepth 1 -type f -name 'short_v6_*.mp4' -printf '%T@ %p\\n' | sort -nr | head -n1 | cut -d' ' -f2-)"
           test -n "$latest"
           test -s "$latest"
           ffprobe -v error -show_entries format=duration:stream=codec_type,codec_name,width,height,avg_frame_rate -of json "$latest" > first_video_ffprobe.json
