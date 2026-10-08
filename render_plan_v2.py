@@ -5,12 +5,12 @@ This replaces the old Stage-6 editing chain as the producer of pro_edit_plan.
 It does not acquire media or render anything.
 """
 from __future__ import annotations
-import json, os, tempfile
+import hashlib, json, os, tempfile
 from pathlib import Path
 import re
 BASE=Path(os.getenv("SHORTAUTOPRO_BASE",Path.home()/"ShortAutoPro")).resolve()
 
-def atomic(path:Path,data:dict):
+def integrity(payload:dict) -> str:\n    unsigned=dict(payload)\n    unsigned.pop("integrity_sha256",None)\n    raw=json.dumps(unsigned,ensure_ascii=False,sort_keys=True,separators=(",",":")).encode("utf-8")\n    return hashlib.sha256(raw).hexdigest()\n\ndef atomic(path:Path,data:dict):
     path.parent.mkdir(parents=True,exist_ok=True)
     fd,tmp=tempfile.mkstemp(prefix=f".{path.name}.",suffix=".tmp",dir=str(path.parent))
     try:
@@ -60,7 +60,7 @@ def main(short_id=None):
     if media_path.is_file(): inputs["media_manifest"]=str(media_path)
     if audio_path.is_file(): inputs["audio"]=str(audio_path)
     if caption_path.is_file(): inputs["captions"]=str(caption_path)
-    plan={"schema_version":"render-plan-v2","short_id":sid,"inputs":inputs,"scenes":[]}
+    plan={"schema_version":"render-plan-v2","short_id":sid,"inputs":inputs,"scenes":[],"immutable":True}
     seen_ids=set()
     for i,scene in enumerate(scenes,1):
         if not isinstance(scene,dict): raise RuntimeError(f"RENDER_PLAN_INVALID:scene_{i:02d}")
@@ -90,7 +90,7 @@ def main(short_id=None):
             "cut_style":"editorial_cut",
             "transition_duration":0.0,
         })
-    atomic(out,plan)
+    plan["frozen_at"]=__import__("datetime").datetime.now().astimezone().isoformat(timespec="seconds")\n    plan["integrity_sha256"]=integrity(plan)\n    atomic(out,plan)
     print(f"RENDER_PLAN_V2=PASS short_id={sid} scenes={len(plan['scenes'])}")
     return 0
 
