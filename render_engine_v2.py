@@ -176,6 +176,13 @@ def build_job(short_id: str) -> Path:
         raise RuntimeError("RENDER_INPUT_INVALID:frozen_scene_map")
     scenes_raw = frozen_scene_map.get("scenes")
     plan = read_json(edit_path)
+    if plan.get("schema_version") != "render-plan-v2" or plan.get("short_id") != short_id:
+        raise RuntimeError("RENDER_INPUT_INVALID:render_plan_identity")
+    if plan.get("immutable") is not True:
+        raise RuntimeError("RENDER_INPUT_INVALID:render_plan_not_frozen")
+    expected_plan_integrity = str(plan.get("integrity_sha256") or "")
+    if not expected_plan_integrity or expected_plan_integrity != _manifest_integrity(plan):
+        raise RuntimeError("RENDER_INPUT_INVALID:render_plan_integrity")
     media_manifest = read_json(media_manifest_path)
     planned = plan.get("scenes")
     frozen_assets = media_manifest.get("scenes")
