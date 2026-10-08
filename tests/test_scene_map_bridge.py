@@ -11,6 +11,27 @@ class SceneMapBridgeTests(unittest.TestCase):
             self.assertIn('BASE/"manifests"/f"scene_map_{sid}.json"',text,name)
             self.assertNotIn('BASE/"roteiros"/f"scene_map_{sid}.json"',text,name)
 
+
+    def test_downstream_consumers_do_not_reference_mutable_scene_map(self):
+        downstream = (
+            "media_acquisition_v3.py",
+            "caption_layout_guard.py",
+            "render_preflight.py",
+            "render_plan_v2.py",
+            "render_engine_v2.py",
+        )
+        forbidden = 'BASE/"roteiros"/f"scene_map_{sid}.json"'
+        for name in downstream:
+            source = (ROOT/name).read_text(encoding="utf-8")
+            self.assertNotIn(forbidden, source, name)
+            self.assertNotIn('BASE / "roteiros" / f"scene_map_{short_id}.json"', source, name)
+
+    def test_media_manifest_has_single_canonical_writer(self):
+        source = (ROOT/"media_acquisition_v3.py").read_text(encoding="utf-8")
+        self.assertEqual(source.count('BASE/"manifests"/f"media_{sid}.json"'), 1)
+        self.assertIn('"immutable":True', source)
+        self.assertIn('"integrity_sha256"', source)
+
     def test_render_engine_requires_frozen_scene_contract(self):
         text=(ROOT/"render_engine_v2.py").read_text(encoding="utf-8")
         self.assertIn("SCENE_MAP_FROZEN_1.0", text)
