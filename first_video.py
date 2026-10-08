@@ -107,8 +107,17 @@ def main():
     if not video or not audio: raise RuntimeError("FIRST_VIDEO_FFPROBE_MISSING_STREAM")
     duration=float(data.get("format",{}).get("duration") or 0)
     fps=video.get("avg_frame_rate") or ""
-    if duration <= 0 or not video.get("width") or not video.get("height") or not video.get("codec_name") or not audio.get("codec_name"):
-        raise RuntimeError("FIRST_VIDEO_TECHNICAL_QA_INVALID_METADATA")
+    resolution=(int(video.get("width") or 0), int(video.get("height") or 0))
+    if resolution != (1080, 1920):
+        raise RuntimeError(f"FIRST_VIDEO_TECHNICAL_QA_INVALID_RESOLUTION:{resolution}")
+    if video.get("codec_name") != "h264":
+        raise RuntimeError(f"FIRST_VIDEO_TECHNICAL_QA_INVALID_VIDEO_CODEC:{video.get("codec_name")}")
+    if audio.get("codec_name") != "aac":
+        raise RuntimeError(f"FIRST_VIDEO_TECHNICAL_QA_INVALID_AUDIO_CODEC:{audio.get("codec_name")}")
+    if fps not in {"30/1", "30000/1001"}:
+        raise RuntimeError(f"FIRST_VIDEO_TECHNICAL_QA_INVALID_FPS:{fps}")
+    if duration <= 0:
+        raise RuntimeError("FIRST_VIDEO_TECHNICAL_QA_INVALID_DURATION")
     write_manifest(ctx, sid, "PASSED")
     print(json.dumps({"short_id":sid,"path":str(final),"size_bytes":final.stat().st_size,
                       "duration":duration,
