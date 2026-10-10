@@ -31,6 +31,7 @@ on:
       - "production_recovery.py"
       - "recovery_controller.py"
       - "tests/**"
+      - "tests_sim/**"
       - ".github/workflows/media-engine-v2-migration.yml"
 
 permissions:
