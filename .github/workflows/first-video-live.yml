@@ -106,7 +106,7 @@ jobs:
       - name: Validate generated MP4 with FFprobe
         run: |
           set -euo pipefail
-          latest="$(find videos -maxdepth 1 -type f -name 'short_v6_*.mp4' -printf '%T@ %p\\n' | sort -nr | head -n1 | cut -d' ' -f2-)"
+          latest="$(find videos -maxdepth 1 -type f -name 'short_v6_*.mp4' -printf '%T@ %p\n' | sort -nr | head -n1 | cut -d' ' -f2-)"
           test -n "$latest"
           test -s "$latest"
           ffprobe -v error -show_entries format=duration:stream=codec_type,codec_name,width,height,avg_frame_rate -of json "$latest" > first_video_ffprobe.json
