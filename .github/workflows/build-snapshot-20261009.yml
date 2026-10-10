@@ -13,19 +13,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Checkout
+      - name: Checkout full history
         uses: actions/checkout@v4
-      - name: Fetch exact main commit
-        shell: bash
-        run: |
-          set -euo pipefail
-          git fetch origin 12011e0e9ab613d46cff9d3b6af6e3bb6d152bba
-          git cat-file -e '12011e0e9ab613d46cff9d3b6af6e3bb6d152bba^{commit}'
-      - name: Build verified snapshot
+        with:
+          fetch-depth: 0
+      - name: Build exact main snapshot
         shell: bash
         run: |
           set -euo pipefail
           TARGET_SHA='12011e0e9ab613d46cff9d3b6af6e3bb6d152bba'
+          git cat-file -e "${TARGET_SHA}^{commit}"
           SNAP='ShortAutoPro_Atualizado_2026-10-09_12011e0e9ab6.zip'
           git archive --format=zip --prefix=ShortAutoPro/ --output="$SNAP" "$TARGET_SHA"
           FILE_COUNT="$(git ls-tree -r --name-only "$TARGET_SHA" | wc -l | tr -d ' ')"
