@@ -111,18 +111,18 @@ jobs:
           test -s "$latest"
           ffprobe -v error -show_entries format=duration:stream=codec_type,codec_name,width,height,avg_frame_rate -of json "$latest" > first_video_ffprobe.json
           python - <<'PY'
-import json
-d=json.load(open("first_video_ffprobe.json",encoding="utf-8"))
-vs=next(x for x in d["streams"] if x.get("codec_type")=="video")
-au=next(x for x in d["streams"] if x.get("codec_type")=="audio")
-assert (vs.get("width"),vs.get("height"))==(1080,1920)
-assert vs.get("codec_name")=="h264"
-assert au.get("codec_name")=="aac"
-assert vs.get("avg_frame_rate") in {"30/1","30000/1001"}
-assert float(d["format"].get("duration") or 0)>0
-print("FIRST_VIDEO_FFPROBE=PASS")
-PY
-
+          import json
+          d=json.load(open("first_video_ffprobe.json",encoding="utf-8"))
+          vs=next(x for x in d["streams"] if x.get("codec_type")=="video")
+          au=next(x for x in d["streams"] if x.get("codec_type")=="audio")
+          assert (vs.get("width"),vs.get("height"))==(1080,1920)
+          assert vs.get("codec_name")=="h264"
+          assert au.get("codec_name")=="aac"
+          assert vs.get("avg_frame_rate") in {"30/1","30000/1001"}
+          assert float(d["format"].get("duration") or 0)>0
+          print("FIRST_VIDEO_FFPROBE=PASS")
+          PY
+          
       - name: Upload FIRST_VIDEO evidence
         if: always()
         uses: actions/upload-artifact@v4
