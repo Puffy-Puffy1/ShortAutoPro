@@ -9,8 +9,8 @@ class SceneMapBridgeTests(unittest.TestCase):
     def test_consumers_use_frozen_scene_map(self):
         for name in ("media_acquisition_v3.py","render_plan_v2.py","render_preflight.py","render_engine_v2.py","caption_layout_guard.py","resume_short_runtime.py"):
             text=(ROOT/name).read_text(encoding="utf-8")
-            self.assertRegex(text, r'BASE\s*/\s*"manifests"\s*/\s*f"scene_map_\{(?:sid|short_id)\}\.json"', name)
-            self.assertNotRegex(text, r'BASE\s*/\s*"roteiros"\s*/\s*f"scene_map_\{(?:sid|short_id)\}\.json"', name)
+            self.assertRegex(text, r'BASE\s*/\s*"manifests"\s*/\s*f"scene_map_\{(?:sid|short_id|SID)\}\.json"', name)
+            self.assertNotRegex(text, r'BASE\s*/\s*"roteiros"\s*/\s*f"scene_map_\{(?:sid|short_id|SID)\}\.json"', name)
 
 
     def test_downstream_consumers_do_not_reference_mutable_scene_map(self):
@@ -21,7 +21,7 @@ class SceneMapBridgeTests(unittest.TestCase):
             "render_plan_v2.py",
             "render_engine_v2.py",
         )
-        forbidden = r'BASE\s*/\s*"roteiros"\s*/\s*f"scene_map_\{(?:sid|short_id)\}\.json"'
+        forbidden = r'BASE\s*/\s*"roteiros"\s*/\s*f"scene_map_\{(?:sid|short_id|SID)\}\.json"'
         for name in downstream:
             source = (ROOT/name).read_text(encoding="utf-8")
             self.assertNotRegex(source, forbidden, name)
