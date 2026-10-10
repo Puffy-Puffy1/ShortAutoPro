@@ -13,6 +13,7 @@ from unittest.mock import patch
 
 import media_acquisition_v3
 import render_engine_v2
+import render_plan_v2
 from media_v3.providers import ProviderAdapter, ProviderRegistry, ProviderStatus
 
 
@@ -157,15 +158,18 @@ class MediaV3FullPipelineStressTests(unittest.TestCase):
     def _render(self, base: Path, sid: str):
         old_media_base = media_acquisition_v3.BASE
         old_render_base = render_engine_v2.BASE
+        old_plan_base = render_plan_v2.BASE
         try:
             media_acquisition_v3.BASE = base
             render_engine_v2.BASE = base
+            render_plan_v2.BASE = base
             provider = FixtureProvider(base / "fixtures")
             engine = media_acquisition_v3.MediaAcquisitionV3(
                 base, ProviderRegistry([provider])
             )
             manifest = media_acquisition_v3.build_manifest(sid, engine)
             self.assertEqual(manifest["short_id"], sid)
+            render_plan_v2.main(sid)
             with patch.dict(
                 os.environ,
                 {
@@ -195,6 +199,7 @@ class MediaV3FullPipelineStressTests(unittest.TestCase):
         finally:
             media_acquisition_v3.BASE = old_media_base
             render_engine_v2.BASE = old_render_base
+            render_plan_v2.BASE = old_plan_base
 
     def test_1_2_5_10_consecutive_full_pipeline_jobs(self):
         if shutil.which("ffmpeg") is None or shutil.which("ffprobe") is None:
@@ -237,9 +242,11 @@ class MediaV3FullPipelineStressTests(unittest.TestCase):
             self._prepare_job(base, "OK_RENDER_02", 2)
             media_acquisition_v3.BASE = base
             render_engine_v2.BASE = base
+            render_plan_v2.BASE = base
             provider = FixtureProvider(base / "fixtures")
             engine = media_acquisition_v3.MediaAcquisitionV3(base, ProviderRegistry([provider]))
             media_acquisition_v3.build_manifest("FAIL_RENDER_01", engine)
+            render_plan_v2.main("FAIL_RENDER_01")
             asset = next((base / "imagens" / "short_FAIL_RENDER_01").glob("scene_*.png"))
             asset.write_bytes(b"corrupt")
             with patch.dict(
