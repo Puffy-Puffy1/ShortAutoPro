@@ -100,15 +100,33 @@ class MediaV3FullPipelineStressTests(unittest.TestCase):
             (base / folder).mkdir(parents=True, exist_ok=True)
         media = base / "imagens" / f"short_{sid}"
         media.mkdir(parents=True, exist_ok=True)
+        scene = {
+            "scene_id": "scene_01",
+            "scene": 1,
+            "segment": "fixture visual scene",
+            "query": "fixture visual scene",
+            "words": 2,
+            "protected_zone": "center",
+        }
+        mutable_map = {"scenes": [scene]}
         (base / "roteiros" / f"scene_map_{sid}.json").write_text(
-            json.dumps({
-                "scenes": [{
-                    "scene_id": "scene_01",
-                    "scene": 1,
-                    "query": "fixture visual scene",
-                    "words": 2,
-                }]
-            }),
+            json.dumps(mutable_map),
+            encoding="utf-8",
+        )
+        # Test the real downstream contract: acquisition must consume a frozen SceneMap.
+        frozen_map = {
+            **mutable_map,
+            "schema_version": "SCENE_MAP_FROZEN_1.0",
+            "short_id": sid,
+            "frozen_at": "2026-01-01T00:00:00+00:00",
+            "source_path": str(base / "roteiros" / f"scene_map_{sid}.json"),
+            "source_sha256": hashlib.sha256(
+                json.dumps(mutable_map, sort_keys=True, separators=(",", ":")).encode("utf-8")
+            ).hexdigest(),
+            "mutable_upstream_closed": True,
+        }
+        (base / "manifests" / f"scene_map_{sid}.json").write_text(
+            json.dumps(frozen_map),
             encoding="utf-8",
         )
         (base / "roteiros" / f"pro_edit_plan_{sid}.json").write_text(
