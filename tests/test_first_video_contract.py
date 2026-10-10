@@ -28,6 +28,24 @@ class FirstVideoContractTests(unittest.TestCase):
         self.assertLess(calls.index("RENDER_PLAN"), calls.index("RENDER_PREFLIGHT"))
         self.assertLess(calls.index("RENDER_PREFLIGHT"), calls.index("RENDER"))
 
+    def test_manifest_writer_uses_real_newline_not_literal_backslash_n(self):
+        tree = ast.parse(SOURCE.read_text(encoding="utf-8"))
+        writer = next(
+            n for n in tree.body
+            if isinstance(n, ast.FunctionDef) and n.name == "write_manifest"
+        )
+        write_call = next(
+            n for n in ast.walk(writer)
+            if isinstance(n, ast.Call)
+            and isinstance(n.func, ast.Attribute)
+            and n.func.attr == "write_text"
+        )
+        serialized = write_call.args[0]
+        self.assertIsInstance(serialized, ast.BinOp)
+        self.assertIsInstance(serialized.op, ast.Add)
+        self.assertIsInstance(serialized.right, ast.Constant)
+        self.assertEqual(serialized.right.value, "\\n")
+
 
 if __name__ == "__main__":
     unittest.main()
