@@ -1,0 +1,51 @@
+name: Build ShortAutoPro Snapshot 2026-10-09
+
+on:
+  push:
+    branches:
+      - chatgpt/snapshot-20261009-12011e0
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Fetch exact main commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin 12011e0e9ab613d46cff9d3b6af6e3bb6d152bba
+          git cat-file -e '12011e0e9ab613d46cff9d3b6af6e3bb6d152bba^{commit}'
+      - name: Build verified snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          TARGET_SHA='12011e0e9ab613d46cff9d3b6af6e3bb6d152bba'
+          SNAP='ShortAutoPro_Atualizado_2026-10-09_12011e0e9ab6.zip'
+          git archive --format=zip --prefix=ShortAutoPro/ --output="$SNAP" "$TARGET_SHA"
+          FILE_COUNT="$(git ls-tree -r --name-only "$TARGET_SHA" | wc -l | tr -d ' ')"
+          SHA256="$(sha256sum "$SNAP" | awk '{print $1}')"
+          {
+            echo "project=ShortAutoPro"
+            echo "source_branch=main"
+            echo "source_commit=$TARGET_SHA"
+            echo "created_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "tracked_files=$FILE_COUNT"
+            echo "archive=$SNAP"
+            echo "sha256=$SHA256"
+          } > snapshot_manifest.txt
+          cat snapshot_manifest.txt
+      - name: Upload snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: shortautopro-snapshot-20261009
+          path: |
+            ShortAutoPro_Atualizado_2026-10-09_*.zip
+            snapshot_manifest.txt
+          if-no-files-found: error
+          retention-days: 7
