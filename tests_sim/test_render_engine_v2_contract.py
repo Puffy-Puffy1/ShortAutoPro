@@ -37,18 +37,33 @@ class RenderEngineV2ContractTests(unittest.TestCase):
             (base / "videos").mkdir()
             (base / "manifests").mkdir()
             (media / "scene_01_placeholder.jpg").write_bytes(b"x" * 2048)
-            scenes = [{"scene":1,"segment":"a","words":1}]
-            (base / "roteiros" / f"scene_map_{sid}.json").write_text(json.dumps({"scenes":scenes}), encoding="utf-8")
-            (base / "roteiros" / f"pro_edit_plan_{sid}.json").write_text(json.dumps({"scenes":[{"scene":1,"pace_multiplier":1}]}), encoding="utf-8")
+            scenes = [{"scene_id":"1","scene":1,"segment":"a","words":1}]
+            frozen_scene_map = {
+                "schema_version":"SCENE_MAP_FROZEN_1.0","short_id":sid,
+                "mutable_upstream_closed":True,"scenes":scenes
+            }
+            (base / "manifests" / f"scene_map_{sid}.json").write_text(json.dumps(frozen_scene_map), encoding="utf-8")
             asset = media / "scene_01_placeholder.jpg"
             import hashlib
-            (base / "manifests" / f"media_{sid}.json").write_text(json.dumps({
+            asset_sha = hashlib.sha256(asset.read_bytes()).hexdigest()
+            manifest = {
                 "schema_version":"media-manifest-v2","short_id":sid,"immutable":True,"scene_count":1,
                 "scenes":[{"scene_id":"1","scene_number":1,"query":"a","must_have":[],"avoid":[],
-                           "asset":{"path":str(asset),"validated":True,
-                                    "checksum_sha256":hashlib.sha256(asset.read_bytes()).hexdigest()}}]
-            }), encoding="utf-8")
+                           "asset":{"path":str(asset),"validated":True,"checksum_sha256":asset_sha}}]
+            }
+            manifest["integrity_sha256"] = engine._manifest_integrity(manifest)
+            (base / "manifests" / f"media_{sid}.json").write_text(json.dumps(manifest), encoding="utf-8")
+            plan = {
+                "schema_version":"render-plan-v2","short_id":sid,"immutable":True,
+                "scenes":[{"scene_id":"1","pace_multiplier":1}]
+            }
+            plan["integrity_sha256"] = engine._manifest_integrity(plan)
+            (base / "roteiros" / f"pro_edit_plan_{sid}.json").write_text(json.dumps(plan), encoding="utf-8")
             (base / "audios" / f"short_{sid}.mp3").write_bytes(b"x")
+            (base / "videos" / f"short_{sid}.ass").write_text(
+                "[Script Info]\\nScriptType: v4.00+\\n[V4+ Styles]\\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\\nStyle: Default,Arial,40,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,1,2,0,2,10,10,10,1\\n[Events]\\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\\nDialogue: 0,0:00:00.00,0:00:01.00,Default,,0,0,0,,test\\n",
+                encoding="utf-8"
+            )
             with mock.patch.object(engine, "BASE", base), mock.patch.object(engine, "audio_duration", return_value=1.0):
                 with self.assertRaisesRegex(RuntimeError, "REAL_MEDIA_MISSING"):
                     engine.build_job(sid)
