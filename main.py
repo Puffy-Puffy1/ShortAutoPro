@@ -259,8 +259,8 @@ class Pipeline:
             return env_int("SAP_STAGE_TIMEOUT_AI_SECONDS", 240, 60, 900)
 
         # Media acquisition is explicitly bounded and has emergency completion.
-        if name == "media_engine_v2.py":
-            return env_int("SAP_STAGE_TIMEOUT_MEDIA_ENGINE_V2_SECONDS", 900, 180, 1800)
+        if name == "media_acquisition_v3.py":
+            return env_int("SAP_STAGE_TIMEOUT_MEDIA_ACQUISITION_SECONDS", 900, 180, 1800)
 
         # Pre-render recovery may rerun media plus downstream planning once.
         if name == "production_recovery.py":
@@ -408,17 +408,18 @@ def stages_before_render(p: Pipeline) -> None:
     p.run("5D2 - POST-SCRIPT TRUTH LOCK", "post_script_truth_lock.py")
     p.run("5E - SEMANTIC INTEGRITY GATE", "semantic_integrity_gate.py")
 
-    # Stage 6 is no longer a production dependency. Media acquisition and
-    # asset validation are owned by Media Engine V2; render planning is a
-    # deterministic input contract for Render Engine V2.
-    p.run("MEDIA ENGINE V2 - ACQUIRE + VALIDATE + FREEZE MANIFEST", "media_engine_v2.py", "--short-id", p.sid)
-    p.run("RENDER PLAN V2 - DETERMINISTIC TIMELINE INPUT", "render_plan_v2.py", "--short-id", p.sid)
+    # Stage 6 is retired. Scene preparation remains a mutable editorial
+    # phase; once semantic integrity passes, SceneMap is frozen as a bridge
+    # contract. Media and rendering consume only that immutable artifact.
+    p.run("5F - FREEZE SCENE MAP BRIDGE", "scene_map_freeze.py", "--short-id", p.sid)
+    p.run("MEDIA ACQUISITION V3 - ACQUIRE + VALIDATE + FREEZE MANIFEST", "media_acquisition_v3.py", "--short-id", p.sid)
     p.run("6F - SPEECH DIRECTOR", "speech_director.py")
     p.run("7 - VOZ PIPER", "audio.py", retries=1)
     p.run("8 - WHISPER + LEGENDA DINÂMICA", "legenda_dinamica.py", retries=1)
     p.run("8A - PROFESSIONAL CAPTION DIRECTOR", "professional_caption_director.py")
     p.run("8A1 - CAPTION SAFE-ZONE GUARD", "caption_layout_guard.py")
     p.run("8B - EVOLUTION CAPTION AUDIT", "shortautopro_evolution.py", "caption-audit")
+    p.run("8B1 - RENDER PLAN V2 - DETERMINISTIC TIMELINE INPUT", "render_plan_v2.py", "--short-id", p.sid)
 
 
 def assemble_and_render(p: Pipeline) -> None:
@@ -480,63 +481,46 @@ def final_gates(p: Pipeline) -> int:
 
 
 def repair_cycle(p: Pipeline) -> None:
-    print("\nRELEASE GATE solicitou auto-reparo limitado (1 ciclo).")
+    """Run the single canonical bounded recovery boundary.
+
+    Release recovery is deliberately delegated to production_recovery.py.
+    No second repair engine is allowed to orchestrate media, audio, captions,
+    or rerender decisions independently.
+    """
+    print("\nRELEASE GATE solicitou auto-reparo limitado (1 passe).")
     code = p.run(
-        "REPAIR - EVIDENCE-DRIVEN REPAIR ENGINE",
-        "shortauto_repair_engine.py",
-        "--short-id", p.sid, "--execute", "--max-cycles", "1",
+        "REPAIR - CANONICAL BOUNDED RECOVERY",
+        "production_recovery.py",
+        "--short-id", p.sid,
+        "--json",
         allow_codes={0, 20},
     )
-    if code == 20:
-        print(
-            "REPAIR ENGINE=HOLD; mantendo gates rígidos e "
-            "seguindo para revalidação canônica."
-        )
 
-    repair_report = BASE / "reports" / "repair" / f"repair_{p.sid}.json"
-    performed: set[str] = set()
+    report_path = BASE / "reports" / "production" / f"recovery_{p.sid}.json"
     try:
-        data = json.loads(repair_report.read_text(encoding="utf-8"))
-        history = data.get("history", []) if isinstance(data, dict) else []
-        for cycle in history if isinstance(history, list) else []:
-            if not isinstance(cycle, dict):
-                continue
-            for action in cycle.get("actions", []) if isinstance(cycle.get("actions"), list) else []:
-                if not isinstance(action, dict):
-                    continue
-                if str(action.get("status", "")).upper() == "PASS":
-                    action_id = str(action.get("id", "") or "").strip()
-                    if action_id:
-                        performed.add(action_id)
+        report = json.loads(report_path.read_text(encoding="utf-8"))
     except Exception as exc:
         print(
-            "REPAIR_ACTION_HISTORY=UNAVAILABLE "
+            "RECOVERY_REPORT=UNAVAILABLE "
             f"{type(exc).__name__}:{str(exc)[:140]}"
         )
+        report = {}
 
-    rerender_actions = {
-        "media_reacquire",
-        "media_quality_refresh",
-        "retention_repair",
-        "professional_edit_repair",
-        "caption_repair",
-    }
-
-    if performed.intersection(rerender_actions):
-        print(
-            "REPAIR_RERENDER=YES actions="
-            + ",".join(sorted(performed))
-        )
+    status = str(report.get("status", "")).upper()
+    if status == "RECOVERED":
+        print("RECOVERY_STATUS=RECOVERED; reconstruindo render com entradas reparadas.")
         p.run("REPAIR - MULTI-ASSET", "multi_asset_director.py")
         p.run("REPAIR - SOUND PLAN", "sound_design_engine.py")
         assemble_and_render(p)
+    elif status == "READY":
+        print("RECOVERY_STATUS=READY; nenhuma reconstrução necessária.")
     else:
         print(
-            "REPAIR_RERENDER=NO actions="
-            + (",".join(sorted(performed)) or "none")
+            "RECOVERY_STATUS=BLOCKED "
+            f"reason={report.get('reason', 'unknown')}"
         )
-        # audio_remaster mutates the final MP4 in place; rebuilding here would
-        # discard that correction. Final gates below will revalidate it.
+        if code == 20:
+            print("RECOVERY=HOLD; mantendo gates rígidos para a revalidação canônica.")
 
 
 def export(p: Pipeline) -> Path:
@@ -641,6 +625,9 @@ def cli() -> int:
     resume.add_argument("--short-id", default=None)
     resume.add_argument("--status", action="store_true")
     sub.add_parser("audit")
+    first_video = sub.add_parser("first-video", help="prove one real end-to-end video")
+    first_video.add_argument("--topic", required=True)
+    first_video.add_argument("--short-id", default="")
     production = sub.add_parser("production")
     production.add_argument("production_args", nargs=argparse.REMAINDER)
     storage = sub.add_parser("storage")
@@ -679,6 +666,11 @@ def cli() -> int:
         return run_control(command)
     if command_name == "audit":
         return run_control([sys.executable, str(BASE / "tools" / "repo_audit.py")])
+    if command_name == "first-video":
+        command = [sys.executable, str(BASE / "first_video.py"), "--topic", args.topic]
+        if args.short_id:
+            command.extend(["--short-id", args.short_id])
+        return run_control(command)
     if command_name == "production":
         command = [
             sys.executable,

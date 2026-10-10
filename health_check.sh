@@ -47,23 +47,23 @@ checar_arquivo() {
 }
 
 ARQUIVOS=(
-    config.sh main.py runtime_config.py subprocess_guard.py production_profiler.py production_doctor.py production_watchdog.py production_health.py production_recovery.py render_preflight.py tools/deploy_smoke.py profile_run.sh resume_short_runtime.py resume_after_semantic_fix.py
+    config.sh main.py runtime_config.py subprocess_guard.py production_profiler.py production_doctor.py production_watchdog.py production_health.py recovery_controller.py production_recovery.py scene_map_freeze.py render_preflight.py tools/deploy_smoke.py profile_run.sh resume_short_runtime.py resume_after_semantic_fix.py
     topic_engine_runtime.py topic_engine.py topic_memory.py topic_reserve.py topic_index.py wiki_client.py source_identity.py gemini_runtime.py script_fallback.py
     script_runtime.py roteiro.py used_topic.py hook_engine.py hook_runtime.py narrative_director.py cold_open_director.py media_emergency_fallback.py
     scene_director.py scene_truth_refiner_6_7.py documentary_director.py visual_director.py visual_query_guard.py visual_media_refresh.py
     visual_shot_bridge.py visual_shot_policy.py visual_editorial_policy.py
     visual_risk_guard.py editorial_continuity.py visual_continuity_engine.py scene_lossless_repair.py post_script_truth_lock.py
     semantic_integrity_gate.py wikimedia_source.py wikimedia_query_bridge.py source_router.py evidence_guard.py
-    media_stage_runtime.py midia.py media_runtime_adapter_v1.py media_runtime_adapter_v2.py media_must_verifier.py media_must_priority.py media_strict_must_guard.py media_acquisition_recovery.py vg4x_bridge.py visual_engine_unified.py
+    media_acquisition_v3.py media_v3/acquisition.py media_v3/providers.py media_v3/library.py pipeline_contracts.py media_runtime_adapter_v1.py media_runtime_adapter_v2.py media_must_verifier.py media_must_priority.py vg4x_bridge.py visual_engine_unified.py
     visual_query_expansion_v4.py visual_query_planner_v4.py visual_pipeline_bridge_v42.py visual_selection_engine_v4.py visual_intelligence_6.py
-    vi6_8_runtime_policy.py vi6_9_runtime_policy.py media_master_gate.py visual_score_engine.py
+    vi6_8_runtime_policy.py vi6_9_runtime_policy.py visual_score_engine.py
     motion_director.py rhythm_director.py professional_edit_director.py professional_edit_repair.py
     multi_asset_director.py retention_engine.py sound_design_engine.py production_supervisor.py editorial_gate.py
     speech_director.py audio.py legenda_dinamica.py subtitle_alignment.py subtitle_style_policy.py
     professional_caption_director.py caption_layout_guard.py video_professional.py v6_professional.py
     audio_finalizer.py visual_qa.py quality_check.py publish_pack.py source_ledger.py publish_integrity_gate.py
     production_manifest.py final_quality.py professional_quality_gate.py release_gate.py release_artifact_guard.py register_topic.py storage_manager.py
-    shortauto_brain.py shortauto_director_ai.py shortauto_asset_library.py shortauto_repair_engine.py shortauto_intelligence_layer.py
+    shortauto_brain.py shortauto_director_ai.py shortauto_asset_library.py shortauto_intelligence_layer.py
     batch_report.py batch_queue.sh batch_recovery.sh control_center.sh
     preflight_check.sh diagnostico.sh release_check.sh health_check.sh
 )
@@ -140,8 +140,6 @@ for name in (
     "media_must_verifier",
     "gemini_runtime",
     "media_must_priority",
-    "media_strict_must_guard",
-    "media_acquisition_recovery",
     "visual_engine_unified",
     "visual_query_expansion_v4",
     "media_runtime_adapter_v1",
@@ -156,7 +154,6 @@ for name in (
     "shortauto_brain",
     "shortauto_director_ai",
     "shortauto_asset_library",
-    "shortauto_repair_engine",
     "shortauto_intelligence_layer",
     "render_preflight",
     "production_recovery",

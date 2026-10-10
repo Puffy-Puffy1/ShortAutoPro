@@ -1,0 +1,84 @@
+name: Media Acquisition V3
+on:
+  pull_request:
+    paths:
+      - "media_acquisition_v3.py"
+      - "media_v3/**"
+      - "media_validator_v2.py"
+      - "tests/test_media_acquisition_v3.py"
+      - "tests/test_media_v3_local_library.py"
+      - "tests/test_media_acquisition_v3_stress.py"
+      - "tests/test_media_v3_render_integration.py"
+      - "tests/test_media_v3_full_pipeline_stress.py"
+      - "tests/test_canonical_architecture_boundaries.py"
+      - "tests/test_recovery_architecture_boundaries.py"
+      - "tests/test_recovery_controller.py"
+      - "tests/test_suite_boundaries.py"
+      - "tools/repo_audit.py"
+      - "docs/CANONICAL_ARCHITECTURE_LEGACY_CLASSIFICATION.md"
+      - "render_engine_v2.py"
+      - "render_v2/**"
+      - "production_recovery.py"
+      - "main.py"
+      - ".github/workflows/media-acquisition-v3.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  acquisition-unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - name: Install Python dependencies
+        run: python -m pip install --upgrade pip requests
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Acquisition V3 unit tests
+        run: python -m unittest tests.test_media_acquisition_v3 tests.test_media_acquisition_v3_stress tests.test_media_v3_local_library tests.test_canonical_architecture_boundaries tests.test_recovery_architecture_boundaries tests.test_recovery_controller tests.test_suite_boundaries
+  acquisition-render-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: acquisition-unit
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - name: Install Python dependencies
+        run: python -m pip install --upgrade pip requests
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: V3 frozen manifest -> Render V2 -> FFprobe integration
+        env:
+          SAP_RENDER_V2_BACKEND: "ffmpeg"
+        run: python -m unittest tests.test_media_v3_render_integration
+  full-pipeline-stress:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: acquisition-render-integration
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - name: Install Python dependencies
+        run: python -m pip install --upgrade pip requests
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Real 1-2-5-10 acquisition-to-render stress
+        env:
+          SAP_RENDER_V2_BACKEND: "ffmpeg"
+        run: python -m unittest tests.test_media_v3_full_pipeline_stress
+  canonical-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: acquisition-render-integration
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - name: Install Python dependencies
+        run: python -m pip install --upgrade pip requests
+      - name: Canonical existing Render V2 contracts
+        run: python -m unittest tests_sim.test_render_engine_v2_contract

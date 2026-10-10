@@ -52,7 +52,7 @@ def expected_scenes() -> int:
 
 
 def scene_count(sid: str) -> int:
-    data = read_json(BASE / "roteiros" / f"scene_map_{sid}.json")
+    data = read_json(BASE / "manifests" / f"scene_map_{sid}.json")
     scenes = data.get("scenes", []) if isinstance(data, dict) else []
     return len(scenes) if isinstance(scenes, list) else 0
 
@@ -144,7 +144,7 @@ def pre_media_plan_ok(sid: str) -> bool:
     source = BASE / "roteiros" / f"fonte_{sid}.txt"
     topic_real = BASE / "roteiros" / f"used_topic_{sid}.txt"
     topic = BASE / "roteiros" / f"topic_{sid}.txt"
-    scene_map_path = BASE / "roteiros" / f"scene_map_{sid}.json"
+    scene_map_path = BASE / "manifests" / f"scene_map_{sid}.json"
     truth_path = BASE / "roteiros" / f"post_script_truth_{sid}.json"
     semantic_path = BASE / "roteiros" / f"semantic_integrity_{sid}.json"
     continuity_path = BASE / "roteiros" / f"visual_continuity_{sid}.json"
@@ -200,7 +200,7 @@ def consolidation_plan_ok(sid: str) -> bool:
     if (
         manifest.get("schema_version") != "media-manifest-v2"
         or manifest.get("short_id") != sid
-        or not str(manifest.get("engine_version") or "").startswith("2.")
+        or not str(manifest.get("engine_version") or "").startswith(("2.","3."))
         or manifest.get("immutable") is not True
         or not isinstance(media_scenes, list)
         or len(media_scenes) != expected_scenes()
@@ -208,9 +208,8 @@ def consolidation_plan_ok(sid: str) -> bool:
         return False
 
     integrity = str(manifest.get("integrity_sha256") or "")
-    # V2 manifests (identified by engine_version) must be cryptographically
-    # intact. Older migration manifests may be structurally resumed, but their
-    # physical assets are revalidated by the downstream V2 preflight.
+    # Canonical V2/V3 manifests must be cryptographically intact.
+    # V2 remains a compatibility format; V3 is the canonical acquisition engine.
     if integrity:
         unsigned = dict(manifest)
         unsigned.pop("integrity_sha256", None)
@@ -222,9 +221,9 @@ def consolidation_plan_ok(sid: str) -> bool:
     elif str(manifest.get("engine_version") or "").startswith("2."):
         return False
 
-    # A manifest without V2 engine metadata is not trusted for resume.
-    # It must be rebuilt by Media Engine V2 so resume can never skip acquisition
-    # based on a legacy or partially migrated manifest.
+    # A manifest without a recognized engine version is not trusted for resume.
+    # It must be rebuilt by Media Acquisition V3 so resume can never skip
+    # acquisition based on legacy or partially migrated state.
     if not integrity and not str(manifest.get("engine_version") or ""):
         return False
 
@@ -502,11 +501,12 @@ def final_gates(sid: str) -> int:
 
 
 def media_planning_tail(sid: str) -> None:
-    """Resume only through Media Engine V2 and deterministic Render Plan V2."""
+    """Resume through the frozen SceneMap bridge, Media V3, and Render Plan V2."""
+    run_python(sid, "FREEZE SCENE MAP BRIDGE", "scene_map_freeze.py", "--short-id", sid)
     run_python(
         sid,
-        "MEDIA ENGINE V2 - ACQUIRE + VALIDATE + FREEZE MANIFEST",
-        "media_engine_v2.py",
+        "MEDIA ACQUISITION V3 - ACQUIRE + VALIDATE + FREEZE MANIFEST",
+        "media_acquisition_v3.py",
         "--short-id",
         sid,
     )
@@ -519,7 +519,7 @@ def media_planning_tail(sid: str) -> None:
     )
 
 def render_tail(sid: str) -> None:
-    """Render only from the frozen V2 manifest; acquisition stays outside the renderer."""
+    """Render only from the frozen media manifest; acquisition stays outside the renderer."""
     run_python(sid, "PRE-RENDER VALIDATION + BOUNDED AUTO-RECOVERY", "production_recovery.py", "--short-id", sid)
     run_python(sid, "RENDER PREFLIGHT CERTIFICATION", "render_preflight.py", "--short-id", sid)
     run_python(sid, "PRODUCTION HEALTH SNAPSHOT", "production_health.py", "--short-id", sid, "--phase", "pre_render")

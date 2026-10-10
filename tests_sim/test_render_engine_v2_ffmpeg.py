@@ -35,9 +35,54 @@ class RenderEngineV2FfmpegBackendTests(unittest.TestCase):
                     check=True, timeout=30,
                 )
 
-            assets = [{"path":str(media / f"scene_{i:02d}.png"),"checksum_sha256":hashlib.sha256((media / f"scene_{i:02d}.png").read_bytes()).hexdigest(),"validated":True,"must_hits":0,"must_total":0} for i in range(1,4)]
-            manifest={"schema_version":"media-manifest-v2","short_id":sid,"immutable":True,"scene_count":len(assets),"scenes":[{"scene_id":str(i),"scene_number":i,"query":"","must_have":[],"avoid":[],"asset":asset} for i,asset in enumerate(assets,1)]}
-            (base / "manifests" / f"media_{sid}.json").write_text(json.dumps(manifest),encoding="utf-8")
+            assets = [
+                {
+                    "path": str(media / f"scene_{i:02d}.png"),
+                    "checksum_sha256": hashlib.sha256((media / f"scene_{i:02d}.png").read_bytes()).hexdigest(),
+                    "validated": True,
+                    "source": "fixture",
+                    "asset_id": f"fixture-{i}",
+                    "must_hits": 0,
+                    "must_total": 0,
+                }
+                for i in range(1, 4)
+            ]
+            frozen_scenes = [
+                {"scene_id": str(i), "scene": i, "segment": f"cena {i}", "words": 3, "protected_zone": "center"}
+                for i in range(1, 4)
+            ]
+            (base / "manifests" / f"scene_map_{sid}.json").write_text(
+                json.dumps({
+                    "schema_version": "SCENE_MAP_FROZEN_1.0",
+                    "short_id": sid,
+                    "frozen_at": "2026-01-01T00:00:00+00:00",
+                    "mutable_upstream_closed": True,
+                    "scenes": frozen_scenes,
+                }),
+                encoding="utf-8",
+            )
+            manifest = {
+                "schema_version": "media-manifest-v2",
+                "short_id": sid,
+                "immutable": True,
+                "scene_count": len(assets),
+                "scenes": [
+                    {
+                        "scene_id": str(i),
+                        "scene_number": i,
+                        "asset": asset,
+                    }
+                    for i, asset in enumerate(assets, 1)
+                ],
+            }
+            manifest["integrity_sha256"] = hashlib.sha256(
+                json.dumps(
+                    manifest, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+                ).encode("utf-8")
+            ).hexdigest()
+            (base / "manifests" / f"media_{sid}.json").write_text(
+                json.dumps(manifest), encoding="utf-8"
+            )
 
             audio = base / "audios" / f"short_{sid}.mp3"
             subprocess.run(
@@ -73,11 +118,40 @@ class RenderEngineV2FfmpegBackendTests(unittest.TestCase):
                  "zoom_end": 1.04, "pan": "center", "transition_duration": 0.0}
                 for i in range(1, 4)
             ]
-            (base / "roteiros" / f"scene_map_{sid}.json").write_text(
-                json.dumps({"scenes": scenes}), encoding="utf-8"
-            )
+            render_plan = {
+                "schema_version": "render-plan-v2",
+                "short_id": sid,
+                "immutable": True,
+                "frozen_at": "2026-01-01T00:00:00+00:00",
+                "inputs": {
+                    "scene_map": str(base / "manifests" / f"scene_map_{sid}.json"),
+                    "media_manifest": str(base / "manifests" / f"media_{sid}.json"),
+                    "audio": str(audio),
+                    "captions": str(ass),
+                },
+                "scenes": [
+                    {
+                        "scene_id": str(i),
+                        "media": {
+                            "path": assets[i - 1]["path"],
+                            "checksum_sha256": assets[i - 1]["checksum_sha256"],
+                            "provider": "fixture",
+                            "asset_id": f"fixture-{i}",
+                        },
+                        "audio": {"path": str(audio)},
+                        "caption": {"path": str(ass), "required": True},
+                        **edit,
+                    }
+                    for i, edit in enumerate(plan, 1)
+                ],
+            }
+            render_plan["integrity_sha256"] = hashlib.sha256(
+                json.dumps(
+                    render_plan, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+                ).encode("utf-8")
+            ).hexdigest()
             (base / "roteiros" / f"pro_edit_plan_{sid}.json").write_text(
-                json.dumps({"scenes": plan}), encoding="utf-8"
+                json.dumps(render_plan), encoding="utf-8"
             )
 
             env = os.environ.copy()

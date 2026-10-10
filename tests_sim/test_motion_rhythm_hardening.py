@@ -113,7 +113,7 @@ class MotionRhythmHardeningTests(unittest.TestCase):
         self.assertIn("def _sap_professional_media_accept_v1", source)
         pipeline = (REPO / "main.py").read_text(encoding="utf-8")
         self.assertIn(
-            'p.run("MEDIA ENGINE V2 - ACQUIRE + VALIDATE + FREEZE MANIFEST", "media_engine_v2.py"',
+            'p.run("MEDIA ACQUISITION V3 - ACQUIRE + VALIDATE + FREEZE MANIFEST", "media_acquisition_v3.py"',
             pipeline,
         )
         self.assertIn(

@@ -38,7 +38,7 @@ class ExtremeInfraHealthHarmonyRound11Tests(unittest.TestCase):
         main = (ROOT / "main.py").read_text(encoding="utf-8")
         storage = (ROOT / "storage_manager.py").read_text(encoding="utf-8")
         self.assertIn('env_int("SAP_STAGE_TIMEOUT_AI_SECONDS", 240, 60, 900)', main)
-        self.assertIn('env_int("SAP_STAGE_TIMEOUT_MEDIA_ENGINE_V2_SECONDS", 900, 180, 1800)', main)
+        self.assertIn('env_int("SAP_STAGE_TIMEOUT_MEDIA_ACQUISITION_SECONDS", 900, 180, 1800)', main)
         self.assertIn('env_int("SAP_STAGE_TIMEOUT_RENDER_SECONDS", 1200, 180, 2400)', main)
         self.assertIn('env_int("SAP_STAGE_TIMEOUT_DEFAULT_SECONDS", 600, 60, 1800)', main)
         self.assertIn('env_int("SHORT_STORAGE_KEEP_PROJECTS",3,1,20)', storage)

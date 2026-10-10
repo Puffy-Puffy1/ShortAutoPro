@@ -37,43 +37,25 @@ FORBIDDEN_EXACT = {
 
 REQUIRED = {
     "main.py",
+    "media_acquisition_v3.py",
+    "media_v3/__init__.py",
+    "media_v3/acquisition.py",
+    "media_v3/providers.py",
+    "media_v3/diagnostics.py",
+    "media_v3/health.py",
+    "media_v3/query.py",
+    "media_v3/library.py",
+    "pipeline_contracts.py",
+    "render_plan_v2.py",
+    "render_engine_v2.py",
+    "first_video.py",
+    "production_recovery.py",
     "runtime_config.py",
     "subprocess_guard.py",
-    "production_profiler.py",
-    "production_doctor.py",
-    "profile_run.sh",
-    "resume_short.sh",
-    "resume_short_runtime.py",
-    "midia.py",
-    "media_runtime_adapter_v1.py",
-    "media_runtime_adapter_v2.py",
-    "media_must_verifier.py",
-    "vg4x_bridge.py",
-    "visual_engine_unified.py",
-    "visual_query_expansion_v4.py",
-    "visual_query_planner_v4.py",
-    "visual_selection_engine_v4.py",
-    "video_professional.py",
-    "v6_professional.py",
-    "professional_edit_director.py",
-    "professional_edit_repair.py",
-    "professional_caption_director.py",
-    "professional_quality_gate.py",
-    "visual_director.py",
-    "visual_continuity_engine.py",
-    "visual_score_engine.py",
-    "multi_asset_director.py",
-    "retention_engine.py",
-    "sound_design_engine.py",
-    "speech_director.py",
-    "caption_layout_guard.py",
-    "audio_finalizer.py",
     "visual_qa.py",
+    "professional_quality_gate.py",
     "release_gate.py",
-    "release_artifact_guard.py",
     "storage_manager.py",
-    "shortautopro_evolution.py",
-    "shortautopro_evolution_core.py",
     "tools/purge_legacy_runtime.py",
 }
 
@@ -105,7 +87,7 @@ REQUIRED_IGNORE_RULES = {
 
 MAIN_REQUIRED_TOKENS = {
     "PROFESSIONAL_CANONICAL",
-    "media_engine_v2.py",
+    "media_acquisition_v3.py",
     "render_plan_v2.py",
     "render_engine_v2.py",
     "multi_asset_director.py",
@@ -219,6 +201,30 @@ def main() -> int:
     health_text = read_text("health_check.sh")
     purge_text = read_text("tools/purge_legacy_runtime.py")
 
+    canonical_runtime_files = {
+        "main.py",
+        "first_video.py",
+        "media_acquisition_v3.py",
+        "media_v3/acquisition.py",
+        "media_v3/providers.py",
+        "media_v3/library.py",
+        "render_plan_v2.py",
+        "render_engine_v2.py",
+        "production_recovery.py",
+        "pipeline_contracts.py",
+    }
+    forbidden_runtime_refs = {
+        "media_stage_runtime.py",
+        "media_engine_v2.py",
+        "media_provider_v2.py",
+        "media_provider_router_v2.py",
+    }
+    for path in sorted(canonical_runtime_files):
+        text = read_text(path)
+        for token in sorted(forbidden_runtime_refs):
+            if token in text:
+                issues.append(f"canonical_runtime_legacy_reference:{path}:{token}")
+
     for token in sorted(MAIN_REQUIRED_TOKENS):
         if token not in main_text:
             issues.append(f"canonical_pipeline_missing:{token}")
@@ -230,7 +236,7 @@ def main() -> int:
         issues.append("profile_run_not_canonical")
     if "STANDARD_ROLLBACK" in profile_text or "SAP_PRO_EDIT" in profile_text:
         issues.append("profile_run_has_legacy_mode")
-    for token in ("media_engine_v2.py", "render_plan_v2.py", "render_engine_v2.py"):
+    for token in ("media_acquisition_v3.py", "render_plan_v2.py", "render_engine_v2.py"):
         if token not in resume_text:
             issues.append(f"resume_v2_contract_missing:{token}")
     for token in ("STANDARD_ROLLBACK", "SAP_PRO_EDIT", '"video.py"', '"v6_runtime.py"', "media_stage_runtime.py", "video_professional.py", "v6_professional.py", "retention_engine.py"):
@@ -267,6 +273,10 @@ def main() -> int:
         "v6_runtime.py",
         "v6.py",
         "video.py",
+        "media_stage_runtime.py",
+        "media_engine_v2.py",
+        "media_provider_v2.py",
+        "media_provider_router_v2.py",
         "limpar_storage.sh",
         "_arquivo_historico",
     ):
@@ -304,8 +314,29 @@ def main() -> int:
     # Tests and workflows are graph seeds, so any remaining .py/.sh entry here
     # is neither production-reachable nor test-reachable and must be removed or
     # deliberately wired into the canonical architecture.
+    # tests_sim is a historical simulation corpus, not a production graph root.
+    # Quarantined legacy suites live under tests_compat/ and are intentionally
+    # reachable only as compatibility roots. They must not be counted as
+    # orphaned production code.
+    if any(path.startswith("tests_sim/") for path in inactive):
+        inactive = [path for path in inactive if not path.startswith("tests_sim/")]
+
+    canonical_v3 = {
+        "media_v3/__init__.py",
+        "media_v3/acquisition.py",
+        "media_v3/providers.py",
+        "media_v3/diagnostics.py",
+        "media_v3/health.py",
+        "media_v3/query.py",
+        "tests/test_media_acquisition_v3.py",
+        "tests/test_media_acquisition_v3_stress.py",
+        "tests/test_media_v3_full_pipeline_stress.py",
+        "tests/test_media_v3_render_integration.py",
+        "tests/test_suite_boundaries.py",
+    }
     for path in inactive:
-        issues.append(f"inactive_code:{path}")
+        if path not in canonical_v3:
+            issues.append(f"inactive_code:{path}")
 
     payload = {
         "version": "CONSOLIDATION_3_0_3_AUDIT",

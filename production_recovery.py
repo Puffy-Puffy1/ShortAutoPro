@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 import render_preflight
+from recovery_controller import RecoveryAction, RecoveryController
 from runtime_config import env_int
 from subprocess_guard import run_group
 
@@ -153,9 +154,9 @@ def _visual_quality_state(short_id: str) -> dict[str, Any]:
 
 
 def _repair_media(short_id: str, actions: list[dict[str, Any]]) -> bool:
-    # Recovery never re-enters Stage 6. Media Engine V2 owns acquisition and
-    # manifest validation; a frozen manifest is authoritative on resume.
-    return _append_action(actions, _run(short_id, "media_engine_v2.py", "--short-id", short_id))
+    # Recovery never re-enters retired Stage 6. Media Acquisition V3 owns
+    # acquisition and manifest validation; the frozen manifest is authoritative.
+    return _append_action(actions, _run(short_id, "media_acquisition_v3.py", "--short-id", short_id))
 
 
 def _repair_edit_plan(short_id: str, actions: list[dict[str, Any]]) -> bool:
@@ -177,7 +178,7 @@ def _repair_captions(short_id: str, actions: list[dict[str, Any]]) -> bool:
     return True
 
 
-def repair(short_id: str) -> dict[str, Any]:
+def _repair_once(short_id: str) -> dict[str, Any]:
     sid = str(short_id or "").strip()
     if not sid:
         return {
@@ -269,6 +270,17 @@ def repair(short_id: str) -> dict[str, Any]:
     _atomic_json(REPORT_DIR / f"recovery_{sid}.json", result)
     return result
 
+
+
+def repair(short_id: str) -> dict[str, Any]:
+    """Compatibility entry point; all recovery now flows through the canonical controller."""
+    result = RecoveryController(max_actions=1).run([
+        RecoveryAction(
+            name="pre_render_repair_pass",
+            run=lambda: _repair_once(short_id),
+        )
+    ])
+    return result.to_dict()
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="ShortAutoPro bounded pre-render recovery")

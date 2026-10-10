@@ -6,7 +6,7 @@ class DirectorRepairConsolidationTests(unittest.TestCase):
     def test_main_exposes_v2_media_render_and_repair_contract(self):
         text=(ROOT/"main.py").read_text(encoding="utf-8")
         self.assertIn("shortauto_director_ai.py",text)
-        self.assertIn("media_engine_v2.py",text)
+        self.assertIn("media_acquisition_v3.py",text)
         self.assertIn("render_plan_v2.py",text)
         self.assertNotIn("media_stage_runtime.py",text)
 

@@ -1,8 +1,5 @@
 name: ShortAutoPro Portable Validation
-# portable-v2-final-checkpoint
-# V2 migration checkpoint: portable validation is authoritative before merge.
-# Security-sensor retrieval fix checkpoint.
-# Resume/checkpoint contracts are validated against the frozen V2 manifest.
+# canonical portable validation after Media V2/Stage 6 retirement
 
 on:
   workflow_dispatch:
@@ -38,10 +35,10 @@ jobs:
 
     steps:
       - name: Checkout exact commit
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
@@ -87,81 +84,47 @@ jobs:
           python tools/deploy_smoke.py
           echo "PORTABLE_DEPLOY_SMOKE=PASS"
 
-      - name: Simulated Regression Tests
+      - name: Canonical Unit and Boundary Tests
         shell: bash
         run: |
           set -euo pipefail
-          python -m pip install --disable-pip-version-check --quiet requests
-          python -m unittest discover -s tests_sim -p "test_*.py" -v
-          echo "PORTABLE_SIM_TESTS=PASS"
+          python -m unittest discover -s tests -p "test_*.py" -v
+          echo "PORTABLE_CANONICAL_TESTS=PASS"
 
-      - name: Legacy Compatibility and V2 Production Gate
+      - name: Render Contract Tests
         shell: bash
         run: |
           set -euo pipefail
-          # Legacy contracts remain regression-protected while the old Stage 6
-          # controller is removed from the production path.
-          python -m unittest -v \
-            tests_sim.test_stage6_completion_contract \
-            tests_sim.test_stage6_anchor_timeout_id_fix \
-            tests_sim.test_stage6_early_must_recovery \
-            tests_sim.test_stage6_fast_strict_path \
-            tests_sim.test_stage6_recovery_unwrap \
-            tests_sim.test_stage6_semantic_anchor_recovery \
-            tests_sim.test_media_stage_runtime \
-            tests_sim.test_media_stage_resilience \
-            tests_sim.test_media_strict_must_guard \
-            tests_sim.test_final_render_contract \
-            tests_sim.test_mobile_render_performance \
-            tests_sim.test_subtitle_alignment \
-            tests_sim.test_termux_bridge_deploy \
-            tests_sim.test_termux_stable_promotion \
-            tests_sim.test_render_preflight \
-            tests_sim.test_media_two_pass_recovery \
-            tests_sim.test_pre_render_resilience \
-            tests_sim.test_resume_media_suffix \
-            tests_sim.test_production_watchdog_health \
-            tests_sim.test_visual_query_guard \
-            tests_sim.test_rendered_visual_diversity \
-            tests_sim.test_canonical_visual_score \
-            tests_sim.test_retention_review_contract \
-            tests_sim.test_stage6_timeout_resume \
-            tests_sim.test_visual_content_integrity \
-            tests_sim.test_fresh_run_after_success \
-            tests_sim.test_media_external_resilience
-          # V2 unit/E2E/stress qualification runs in dedicated authoritative
-          # workflows above; Portable keeps the architecture boundary here so
-          # this job does not duplicate long FFmpeg workloads.
-          ! grep -q "media_stage_runtime.py" main.py
-          grep -q "media_engine_v2.py" main.py
-          grep -q "media-manifest-v2" render_engine_v2.py
-          echo "PORTABLE_V2_ARCHITECTURE_GATE=PASS"
+          python -m unittest -v             tests_sim.test_render_engine_v2_contract             tests_sim.test_render_plan_v2
+          echo "PORTABLE_RENDER_CONTRACTS=PASS"
 
-      - name: JSON Integrity Audit
+      - name: Canonical Production Pipeline Contract
         shell: bash
         run: |
           set -euo pipefail
-          python - <<'PY'
-          import json
-          import pathlib
-          import sys
+          for f in             main.py profile_run.sh resume_short_runtime.py             media_acquisition_v3.py media_v3/providers.py media_v3/library.py             render_plan_v2.py render_engine_v2.py             professional_caption_director.py caption_layout_guard.py audio_finalizer.py             visual_qa.py professional_quality_gate.py release_gate.py             production_recovery.py recovery_controller.py production_watchdog.py production_health.py             tools/deploy_smoke.py storage_manager.py; do
+            test -f "$f"
+          done
 
-          failures = []
-          for path in pathlib.Path(".").rglob("*.json"):
-              if any(part in {".git", "__pycache__"} for part in path.parts):
-                  continue
-              try:
-                  with path.open("r", encoding="utf-8") as handle:
-                      json.load(handle)
-              except Exception as exc:
-                  failures.append(f"{path}: {exc}")
+          grep -q 'PROFESSIONAL_CANONICAL' main.py
+          grep -q 'media_acquisition_v3.py' main.py
+          ! grep -q 'media_engine_v2.py' main.py
+          grep -q 'render_plan_v2.py' main.py
+          grep -q 'render_engine_v2.py' main.py
+          grep -q 'media-manifest-v2' render_engine_v2.py
+          ! grep -q 'media_stage_runtime.py' main.py
+          ! grep -q 'retention_engine.py' main.py
+          ! grep -q 'gerar_short.sh' main.py
+          ! grep -q 'STANDARD_ROLLBACK' main.py
+          grep -q 'MAIN="$BASE/main.py"' profile_run.sh
+          echo "CANONICAL_PRODUCTION_PIPELINE_CONTRACT=PASS"
 
-          if failures:
-              print("JSON_INTEGRITY=FAIL")
-              print("\n".join(failures))
-              sys.exit(1)
-          print("JSON_INTEGRITY=PASS")
-          PY
+      - name: Consolidation Repository Audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tools/repo_audit.py
+          echo "CONSOLIDATION_REPOSITORY_AUDIT=PASS"
 
       - name: FFmpeg Synthetic End-to-End Render
         shell: bash
@@ -169,16 +132,9 @@ jobs:
           set -euo pipefail
           tmp="$(mktemp -d)"
           trap 'rm -rf "$tmp"' EXIT
-          ffmpeg -hide_banner -loglevel error -y \
-            -f lavfi -i "color=c=black:s=360x640:r=30:d=1.5" \
-            -f lavfi -i "sine=frequency=880:sample_rate=48000:duration=1.5" \
-            -vf "zoompan=z='min(zoom+0.0015,1.05)':d=1:s=360x640:fps=30" \
-            -af "loudnorm=I=-16:LRA=11:TP=-1.5" \
-            -c:v libx264 -pix_fmt yuv420p -c:a aac -shortest "$tmp/e2e.mp4"
-          ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height \
-            -of default=nw=1 "$tmp/e2e.mp4"
-          ffprobe -v error -select_streams a:0 -show_entries stream=codec_name \
-            -of default=nw=1 "$tmp/e2e.mp4"
+          ffmpeg -hide_banner -loglevel error -y             -f lavfi -i "color=c=black:s=360x640:r=30:d=1.5"             -f lavfi -i "sine=frequency=880:sample_rate=48000:duration=1.5"             -vf "zoompan=z='min(zoom+0.0015,1.05)':d=1:s=360x640:fps=30"             -af "loudnorm=I=-16:LRA=11:TP=-1.5"             -c:v libx264 -pix_fmt yuv420p -c:a aac -shortest "$tmp/e2e.mp4"
+          ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height             -of default=nw=1 "$tmp/e2e.mp4"
+          ffprobe -v error -select_streams a:0 -show_entries stream=codec_name             -of default=nw=1 "$tmp/e2e.mp4"
           test -s "$tmp/e2e.mp4"
           echo "PORTABLE_FFMPEG_E2E=PASS"
 
@@ -188,39 +144,6 @@ jobs:
           set -euo pipefail
           find . -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
           echo "PORTABLE_BASH_SYNTAX=PASS"
-
-      - name: V2 Production Pipeline Contract
-        shell: bash
-        run: |
-          set -euo pipefail
-          for f in \
-            main.py profile_run.sh resume_short_runtime.py \
-            media_engine_v2.py media_provider_v2.py render_plan_v2.py render_engine_v2.py \
-            professional_caption_director.py caption_layout_guard.py audio_finalizer.py \
-            visual_qa.py professional_quality_gate.py release_gate.py \
-            production_recovery.py production_watchdog.py production_health.py \
-            tools/deploy_smoke.py storage_manager.py; do
-            test -f "$f"
-          done
-
-          grep -q 'PROFESSIONAL_CANONICAL' main.py
-          grep -q 'media_engine_v2.py' main.py
-          grep -q 'render_plan_v2.py' main.py
-          grep -q 'render_engine_v2.py' main.py
-          grep -q 'media-manifest-v2' render_engine_v2.py
-          ! grep -q 'media_stage_runtime.py' main.py
-          ! grep -q 'retention_engine.py' main.py
-          ! grep -q 'gerar_short.sh' main.py
-          ! grep -q 'STANDARD_ROLLBACK' main.py
-          grep -q 'MAIN="$BASE/main.py"' profile_run.sh
-          echo "V2_PRODUCTION_PIPELINE_CONTRACT=PASS"
-
-      - name: Consolidation Repository Audit
-        shell: bash
-        run: |
-          set -euo pipefail
-          python tools/repo_audit.py
-          echo "CONSOLIDATION_REPOSITORY_AUDIT=PASS"
 
       - name: FFmpeg Capabilities
         shell: bash

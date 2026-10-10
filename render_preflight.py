@@ -8,6 +8,7 @@ and v6_professional.py. It does not select media or alter upstream outputs.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -45,6 +46,13 @@ def _atomic_json(path: Path, payload: dict[str, Any]) -> None:
         except OSError:
             pass
         raise
+
+
+def _integrity(payload: dict[str, Any]) -> str:
+    unsigned = dict(payload)
+    unsigned.pop("integrity_sha256", None)
+    raw = json.dumps(unsigned, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -135,28 +143,13 @@ def _probe_media(path: Path) -> None:
 
 
 def inspect(short_id: str) -> dict[str, Any]:
-    expected = env_int("SHORT_QTD_CENAS", 12, 6, 20)
-    scene_map_path = BASE / "roteiros" / f"scene_map_{short_id}.json"
+    scene_map_path = BASE / "manifests" / f"scene_map_{short_id}.json"
+    media_manifest_path = BASE / "manifests" / f"media_{short_id}.json"
     pro_plan_path = BASE / "roteiros" / f"pro_edit_plan_{short_id}.json"
-    media_dir = BASE / "imagens" / f"short_{short_id}"
     audio_path = BASE / "audios" / f"short_{short_id}.mp3"
     subtitle_path = BASE / "videos" / f"short_{short_id}.ass"
     temp_dir = BASE / "temp" / short_id
     output_dir = BASE / "videos"
-
-    try:
-        editorial_meta = editorial_scene_metadata(media_dir)
-    except Exception:
-        editorial_meta = {}
-    editorial_scenes = sorted(editorial_meta)
-    neutral_editorial = sorted(
-        number
-        for number, meta in editorial_meta.items()
-        if bool(meta.get("neutral_slate"))
-    )
-    editorial_limit = env_int(
-        "SAP_MEDIA_EDITORIAL_REUSE_MAX_SCENES", 3, 0, 6
-    )
 
     checks: dict[str, Any] = {}
     errors: list[str] = []
@@ -165,96 +158,106 @@ def inspect(short_id: str) -> dict[str, Any]:
     if not short_id.strip():
         errors.append("SHORT_ID vazio")
     checks["short_id"] = bool(short_id.strip())
-
-    if shutil.which("ffmpeg") is None:
-        errors.append("ffmpeg não encontrado")
-    if shutil.which("ffprobe") is None:
-        errors.append("ffprobe não encontrado")
     checks["ffmpeg"] = shutil.which("ffmpeg") is not None
     checks["ffprobe"] = shutil.which("ffprobe") is not None
+    if not checks["ffmpeg"]:
+        errors.append("ffmpeg não encontrado")
+    if not checks["ffprobe"]:
+        errors.append("ffprobe não encontrado")
 
+    # SceneMap is the frozen editorial boundary. The number of scenes is
+    # derived from the artifact itself so FIRST_VIDEO (2 scenes) is not forced
+    # through the normal-production default (12 scenes).
     scene_map: dict[str, Any] = {}
+    scenes: list[dict[str, Any]] = []
     try:
         scene_map = _read_json(scene_map_path)
-        scenes = scene_map.get("scenes", [])
-        if not isinstance(scenes, list) or len(scenes) != expected:
-            raise ValueError(f"scene_map: {len(scenes) if isinstance(scenes, list) else 0}/{expected} cenas")
-        numbers = []
-        for idx, item in enumerate(scenes, 1):
+        if scene_map.get("schema_version") != "SCENE_MAP_FROZEN_1.0":
+            raise ValueError("scene_map: frozen schema ausente")
+        if scene_map.get("short_id") != short_id:
+            raise ValueError("scene_map: short_id incompatível")
+        if scene_map.get("mutable_upstream_closed") is not True:
+            raise ValueError("scene_map: upstream não está fechado")
+        raw = scene_map.get("scenes", [])
+        if not isinstance(raw, list) or not raw:
+            raise ValueError("scene_map: nenhuma cena")
+        for idx, item in enumerate(raw, 1):
             if not isinstance(item, dict):
                 raise ValueError(f"scene_map cena {idx} não é objeto")
-            try:
-                number = int(item.get("scene", 0) or 0)
-            except (TypeError, ValueError):
-                number = 0
-            numbers.append(number)
-        if numbers != list(range(1, expected + 1)):
-            raise ValueError("scene_map numeração não sequencial")
+        scenes = raw
         checks["scene_map"] = True
     except Exception as exc:
         checks["scene_map"] = False
         errors.append(str(exc))
 
+    expected = len(scenes)
+    checks["expected_scenes"] = expected
+
+    # MediaManifest is the only canonical media source for rendering. The
+    # preflight gate never rebuilds media_by_scene from the media directory.
+    media: dict[str, Any] = {}
+    media_rows: list[dict[str, Any]] = []
+    try:
+        media = _read_json(media_manifest_path)
+        if media.get("schema_version") != "media-manifest-v2":
+            raise ValueError("media_manifest: schema inválido")
+        if media.get("short_id") != short_id:
+            raise ValueError("media_manifest: short_id incompatível")
+        if int(media.get("scene_count", -1)) != expected:
+            raise ValueError("media_manifest: scene_count incompatível")
+        media_integrity = str(media.get("integrity_sha256") or "")
+        if not media_integrity or media_integrity != _integrity(media):
+            raise ValueError("media_manifest: integridade inválida")
+        rows = media.get("scenes", [])
+        if not isinstance(rows, list) or len(rows) != expected:
+            raise ValueError("media_manifest: quantidade de cenas incompatível")
+        media_rows = rows
+        checks["media_manifest"] = True
+    except Exception as exc:
+        checks["media_manifest"] = False
+        errors.append(str(exc))
+
+    for idx, row in enumerate(media_rows, 1):
+        try:
+            if not isinstance(row, dict):
+                raise ValueError(f"media_manifest cena {idx:02d} inválida")
+            asset = row.get("asset")
+            if not isinstance(asset, dict) or asset.get("validated") is not True:
+                raise ValueError(f"media_manifest cena {idx:02d} não validada")
+            path = Path(str(asset.get("path") or "")).expanduser().resolve()
+            media_root = (BASE / "imagens" / f"short_{short_id}").resolve()
+            path.relative_to(media_root)
+            if not path.is_file() or path.stat().st_size <= 1000:
+                raise ValueError(f"asset ausente/pequeno: cena {idx:02d}")
+            expected_sha = str(asset.get("checksum_sha256") or "")
+            if not expected_sha or sha256_file(path) != expected_sha:
+                raise ValueError(f"asset checksum inválido: cena {idx:02d}")
+            _probe_media(path)
+        except Exception as exc:
+            errors.append(str(exc))
+    checks["assets"] = len(media_rows) == expected and expected > 0 and not any(
+        "media_manifest cena" in e or "asset " in e for e in errors
+    )
+
+    plan: dict[str, Any] = {}
     try:
         plan = _read_json(pro_plan_path)
+        if plan.get("schema_version") != "render-plan-v2":
+            raise ValueError("render_plan: schema inválido")
+        if plan.get("short_id") != short_id:
+            raise ValueError("render_plan: short_id incompatível")
         pro_scenes = plan.get("scenes", [])
         if not isinstance(pro_scenes, list) or len(pro_scenes) != expected:
-            raise ValueError(f"pro_edit_plan: {len(pro_scenes) if isinstance(pro_scenes, list) else 0}/{expected} cenas")
+            raise ValueError("render_plan: quantidade de cenas incompatível")
+        if plan.get("immutable") is not True:
+            raise ValueError("render_plan: contrato não congelado")
+        plan_integrity = str(plan.get("integrity_sha256") or "")
+        if not plan_integrity or plan_integrity != _integrity(plan):
+            raise ValueError("render_plan: integridade inválida")
         checks["edit_plan"] = True
     except Exception as exc:
         checks["edit_plan"] = False
         errors.append(str(exc))
-
-    media_by_scene: dict[int, Path] = {}
-
-    if neutral_editorial:
-        errors.append(
-            "neutral editorial placeholder proibido: "
-            + ",".join(f"{n:02d}" for n in neutral_editorial)
-        )
-    if len(editorial_scenes) > editorial_limit:
-        errors.append(
-            "reuso editorial excessivo: "
-            f"{len(editorial_scenes)}/{editorial_limit}"
-        )
-
-    checks["neutral_editorial_absent"] = not neutral_editorial
-    checks["editorial_reuse_within_limit"] = (
-        len(editorial_scenes) <= editorial_limit
-    )
-
-    if not media_dir.is_dir():
-        errors.append(f"pasta de mídia ausente: {media_dir}")
-    else:
-        for path in sorted(media_dir.glob("scene_*")):
-            if not path.is_file() or path.suffix.lower() not in MEDIA_EXTS:
-                continue
-            match = re.match(r"^scene_(\d+)", path.name, flags=re.IGNORECASE)
-            if not match:
-                errors.append(f"asset com nome inválido: {path.name}")
-                continue
-            number = int(match.group(1))
-            if number in media_by_scene:
-                errors.append(f"asset duplicado para cena {number:02d}")
-                continue
-            if not 1 <= number <= expected:
-                errors.append(f"asset fora da faixa: {path.name}")
-                continue
-            try:
-                if path.stat().st_size <= 1000:
-                    raise ValueError(f"asset vazio/pequeno: {path.name}")
-                _probe_media(path)
-                media_by_scene[number] = path
-            except Exception as exc:
-                errors.append(str(exc))
-    missing = sorted(set(range(1, expected + 1)) - set(media_by_scene))
-    if missing:
-        errors.append("assets ausentes: " + ",".join(f"{n:02d}" for n in missing))
-    checks["assets"] = (
-        len(media_by_scene) == expected
-        and not neutral_editorial
-        and len(editorial_scenes) <= editorial_limit
-    )
 
     audio_duration = 0.0
     try:
@@ -266,7 +269,6 @@ def inspect(short_id: str) -> dict[str, Any]:
         checks["audio"] = False
         errors.append(str(exc))
 
-    subtitle_end = 0.0
     try:
         if not subtitle_path.is_file() or subtitle_path.stat().st_size < 100:
             raise ValueError(f"legenda ausente/vazia: {subtitle_path}")
@@ -277,9 +279,7 @@ def inspect(short_id: str) -> dict[str, Any]:
         if first is not None and first > 2.0:
             warnings.append(f"legenda começa tarde: {first:.2f}s")
         if audio_duration > 0 and subtitle_end > audio_duration + 0.75:
-            errors.append(
-                f"legenda ultrapassa narração: subtitle={subtitle_end:.2f}s audio={audio_duration:.2f}s"
-            )
+            errors.append(f"legenda ultrapassa narração: subtitle={subtitle_end:.2f}s audio={audio_duration:.2f}s")
         checks["subtitles"] = True
     except Exception as exc:
         checks["subtitles"] = False
@@ -299,7 +299,6 @@ def inspect(short_id: str) -> dict[str, Any]:
     try:
         usage = shutil.disk_usage(BASE)
         free_mb = usage.free // (1024 * 1024)
-        # Conservative floor plus a duration-sensitive allowance.
         required_mb = max(700, int(max(audio_duration, 30.0) * 18))
         checks["disk_free_mb"] = free_mb
         checks["disk_required_mb"] = required_mb
@@ -314,20 +313,24 @@ def inspect(short_id: str) -> dict[str, Any]:
     return {
         "short_id": short_id,
         "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
-        "version": "RENDER_PREFLIGHT_1.1_VISUAL_CONTENT",
+        "version": "RENDER_PREFLIGHT_2.0_CANONICAL_CONTRACTS",
         "status": status,
         "expected_scenes": expected,
-        "valid_assets": len(media_by_scene),
-        "editorial_reuse_scenes": editorial_scenes,
-        "neutral_editorial_scenes": neutral_editorial,
-        "editorial_reuse_limit": editorial_limit,
+        "valid_assets": len(media_rows),
         "audio_duration": round(audio_duration, 3),
-        "subtitle_end": round(subtitle_end, 3),
+        "subtitle_end": round(subtitle_end if 'subtitle_end' in locals() else 0.0, 3),
         "checks": checks,
         "warnings": warnings,
         "errors": errors,
     }
 
+def sha256_file(path: Path) -> str:
+    import hashlib
+    h = hashlib.sha256()
+    with path.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
 
 def print_report(report: dict[str, Any]) -> None:
     checks = report["checks"]

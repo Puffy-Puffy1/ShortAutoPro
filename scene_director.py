@@ -25,7 +25,7 @@ try:
     QTD_CENAS = int(os.getenv("SHORT_QTD_CENAS", "12"))
 except ValueError:
     QTD_CENAS = 12
-QTD_CENAS = max(6, min(QTD_CENAS, 20))
+QTD_CENAS = max(2, min(QTD_CENAS, 20))
 
 if not os.path.isfile(ROTEIRO):
     sys.exit(f"ERRO: roteiro não encontrado: {ROTEIRO}")

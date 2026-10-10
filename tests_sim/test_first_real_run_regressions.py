@@ -19,7 +19,7 @@ class MediaResolutionGuardTests(unittest.TestCase):
         self.assertFalse((ROOT / "gerar_short.sh").exists())
         self.assertTrue((ROOT / "media_stage_runtime.py").exists())
         pipeline = (ROOT / "main.py").read_text(encoding="utf-8")
-        self.assertIn("media_engine_v2.py", pipeline)
+        self.assertIn("media_acquisition_v3.py", pipeline)
         self.assertIn("render_plan_v2.py", pipeline)
         self.assertNotIn("media_stage_runtime.py", pipeline)
         self.assertNotIn("midia_runtime.py", pipeline)
