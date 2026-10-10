@@ -46,7 +46,7 @@ def write_manifest(ctx, sid, status):
     out.parent.mkdir(parents=True, exist_ok=True)
     payload = ctx.to_dict()
     payload["status"] = status
-    out.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+    out.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 def main():
