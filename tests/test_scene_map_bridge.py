@@ -1,4 +1,5 @@
 import ast
+import re
 from pathlib import Path
 import unittest
 
@@ -8,8 +9,8 @@ class SceneMapBridgeTests(unittest.TestCase):
     def test_consumers_use_frozen_scene_map(self):
         for name in ("media_acquisition_v3.py","render_plan_v2.py","render_preflight.py","render_engine_v2.py","caption_layout_guard.py","resume_short_runtime.py"):
             text=(ROOT/name).read_text(encoding="utf-8")
-            self.assertIn('BASE/"manifests"/f"scene_map_{sid}.json"',text,name)
-            self.assertNotIn('BASE/"roteiros"/f"scene_map_{sid}.json"',text,name)
+            self.assertRegex(text, r'BASE\s*/\s*"manifests"\s*/\s*f"scene_map_\{(?:sid|short_id)\}\.json"', name)
+            self.assertNotRegex(text, r'BASE\s*/\s*"roteiros"\s*/\s*f"scene_map_\{(?:sid|short_id)\}\.json"', name)
 
 
     def test_downstream_consumers_do_not_reference_mutable_scene_map(self):
@@ -20,23 +21,22 @@ class SceneMapBridgeTests(unittest.TestCase):
             "render_plan_v2.py",
             "render_engine_v2.py",
         )
-        forbidden = 'BASE/"roteiros"/f"scene_map_{sid}.json"'
+        forbidden = r'BASE\s*/\s*"roteiros"\s*/\s*f"scene_map_\{(?:sid|short_id)\}\.json"'
         for name in downstream:
             source = (ROOT/name).read_text(encoding="utf-8")
-            self.assertNotIn(forbidden, source, name)
-            self.assertNotIn('BASE / "roteiros" / f"scene_map_{short_id}.json"', source, name)
+            self.assertNotRegex(source, forbidden, name)
 
     def test_media_manifest_has_single_canonical_writer(self):
         source = (ROOT/"media_acquisition_v3.py").read_text(encoding="utf-8")
-        self.assertEqual(source.count('BASE/"manifests"/f"media_{sid}.json"'), 1)
-        self.assertIn('"immutable":True', source)
+        self.assertEqual(len(re.findall(r'BASE\s*/\s*"manifests"\s*/\s*f"media_\{sid\}\.json"', source)), 1)
+        self.assertRegex(source, r'"immutable"\s*:\s*True')
         self.assertIn('"integrity_sha256"', source)
 
 
     def test_render_plan_is_single_frozen_writer(self):
         source=(ROOT/"render_plan_v2.py").read_text(encoding="utf-8")
-        self.assertEqual(source.count('BASE/"roteiros"/f"pro_edit_plan_{sid}.json"'),1)
-        self.assertIn('"immutable":True',source)
+        self.assertEqual(len(re.findall(r'BASE\s*/\s*"roteiros"\s*/\s*f"pro_edit_plan_\{sid\}\.json"', source)), 1)
+        self.assertRegex(source, r'"immutable"\s*:\s*True')
         self.assertIn('"integrity_sha256"',source)
         self.assertIn('media_manifest_missing',source)
 
