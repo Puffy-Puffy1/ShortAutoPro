@@ -44,7 +44,7 @@ class FirstVideoContractTests(unittest.TestCase):
         self.assertIsInstance(serialized, ast.BinOp)
         self.assertIsInstance(serialized.op, ast.Add)
         self.assertIsInstance(serialized.right, ast.Constant)
-        self.assertEqual(serialized.right.value, "\\n")
+        self.assertEqual(serialized.right.value, "\n")
 
 
 if __name__ == "__main__":
