@@ -84,6 +84,13 @@ jobs:
           python tools/deploy_smoke.py
           echo "PORTABLE_DEPLOY_SMOKE=PASS"
 
+      - name: Install Python test dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip requests
+          echo "PORTABLE_TEST_DEPENDENCIES=PASS"
+
       - name: Canonical Unit and Boundary Tests
         shell: bash
         run: |
