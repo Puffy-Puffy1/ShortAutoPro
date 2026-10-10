@@ -17,7 +17,7 @@ class RenderEngineV2ConsecutiveTests(unittest.TestCase):
         counts = (1, 2, 5, 10)
         with tempfile.TemporaryDirectory() as tmp:
             home = Path(tmp); base = home / "ShortAutoPro"
-            for p in ("roteiros", "audios", "videos"):
+            for p in ("roteiros", "audios", "videos", "manifests"):
                 (base / p).mkdir(parents=True)
             results = []; ordinal = 0
             for count in counts:
@@ -25,10 +25,15 @@ class RenderEngineV2ConsecutiveTests(unittest.TestCase):
                 for _ in range(count):
                     ordinal += 1; sid = f"stress_{ordinal:02d}"
                     media = base / "imagens" / f"short_{sid}"; media.mkdir(parents=True)
-                    scenes = [{"scene": i, "segment": f"scene {i}", "words": 4} for i in range(1, 4)]
+                    scenes = [{"scene_id": str(i), "scene": i, "segment": f"scene {i}", "words": 4} for i in range(1, 4)]
                     plan = [{"scene": i, "pace_multiplier": 1.0, "zoom_start": 1.0, "zoom_end": 1.02, "pan": "center"} for i in range(1, 4)]
-                    (base/"roteiros"/f"scene_map_{sid}.json").write_text(json.dumps({"scenes": scenes}), encoding="utf-8")
-                    (base/"roteiros"/f"pro_edit_plan_{sid}.json").write_text(json.dumps({"scenes": plan}), encoding="utf-8")
+                    (base/"manifests"/f"scene_map_{sid}.json").write_text(json.dumps({
+                        "schema_version":"SCENE_MAP_FROZEN_1.0","short_id":sid,
+                        "mutable_upstream_closed":True,"scenes":scenes
+                    }), encoding="utf-8")
+                    render_plan = {"schema_version":"render-plan-v2","short_id":sid,"immutable":True,"scenes":plan}
+                    render_plan["integrity_sha256"] = __import__("render_engine_v2")._manifest_integrity(render_plan)
+                    (base/"roteiros"/f"pro_edit_plan_{sid}.json").write_text(json.dumps(render_plan), encoding="utf-8")
                     for i in range(1, 4):
                         out = media / f"scene_{i:02d}.png"
                         subprocess.run(["ffmpeg","-y","-loglevel","error","-f","lavfi","-i",
@@ -40,12 +45,13 @@ class RenderEngineV2ConsecutiveTests(unittest.TestCase):
                         assets.append({"source":"fixture","asset_id":f"{sid}-{i}","asset_type":"image","path":str(path),
                                        "checksum_sha256":hashlib.sha256(path.read_bytes()).hexdigest(),
                                        "probe":{"width":1080,"height":1920},"validated":True})
-                    (base/"manifests").mkdir(parents=True, exist_ok=True)
-                    (base/"manifests"/f"media_{sid}.json").write_text(json.dumps({
-                        "schema_version":"media-manifest-v2","version":2,"engine":"Media Engine V2",
+                    media_manifest = {
+                        "schema_version":"media-manifest-v2","version":2,"engine":"Media Acquisition V3",
                         "short_id":sid,"immutable":True,"scene_count":3,
                         "scenes":[{"scene_id":str(i),"scene_number":i,"query":"fixture","must_have":[],"avoid":[],"asset":assets[i-1]} for i in range(1,4)]
-                    }), encoding="utf-8")
+                    }
+                    media_manifest["integrity_sha256"] = __import__("render_engine_v2")._manifest_integrity(media_manifest)
+                    (base/"manifests"/f"media_{sid}.json").write_text(json.dumps(media_manifest), encoding="utf-8")
                     audio = base/"audios"/f"short_{sid}.mp3"
                     subprocess.run(["ffmpeg","-y","-loglevel","error","-f","lavfi","-i",
                                      "sine=frequency=440:sample_rate=48000:duration=2.5",
