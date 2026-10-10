@@ -54,9 +54,21 @@ class AcquisitionV3StressTests(unittest.TestCase):
         return {"scene_id": "scene_01", "query": query}
 
     def _prepare(self, base: Path, sid: str, query="fixture"):
-        (base / "roteiros").mkdir(parents=True, exist_ok=True)
-        (base / "roteiros" / f"scene_map_{sid}.json").write_text(
-            json.dumps({"scenes": [self._scene(query)]}), encoding="utf-8"
+        # Downstream acquisition consumes the immutable SceneMap contract,
+        # never the mutable editorial source under roteiros/.
+        path = base / "manifests" / f"scene_map_{sid}.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            json.dumps({
+                "schema_version": "SCENE_MAP_FROZEN_1.0",
+                "short_id": sid,
+                "frozen_at": "2026-01-01T00:00:00+00:00",
+                "source_path": f"roteiros/scene_map_{sid}.json",
+                "source_sha256": "fixture",
+                "mutable_upstream_closed": True,
+                "scenes": [self._scene(query)],
+            }),
+            encoding="utf-8",
         )
 
     def test_sequential_1_2_5_10_jobs_are_isolated(self):
