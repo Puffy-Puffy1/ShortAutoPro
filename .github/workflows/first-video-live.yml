@@ -31,14 +31,16 @@ jobs:
       - name: Preflight required live credentials
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
         run: |
           set -euo pipefail
           test -n "$GEMINI_API_KEY" || {
             echo "::error::Missing repository Actions secret GEMINI_API_KEY. Add it in Settings > Secrets and variables > Actions."
             exit 1
           }
-          if [ -z "${{ secrets.PEXELS_API_KEY }}" ]; then echo "Pexels unavailable; fallback providers will be used."; fi
-          if [ -z "${{ secrets.PIXABAY_API_KEY }}" ]; then echo "Pixabay unavailable; fallback providers will be used."; fi
+          if [ -z "$PEXELS_API_KEY" ]; then echo "Pexels unavailable; fallback providers will be used."; fi
+          if [ -z "$PIXABAY_API_KEY" ]; then echo "Pixabay unavailable; fallback providers will be used."; fi
 
       - name: Checkout exact branch commit
         uses: actions/checkout@v4
