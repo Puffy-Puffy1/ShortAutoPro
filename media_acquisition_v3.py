@@ -31,8 +31,9 @@ def validate_sid(value):
         raise RuntimeError("MEDIA_INPUT_INVALID:short_id")
     return sid
 
-def load_scenes(sid):
-    path=BASE/"manifests"/f"scene_map_{sid}.json"
+def load_scenes(sid, base=None):
+    root=Path(base or BASE).resolve()
+    path=root/"manifests"/f"scene_map_{sid}.json"
     if not path.is_file(): raise RuntimeError("MEDIA_INPUT_INVALID:frozen_scene_map_missing")
     raw=json.loads(path.read_text(encoding="utf-8")); scenes=raw.get("scenes") if isinstance(raw,dict) else raw
     if not isinstance(scenes,list) or not scenes: raise RuntimeError("MEDIA_INPUT_INVALID:scene_map_empty")
@@ -71,7 +72,13 @@ def _existing_record(base,sid,number,scene):
         return None
 
 def build_manifest(short_id, engine=None):
-    sid=validate_sid(short_id); scenes=load_scenes(sid); engine=engine or MediaAcquisitionV3(BASE)
+    sid=validate_sid(short_id)
+    engine=engine or MediaAcquisitionV3(BASE)
+    # Use the acquisition engine's root as the single source of truth. Relying
+    # on the module-global BASE made tests/resume runs read another workspace
+    # when callers injected an engine rooted in a temporary directory.
+    base=Path(engine.base).resolve()
+    scenes=load_scenes(sid, base)
     records=[]; diagnostics=[]
     for number,scene in enumerate(scenes,1):
         existing=_existing_record(BASE,sid,number,scene)
@@ -83,10 +90,10 @@ def build_manifest(short_id, engine=None):
         diagnostics.append(diag.to_dict())
         if record is None:
             report={"schema_version":"media-diagnostics-v3","short_id":sid,"engine_version":ENGINE_VERSION,"scenes":diagnostics,"final_status":"FAILED"}
-            atomic_json(BASE/"reports"/"media"/f"acquisition_{sid}.json",report)
+            atomic_json(base/"reports"/"media"/f"acquisition_{sid}.json",report)
             raise RuntimeError(f"MEDIA_ACQUISITION_V3_FAILED:scene_{number:02d}:{diag.error}")
         record.update({"short_id":sid,"scene_number":number,"scene_id":str(scene.get("scene_id",scene.get("scene",number))).strip(),"must_total":len(diag.must),"validated":True,"checksum_sha256":record.get("sha256","")})
-        atomic_json(BASE/"imagens"/f"short_{sid}"/f"scene_{number:02d}.json",record)
+        atomic_json(base/"imagens"/f"short_{sid}"/f"scene_{number:02d}.json",record)
         records.append(record)
     manifest={"schema_version":"media-manifest-v2","engine_version":ENGINE_VERSION,"short_id":sid,"immutable":True,"scene_count":len(records),
               "scenes":[{"scene_id":str(scene.get("scene_id",scene.get("scene",i))),"scene_number":i,
@@ -95,9 +102,9 @@ def build_manifest(short_id, engine=None):
                                   "verification_mode":record.get("verification_mode",""),"provenance":record.get("provenance",{})}}
                         for i,(scene,record) in enumerate(zip(scenes,records),1)]}
     manifest["integrity_sha256"]=digest(manifest)
-    atomic_json(BASE/"manifests"/f"media_{sid}.json",manifest)
+    atomic_json(base/"manifests"/f"media_{sid}.json",manifest)
     report={"schema_version":"media-diagnostics-v3","short_id":sid,"engine_version":ENGINE_VERSION,"scenes":diagnostics,"final_status":"RESOLVED"}
-    atomic_json(BASE/"reports"/"media"/f"acquisition_{sid}.json",report)
+    atomic_json(base/"reports"/"media"/f"acquisition_{sid}.json",report)
     return manifest
 
 def main(short_id=None):
