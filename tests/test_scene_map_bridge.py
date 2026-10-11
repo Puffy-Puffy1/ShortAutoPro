@@ -7,11 +7,14 @@ ROOT=Path(__file__).resolve().parents[1]
 
 class SceneMapBridgeTests(unittest.TestCase):
     def test_consumers_use_frozen_scene_map(self):
+        # The canonical workspace can be named BASE, base, or root depending on
+        # whether a module uses the process default or an injected engine root.
+        frozen_path = r'(?:BASE|base|root)\s*/\s*"manifests"\s*/\s*f"scene_map_\{(?:sid|short_id|SID)\}\.json"'
+        mutable_path = r'(?:BASE|base|root)\s*/\s*"roteiros"\s*/\s*f"scene_map_\{(?:sid|short_id|SID)\}\.json"'
         for name in ("media_acquisition_v3.py","render_plan_v2.py","render_preflight.py","render_engine_v2.py","caption_layout_guard.py","resume_short_runtime.py"):
             text=(ROOT/name).read_text(encoding="utf-8")
-            self.assertRegex(text, r'BASE\s*/\s*"manifests"\s*/\s*f"scene_map_\{(?:sid|short_id|SID)\}\.json"', name)
-            self.assertNotRegex(text, r'BASE\s*/\s*"roteiros"\s*/\s*f"scene_map_\{(?:sid|short_id|SID)\}\.json"', name)
-
+            self.assertRegex(text, frozen_path, name)
+            self.assertNotRegex(text, mutable_path, name)
 
     def test_downstream_consumers_do_not_reference_mutable_scene_map(self):
         downstream = (
@@ -21,17 +24,16 @@ class SceneMapBridgeTests(unittest.TestCase):
             "render_plan_v2.py",
             "render_engine_v2.py",
         )
-        forbidden = r'BASE\s*/\s*"roteiros"\s*/\s*f"scene_map_\{(?:sid|short_id|SID)\}\.json"'
+        forbidden = r'(?:BASE|base|root)\s*/\s*"roteiros"\s*/\s*f"scene_map_\{(?:sid|short_id|SID)\}\.json"'
         for name in downstream:
             source = (ROOT/name).read_text(encoding="utf-8")
             self.assertNotRegex(source, forbidden, name)
 
     def test_media_manifest_has_single_canonical_writer(self):
         source = (ROOT/"media_acquisition_v3.py").read_text(encoding="utf-8")
-        self.assertEqual(len(re.findall(r'BASE\s*/\s*"manifests"\s*/\s*f"media_\{sid\}\.json"', source)), 1)
+        self.assertEqual(len(re.findall(r'(?:BASE|base)\s*/\s*"manifests"\s*/\s*f"media_\{sid\}\.json"', source)), 1)
         self.assertRegex(source, r'"immutable"\s*:\s*True')
         self.assertIn('"integrity_sha256"', source)
-
 
     def test_render_plan_is_single_frozen_writer(self):
         source=(ROOT/"render_plan_v2.py").read_text(encoding="utf-8")
@@ -92,5 +94,4 @@ class SceneMapBridgeTests(unittest.TestCase):
                     labels.append(str(node.args[2].value))
         self.assertLess(labels.index("SCENE_FREEZE"),labels.index("MEDIA"))
 
-if __name__=="__main__":
-    unittest.main()
+if __name__=="__main__": unittest.main()
