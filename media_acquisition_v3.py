@@ -74,14 +74,16 @@ def _existing_record(base,sid,number,scene):
 def build_manifest(short_id, engine=None):
     sid=validate_sid(short_id)
     engine=engine or MediaAcquisitionV3(BASE)
-    # Use the acquisition engine's root as the single source of truth. Relying
-    # on the module-global BASE made tests/resume runs read another workspace
-    # when callers injected an engine rooted in a temporary directory.
+    # The engine's workspace is authoritative for every artifact. This avoids
+    # reading a sidecar from the process-global default workspace during tests,
+    # resume, or runs whose SHORTAUTOPRO_BASE is explicitly configured.
     base=Path(engine.base).resolve()
     scenes=load_scenes(sid, base)
     records=[]; diagnostics=[]
     for number,scene in enumerate(scenes,1):
-        existing=_existing_record(BASE,sid,number,scene)
+        # Resume checks must use the same canonical root as SceneMap loading,
+        # acquisition, reports and manifests.
+        existing=_existing_record(base,sid,number,scene)
         if existing is not None:
             records.append(existing)
             diagnostics.append({"scene_id":str(scene.get("scene_id",scene.get("scene",number))),"query":str(scene.get("query") or scene.get("busca") or scene.get("segment") or ""),"final_status":"RESUMED","selected_provider":existing.get("provider",""),"selected_asset_id":existing.get("asset_id",""),"rejections":[],"fallbacks":[]})
