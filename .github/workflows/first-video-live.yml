@@ -104,7 +104,7 @@ jobs:
           # config.sh is machine-local and intentionally not committed; an empty
           # runner-local shim lets the workflow rely on injected Actions env vars.
           if [ ! -f config.sh ]; then
-            printf '%s\\n' '# Ephemeral GitHub Actions config shim; secrets are injected via env.' > config.sh
+            echo '# Ephemeral GitHub Actions config shim; secrets are injected via env.' > config.sh
           fi
 
           PROFILE_EXPORTS="$(python profile_runtime.py --profile default --shell)"
