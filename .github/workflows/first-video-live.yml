@@ -82,9 +82,10 @@ jobs:
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          test -n "$PEXELS_API_KEY" || { echo "Missing PEXELS_API_KEY"; exit 1; }
-          test -n "$PIXABAY_API_KEY" || { echo "Missing PIXABAY_API_KEY"; exit 1; }
-          test -n "$GEMINI_API_KEY" || { echo "Missing GEMINI_API_KEY"; exit 1; }
+          set -euo pipefail
+          test -n "$GEMINI_API_KEY" || { echo "::error::Missing GEMINI_API_KEY"; exit 1; }
+          if [ -z "$PEXELS_API_KEY" ]; then echo "Pexels unavailable; continuing to configured fallback providers."; fi
+          if [ -z "$PIXABAY_API_KEY" ]; then echo "Pixabay unavailable; continuing to configured fallback providers."; fi
 
       - name: Run FIRST_VIDEO
         env:
