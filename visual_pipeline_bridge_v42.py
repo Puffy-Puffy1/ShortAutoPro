@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import Any
 
 
-ROOT = Path.home() / "ShortAutoPro"
+ROOT = Path(os.getenv("SHORTAUTOPRO_BASE", str(Path.home() / "ShortAutoPro"))).resolve()
 
 VSE_PATH = (
     ROOT
