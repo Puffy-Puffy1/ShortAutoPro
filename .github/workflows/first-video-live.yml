@@ -9,6 +9,7 @@ on:
       - "main.py"
       - "profile_runtime.py"
       - "config/channel_profiles.json"
+      - "preflight_check.sh"
   workflow_dispatch:
     inputs:
       topic:
