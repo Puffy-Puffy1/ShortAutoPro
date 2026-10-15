@@ -1,6 +1,14 @@
 name: ShortAutoPro FIRST_VIDEO Live Proof
 
 on:
+  push:
+    branches:
+      - fix/first-video-canonical-entrypoint-20261014
+    paths:
+      - ".github/workflows/first-video-live.yml"
+      - "main.py"
+      - "profile_runtime.py"
+      - "config/channel_profiles.json"
   workflow_dispatch:
     inputs:
       topic:
@@ -34,7 +42,7 @@ jobs:
           python-version: "3.12"
 
       - name: Set up Node for Remotion
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "20"
           cache: "npm"
@@ -92,7 +100,7 @@ jobs:
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          TOPIC: ${{ inputs.topic }}
+          TOPIC: ${{ inputs.topic || 'mistérios históricos e casos inexplicáveis' }}
           SHORT_ID: ${{ inputs.short_id }}
           WHISPER_CLI: ${{ runner.temp }}/whisper.cpp/build/bin/whisper-cli
           WHISPER_MODEL: ${{ runner.temp }}/whisper.cpp/models/ggml-base.bin
