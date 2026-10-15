@@ -10,6 +10,7 @@ on:
       - "profile_runtime.py"
       - "config/channel_profiles.json"
       - "preflight_check.sh"
+      - "health_check.sh"
       - "visual_pipeline_bridge_v42.py"
       - "visual_selection_engine_v4.py"
   workflow_dispatch:
