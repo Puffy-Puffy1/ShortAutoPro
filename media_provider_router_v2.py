@@ -213,7 +213,7 @@ class WikimediaProvider(Provider):
                     # Commons descriptions may contain HTML markup. Keep plain
                     # descriptive text only; never mix in the search query.
                     raw=re.sub(r"<[^>]*>", " ", str(raw or ""))
-                    return re.sub(r"\\s+", " ", raw).strip()
+                    return re.sub(r"\s+", " ", raw).strip()
                 categories=[
                     str(category.get("title") or "").replace("Category:", "")
                     for category in (item.get("categories") or [])
@@ -385,13 +385,13 @@ class MediaProviderRouterV2:
             )
             # Log a bounded, normalized query so failed live runs can be
             # traced to scene/query generation without dumping provider payloads.
-            safe_query = re.sub(r"\\s+", " ", str(query or "")).strip()[:180]
+            safe_query = re.sub(r"\s+", " ", str(query or "")).strip()[:180]
             safe_must = ",".join(
-                re.sub(r"\\s+", " ", str(term or "")).strip()[:48]
+                re.sub(r"\s+", " ", str(term or "")).strip()[:48]
                 for term in (must or []) if str(term or "").strip()
             )[:180] or "-"
             safe_variants = " || ".join(
-                re.sub(r"\\s+", " ", str(variant or "")).strip()[:64]
+                re.sub(r"\s+", " ", str(variant or "")).strip()[:64]
                 for variant in variants
             )[:220] or "-"
             print(
