@@ -10,6 +10,33 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class MediaExternalResilienceTests(unittest.TestCase):
+    def test_car_cliff_must_accept_explicit_asset_metadata_synonyms(self):
+        from media_must_verifier import verified_must
+
+        candidate = {
+            "fonte": "wikimedia",
+            "title": "Motorcar at the foot of a steep embankment",
+            "description": "Historic photograph of a motor vehicle beside a hillside",
+            # The editorial query is deliberately present but must not be used
+            # as evidence by the verifier.
+            "query": "abandoned vintage car crashed on steep embankment grass",
+        }
+        result = verified_must(candidate, {"must_have": ["car", "cliff"]})
+        self.assertEqual(result["hits"], 2)
+        self.assertEqual(result["missing"], [])
+
+    def test_car_cliff_must_still_reject_query_echo_without_asset_evidence(self):
+        from media_must_verifier import verified_must
+
+        candidate = {
+            "fonte": "wikimedia",
+            "title": "A road in a rural landscape",
+            "query": "abandoned vintage car crashed on steep embankment grass",
+        }
+        result = verified_must(candidate, {"must_have": ["car", "cliff"]})
+        self.assertEqual(result["hits"], 0)
+        self.assertEqual(set(result["missing"]), {"car", "cliff"})
+
     def test_wikimedia_download_sends_identifiable_user_agent(self):
         response = Mock()
         response.__enter__ = Mock(return_value=response)
