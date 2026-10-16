@@ -31,13 +31,13 @@ class MediaExternalResilienceTests(unittest.TestCase):
             ok, path, _ = media_router.MediaProviderRouterV2(providers=[]).download(
                 candidate, scene_number=1, short_id="header-test"
             )
-        self.assertTrue(ok)
-        self.assertTrue(Path(path).is_file())
-        kwargs = get.call_args.kwargs
-        self.assertIn("User-Agent", kwargs["headers"])
-        self.assertIn("ShortAutoPro/2.3", kwargs["headers"]["User-Agent"])
-        self.assertIn("contact:", kwargs["headers"]["User-Agent"])
-        self.assertEqual(kwargs["stream"], True)
+            self.assertTrue(ok)
+            self.assertTrue(Path(path).is_file())
+            kwargs = get.call_args.kwargs
+            self.assertIn("User-Agent", kwargs["headers"])
+            self.assertIn("ShortAutoPro/2.3", kwargs["headers"]["User-Agent"])
+            self.assertIn("contact:", kwargs["headers"]["User-Agent"])
+            self.assertEqual(kwargs["stream"], True)
 
     def test_non_wikimedia_download_also_sends_user_agent(self):
         response = Mock()
