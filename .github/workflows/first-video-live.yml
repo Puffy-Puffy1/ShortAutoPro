@@ -104,6 +104,7 @@ jobs:
           if [ -z "$PIXABAY_API_KEY" ]; then echo "Pixabay unavailable; continuing to configured fallback providers."; fi
 
       - name: Run FIRST_VIDEO
+        id: run-first-video
         env:
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
@@ -123,6 +124,11 @@ jobs:
             echo '# Ephemeral GitHub Actions config shim; secrets are injected via env.' > config.sh
           fi
 
+          # Give each workflow attempt a fresh, isolated production ID.
+          RUN_SHORT_ID="${SHORT_ID:-gha_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}}"
+          export SHORT_ID="$RUN_SHORT_ID"
+          echo "short_id=$RUN_SHORT_ID" >> "$GITHUB_OUTPUT"
+
           PROFILE_EXPORTS="$(python profile_runtime.py --profile default --shell)"
           eval "$PROFILE_EXPORTS"
           export SHORT_TEMA="$TOPIC"
@@ -135,10 +141,12 @@ jobs:
           python main.py run
 
       - name: Validate generated MP4 with FFprobe
+        env:
+          SHORT_ID: ${{ steps.run-first-video.outputs.short_id }}
         run: |
           set -euo pipefail
-          latest="$(find videos -maxdepth 1 -type f -name 'short_v6_*.mp4' -printf '%T@ %p\n' | sort -nr | head -n1 | cut -d' ' -f2-)"
-          test -n "$latest"
+          latest="videos/short_v6_${SHORT_ID}.mp4"
+          test -f "$latest" || { echo "::error::Current run did not create $latest"; exit 1; }
           test -s "$latest"
           ffprobe -v error -show_entries format=duration:stream=codec_type,codec_name,width,height,avg_frame_rate -of json "$latest" > first_video_ffprobe.json
           python - <<'PY'
