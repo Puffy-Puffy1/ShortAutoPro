@@ -353,9 +353,22 @@ class MediaProviderRouterV2:
                 (int(candidate.get("must_hits", 0) or 0) for candidate in candidates),
                 default=0,
             )
+            # Log a bounded, normalized query so failed live runs can be
+            # traced to scene/query generation without dumping provider payloads.
+            safe_query = re.sub(r"\\s+", " ", str(query or "")).strip()[:180]
+            safe_must = ",".join(
+                re.sub(r"\\s+", " ", str(term or "")).strip()[:48]
+                for term in (must or []) if str(term or "").strip()
+            )[:180] or "-"
+            safe_variants = " || ".join(
+                re.sub(r"\\s+", " ", str(variant or "")).strip()[:64]
+                for variant in variants
+            )[:220] or "-"
             print(
                 "SAP_MEDIA_SEARCH "
+                f"query={safe_query!r} must={safe_must!r} "
                 f"query_chars={len(str(query))} variants={len(variants)} "
+                f"variant_samples={safe_variants!r} "
                 f"candidates={len(candidates)} providers={summary} "
                 f"max_metadata_must_hits={max_metadata_hits}",
                 flush=True,
