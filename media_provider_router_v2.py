@@ -338,6 +338,28 @@ class MediaProviderRouterV2:
             ),
             reverse=True,
         )
+        # Live runs need enough acquisition telemetry to distinguish empty
+        # providers from candidates rejected by strict semantic verification.
+        # Do not print URLs, API credentials, or full provider metadata.
+        if os.getenv("FIRST_VIDEO_LIVE") == "1":
+            provider_counts = {}
+            for candidate in candidates:
+                name = str(candidate.get("fonte") or candidate.get("source") or "?")
+                provider_counts[name] = provider_counts.get(name, 0) + 1
+            summary = ",".join(
+                f"{name}:{count}" for name, count in sorted(provider_counts.items())
+            ) or "-"
+            max_metadata_hits = max(
+                (int(candidate.get("must_hits", 0) or 0) for candidate in candidates),
+                default=0,
+            )
+            print(
+                "SAP_MEDIA_SEARCH "
+                f"query_chars={len(str(query))} variants={len(variants)} "
+                f"candidates={len(candidates)} providers={summary} "
+                f"max_metadata_must_hits={max_metadata_hits}",
+                flush=True,
+            )
         return candidates
     def download(self, candidate: dict[str,Any], scene_number: int, short_id: str) -> tuple[bool,str,dict[str,Any]]:
         provider=str(candidate.get("fonte") or candidate.get("source") or "unknown")
