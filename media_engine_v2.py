@@ -275,6 +275,8 @@ def acquire_scene(short_id: str, number: int, scene: dict[str, Any], media_dir: 
     # query text without MUST constraints. Acceptance remains fail-closed:
     # every explicit MUST is independently verified against asset evidence
     # before any download is attempted.
+    relaxed = []
+    relaxed_evidence_diagnostics = []
     if not strict and must:
         relaxed = PROVIDER.search(
             query,
@@ -294,6 +296,13 @@ def acquire_scene(short_id: str, number: int, scene: dict[str, Any], media_dir: 
         if verifier is not None:
             for candidate in relaxed:
                 evidence = verifier(candidate, {"must_have": must})
+                missing = evidence.get("missing", [])
+                relaxed_evidence_diagnostics.append(
+                    f"{candidate.get('fonte', candidate.get('source', '?'))}:"
+                    f"{str(candidate.get('id', '?'))}:"
+                    f"{int(evidence.get('hits', 0) or 0)}/{len(must)}:"
+                    f"missing={','.join(map(str, missing)) or '-'}"
+                )
                 if (
                     int(evidence.get("hits", 0) or 0) == len(must)
                     and len(must) > 0
@@ -338,9 +347,22 @@ def acquire_scene(short_id: str, number: int, scene: dict[str, Any], media_dir: 
     if not candidates:
         raise RuntimeError(f"MEDIA_INCOMPLETE:scene_{number:02d}:providers_empty")
     if not strict:
+        providers = sorted({
+            str(candidate.get("fonte") or candidate.get("source") or "?")
+            for candidate in candidates
+        })
+        diagnostic = (
+            f"candidates={len(candidates)};"
+            f"strict={len(strict)};"
+            f"providers={','.join(providers) or '-'};"
+            f"relaxed={len(relaxed)};"
+            f"verified_relaxed={len(verified_relaxed) if must else 0}"
+        )
+        if relaxed_evidence_diagnostics:
+            diagnostic += ";evidence=" + "|".join(relaxed_evidence_diagnostics[:8])
         raise RuntimeError(
             f"MEDIA_INCOMPLETE:scene_{number:02d}:no_verified_asset:"
-            f"must={','.join(must) or '-'}"
+            f"must={','.join(must) or '-'};{diagnostic}"
         )
     raise RuntimeError(
         f"MEDIA_DOWNLOAD_FAILED:scene_{number:02d}:"
