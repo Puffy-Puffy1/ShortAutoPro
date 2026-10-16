@@ -8,6 +8,7 @@ on:
       - ".github/workflows/first-video-live.yml"
       - "main.py"
       - "scene_lossless_repair.py"
+      - "media_provider_router_v2.py"
       - "profile_runtime.py"
       - "config/channel_profiles.json"
       - "preflight_check.sh"
