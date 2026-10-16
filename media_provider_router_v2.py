@@ -157,9 +157,14 @@ class WikimediaProvider(Provider):
         if not allowed: return []
         out=[]
         try:
+            # Commons file titles alone are often generic ("File:...jpg").
+            # Fetch the file's own structured description and categories so the
+            # verifier can evaluate actual asset metadata rather than search text.
             params={"action":"query","generator":"search","gsrsearch":query,
-                    "gsrnamespace":6,"gsrlimit":20,"prop":"imageinfo",
-                    "iiprop":"url|mime|size","iiurlwidth":1400,"format":"json"}
+                    "gsrnamespace":6,"gsrlimit":20,
+                    "prop":"imageinfo|categories",
+                    "iiprop":"url|mime|size|extmetadata","iiurlwidth":1400,
+                    "cllimit":"max","format":"json"}
             global _WIKIMEDIA_LAST_REQUEST
             cache_key = str(query).strip().casefold()
             cached = _WIKIMEDIA_CACHE.get(cache_key)
@@ -200,9 +205,34 @@ class WikimediaProvider(Provider):
                 url=info.get("thumburl") or info.get("url")
                 mime=str(info.get("mime") or "")
                 if not url or not mime.startswith("image/"): continue
-                desc=str(item.get("title") or "")
-                out.append(_candidate(self.name,"image",item.get("pageid"),url,desc,query,must,avoid,
-                                      license="Wikimedia Commons"))
+                title=str(item.get("title") or "")
+                ext=info.get("extmetadata") or {}
+                def metadata_value(key):
+                    value=ext.get(key) or {}
+                    raw=value.get("value","") if isinstance(value,dict) else value
+                    # Commons descriptions may contain HTML markup. Keep plain
+                    # descriptive text only; never mix in the search query.
+                    raw=re.sub(r"<[^>]*>", " ", str(raw or ""))
+                    return re.sub(r"\\s+", " ", raw).strip()
+                categories=[
+                    str(category.get("title") or "").replace("Category:", "")
+                    for category in (item.get("categories") or [])
+                    if isinstance(category,dict) and category.get("title")
+                ]
+                description_parts=[
+                    title,
+                    metadata_value("ObjectName"),
+                    metadata_value("ImageDescription"),
+                    " ".join(categories),
+                ]
+                desc=" ".join(part for part in description_parts if part)
+                out.append(_candidate(
+                    self.name,"image",item.get("pageid"),url,desc,query,must,avoid,
+                    title=title,
+                    description=metadata_value("ImageDescription"),
+                    tags=categories,
+                    license="Wikimedia Commons",
+                ))
             _WIKIMEDIA_CACHE[cache_key] = [dict(item) for item in out]
             note_provider_event(self.name,"SUCCESS",item_count=len(out))
         except Exception as exc: note_exception(self.name,exc)
