@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 import re
+import time
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote
@@ -21,6 +22,9 @@ from media_validator_v2 import validate
 
 TIMEOUT = float(os.getenv("SAP_MEDIA_API_TIMEOUT", "8") or 8)
 DOWNLOAD_TIMEOUT = float(os.getenv("SAP_MEDIA_DOWNLOAD_READ_TIMEOUT", "15") or 15)
+WIKIMEDIA_MIN_INTERVAL = max(1.0, float(os.getenv("SAP_WIKIMEDIA_MIN_INTERVAL", "1.5") or 1.5))
+_WIKIMEDIA_LAST_REQUEST = 0.0
+_WIKIMEDIA_CACHE: dict[str, list[dict[str, Any]]] = {}
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", Path.home() / "ShortAutoPro")).resolve()
 
 def _tokens(value: str) -> set[str]:
@@ -156,17 +160,40 @@ class WikimediaProvider(Provider):
             params={"action":"query","generator":"search","gsrsearch":query,
                     "gsrnamespace":6,"gsrlimit":20,"prop":"imageinfo",
                     "iiprop":"url|mime|size","iiurlwidth":1400,"format":"json"}
-            r=requests.get(
-                "https://commons.wikimedia.org/w/api.php",
-                params=params,
-                headers={"User-Agent": "ShortAutoPro/2.3 (educational-video-automation; media retrieval)"},
-                timeout=TIMEOUT,
-            )
-            event = note_response(self.name,r)
-            if not r.ok:
-                note_provider_event(self.name, event, status=r.status_code, detail="Wikimedia Commons search HTTP failure")
-                print(f"SAP_MEDIA_PROVIDER_FAILURE provider=wikimedia status={r.status_code}")
-                return []
+            global _WIKIMEDIA_LAST_REQUEST
+            cache_key = str(query).strip().casefold()
+            cached = _WIKIMEDIA_CACHE.get(cache_key)
+            if cached is not None:
+                return [dict(item) for item in cached]
+            # Wikimedia Commons applies shared-IP rate limits. Query expansion can
+            # otherwise issue several requests per scene in a burst. Serialize and
+            # pace requests, then honor Retry-After for temporary 429 responses.
+            for attempt in range(3):
+                wait_for = WIKIMEDIA_MIN_INTERVAL - (time.monotonic() - _WIKIMEDIA_LAST_REQUEST)
+                if wait_for > 0:
+                    time.sleep(wait_for)
+                r=requests.get(
+                    "https://commons.wikimedia.org/w/api.php",
+                    params=params,
+                    headers={"User-Agent": "ShortAutoPro/2.3 (educational-video-automation; media retrieval; contact: cinepulsar.contato@gmail.com)"},
+                    timeout=TIMEOUT,
+                )
+                _WIKIMEDIA_LAST_REQUEST = time.monotonic()
+                event = note_response(self.name,r)
+                if r.status_code == 429 and attempt < 2:
+                    retry_after = r.headers.get("Retry-After", "")
+                    try:
+                        delay = min(20.0, max(2.0, float(retry_after)))
+                    except (TypeError, ValueError):
+                        delay = 3.0 * (attempt + 1)
+                    print(f"SAP_MEDIA_PROVIDER_RETRY provider=wikimedia status=429 delay={delay:.1f}s attempt={attempt + 1}")
+                    time.sleep(delay)
+                    continue
+                if not r.ok:
+                    note_provider_event(self.name, event, status=r.status_code, detail="Wikimedia Commons search HTTP failure")
+                    print(f"SAP_MEDIA_PROVIDER_FAILURE provider=wikimedia status={r.status_code}")
+                    return []
+                break
             pages=(r.json().get("query") or {}).get("pages") or {}
             for item in pages.values():
                 info=(item.get("imageinfo") or [{}])[0]
@@ -176,6 +203,7 @@ class WikimediaProvider(Provider):
                 desc=str(item.get("title") or "")
                 out.append(_candidate(self.name,"image",item.get("pageid"),url,desc,query,must,avoid,
                                       license="Wikimedia Commons"))
+            _WIKIMEDIA_CACHE[cache_key] = [dict(item) for item in out]
             note_provider_event(self.name,"SUCCESS",item_count=len(out))
         except Exception as exc: note_exception(self.name,exc)
         return out
