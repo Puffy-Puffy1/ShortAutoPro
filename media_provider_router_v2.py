@@ -156,9 +156,17 @@ class WikimediaProvider(Provider):
             params={"action":"query","generator":"search","gsrsearch":query,
                     "gsrnamespace":6,"gsrlimit":20,"prop":"imageinfo",
                     "iiprop":"url|mime|size","iiurlwidth":1400,"format":"json"}
-            r=requests.get("https://commons.wikimedia.org/w/api.php",params=params,timeout=TIMEOUT)
-            note_response(self.name,r)
-            if not r.ok: return []
+            r=requests.get(
+                "https://commons.wikimedia.org/w/api.php",
+                params=params,
+                headers={"User-Agent": "ShortAutoPro/2.3 (educational-video-automation; media retrieval)"},
+                timeout=TIMEOUT,
+            )
+            event = note_response(self.name,r)
+            if not r.ok:
+                note_provider_event(self.name, event, status=r.status_code, detail="Wikimedia Commons search HTTP failure")
+                print(f"SAP_MEDIA_PROVIDER_FAILURE provider=wikimedia status={r.status_code}")
+                return []
             pages=(r.json().get("query") or {}).get("pages") or {}
             for item in pages.values():
                 info=(item.get("imageinfo") or [{}])[0]
