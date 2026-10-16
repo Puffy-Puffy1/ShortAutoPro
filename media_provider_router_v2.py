@@ -235,7 +235,11 @@ class WikimediaProvider(Provider):
                 ))
             _WIKIMEDIA_CACHE[cache_key] = [dict(item) for item in out]
             note_provider_event(self.name,"SUCCESS",item_count=len(out))
-        except Exception as exc: note_exception(self.name,exc)
+        except Exception as exc:
+            note_exception(self.name, exc)
+            # Keep live provider failures diagnosable without exposing URLs,
+            # request parameters, credentials, or upstream response bodies.
+            print(f"SAP_MEDIA_PROVIDER_FAILURE provider={self.name} error={type(exc).__name__}", flush=True)
         return out
 
 class LocalLibraryProvider(Provider):
