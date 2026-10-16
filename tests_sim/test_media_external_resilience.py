@@ -21,14 +21,16 @@ class MediaExternalResilienceTests(unittest.TestCase):
             "id": "123", "url": "https://upload.wikimedia.org/example.jpg",
             "provenance": {"provider": "wikimedia"},
         }
-        with tempfile.TemporaryDirectory() as root:
-            with patch.object(media_router, "BASE", Path(root)), \\
-                 patch.object(media_router, "asset_blocked", return_value=(False, "", 0)), \\
-                 patch.object(media_router, "validate", return_value={"valid": True}), \\
-                 patch.object(media_router.requests, "get", return_value=response) as get:
-                ok, path, _ = media_router.MediaProviderRouterV2(providers=[]).download(
-                    candidate, scene_number=1, short_id="header-test"
-                )
+        with (
+            tempfile.TemporaryDirectory() as root,
+            patch.object(media_router, "BASE", Path(root)),
+            patch.object(media_router, "asset_blocked", return_value=(False, "", 0)),
+            patch.object(media_router, "validate", return_value={"valid": True}),
+            patch.object(media_router.requests, "get", return_value=response) as get,
+        ):
+            ok, path, _ = media_router.MediaProviderRouterV2(providers=[]).download(
+                candidate, scene_number=1, short_id="header-test"
+            )
         self.assertTrue(ok)
         self.assertTrue(Path(path).is_file())
         kwargs = get.call_args.kwargs
@@ -47,14 +49,16 @@ class MediaExternalResilienceTests(unittest.TestCase):
             "fonte": "pexels", "tipo": "image", "id": "456",
             "url": "https://images.example.test/example.jpg",
         }
-        with tempfile.TemporaryDirectory() as root:
-            with patch.object(media_router, "BASE", Path(root)), \\
-                 patch.object(media_router, "asset_blocked", return_value=(False, "", 0)), \\
-                 patch.object(media_router, "validate", return_value={"valid": True}), \\
-                 patch.object(media_router.requests, "get", return_value=response) as get:
-                ok, _, _ = media_router.MediaProviderRouterV2(providers=[]).download(
-                    candidate, scene_number=1, short_id="header-test"
-                )
+        with (
+            tempfile.TemporaryDirectory() as root,
+            patch.object(media_router, "BASE", Path(root)),
+            patch.object(media_router, "asset_blocked", return_value=(False, "", 0)),
+            patch.object(media_router, "validate", return_value={"valid": True}),
+            patch.object(media_router.requests, "get", return_value=response) as get,
+        ):
+            ok, _, _ = media_router.MediaProviderRouterV2(providers=[]).download(
+                candidate, scene_number=1, short_id="header-test"
+            )
         self.assertTrue(ok)
         self.assertIn("User-Agent", get.call_args.kwargs["headers"])
 
