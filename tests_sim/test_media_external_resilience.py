@@ -37,6 +37,64 @@ class MediaExternalResilienceTests(unittest.TestCase):
         self.assertEqual(result["hits"], 0)
         self.assertEqual(set(result["missing"]), {"car", "cliff"})
 
+    def test_wikimedia_search_uses_asset_description_and_categories_as_evidence(self):
+        from media_must_verifier import verified_must
+
+        response = Mock()
+        response.ok = True
+        response.status_code = 200
+        response.headers = {}
+        response.json.return_value = {
+            "query": {
+                "pages": {
+                    "123": {
+                        "pageid": 123,
+                        "title": "File:Generic historical photograph.jpg",
+                        "categories": [
+                            {"title": "Category:Vintage automobiles"},
+                            {"title": "Category:Cliffs and embankments"},
+                        ],
+                        "imageinfo": [{
+                            "url": "https://upload.wikimedia.org/example.jpg",
+                            "thumburl": "https://upload.wikimedia.org/example-thumb.jpg",
+                            "mime": "image/jpeg",
+                            "extmetadata": {
+                                "ObjectName": {"value": "Motorcar after a roadside crash"},
+                                "ImageDescription": {
+                                    "value": "Photograph of a car beside a <b>steep embankment</b>"
+                                },
+                            },
+                        }],
+                    }
+                }
+            }
+        }
+        media_router._WIKIMEDIA_CACHE.clear()
+        media_router._WIKIMEDIA_LAST_REQUEST = 0.0
+        with (
+            patch.object(media_router, "provider_gate", return_value=(True, "CLOSED", 0)),
+            patch.object(media_router, "note_response", return_value="SUCCESS"),
+            patch.object(media_router, "note_provider_event"),
+            patch.object(media_router.requests, "get", return_value=response),
+            patch.object(media_router.time, "sleep"),
+        ):
+            candidates = media_router.WikimediaProvider().search(
+                "abandoned vintage car crashed on steep embankment grass",
+                ["car", "cliff"],
+                [],
+            )
+
+        self.assertEqual(len(candidates), 1)
+        candidate = candidates[0]
+        self.assertIn("Vintage automobiles", candidate["descricao"])
+        self.assertIn("steep embankment", candidate["descricao"])
+        result = verified_must(candidate, {"must_have": ["car", "cliff"]})
+        self.assertEqual(result["hits"], 2)
+        self.assertEqual(result["missing"], [])
+        params = media_router.requests.get.call_args.kwargs["params"]
+        self.assertIn("categories", params["prop"])
+        self.assertIn("extmetadata", params["iiprop"])
+
     def test_wikimedia_download_sends_identifiable_user_agent(self):
         response = Mock()
         response.__enter__ = Mock(return_value=response)
