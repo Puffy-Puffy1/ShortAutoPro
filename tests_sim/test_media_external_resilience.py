@@ -1,13 +1,63 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import Mock, patch
 
 import media_external_resilience as resilience
+import media_provider_router_v2 as media_router
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 class MediaExternalResilienceTests(unittest.TestCase):
+    def test_wikimedia_download_sends_identifiable_user_agent(self):
+        response = Mock()
+        response.__enter__ = Mock(return_value=response)
+        response.__exit__ = Mock(return_value=False)
+        response.ok = True
+        response.iter_content.return_value = [b"fake-image-bytes"]
+        candidate = {
+            "fonte": "wikimedia", "source": "wikimedia", "tipo": "image",
+            "id": "123", "url": "https://upload.wikimedia.org/example.jpg",
+            "provenance": {"provider": "wikimedia"},
+        }
+        with tempfile.TemporaryDirectory() as root:
+            with patch.object(media_router, "BASE", Path(root)), \\
+                 patch.object(media_router, "asset_blocked", return_value=(False, "", 0)), \\
+                 patch.object(media_router, "validate", return_value={"valid": True}), \\
+                 patch.object(media_router.requests, "get", return_value=response) as get:
+                ok, path, _ = media_router.MediaProviderRouterV2(providers=[]).download(
+                    candidate, scene_number=1, short_id="header-test"
+                )
+        self.assertTrue(ok)
+        self.assertTrue(Path(path).is_file())
+        kwargs = get.call_args.kwargs
+        self.assertIn("User-Agent", kwargs["headers"])
+        self.assertIn("ShortAutoPro/2.3", kwargs["headers"]["User-Agent"])
+        self.assertIn("contact:", kwargs["headers"]["User-Agent"])
+        self.assertEqual(kwargs["stream"], True)
+
+    def test_non_wikimedia_download_also_sends_user_agent(self):
+        response = Mock()
+        response.__enter__ = Mock(return_value=response)
+        response.__exit__ = Mock(return_value=False)
+        response.ok = True
+        response.iter_content.return_value = [b"fake-image-bytes"]
+        candidate = {
+            "fonte": "pexels", "tipo": "image", "id": "456",
+            "url": "https://images.example.test/example.jpg",
+        }
+        with tempfile.TemporaryDirectory() as root:
+            with patch.object(media_router, "BASE", Path(root)), \\
+                 patch.object(media_router, "asset_blocked", return_value=(False, "", 0)), \\
+                 patch.object(media_router, "validate", return_value={"valid": True}), \\
+                 patch.object(media_router.requests, "get", return_value=response) as get:
+                ok, _, _ = media_router.MediaProviderRouterV2(providers=[]).download(
+                    candidate, scene_number=1, short_id="header-test"
+                )
+        self.assertTrue(ok)
+        self.assertIn("User-Agent", get.call_args.kwargs["headers"])
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         resilience.STATE_FILE = Path(self.tmp.name) / "state.json"
