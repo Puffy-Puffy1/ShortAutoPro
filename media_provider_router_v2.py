@@ -361,7 +361,20 @@ class MediaProviderRouterV2:
         dest = outdir / f"scene_{int(scene_number):02d}_{provider}{ext}"
         try:
             dest.unlink(missing_ok=True)
-            with requests.get(url,stream=True,timeout=DOWNLOAD_TIMEOUT) as r:
+            # Wikimedia Commons requires an identifiable User-Agent on file
+            # downloads too; setting it only on API search does not carry over.
+            # Keep provider-specific identity while giving every external host a
+            # stable fallback User-Agent.
+            headers = {
+                "User-Agent": (
+                    "ShortAutoPro/2.3 (educational-video-automation; media retrieval; "
+                    "contact: cinepulsar.contato@gmail.com)"
+                    if provider.casefold() == "wikimedia"
+                    else "ShortAutoPro/2.3 (media retrieval; educational-video-automation)"
+                ),
+                "Accept": "image/*,video/*;q=0.9,*/*;q=0.8",
+            }
+            with requests.get(url,headers=headers,stream=True,timeout=DOWNLOAD_TIMEOUT) as r:
                 if not r.ok:
                     note_response(provider,r)
                     mark_asset_bad(url,provider=provider,asset_id=candidate.get("id"),status=r.status_code)
