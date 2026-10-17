@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Piper TTS with profile speech direction and loudness-safe output."""
-import json,math,os,shutil,subprocess,tempfile
+import json,math,os,shutil,subprocess,tempfile,wave
 from datetime import date,datetime
 from pathlib import Path
 from typing import Any
@@ -25,11 +25,15 @@ def atomic_json(path:Path,payload:Any):
 def read_plan()->list[dict[str,Any]]:
  try:d=json.loads(SPEECH_PLAN.read_text(encoding="utf-8"));chunks=d.get("chunks",[]) if isinstance(d,dict) else [];return [x for x in chunks if isinstance(x,dict) and str(x.get("text","")).strip()]
  except Exception:return []
-def piper_raw(text:str,dest:Path,env:dict[str,str])->None:
+def piper_wav(text:str,dest:Path,env:dict[str,str])->None:
  try:run_group(["piper","-m",MODEL_ARG,"-f",str(dest),"--",text],env=env,check=True,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE,text=True,timeout=180)
  except subprocess.TimeoutExpired:fail("Piper excedeu 180 segundos")
  except subprocess.CalledProcessError as exc:fail(f"Piper falhou ({exc.returncode}): {(exc.stderr or '')[-700:]}")
- if not dest.is_file() or dest.stat().st_size<=0:fail("Piper não produziu RAW válido")
+ if not dest.is_file() or dest.stat().st_size<=44:fail("Piper não produziu WAV válido")
+ try:
+  with wave.open(str(dest),"rb") as audio_file:
+   if audio_file.getnframes()<=0 or audio_file.getframerate()<=0 or audio_file.getnchannels()<=0:fail("Piper produziu WAV sem frames válidos")
+ except (wave.Error,EOFError,OSError) as exc:fail(f"Piper não produziu WAV PCM válido: {exc}")
 def audio_duration(path:Path)->float:
  raw=check_output_group(["ffprobe","-v","error","-show_entries","format=duration","-of","default=noprint_wrappers=1:nokey=1",str(path)],text=True,stderr=subprocess.DEVNULL,timeout=30).strip();v=float(raw)
  if not math.isfinite(v) or v<5:fail(f"duração de áudio inválida: {v}")
@@ -37,9 +41,9 @@ def audio_duration(path:Path)->float:
 def render_segmented(chunks:list[dict[str,Any]],work:Path,env:dict[str,str])->Path:
  wavs=[]
  for i,ch in enumerate(chunks,1):
-  raw=work/f"chunk_{i:02d}.raw";wav=work/f"chunk_{i:02d}.wav";piper_raw(str(ch.get("text","")),raw,env);tempo=bounded_value(ch.get("tempo"),1.0,0.90,1.10);pause=max(0,min(700,int(ch.get("pause_ms",150) or 150)))/1000
+  source_wav=work/f"chunk_{i:02d}_piper.wav";wav=work/f"chunk_{i:02d}.wav";piper_wav(str(ch.get("text","")),source_wav,env);tempo=bounded_value(ch.get("tempo"),1.0,0.90,1.10);pause=max(0,min(700,int(ch.get("pause_ms",150) or 150)))/1000
   filt=f"atempo={tempo:.4f},aresample=44100,apad=pad_dur={pause:.3f}"
-  run_group(["ffmpeg","-y","-loglevel","error","-f","f32le","-ar","22050","-ac","1","-i",str(raw),"-af",filt,"-ar","44100","-ac","1","-c:a","pcm_s16le",str(wav)],check=True,timeout=120);wavs.append(wav)
+  run_group(["ffmpeg","-y","-loglevel","error","-i",str(source_wav),"-af",filt,"-ar","44100","-ac","1","-c:a","pcm_s16le",str(wav)],check=True,timeout=120);wavs.append(wav)
  concat=work/"chunks.txt";concat.write_text("".join("file '"+str(p).replace("'","'\\''")+"'\n" for p in wavs),encoding="utf-8");combined=work/"speech.wav";run_group(["ffmpeg","-y","-loglevel","error","-f","concat","-safe","0","-i",str(concat),"-c:a","pcm_s16le",str(combined)],check=True,timeout=120);return combined
 def bounded_value(value,default,low,high):
  try:v=float(value)
@@ -47,7 +51,7 @@ def bounded_value(value,default,low,high):
  if not math.isfinite(v):v=float(default)
  return max(low,min(high,v))
 def render_single(text:str,work:Path,env:dict[str,str])->Path:
- raw=work/"speech.raw";wav=work/"speech.wav";piper_raw(text,raw,env);run_group(["ffmpeg","-y","-loglevel","error","-f","f32le","-ar","22050","-ac","1","-i",str(raw),"-ar","44100","-ac","1","-c:a","pcm_s16le",str(wav)],check=True,timeout=120);return wav
+ source_wav=work/"speech_piper.wav";wav=work/"speech.wav";piper_wav(text,source_wav,env);run_group(["ffmpeg","-y","-loglevel","error","-i",str(source_wav),"-ar","44100","-ac","1","-c:a","pcm_s16le",str(wav)],check=True,timeout=120);return wav
 def main()->int:
  source=SPEECH if SPEECH.is_file() else ROTEIRO
  if not source.is_file():print(f"ERRO: roteiro/speech não encontrado: {source}");return 1
