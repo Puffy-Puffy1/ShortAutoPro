@@ -221,6 +221,7 @@ class MediaExternalResilienceTests(unittest.TestCase):
             patch.object(media_router, "BASE", Path(root)),
             patch.object(media_router, "asset_blocked", return_value=(False, "", 0)),
             patch.object(media_router, "mark_asset_bad") as mark_bad,
+            patch.object(media_router, "note_exception") as note_exception,
             patch.object(media_router, "validate", side_effect=ValueError("CONTENT_SIGNATURE_MISMATCH")),
             patch.object(media_router.requests, "get", return_value=response),
             redirect_stdout(output),
@@ -236,6 +237,7 @@ class MediaExternalResilienceTests(unittest.TestCase):
         self.assertNotIn("private-looking-path", output.getvalue())
         mark_bad.assert_called_once()
         self.assertEqual(mark_bad.call_args.kwargs["reason"], "CONTENT_TYPE")
+        note_exception.assert_not_called()
 
     def test_non_wikimedia_download_also_sends_user_agent(self):
         response = Mock()
