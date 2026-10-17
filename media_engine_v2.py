@@ -326,7 +326,11 @@ def acquire_scene(short_id: str, number: int, scene: dict[str, Any], media_dir: 
         try:
             ok, destination, download_meta = PROVIDER.download(candidate, number, short_id)
             if not ok or not destination:
-                failures.append(f"{candidate.get('fonte','?')}:DOWNLOAD_FAILED")
+                meta = download_meta if isinstance(download_meta, dict) else {}
+                error_class = str(meta.get("error_class") or "DOWNLOAD_FAILED")
+                status = meta.get("status")
+                suffix = f":HTTP_{int(status)}" if str(status or "").isdigit() else ""
+                failures.append(f"{candidate.get('fonte','?')}:{error_class}{suffix}")
                 continue
             validation = validate_asset(destination)
             path = Path(destination)
