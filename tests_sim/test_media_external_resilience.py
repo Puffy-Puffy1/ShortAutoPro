@@ -139,6 +139,42 @@ class MediaExternalResilienceTests(unittest.TestCase):
             self.assertIn("contact:", kwargs["headers"]["User-Agent"])
             self.assertEqual(kwargs["stream"], True)
 
+    def test_download_retries_transient_http_503_before_success(self):
+        failed = Mock()
+        failed.__enter__ = Mock(return_value=failed)
+        failed.__exit__ = Mock(return_value=False)
+        failed.ok = False
+        failed.status_code = 503
+        failed.headers = {}
+        succeeded = Mock()
+        succeeded.__enter__ = Mock(return_value=succeeded)
+        succeeded.__exit__ = Mock(return_value=False)
+        succeeded.ok = True
+        succeeded.status_code = 200
+        succeeded.headers = {}
+        succeeded.iter_content.return_value = [b"fake-image-bytes"]
+        candidate = {
+            "fonte": "wikimedia", "source": "wikimedia", "tipo": "image",
+            "id": "503-retry", "url": "https://upload.wikimedia.org/example.jpg",
+        }
+        with (
+            tempfile.TemporaryDirectory() as root,
+            patch.object(media_router, "BASE", Path(root)),
+            patch.object(media_router, "asset_blocked", return_value=(False, "", 0)),
+            patch.object(media_router, "mark_asset_bad") as mark_bad,
+            patch.object(media_router, "note_response", return_value="SERVER"),
+            patch.object(media_router, "validate", return_value={"valid": True}),
+            patch.object(media_router.requests, "get", side_effect=[failed, succeeded]) as get,
+            patch.object(media_router.time, "sleep"),
+        ):
+            ok, path, _ = media_router.MediaProviderRouterV2(providers=[]).download(
+                candidate, scene_number=10, short_id="retry-test"
+            )
+        self.assertTrue(ok)
+        self.assertTrue(Path(path).is_file())
+        self.assertEqual(get.call_count, 2)
+        mark_bad.assert_not_called()
+
     def test_non_wikimedia_download_also_sends_user_agent(self):
         response = Mock()
         response.__enter__ = Mock(return_value=response)
