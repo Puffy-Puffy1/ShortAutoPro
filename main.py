@@ -300,7 +300,7 @@ class Pipeline:
             stage_timeout = self._stage_timeout_seconds(file)
 
             try:
-                capture_stage_output = file == "audio_finalizer.py"
+                capture_stage_output = file in {"audio_finalizer.py", "media_engine_v2.py"}
                 proc = run_group(
                     cmd,
                     cwd=BASE,
