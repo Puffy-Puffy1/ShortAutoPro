@@ -1,5 +1,7 @@
+import io
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -200,6 +202,40 @@ class MediaExternalResilienceTests(unittest.TestCase):
             self.assertEqual(result, {"valid": True})
             self.assertEqual(get.call_count, 2)
             mark_bad.assert_not_called()
+
+    def test_download_logs_safe_validation_reason_and_quarantines_by_reason(self):
+        response = Mock()
+        response.__enter__ = Mock(return_value=response)
+        response.__exit__ = Mock(return_value=False)
+        response.ok = True
+        response.status_code = 200
+        response.headers = {}
+        response.iter_content.return_value = [b"x" * 2048]
+        candidate = {
+            "fonte": "wikimedia", "source": "wikimedia", "tipo": "image",
+            "id": "bad-signature", "url": "https://upload.wikimedia.org/private-looking-path.jpg",
+        }
+        output = io.StringIO()
+        with (
+            tempfile.TemporaryDirectory() as root,
+            patch.object(media_router, "BASE", Path(root)),
+            patch.object(media_router, "asset_blocked", return_value=(False, "", 0)),
+            patch.object(media_router, "mark_asset_bad") as mark_bad,
+            patch.object(media_router, "validate", side_effect=ValueError("CONTENT_SIGNATURE_MISMATCH")),
+            patch.object(media_router.requests, "get", return_value=response),
+            redirect_stdout(output),
+        ):
+            ok, path, result = media_router.MediaProviderRouterV2(providers=[]).download(
+                candidate, scene_number=1, short_id="diagnostic-test"
+            )
+
+        self.assertFalse(ok)
+        self.assertEqual(path, "")
+        self.assertEqual(result["error_class"], "VALIDATION_FAILED")
+        self.assertIn("reason=CONTENT_SIGNATURE_MISMATCH", output.getvalue())
+        self.assertNotIn("private-looking-path", output.getvalue())
+        mark_bad.assert_called_once()
+        self.assertEqual(mark_bad.call_args.kwargs["reason"], "CONTENT_TYPE")
 
     def test_non_wikimedia_download_also_sends_user_agent(self):
         response = Mock()
