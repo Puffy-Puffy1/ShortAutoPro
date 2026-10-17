@@ -32,6 +32,22 @@ class RenderedVisualDiversityTests(unittest.TestCase):
             self.assertEqual(result["status"], "REVIEW")
             self.assertLess(result["change_ratio"], 0.55)
 
+    def test_scene_durations_fall_back_to_frozen_render_timeline(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            runtime = base / "missing-runtime.json"
+            timeline = base / "render_jobs" / "test_short" / "render_001" / "timeline.json"
+            timeline.parent.mkdir(parents=True)
+            timeline.write_text(
+                json.dumps({"scenes": [{"duration": 2.5} for _ in range(12)]}),
+                encoding="utf-8",
+            )
+            with mock.patch.object(visual_qa, "BASE", base), \
+                 mock.patch.object(visual_qa, "SID", "test_short"), \
+                 mock.patch.object(visual_qa, "RUNTIME", runtime):
+                durations = visual_qa.scene_durations(12)
+            self.assertEqual(durations, [2.5] * 12)
+
     def test_distinct_scene_samples_pass(self):
         with tempfile.TemporaryDirectory() as tmp:
             base = Path(tmp)
