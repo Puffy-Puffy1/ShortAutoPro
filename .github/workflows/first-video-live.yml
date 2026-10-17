@@ -133,6 +133,11 @@ jobs:
 
           PROFILE_EXPORTS="$(python profile_runtime.py --profile default --shell)"
           eval "$PROFILE_EXPORTS"
+          # Pin TTS to the exact model downloaded and checked by this workflow.
+          # This avoids runtime voice-name lookup differences across Piper CLI versions.
+          PIPER_MODEL_PATH="$GITHUB_WORKSPACE/piper/voice/pt_BR-faber-medium.onnx"
+          test -s "$PIPER_MODEL_PATH"
+          export PIPER_MODEL="$PIPER_MODEL_PATH"
           export SHORT_TEMA="$TOPIC"
           export SHORTAUTOPRO_BASE="$GITHUB_WORKSPACE"
           export FIRST_VIDEO_LIVE=1
