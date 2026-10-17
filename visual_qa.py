@@ -540,7 +540,7 @@ def main() -> int:
             path
             for path in files
             if re.fullmatch(
-                r"scene_\d{2}\.(?:jpg|jpeg|png|webp|mp4|mov|webm)",
+                r"scene_\d{2}(?:_[^.]+)?\.(?:jpg|jpeg|png|webp|mp4|mov|webm)",
                 path.name,
                 re.I,
             )
