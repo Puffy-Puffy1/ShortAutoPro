@@ -2,6 +2,7 @@ import unittest
 from pathlib import Path
 
 from media_provider_v2 import MediaProviderV2
+from media_provider_router_v2 import _query_variants
 
 
 class MediaProviderV2Tests(unittest.TestCase):
@@ -24,6 +25,30 @@ class MediaProviderV2Tests(unittest.TestCase):
         self.assertNotIn("render_engine_v2", source)
         self.assertNotIn("ffmpeg", source.lower())
         self.assertNotIn("SHORT_ID", source)
+
+    def test_maritime_must_uses_bounded_retrieval_aliases(self):
+        variants = _query_variants(
+            "abandoned wooden brigantine ship drifting in atlantic ocean",
+            ["ship"],
+        )
+        self.assertLessEqual(len(variants), 8)
+        self.assertIn("ship", variants)
+        self.assertTrue(
+            any(item in variants for item in ("vessel", "boat", "watercraft")),
+            variants,
+        )
+
+    def test_retrieval_aliases_do_not_weaken_strict_acceptance(self):
+        provider = MediaProviderV2(router=object())
+        candidate = {
+            "id": "metadata-does-not-prove-ship",
+            "fonte": "Mock",
+            "must_hits": 0,
+            "avoid_hits": 0,
+            "score": 100,
+            "descricao": "A vessel at sea",
+        }
+        self.assertEqual(provider.prepare([candidate], 1), [])
 
     def test_prepare_prefers_strict_must_verification(self):
         provider = MediaProviderV2(router=object())
