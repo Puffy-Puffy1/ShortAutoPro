@@ -153,8 +153,16 @@ class CoverrProvider(Provider):
 class WikimediaProvider(Provider):
     name="wikimedia"
     def search(self, query, must, avoid):
-        allowed,_,_=provider_gate(self.name)
-        if not allowed: return []
+        allowed, gate_reason, gate_remaining = provider_gate(self.name)
+        if not allowed:
+            # A circuit-open return is not the same as a genuine empty search.
+            # Log only the health reason and duration, never request secrets.
+            print(
+                f"SAP_MEDIA_PROVIDER_GATE provider={self.name} allowed=false "
+                f"reason={str(gate_reason or 'OPEN')} "
+                f"remaining_seconds={max(0, int(float(gate_remaining or 0)))}"
+            )
+            return []
         out=[]
         try:
             # Commons file titles alone are often generic ("File:...jpg").
