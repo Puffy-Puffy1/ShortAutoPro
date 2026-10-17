@@ -65,6 +65,55 @@ def load(path: Path) -> dict[str, Any]:
         return {}
 
 
+def scene_durations(expected: int | None = None) -> list[float]:
+    """Read scene timing from the runtime sidecar or the renderer's frozen timeline."""
+    if expected is None:
+        expected = env_int("SHORT_QTD_CENAS", 12, 6, 20)
+
+    def positive(values: Any) -> list[float]:
+        if not isinstance(values, list):
+            return []
+        parsed: list[float] = []
+        for raw in values:
+            try:
+                value = float(raw)
+            except (TypeError, ValueError):
+                continue
+            if value > 0:
+                parsed.append(value)
+        return parsed
+
+    runtime = load(RUNTIME)
+    durations = positive(runtime.get("durations"))
+    if len(durations) == expected:
+        return durations
+
+    # The canonical renderer freezes its actual scene durations in timeline.json.
+    # Use that immutable timeline when the legacy runtime sidecar is absent.
+    job_root = BASE / "render_jobs" / SID
+    try:
+        timelines = sorted(
+            job_root.glob("render_*/timeline.json"),
+            key=lambda path: path.parent.name,
+            reverse=True,
+        )
+    except OSError:
+        timelines = []
+    for timeline_path in timelines:
+        payload = load(timeline_path)
+        scenes = payload.get("scenes", [])
+        if not isinstance(scenes, list):
+            continue
+        frozen = positive([
+            scene.get("duration")
+            for scene in scenes
+            if isinstance(scene, dict)
+        ])
+        if len(frozen) == expected:
+            return frozen
+    return durations
+
+
 def probe(path: Path) -> dict[str, Any]:
     try:
         result = run_group(
@@ -314,21 +363,8 @@ def analyze_rendered_content(
     diversity: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Verify opening and per-scene pixels in the rendered timeline itself."""
-    runtime = load(RUNTIME)
-    raw_durations = (
-        runtime.get("durations", [])
-        if isinstance(runtime.get("durations"), list)
-        else []
-    )
     expected = env_int("SHORT_QTD_CENAS", 12, 6, 20)
-    durations: list[float] = []
-    for raw in raw_durations:
-        try:
-            value = float(raw)
-        except (TypeError, ValueError):
-            value = 0.0
-        if value > 0:
-            durations.append(value)
+    durations = scene_durations(expected)
 
     if not path.is_file():
         return {"available": False, "reason": "video_missing"}
@@ -394,17 +430,8 @@ def analyze_rendered_content(
 
 
 def analyze_scene_diversity(path: Path) -> dict[str, Any]:
-    runtime = load(RUNTIME)
-    raw_durations = runtime.get("durations", []) if isinstance(runtime.get("durations"), list) else []
-    durations: list[float] = []
-    for value in raw_durations:
-        try:
-            number = float(value)
-        except (TypeError, ValueError):
-            number = 0.0
-        if number > 0:
-            durations.append(number)
     expected = env_int("SHORT_QTD_CENAS", 12, 6, 20)
+    durations = scene_durations(expected)
     if len(durations) != expected or not path.is_file():
         return {
             "available": False,
