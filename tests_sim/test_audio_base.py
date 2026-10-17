@@ -11,6 +11,30 @@ SCRIPT = ROOT / "audio.py"
 
 
 class AudioBaseTests(unittest.TestCase):
+    def test_uses_downloaded_piper_model_file_when_available(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            voice_dir = base / "piper" / "voice"
+            voice_dir.mkdir(parents=True)
+            model = voice_dir / "pt_BR-faber-medium.onnx"
+            model.write_bytes(b"test-model-placeholder")
+            env = os.environ.copy()
+            env["SHORTAUTOPRO_BASE"] = str(base)
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-c",
+                    "import audio; print(audio.MODEL_ARG)",
+                ],
+                cwd=str(ROOT),
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn(str(model), result.stdout.strip())
+
     def test_respects_shortautopro_base_before_runtime_dependencies(self):
         with tempfile.TemporaryDirectory() as tmp:
             base = Path(tmp)
