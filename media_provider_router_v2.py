@@ -452,29 +452,62 @@ class MediaProviderRouterV2:
                 ),
                 "Accept": "image/*,video/*;q=0.9,*/*;q=0.8",
             }
-            with requests.get(url,headers=headers,stream=True,timeout=DOWNLOAD_TIMEOUT) as r:
-                if not r.ok:
-                    note_response(provider,r)
-                    mark_asset_bad(url,provider=provider,asset_id=candidate.get("id"),status=r.status_code)
+            # Retry transient transport failures before quarantining an otherwise
+            # semantically verified asset. A single timeout/5xx/429 must not
+            # permanently poison a URL that may work on the next attempt.
+            last_status = None
+            for attempt in range(3):
+                try:
+                    with requests.get(url,headers=headers,stream=True,timeout=DOWNLOAD_TIMEOUT) as r:
+                        last_status = r.status_code
+                        if not r.ok:
+                            note_response(provider,r)
+                            if r.status_code == 429 or 500 <= r.status_code <= 599:
+                                if attempt < 2:
+                                    retry_after = r.headers.get("Retry-After", "")
+                                    try:
+                                        delay = min(8.0, max(1.0, float(retry_after)))
+                                    except (TypeError, ValueError):
+                                        delay = float(attempt + 1)
+                                    print(f"SAP_MEDIA_DOWNLOAD_RETRY provider={provider} status={r.status_code} attempt={attempt + 1} delay={delay:.1f}s")
+                                    time.sleep(delay)
+                                    continue
+                            mark_asset_bad(url,provider=provider,asset_id=candidate.get("id"),status=r.status_code)
+                            dest.unlink(missing_ok=True)
+                            print(f"SAP_MEDIA_DOWNLOAD_FAILURE provider={provider} status={r.status_code} class=HTTP")
+                            return False,"",{"error_class":"DOWNLOAD_FAILED","status":r.status_code}
+                        with dest.open("wb") as fh:
+                            for chunk in r.iter_content(1024*1024):
+                                if chunk:
+                                    fh.write(chunk)
+                    break
+                except requests.Timeout as exc:
+                    note_exception(provider,exc)
                     dest.unlink(missing_ok=True)
-                    return False,"",{"error_class":"DOWNLOAD_FAILED","status":r.status_code}
-                with dest.open("wb") as fh:
-                    for chunk in r.iter_content(1024*1024):
-                        if chunk:
-                            fh.write(chunk)
+                    if attempt < 2:
+                        delay = float(attempt + 1)
+                        print(f"SAP_MEDIA_DOWNLOAD_RETRY provider={provider} class=TIMEOUT attempt={attempt + 1} delay={delay:.1f}s")
+                        time.sleep(delay)
+                        continue
+                    mark_asset_bad(url,provider=provider,asset_id=candidate.get("id"),reason="TIMEOUT")
+                    print(f"SAP_MEDIA_DOWNLOAD_FAILURE provider={provider} class=TIMEOUT attempts=3")
+                    return False,"",{"error_class":"PROVIDER_TIMEOUT"}
+                except requests.RequestException as exc:
+                    note_exception(provider,exc)
+                    dest.unlink(missing_ok=True)
+                    if attempt < 2:
+                        delay = float(attempt + 1)
+                        print(f"SAP_MEDIA_DOWNLOAD_RETRY provider={provider} class={type(exc).__name__} attempt={attempt + 1} delay={delay:.1f}s")
+                        time.sleep(delay)
+                        continue
+                    mark_asset_bad(url,provider=provider,asset_id=candidate.get("id"),reason="REQUEST_ERROR")
+                    print(f"SAP_MEDIA_DOWNLOAD_FAILURE provider={provider} class={type(exc).__name__} attempts=3")
+                    return False,"",{"error_class":"DOWNLOAD_FAILED"}
             result=validate(dest)
             candidate["asset_id"]=candidate.get("id")
             candidate["provenance"]=dict(candidate.get("provenance") or {})
             candidate["provenance"]["provider"]=provider
             return True,str(dest),result
-        except requests.Timeout as exc:
-            note_exception(provider,exc); mark_asset_bad(url,provider=provider,asset_id=candidate.get("id"),reason="TIMEOUT")
-            dest.unlink(missing_ok=True)
-            return False,"",{"error_class":"PROVIDER_TIMEOUT"}
-        except requests.RequestException as exc:
-            note_exception(provider,exc); mark_asset_bad(url,provider=provider,asset_id=candidate.get("id"),reason="REQUEST_ERROR")
-            dest.unlink(missing_ok=True)
-            return False,"",{"error_class":"DOWNLOAD_FAILED"}
         except Exception as exc:
             note_exception(provider,exc); mark_asset_bad(url,provider=provider,asset_id=candidate.get("id"),reason="CORRUPT")
             try: dest.unlink()
