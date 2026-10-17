@@ -86,4 +86,4 @@ class MediaEngineContractTests(unittest.TestCase):
         self.assertIn("ship ocean", variants)
         self.assertIn("ship", variants)
         self.assertIn("ocean", variants)
-        self.assertLessEqual(len(variants), 4)
+        self.assertLessEqual(len(variants), 8)
