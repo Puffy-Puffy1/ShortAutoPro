@@ -79,5 +79,50 @@ class AudioBaseTests(unittest.TestCase):
             self.assertNotIn(str(Path.home() / "ShortAutoPro" / "roteiros"), combined)
 
 
+    def test_piper_output_is_validated_as_wav(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            env = os.environ.copy()
+            env["SHORTAUTOPRO_BASE"] = str(base)
+            script = r"""
+import sys, wave
+from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
+import audio
+
+def fake_piper(command, **kwargs):
+    destination = Path(command[command.index("-f") + 1])
+    with wave.open(str(destination), "wb") as output:
+        output.setnchannels(1)
+        output.setsampwidth(2)
+        output.setframerate(22050)
+        output.writeframes(b"\\x00\\x00" * 2205)
+    return SimpleNamespace(returncode=0)
+
+destination = Path(sys.argv[1])
+with patch("audio.run_group", side_effect=fake_piper):
+    audio.piper_wav("teste de voz", destination, {})
+assert destination.is_file() and destination.stat().st_size > 44
+"""
+            destination = base / "speech.wav"
+            result = subprocess.run(
+                [sys.executable, "-c", script, str(destination)],
+                cwd=str(ROOT),
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertTrue(destination.is_file())
+            self.assertGreater(destination.stat().st_size, 44)
+
+    def test_ffmpeg_does_not_mislabel_piper_wav_as_raw_float_pcm(self):
+        source = SCRIPT.read_text(encoding="utf-8")
+        self.assertNotIn('"f32le"', source)
+        self.assertIn('str(source_wav)', source)
+        self.assertIn('wave.open(str(dest)', source)
+
 if __name__ == "__main__":
     unittest.main()
