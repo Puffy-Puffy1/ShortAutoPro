@@ -229,7 +229,7 @@ class WikimediaProvider(Provider):
                 out.append(_candidate(
                     self.name,"image",item.get("pageid"),url,desc,query,must,avoid,
                     title=title,
-                    description=metadata_value("ImageDescription"),
+                    image_description=metadata_value("ImageDescription"),
                     tags=categories,
                     license="Wikimedia Commons",
                 ))
