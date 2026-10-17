@@ -300,14 +300,25 @@ class Pipeline:
             stage_timeout = self._stage_timeout_seconds(file)
 
             try:
+                capture_stage_output = file == "audio_finalizer.py"
                 proc = run_group(
                     cmd,
                     cwd=BASE,
                     env=os.environ.copy(),
                     check=False,
                     timeout=stage_timeout,
+                    capture_output=capture_stage_output,
+                    text=capture_stage_output,
                 )
                 last = proc.returncode
+                if capture_stage_output and last != 0:
+                    # Preserve the actionable child error in CI/Termux logs.
+                    # Never dump the environment or command secrets.
+                    for stream_name, stream_value in (("stdout", proc.stdout), ("stderr", proc.stderr)):
+                        if stream_value:
+                            lines = str(stream_value).splitlines()
+                            print(f"SAP_STAGE_DIAGNOSTIC stage={file} stream={stream_name} lines={len(lines)}")
+                            print("\\n".join(lines[-80:]))
             except subprocess.TimeoutExpired as exc:
                 elapsed = time.monotonic() - start
                 self.checkpoint(file, "fail", title, elapsed)
