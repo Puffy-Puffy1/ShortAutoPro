@@ -509,7 +509,14 @@ class MediaProviderRouterV2:
             candidate["provenance"]["provider"]=provider
             return True,str(dest),result
         except Exception as exc:
-            note_exception(provider,exc); mark_asset_bad(url,provider=provider,asset_id=candidate.get("id"),reason="CORRUPT")
+            # Keep diagnostics actionable without printing signed URLs, headers,
+            # tokens, or provider response bodies.
+            note_exception(provider,exc)
+            print(
+                f"SAP_MEDIA_DOWNLOAD_FAILURE provider={provider} "
+                f"class={type(exc).__name__} stage=DOWNLOAD_OR_VALIDATE"
+            )
+            mark_asset_bad(url,provider=provider,asset_id=candidate.get("id"),reason="CORRUPT")
             try: dest.unlink()
             except OSError: pass
             return False,"",{"error_class":"VALIDATION_FAILED"}
