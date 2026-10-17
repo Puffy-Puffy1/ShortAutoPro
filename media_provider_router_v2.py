@@ -520,11 +520,32 @@ class MediaProviderRouterV2:
             # Keep diagnostics actionable without printing signed URLs, headers,
             # tokens, or provider response bodies.
             note_exception(provider,exc)
+            # Validation exceptions use stable, non-sensitive reason codes
+            # (e.g. MEDIA_TOO_SMALL, CONTENT_SIGNATURE_MISMATCH). Expose only
+            # those codes: never echo exception text, paths, URLs, or response data.
+            reason_code = "UNEXPECTED"
+            if isinstance(exc, ValueError):
+                candidate_reason = str(exc).strip().upper()
+                if re.fullmatch(r"[A-Z][A-Z0-9_]{0,63}", candidate_reason):
+                    reason_code = candidate_reason
             print(
                 f"SAP_MEDIA_DOWNLOAD_FAILURE provider={provider} "
-                f"class={type(exc).__name__} stage=DOWNLOAD_OR_VALIDATE"
+                f"class={type(exc).__name__} reason={reason_code} "
+                f"stage=DOWNLOAD_OR_VALIDATE",
+                flush=True,
             )
-            mark_asset_bad(url,provider=provider,asset_id=candidate.get("id"),reason="CORRUPT")
+            quarantine_reason = {
+                "MEDIA_TOO_SMALL": "TOO_SMALL",
+                "CONTENT_SIGNATURE_MISMATCH": "CONTENT_TYPE",
+                "UNSUPPORTED_EXTENSION": "CONTENT_TYPE",
+                "PROBE_FAIL": "PROBE_FAIL",
+                "PROBE_INVALID_JSON": "PROBE_FAIL",
+                "NO_STREAM": "PROBE_FAIL",
+                "NO_VIDEO_STREAM": "PROBE_FAIL",
+                "INVALID_DIMENSIONS": "CORRUPT",
+                "INVALID_DURATION": "CORRUPT",
+            }.get(reason_code, "CORRUPT")
+            mark_asset_bad(url,provider=provider,asset_id=candidate.get("id"),reason=quarantine_reason)
             try: dest.unlink()
             except OSError: pass
             return False,"",{"error_class":"VALIDATION_FAILED"}
