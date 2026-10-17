@@ -1,13 +1,267 @@
+import io
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
+from unittest.mock import Mock, patch
 
 import media_external_resilience as resilience
+import media_provider_router_v2 as media_router
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 class MediaExternalResilienceTests(unittest.TestCase):
+    def test_router_stops_query_expansion_after_complete_must_evidence(self):
+        provider = Mock()
+        provider.name = "fake"
+        provider.search.return_value = [{
+            "fonte": "fake", "id": "asset-1", "url": "https://example.test/1.jpg",
+            "must_hits": 2, "avoid_hits": 0, "score": 100,
+        }]
+        router = media_router.MediaProviderRouterV2(providers=[provider])
+
+        candidates = router.search("car beside cliff on rural road", ["car", "cliff"], [])
+
+        self.assertEqual(len(candidates), 1)
+        self.assertEqual(provider.search.call_count, 1)
+
+    def test_vintage_must_accept_explicit_historical_asset_metadata(self):
+        from media_must_verifier import verified_must
+
+        candidate = {
+            "fonte": "wikimedia",
+            "title": "Historical document collection in an archive",
+            "description": "Antique paper records from a historic investigation",
+        }
+        result = verified_must(candidate, {"must_have": ["paper", "document", "vintage"]})
+        self.assertEqual(result["hits"], 3)
+        self.assertEqual(result["missing"], [])
+
+    def test_vintage_must_reject_query_echo_without_asset_evidence(self):
+        from media_must_verifier import verified_must
+
+        candidate = {
+            "fonte": "wikimedia",
+            "title": "Documents in a modern office",
+            "query": "paper document vintage historical archive",
+        }
+        result = verified_must(candidate, {"must_have": ["vintage"]})
+        self.assertEqual(result["hits"], 0)
+        self.assertEqual(result["missing"], ["vintage"])
+
+    def test_car_cliff_must_accept_explicit_asset_metadata_synonyms(self):
+        from media_must_verifier import verified_must
+
+        candidate = {
+            "fonte": "wikimedia",
+            "title": "Motorcar at the foot of a steep embankment",
+            "description": "Historic photograph of a motor vehicle beside a hillside",
+            # The editorial query is deliberately present but must not be used
+            # as evidence by the verifier.
+            "query": "abandoned vintage car crashed on steep embankment grass",
+        }
+        result = verified_must(candidate, {"must_have": ["car", "cliff"]})
+        self.assertEqual(result["hits"], 2)
+        self.assertEqual(result["missing"], [])
+
+    def test_car_cliff_must_still_reject_query_echo_without_asset_evidence(self):
+        from media_must_verifier import verified_must
+
+        candidate = {
+            "fonte": "wikimedia",
+            "title": "A road in a rural landscape",
+            "query": "abandoned vintage car crashed on steep embankment grass",
+        }
+        result = verified_must(candidate, {"must_have": ["car", "cliff"]})
+        self.assertEqual(result["hits"], 0)
+        self.assertEqual(set(result["missing"]), {"car", "cliff"})
+
+    def test_wikimedia_search_uses_asset_description_and_categories_as_evidence(self):
+        from media_must_verifier import verified_must
+
+        response = Mock()
+        response.ok = True
+        response.status_code = 200
+        response.headers = {}
+        response.json.return_value = {
+            "query": {
+                "pages": {
+                    "123": {
+                        "pageid": 123,
+                        "title": "File:Generic historical photograph.jpg",
+                        "categories": [
+                            {"title": "Category:Vintage automobiles"},
+                            {"title": "Category:Cliffs and embankments"},
+                        ],
+                        "imageinfo": [{
+                            "url": "https://upload.wikimedia.org/example.jpg",
+                            "thumburl": "https://upload.wikimedia.org/example-thumb.jpg",
+                            "mime": "image/jpeg",
+                            "extmetadata": {
+                                "ObjectName": {"value": "Motorcar after a roadside crash"},
+                                "ImageDescription": {
+                                    "value": "Photograph of a car beside a <b>steep embankment</b>"
+                                },
+                            },
+                        }],
+                    }
+                }
+            }
+        }
+        media_router._WIKIMEDIA_CACHE.clear()
+        media_router._WIKIMEDIA_LAST_REQUEST = 0.0
+        request_mock = Mock(return_value=response)
+        with (
+            patch.object(media_router, "provider_gate", return_value=(True, "CLOSED", 0)),
+            patch.object(media_router, "note_response", return_value="SUCCESS"),
+            patch.object(media_router, "note_provider_event"),
+            patch.object(media_router.requests, "get", request_mock),
+            patch.object(media_router.time, "sleep"),
+        ):
+            candidates = media_router.WikimediaProvider().search(
+                "abandoned vintage car crashed on steep embankment grass",
+                ["car", "cliff"],
+                [],
+            )
+
+        self.assertEqual(len(candidates), 1)
+        candidate = candidates[0]
+        self.assertIn("Vintage automobiles", candidate["descricao"])
+        self.assertIn("steep embankment", candidate["descricao"])
+        result = verified_must(candidate, {"must_have": ["car", "cliff"]})
+        self.assertEqual(result["hits"], 2)
+        self.assertEqual(result["missing"], [])
+        params = request_mock.call_args.kwargs["params"]
+        self.assertIn("categories", params["prop"])
+        self.assertIn("extmetadata", params["iiprop"])
+
+    def test_wikimedia_download_sends_identifiable_user_agent(self):
+        response = Mock()
+        response.__enter__ = Mock(return_value=response)
+        response.__exit__ = Mock(return_value=False)
+        response.ok = True
+        response.iter_content.return_value = [b"fake-image-bytes"]
+        candidate = {
+            "fonte": "wikimedia", "source": "wikimedia", "tipo": "image",
+            "id": "123", "url": "https://upload.wikimedia.org/example.jpg",
+            "provenance": {"provider": "wikimedia"},
+        }
+        with (
+            tempfile.TemporaryDirectory() as root,
+            patch.object(media_router, "BASE", Path(root)),
+            patch.object(media_router, "asset_blocked", return_value=(False, "", 0)),
+            patch.object(media_router, "validate", return_value={"valid": True}),
+            patch.object(media_router.requests, "get", return_value=response) as get,
+        ):
+            ok, path, _ = media_router.MediaProviderRouterV2(providers=[]).download(
+                candidate, scene_number=1, short_id="header-test"
+            )
+            self.assertTrue(ok)
+            self.assertTrue(Path(path).is_file())
+            kwargs = get.call_args.kwargs
+            self.assertIn("User-Agent", kwargs["headers"])
+            self.assertIn("ShortAutoPro/2.3", kwargs["headers"]["User-Agent"])
+            self.assertIn("contact:", kwargs["headers"]["User-Agent"])
+            self.assertEqual(kwargs["stream"], True)
+
+    def test_download_retries_transient_http_503_before_success(self):
+        failed = Mock()
+        failed.__enter__ = Mock(return_value=failed)
+        failed.__exit__ = Mock(return_value=False)
+        failed.ok = False
+        failed.status_code = 503
+        failed.headers = {}
+        succeeded = Mock()
+        succeeded.__enter__ = Mock(return_value=succeeded)
+        succeeded.__exit__ = Mock(return_value=False)
+        succeeded.ok = True
+        succeeded.status_code = 200
+        succeeded.headers = {}
+        succeeded.iter_content.return_value = [b"fake-image-bytes"]
+        candidate = {
+            "fonte": "wikimedia", "source": "wikimedia", "tipo": "image",
+            "id": "503-retry", "url": "https://upload.wikimedia.org/example.jpg",
+        }
+        with (
+            tempfile.TemporaryDirectory() as root,
+            patch.object(media_router, "BASE", Path(root)),
+            patch.object(media_router, "asset_blocked", return_value=(False, "", 0)),
+            patch.object(media_router, "mark_asset_bad") as mark_bad,
+            patch.object(media_router, "note_response", return_value="SERVER"),
+            patch.object(media_router, "validate", return_value={"valid": True}),
+            patch.object(media_router.requests, "get", side_effect=[failed, succeeded]) as get,
+            patch.object(media_router.time, "sleep"),
+        ):
+            ok, path, result = media_router.MediaProviderRouterV2(providers=[]).download(
+                candidate, scene_number=10, short_id="retry-test"
+            )
+            self.assertTrue(ok)
+            self.assertTrue(Path(path).is_file())
+            self.assertEqual(Path(path).read_bytes(), b"fake-image-bytes")
+            self.assertEqual(result, {"valid": True})
+            self.assertEqual(get.call_count, 2)
+            mark_bad.assert_not_called()
+
+    def test_download_logs_safe_validation_reason_and_quarantines_by_reason(self):
+        response = Mock()
+        response.__enter__ = Mock(return_value=response)
+        response.__exit__ = Mock(return_value=False)
+        response.ok = True
+        response.status_code = 200
+        response.headers = {}
+        response.iter_content.return_value = [b"x" * 2048]
+        candidate = {
+            "fonte": "wikimedia", "source": "wikimedia", "tipo": "image",
+            "id": "bad-signature", "url": "https://upload.wikimedia.org/private-looking-path.jpg",
+        }
+        output = io.StringIO()
+        with (
+            tempfile.TemporaryDirectory() as root,
+            patch.object(media_router, "BASE", Path(root)),
+            patch.object(media_router, "asset_blocked", return_value=(False, "", 0)),
+            patch.object(media_router, "mark_asset_bad") as mark_bad,
+            patch.object(media_router, "note_exception") as note_exception,
+            patch.object(media_router, "validate", side_effect=ValueError("CONTENT_SIGNATURE_MISMATCH")),
+            patch.object(media_router.requests, "get", return_value=response),
+            redirect_stdout(output),
+        ):
+            ok, path, result = media_router.MediaProviderRouterV2(providers=[]).download(
+                candidate, scene_number=1, short_id="diagnostic-test"
+            )
+
+        self.assertFalse(ok)
+        self.assertEqual(path, "")
+        self.assertEqual(result["error_class"], "VALIDATION_FAILED")
+        self.assertIn("reason=CONTENT_SIGNATURE_MISMATCH", output.getvalue())
+        self.assertNotIn("private-looking-path", output.getvalue())
+        mark_bad.assert_called_once()
+        self.assertEqual(mark_bad.call_args.kwargs["reason"], "CONTENT_TYPE")
+        note_exception.assert_not_called()
+
+    def test_non_wikimedia_download_also_sends_user_agent(self):
+        response = Mock()
+        response.__enter__ = Mock(return_value=response)
+        response.__exit__ = Mock(return_value=False)
+        response.ok = True
+        response.iter_content.return_value = [b"fake-image-bytes"]
+        candidate = {
+            "fonte": "pexels", "tipo": "image", "id": "456",
+            "url": "https://images.example.test/example.jpg",
+        }
+        with (
+            tempfile.TemporaryDirectory() as root,
+            patch.object(media_router, "BASE", Path(root)),
+            patch.object(media_router, "asset_blocked", return_value=(False, "", 0)),
+            patch.object(media_router, "validate", return_value={"valid": True}),
+            patch.object(media_router.requests, "get", return_value=response) as get,
+        ):
+            ok, _, _ = media_router.MediaProviderRouterV2(providers=[]).download(
+                candidate, scene_number=1, short_id="header-test"
+            )
+        self.assertTrue(ok)
+        self.assertIn("User-Agent", get.call_args.kwargs["headers"])
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         resilience.STATE_FILE = Path(self.tmp.name) / "state.json"

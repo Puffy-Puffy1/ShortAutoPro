@@ -5,7 +5,7 @@ from datetime import date,datetime
 from pathlib import Path
 from typing import Any
 from subprocess_guard import check_output_group, run_group
-BASE=Path(os.getenv("SHORTAUTOPRO_BASE",os.path.expanduser("~/ShortAutoPro"))).resolve();SHORT_ID=os.getenv("SHORT_ID",date.today().isoformat());R=BASE/"roteiros";ROTEIRO=R/f"short_{SHORT_ID}.txt";SPEECH=R/f"speech_{SHORT_ID}.txt";SPEECH_PLAN=R/f"speech_{SHORT_ID}.json";AUDIO_DIR=BASE/"audios";VOICE_DIR=BASE/"piper"/"voice";AUDIO_DIR.mkdir(parents=True,exist_ok=True);MP3=AUDIO_DIR/f"short_{SHORT_ID}.mp3";MODEL=os.getenv("PIPER_MODEL","pt_BR-faber-medium").strip() or "pt_BR-faber-medium";REPORT=BASE/"reports"/"evolution"/f"audio_{SHORT_ID}.json"
+BASE=Path(os.getenv("SHORTAUTOPRO_BASE",os.path.expanduser("~/ShortAutoPro"))).resolve();SHORT_ID=os.getenv("SHORT_ID",date.today().isoformat());R=BASE/"roteiros";ROTEIRO=R/f"short_{SHORT_ID}.txt";SPEECH=R/f"speech_{SHORT_ID}.txt";SPEECH_PLAN=R/f"speech_{SHORT_ID}.json";AUDIO_DIR=BASE/"audios";VOICE_DIR=BASE/"piper"/"voice";AUDIO_DIR.mkdir(parents=True,exist_ok=True);MP3=AUDIO_DIR/f"short_{SHORT_ID}.mp3";MODEL=os.getenv("PIPER_MODEL","pt_BR-faber-medium").strip() or "pt_BR-faber-medium";MODEL_PATH=Path(MODEL).expanduser();MODEL_FILE=MODEL_PATH if MODEL_PATH.is_absolute() and MODEL_PATH.is_file() else VOICE_DIR/f"{MODEL}.onnx";MODEL_ARG=str(MODEL_FILE) if MODEL_FILE.is_file() else MODEL;REPORT=BASE/"reports"/"evolution"/f"audio_{SHORT_ID}.json"
 def bounded(name,default,low,high):
  try:v=float(os.getenv(name,str(default)))
  except Exception:v=float(default)
@@ -26,7 +26,7 @@ def read_plan()->list[dict[str,Any]]:
  try:d=json.loads(SPEECH_PLAN.read_text(encoding="utf-8"));chunks=d.get("chunks",[]) if isinstance(d,dict) else [];return [x for x in chunks if isinstance(x,dict) and str(x.get("text","")).strip()]
  except Exception:return []
 def piper_raw(text:str,dest:Path,env:dict[str,str])->None:
- try:run_group(["piper","-m",MODEL,"-f",str(dest),"--",text],env=env,check=True,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE,text=True,timeout=180)
+ try:run_group(["piper","-m",MODEL_ARG,"-f",str(dest),"--",text],env=env,check=True,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE,text=True,timeout=180)
  except subprocess.TimeoutExpired:fail("Piper excedeu 180 segundos")
  except subprocess.CalledProcessError as exc:fail(f"Piper falhou ({exc.returncode}): {(exc.stderr or '')[-700:]}")
  if not dest.is_file() or dest.stat().st_size<=0:fail("Piper não produziu RAW válido")

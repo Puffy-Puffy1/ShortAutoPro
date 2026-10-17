@@ -275,6 +275,8 @@ def acquire_scene(short_id: str, number: int, scene: dict[str, Any], media_dir: 
     # query text without MUST constraints. Acceptance remains fail-closed:
     # every explicit MUST is independently verified against asset evidence
     # before any download is attempted.
+    relaxed = []
+    relaxed_evidence_diagnostics = []
     if not strict and must:
         relaxed = PROVIDER.search(
             query,
@@ -294,6 +296,13 @@ def acquire_scene(short_id: str, number: int, scene: dict[str, Any], media_dir: 
         if verifier is not None:
             for candidate in relaxed:
                 evidence = verifier(candidate, {"must_have": must})
+                missing = evidence.get("missing", [])
+                relaxed_evidence_diagnostics.append(
+                    f"{candidate.get('fonte', candidate.get('source', '?'))}:"
+                    f"{str(candidate.get('id', '?'))}:"
+                    f"{int(evidence.get('hits', 0) or 0)}/{len(must)}:"
+                    f"missing={','.join(map(str, missing)) or '-'}"
+                )
                 if (
                     int(evidence.get("hits", 0) or 0) == len(must)
                     and len(must) > 0
@@ -317,7 +326,11 @@ def acquire_scene(short_id: str, number: int, scene: dict[str, Any], media_dir: 
         try:
             ok, destination, download_meta = PROVIDER.download(candidate, number, short_id)
             if not ok or not destination:
-                failures.append(f"{candidate.get('fonte','?')}:DOWNLOAD_FAILED")
+                meta = download_meta if isinstance(download_meta, dict) else {}
+                error_class = str(meta.get("error_class") or "DOWNLOAD_FAILED")
+                status = meta.get("status")
+                suffix = f":HTTP_{int(status)}" if str(status or "").isdigit() else ""
+                failures.append(f"{candidate.get('fonte','?')}:{error_class}{suffix}")
                 continue
             validation = validate_asset(destination)
             path = Path(destination)
@@ -338,9 +351,22 @@ def acquire_scene(short_id: str, number: int, scene: dict[str, Any], media_dir: 
     if not candidates:
         raise RuntimeError(f"MEDIA_INCOMPLETE:scene_{number:02d}:providers_empty")
     if not strict:
+        providers = sorted({
+            str(candidate.get("fonte") or candidate.get("source") or "?")
+            for candidate in candidates
+        })
+        diagnostic = (
+            f"candidates={len(candidates)};"
+            f"strict={len(strict)};"
+            f"providers={','.join(providers) or '-'};"
+            f"relaxed={len(relaxed)};"
+            f"verified_relaxed={len(verified_relaxed) if must else 0}"
+        )
+        if relaxed_evidence_diagnostics:
+            diagnostic += ";evidence=" + "|".join(relaxed_evidence_diagnostics[:8])
         raise RuntimeError(
             f"MEDIA_INCOMPLETE:scene_{number:02d}:no_verified_asset:"
-            f"must={','.join(must) or '-'}"
+            f"must={','.join(must) or '-'};{diagnostic}"
         )
     raise RuntimeError(
         f"MEDIA_DOWNLOAD_FAILED:scene_{number:02d}:"

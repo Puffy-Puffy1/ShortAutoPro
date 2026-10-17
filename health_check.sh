@@ -124,9 +124,10 @@ else
     # Import-only smoke test para dependências internas sem disparar produção.
     if (
         cd "$BASE" &&
-        python - <<'PY' >/dev/null 2>&1
+        python - <<'PY'
 import importlib
-for name in (
+import traceback
+modules = (
     "subtitle_alignment",
     "subtitle_style_policy",
     "visual_shot_policy",
@@ -162,13 +163,19 @@ for name in (
     "production_recovery",
     "production_watchdog",
     "production_health",
-):
-    importlib.import_module(name)
+)
+for name in modules:
+    try:
+        importlib.import_module(name)
+    except Exception:
+        print(f"IMPORT_FAILURE_MODULE={name}")
+        traceback.print_exc()
+        raise
 PY
     ); then
         echo "OK  imports runtime críticos 3.0.3"
     else
-        echo "ERRO  imports runtime críticos 3.0.3"
+        echo "ERRO  imports runtime críticos 3.0.3 (veja IMPORT_FAILURE_MODULE acima)"
         ERROS=$((ERROS + 1))
     fi
     

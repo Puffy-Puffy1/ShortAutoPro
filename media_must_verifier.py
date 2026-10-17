@@ -112,6 +112,23 @@ def _phrase_present(text: str, phrase: str) -> bool:
 
 
 STRICT_VISUAL_ALIASES = {
+    # Vehicle/terrain wording varies widely across historical photo catalogs.
+    # These aliases still require each concept to appear in the asset's own
+    # descriptive metadata; they never use the search query as evidence.
+    # "Vintage" describes an era/style; accept explicit historic/antique
+    # catalog wording but never infer it from the editorial search query.
+    "vintage": (
+        "vintage", "historic", "historical", "antique", "retro",
+        "period photograph", "period document", "old-fashioned",
+    ),
+    "car": (
+        "car", "cars", "automobile", "automobiles", "motorcar", "motor cars",
+        "motor vehicle", "motor vehicles",
+    ),
+    "cliff": (
+        "cliff", "cliffs", "embankment", "embankments", "steep slope",
+        "hillside", "hillsides", "escarpment", "bluff", "bluffs",
+    ),
     "female pilots": (
         "female pilot", "female pilots", "woman pilot", "women pilots",
         "woman pilots", "women pilot", "female aviator", "female aviators",

@@ -6,7 +6,7 @@ import re
 import unicodedata
 from datetime import date
 
-BASE = os.path.expanduser("~/ShortAutoPro")
+BASE = os.path.abspath(os.environ.get("SHORTAUTOPRO_BASE") or os.path.expanduser("~/ShortAutoPro"))
 SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat())
 
 try:

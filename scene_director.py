@@ -138,8 +138,16 @@ Divida o roteiro em EXATAMENTE {QTD_CENAS} segmentos semânticos consecutivos.
 Para cada cena gere:
 - segment: trecho correspondente do roteiro em português;
 - query: busca visual em inglês, 4 a 9 palavras;
-- must_have: 1 a 3 termos concretos essenciais;
+- must_have: 1 a 2 âncoras visuais concretas e simples, somente quando realmente essenciais;
 - avoid: 0 a 5 termos que indicam mídia inadequada.
+
+REGRAS DE RECUPERAÇÃO DE MÍDIA:
+- prefira substantivos visíveis e pesquisáveis, como "paper", "document", "tent", "person", "car" ou "mountain";
+- evite MUSTs compostos ou relacionais como "trousers pocket", "aged paper" e "dark fabric" quando um substantivo visual simples representar a cena;
+- não transforme cor, material, época, posição, estado emocional ou relação espacial em MUST separado, salvo se for o fato visual central da cena;
+- query pode descrever a composição completa, mas MUST deve servir como âncora verificável nos metadados reais de uma imagem;
+- se não houver objeto concreto essencial, use must_have vazio em vez de inventar uma exigência difícil de comprovar;
+- nunca relaxe um MUST na etapa de validação só para aceitar uma imagem sem evidência.
 
 REGRAS:
 - preserve a ordem original;
