@@ -10,6 +10,20 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class MediaExternalResilienceTests(unittest.TestCase):
+    def test_router_stops_query_expansion_after_complete_must_evidence(self):
+        provider = Mock()
+        provider.name = "fake"
+        provider.search.return_value = [{
+            "fonte": "fake", "id": "asset-1", "url": "https://example.test/1.jpg",
+            "must_hits": 2, "avoid_hits": 0, "score": 100,
+        }]
+        router = media_router.MediaProviderRouterV2(providers=[provider])
+
+        candidates = router.search("car beside cliff on rural road", ["car", "cliff"], [])
+
+        self.assertEqual(len(candidates), 1)
+        self.assertEqual(provider.search.call_count, 1)
+
     def test_car_cliff_must_accept_explicit_asset_metadata_synonyms(self):
         from media_must_verifier import verified_must
 
