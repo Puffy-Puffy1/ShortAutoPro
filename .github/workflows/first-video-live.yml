@@ -23,6 +23,7 @@ on:
       - "health_check.sh"
       - "visual_pipeline_bridge_v42.py"
       - "visual_selection_engine_v4.py"
+      - "visual_qa.py"
   workflow_dispatch:
     inputs:
       topic:
