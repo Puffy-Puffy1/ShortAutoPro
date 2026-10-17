@@ -50,8 +50,8 @@ def remaster(path:Path,m:dict[str,float],*,linear:bool=True)->None:
  else:
   # Bounded fallback: dynamic loudnorm avoids failing when linear mode cannot
   # satisfy the target for a short/limited source; limiter protects AAC output.
-  norm=f"loudnorm=I={TARGET}:TP={TP}:LRA={LRA}:linear=false:print_format=summary"
- filt=f"{norm},alimiter=limit={10**(TP/20):.6f}:level=false"
+  norm=f"loudnorm=I={TARGET}:TP={TP-1.5}:LRA={LRA}:linear=false:print_format=summary"
+ filt=f"{norm},alimiter=limit={10**((TP-1.5)/20):.6f}:attack=5:release=50:level=false"
  cmd=["ffmpeg","-y","-loglevel","error","-i",str(path),"-map","0:v:0","-map","0:a:0","-c:v","copy","-af",filt,"-c:a","aac","-b:a","192k","-ar","48000","-movflags","+faststart",str(tmp)]
  try:
   run_group(cmd,check=True,timeout=180)
