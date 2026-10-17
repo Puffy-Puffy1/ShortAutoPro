@@ -7,6 +7,8 @@ import sys
 import time
 from datetime import date
 
+from scene_must_policy import normalize_visual_musts
+
 from gemini_runtime import generate_text
 
 BASE = os.path.abspath(
@@ -320,7 +322,11 @@ soma_pesos = 0
 for numero, item in enumerate(scenes, start=1):
     trecho = str(item.get("segment", "")).strip()
     busca = str(item.get("query", "")).strip().lstrip("[").rstrip("]").strip()
-    must_have = clean_list(item.get("must_have", []), 3)
+    must_raw = clean_list(item.get("must_have", []), 3)
+    must_have, must_normalizations = normalize_visual_musts(must_raw)
+    if must_normalizations:
+        recovery_actions.extend({"action": "normalize_visual_must", "scene": numero, **event} for event in must_normalizations)
+        print(f"SCENE_MUST_NORMALIZED scene={numero} count={len(must_normalizations)}")
     avoid = clean_list(item.get("avoid", []), 5)
 
     if not trecho:
