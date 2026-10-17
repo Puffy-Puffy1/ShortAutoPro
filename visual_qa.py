@@ -718,6 +718,10 @@ def main() -> int:
         f"| issues={len(issues)} warnings={len(warnings)} "
         "| video_scan=SINGLE_PASS"
     )
+    if issues:
+        print("VISUAL_QA_ISSUES=" + json.dumps(issues, ensure_ascii=False, separators=(",", ":")))
+    if warnings:
+        print("VISUAL_QA_WARNINGS=" + json.dumps(warnings, ensure_ascii=False, separators=(",", ":")))
     return 0 if status != "BLOCK" else 1
 
 
