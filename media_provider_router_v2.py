@@ -342,6 +342,15 @@ class MediaProviderRouterV2:
                     found = []
                 if found:
                     provider_candidates.extend(found)
+                    # Stop expanding once this provider has a safe result set
+                    # with explicit metadata hits for every MUST term. This
+                    # reduces repeated calls to rate-limited public providers.
+                    if not must or any(
+                        int(item.get("must_hits", 0) or 0) >= len(must)
+                        and int(item.get("avoid_hits", 0) or 0) == 0
+                        for item in found
+                    ):
+                        break
             candidates.extend(provider_candidates)
 
         # The same provider asset can be returned by multiple retrieval
