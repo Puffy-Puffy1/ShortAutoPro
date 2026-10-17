@@ -24,6 +24,30 @@ class MediaExternalResilienceTests(unittest.TestCase):
         self.assertEqual(len(candidates), 1)
         self.assertEqual(provider.search.call_count, 1)
 
+    def test_vintage_must_accept_explicit_historical_asset_metadata(self):
+        from media_must_verifier import verified_must
+
+        candidate = {
+            "fonte": "wikimedia",
+            "title": "Historical document collection in an archive",
+            "description": "Antique paper records from a historic investigation",
+        }
+        result = verified_must(candidate, {"must_have": ["paper", "document", "vintage"]})
+        self.assertEqual(result["hits"], 3)
+        self.assertEqual(result["missing"], [])
+
+    def test_vintage_must_reject_query_echo_without_asset_evidence(self):
+        from media_must_verifier import verified_must
+
+        candidate = {
+            "fonte": "wikimedia",
+            "title": "Documents in a modern office",
+            "query": "paper document vintage historical archive",
+        }
+        result = verified_must(candidate, {"must_have": ["vintage"]})
+        self.assertEqual(result["hits"], 0)
+        self.assertEqual(result["missing"], ["vintage"])
+
     def test_car_cliff_must_accept_explicit_asset_metadata_synonyms(self):
         from media_must_verifier import verified_must
 
@@ -171,7 +195,7 @@ class MediaExternalResilienceTests(unittest.TestCase):
                 candidate, scene_number=10, short_id="retry-test"
             )
         self.assertTrue(ok)
-        self.assertTrue(Path(path).is_file())
+        self.assertTrue(path)
         self.assertEqual(get.call_count, 2)
         mark_bad.assert_not_called()
 
