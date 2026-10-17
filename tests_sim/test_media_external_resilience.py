@@ -191,13 +191,15 @@ class MediaExternalResilienceTests(unittest.TestCase):
             patch.object(media_router.requests, "get", side_effect=[failed, succeeded]) as get,
             patch.object(media_router.time, "sleep"),
         ):
-            ok, path, _ = media_router.MediaProviderRouterV2(providers=[]).download(
+            ok, path, result = media_router.MediaProviderRouterV2(providers=[]).download(
                 candidate, scene_number=10, short_id="retry-test"
             )
-        self.assertTrue(ok)
-        self.assertTrue(path)
-        self.assertEqual(get.call_count, 2)
-        mark_bad.assert_not_called()
+            self.assertTrue(ok)
+            self.assertTrue(Path(path).is_file())
+            self.assertEqual(Path(path).read_bytes(), b"fake-image-bytes")
+            self.assertEqual(result, {"valid": True})
+            self.assertEqual(get.call_count, 2)
+            mark_bad.assert_not_called()
 
     def test_non_wikimedia_download_also_sends_user_agent(self):
         response = Mock()
