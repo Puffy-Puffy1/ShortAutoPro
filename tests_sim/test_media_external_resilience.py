@@ -71,11 +71,12 @@ class MediaExternalResilienceTests(unittest.TestCase):
         }
         media_router._WIKIMEDIA_CACHE.clear()
         media_router._WIKIMEDIA_LAST_REQUEST = 0.0
+        request_mock = Mock(return_value=response)
         with (
             patch.object(media_router, "provider_gate", return_value=(True, "CLOSED", 0)),
             patch.object(media_router, "note_response", return_value="SUCCESS"),
             patch.object(media_router, "note_provider_event"),
-            patch.object(media_router.requests, "get", return_value=response),
+            patch.object(media_router.requests, "get", request_mock),
             patch.object(media_router.time, "sleep"),
         ):
             candidates = media_router.WikimediaProvider().search(
@@ -91,7 +92,7 @@ class MediaExternalResilienceTests(unittest.TestCase):
         result = verified_must(candidate, {"must_have": ["car", "cliff"]})
         self.assertEqual(result["hits"], 2)
         self.assertEqual(result["missing"], [])
-        params = media_router.requests.get.call_args.kwargs["params"]
+        params = request_mock.call_args.kwargs["params"]
         self.assertIn("categories", params["prop"])
         self.assertIn("extmetadata", params["iiprop"])
 
