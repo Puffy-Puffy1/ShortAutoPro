@@ -517,9 +517,15 @@ class MediaProviderRouterV2:
             candidate["provenance"]["provider"]=provider
             return True,str(dest),result
         except Exception as exc:
+            # A local media-validation rejection is an asset-quality event,
+            # not proof that the provider is unhealthy. Counting ValueError as
+            # provider failure can open the circuit after several bad candidates
+            # and suppress unrelated queries/scenes. Only transport/unexpected
+            # failures contribute to provider-health resilience state.
+            if not isinstance(exc, ValueError):
+                note_exception(provider, exc)
             # Keep diagnostics actionable without printing signed URLs, headers,
             # tokens, or provider response bodies.
-            note_exception(provider,exc)
             # Validation exceptions use stable, non-sensitive reason codes
             # (e.g. MEDIA_TOO_SMALL, CONTENT_SIGNATURE_MISMATCH). Expose only
             # those codes: never echo exception text, paths, URLs, or response data.
