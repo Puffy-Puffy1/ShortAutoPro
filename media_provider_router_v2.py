@@ -296,6 +296,15 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
     # the returned asset evidence.
     retrieval_aliases = {
         "security sensor": ("motion sensor", "alarm sensor", "door sensor"),
+        # Commons often indexes maritime images under "vessel", "boat", or
+        # "watercraft" rather than the exact editorial MUST word "ship".
+        # These are retrieval-only variants; the asset's own metadata must
+        # still prove the MUST through media_must_verifier before acceptance.
+        "ship": ("vessel", "boat", "watercraft"),
+        "boat": ("ship", "vessel", "watercraft"),
+        "vessel": ("ship", "boat", "watercraft"),
+        "ocean": ("sea", "open water"),
+        "sea": ("ocean", "open water"),
     }
     for term in must_terms:
         for alias in retrieval_aliases.get(term.casefold(), ()):
@@ -322,7 +331,9 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
             seen.add(key)
             out.append(item)
     max_variants = 8 if any(
-        str(item).strip().casefold() == "security sensor"
+        str(item).strip().casefold() in {
+            "security sensor", "ship", "boat", "vessel", "ocean", "sea"
+        }
         for item in (must or [])
     ) else 4
     return out[:max_variants]
