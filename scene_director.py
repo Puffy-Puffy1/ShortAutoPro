@@ -149,6 +149,8 @@ REGRAS DE RECUPERAÇÃO DE MÍDIA:
 - não transforme cor, material, época, posição, estado emocional ou relação espacial em MUST separado, salvo se for o fato visual central da cena;
 - query pode descrever a composição completa, mas MUST deve servir como âncora verificável nos metadados reais de uma imagem;
 - se não houver objeto concreto essencial, use must_have vazio em vez de inventar uma exigência difícil de comprovar;
+- NÃO use qualificadores como cor, luminosidade, época ou tipo técnico como parte obrigatória de um MUST; prefira o objeto verificável: "aircraft" em vez de "single engine aircraft", "horizon" em vez de "dark horizon";
+- a política determinística pode normalizar apenas qualificadores visuais não essenciais conhecidos; a mídia continua obrigada a comprovar cada âncora resultante nos metadados reais;
 - nunca relaxe um MUST na etapa de validação só para aceitar uma imagem sem evidência.
 
 REGRAS:
