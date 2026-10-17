@@ -8,6 +8,8 @@ on:
       - ".github/workflows/first-video-live.yml"
       - "main.py"
       - "audio.py"
+      - "audio_finalizer.py"
+      - "tests_sim/test_audio_finalizer.py"
       - "tests_sim/test_audio_base.py"
       - "scene_lossless_repair.py"
       - "scene_director.py"
