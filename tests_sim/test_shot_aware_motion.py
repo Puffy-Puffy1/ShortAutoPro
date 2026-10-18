@@ -1,6 +1,9 @@
+import tempfile
 import unittest
+from pathlib import Path
 
-from motion_director import choose_profile, normalize_shot
+
+from motion_director import choose_profile, locate_media, normalize_shot
 
 
 class ShotAwareMotionTests(unittest.TestCase):
@@ -46,6 +49,29 @@ class ShotAwareMotionTests(unittest.TestCase):
         self.assertEqual(close_name, "hook_push")
         self.assertNotEqual(portrait_name, "hook_push")
         self.assertNotEqual(wide_name, "hook_push")
+
+
+    def test_locates_provider_suffixed_scene_assets(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            media_dir = Path(tmp)
+            asset = media_dir / "scene_01_wikimedia.jpg"
+            asset.write_bytes(b"fixture")
+            self.assertEqual(locate_media(media_dir, 1), asset)
+
+    def test_locates_provider_suffixed_video_assets(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            media_dir = Path(tmp)
+            asset = media_dir / "scene_02_archive-video.webm"
+            asset.write_bytes(b"fixture")
+            self.assertEqual(locate_media(media_dir, 2), asset)
+
+    def test_rejects_ambiguous_assets_for_same_scene(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            media_dir = Path(tmp)
+            (media_dir / "scene_01_wikimedia.jpg").write_bytes(b"one")
+            (media_dir / "scene_01_pixabay.jpg").write_bytes(b"two")
+            with self.assertRaisesRegex(ValueError, "mídia ambígua"):
+                locate_media(media_dir, 1)
 
 
 if __name__ == "__main__":
