@@ -38,6 +38,19 @@ class MediaProviderV2Tests(unittest.TestCase):
             variants,
         )
 
+
+    def test_car_must_uses_bounded_vehicle_retrieval_aliases(self):
+        variants = _query_variants(
+            "archival photograph of a car on a city street",
+            ["car"],
+        )
+        self.assertLessEqual(len(variants), 8)
+        self.assertIn("car", variants)
+        self.assertTrue(
+            any(item in variants for item in ("automobile", "motor vehicle", "road vehicle")),
+            variants,
+        )
+
     def test_retrieval_aliases_do_not_weaken_strict_acceptance(self):
         provider = MediaProviderV2(router=object())
         candidate = {
