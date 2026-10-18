@@ -37,6 +37,41 @@ class MediaEngineV2FailureTests(unittest.TestCase):
                 local.assert_called_once()
                 self.assertEqual(result["source"], "LocalLibrary")
 
+    def test_relaxed_verified_candidate_keeps_must_hits_in_manifest_record(self):
+        with tempfile.TemporaryDirectory() as td:
+            media = Path(td) / "media"
+            media.mkdir()
+            destination = media / "scene_01.jpg"
+            destination.write_bytes(b"mock image bytes")
+            candidate = {
+                "fonte": "Mock", "id": "verified-1", "tipo": "imagem",
+                "must_hits": 0, "avoid_hits": 0, "score": 80,
+                "descricao": "ship on the ocean",
+            }
+            with patch.object(
+                media_engine_v2.PROVIDER, "search", side_effect=[[candidate], [candidate]]
+            ), patch.object(
+                media_engine_v2.PROVIDER, "prepare", return_value=[]
+            ), patch(
+                "media_must_verifier.verified_must",
+                return_value={"hits": 1, "total": 1, "missing": []},
+            ), patch.object(
+                media_engine_v2.PROVIDER,
+                "download",
+                return_value=(True, str(destination), {}),
+            ), patch.object(
+                media_engine_v2, "validate_asset",
+                return_value={"sha256": media_engine_v2.sha256(destination), "probe": {"width": 1920, "height": 1080}},
+            ), patch.object(
+                media_engine_v2, "_local_library_asset", return_value=None
+            ):
+                result = media_engine_v2.acquire_scene(
+                    "X", 1, {"query": "long query", "must_have": ["ship"]}, media
+                )
+            self.assertEqual(result["must_hits"], 1)
+            self.assertEqual(result["must_total"], 1)
+            self.assertEqual(result["verification_mode"], "strict_evidence_query_relaxed")
+
     def test_query_relaxation_requires_independent_must_evidence(self):
         with tempfile.TemporaryDirectory() as td:
             base = Path(td)
