@@ -229,16 +229,22 @@ def _candidate_record(candidate: dict[str, Any], path: Path, probe: dict[str, An
     }
 
 
-def _local_library_asset(query: str, must: list[str], avoid: list[str]) -> dict[str, Any] | None:
+def _local_library_asset(
+    query: str,
+    must: list[str],
+    avoid: list[str],
+    used_asset_hashes: set[str] | None = None,
+) -> dict[str, Any] | None:
     try:
         from shortauto_asset_library import search_candidates
         candidates = search_candidates(query, must, avoid, limit=3)
     except Exception:
         return None
+    used_asset_hashes = used_asset_hashes or set()
     for candidate in candidates:
         path = Path(str(candidate.get("local_path") or "")).expanduser()
         expected = str(candidate.get("sha256") or "")
-        if not path.is_file() or not expected:
+        if not path.is_file() or not expected or expected in used_asset_hashes:
             continue
         try:
             if sha256(path) != expected:
@@ -363,7 +369,7 @@ def acquire_scene(
 
     # Local Library is an explicit provider in the Router. Keep this secondary
     # compatibility path for libraries created by the previous pipeline.
-    local = _local_library_asset(query, must, avoid)
+    local = _local_library_asset(query, must, avoid, used_asset_hashes)
     if local is not None:
         return local
 
