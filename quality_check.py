@@ -178,7 +178,7 @@ def evaluate(video_path, media_dir, scene_map_path, supervisor_path, expected, p
 
     numbers = []
     for path in media:
-        match = re.fullmatch(r"scene_(\d+)", path.stem, flags=re.IGNORECASE)
+        match = re.fullmatch(r"scene_(\d+)(?:_[A-Za-z0-9-]+)?", path.stem, flags=re.IGNORECASE)
         if match:
             numbers.append(int(match.group(1)))
         else:
