@@ -423,6 +423,7 @@ def stages_before_render(p: Pipeline) -> None:
     # asset validation are owned by Media Engine V2; render planning is a
     # deterministic input contract for Render Engine V2.
     p.run("MEDIA ENGINE V2 - ACQUIRE + VALIDATE + FREEZE MANIFEST", "media_engine_v2.py", "--short-id", p.sid)
+    p.run("MEDIA QUALITY REPORT - INDEPENDENT MANIFEST AUDIT", "media_quality_report.py", "--short-id", p.sid)
     p.run("RENDER PLAN V2 - DETERMINISTIC TIMELINE INPUT", "render_plan_v2.py", "--short-id", p.sid)
     p.run("6F - SPEECH DIRECTOR", "speech_director.py")
     p.run("7 - VOZ PIPER", "audio.py", retries=1)
