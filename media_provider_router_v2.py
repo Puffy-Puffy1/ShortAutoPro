@@ -305,6 +305,11 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
         "vessel": ("ship", "boat", "watercraft"),
         "ocean": ("sea", "open water"),
         "sea": ("ocean", "open water"),
+        # Public catalogs often index cars as automobiles or road vehicles.
+        # Retrieval only: explicit MUST acceptance still uses asset metadata.
+        "car": ("automobile", "automobiles", "motorcar", "motor vehicle", "road vehicle", "cars"),
+        "automobile": ("car", "cars", "motorcar", "motor vehicle", "road vehicle"),
+        "vehicle": ("car", "automobile", "motor vehicle", "road vehicle"),
     }
     for term in must_terms:
         for alias in retrieval_aliases.get(term.casefold(), ()):
@@ -332,7 +337,7 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
             out.append(item)
     max_variants = 8 if any(
         str(item).strip().casefold() in {
-            "security sensor", "ship", "boat", "vessel", "ocean", "sea"
+            "security sensor", "ship", "boat", "vessel", "ocean", "sea", "car", "automobile", "vehicle"
         }
         for item in (must or [])
     ) else 4
