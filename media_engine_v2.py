@@ -254,7 +254,13 @@ def _local_library_asset(query: str, must: list[str], avoid: list[str]) -> dict[
     return None
 
 
-def acquire_scene(short_id: str, number: int, scene: dict[str, Any], media_dir: Path) -> dict[str, Any]:
+def acquire_scene(
+    short_id: str,
+    number: int,
+    scene: dict[str, Any],
+    media_dir: Path,
+    used_asset_hashes: set[str] | None = None,
+) -> dict[str, Any]:
     query = str(scene.get("query") or scene.get("busca") or scene.get("segment") or "").strip()
     must = [str(x).strip() for x in (scene.get("must_have") or []) if str(x).strip()]
     avoid = [str(x).strip() for x in (scene.get("avoid") or []) if str(x).strip()]
@@ -319,6 +325,7 @@ def acquire_scene(short_id: str, number: int, scene: dict[str, Any], media_dir: 
         verification_mode = "strict_evidence_query_relaxed" if strict else ""
 
     failures = []
+    used_asset_hashes = used_asset_hashes or set()
 
     # Per-asset failover: a bad download/validation never terminates the scene
     # while another verified provider candidate remains available.
@@ -334,8 +341,20 @@ def acquire_scene(short_id: str, number: int, scene: dict[str, Any], media_dir: 
                 continue
             validation = validate_asset(destination)
             path = Path(destination)
+            checksum = str(validation.get("sha256") or sha256(path))
+            # Different provider records can point to byte-identical images.
+            # Reject a repeated visual asset and continue through the already
+            # MUST-verified candidate list instead of letting final visual QA
+            # discover the duplicate after a costly render.
+            if checksum in used_asset_hashes:
+                failures.append(f"{candidate.get('fonte', '?')}:DUPLICATE_ASSET")
+                try:
+                    path.unlink(missing_ok=True)
+                except OSError:
+                    pass
+                continue
             record = _candidate_record(candidate, path, validation["probe"])
-            record["checksum_sha256"] = validation["sha256"]
+            record["checksum_sha256"] = checksum
             record["verification_mode"] = str(candidate.get("verification_mode") or verification_mode or "strict_must")
             record["verification_note"] = str(candidate.get("verification_note") or "")
             return record
@@ -382,16 +401,40 @@ def build_manifest(short_id: str) -> dict[str, Any]:
     media_dir = BASE / "imagens" / f"short_{short_id}"
     media_dir.mkdir(parents=True, exist_ok=True)
     records = []
+    used_asset_hashes: set[str] = set()
     for number, scene in enumerate(scenes, 1):
         existing = _existing_asset_record(media_dir, number, scene)
         if existing is not None:
-            records.append(existing)
-            continue
-        record = acquire_scene(short_id, number, scene, media_dir)
+            existing_hash = str(existing.get("checksum_sha256") or "")
+            if existing_hash and existing_hash not in used_asset_hashes:
+                records.append(existing)
+                used_asset_hashes.add(existing_hash)
+                continue
+            # A previously cached, individually valid asset may still duplicate
+            # another scene. Remove only this scene's cache and reacquire it.
+            old_path = Path(str(existing.get("path") or ""))
+            try:
+                old_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+            try:
+                (media_dir / f"scene_{number:02d}.json").unlink(missing_ok=True)
+            except OSError:
+                pass
+        record = acquire_scene(
+            short_id, number, scene, media_dir, used_asset_hashes
+        )
         record["short_id"] = short_id
         record["scene_number"] = number
+        checksum = str(record.get("checksum_sha256") or "")
+        if checksum and checksum in used_asset_hashes:
+            raise RuntimeError(
+                f"MEDIA_DUPLICATE_ASSET:scene_{number:02d}:checksum_reused"
+            )
         _write_asset_sidecar(media_dir, number, record)
         records.append(record)
+        if checksum:
+            used_asset_hashes.add(checksum)
     scenes_out = [
         {
             "scene_id": str(scene.get("scene_id", scene.get("scene", number))),
