@@ -135,7 +135,7 @@ def media_inventory():
     for path in sorted(MEDIA_DIR.glob("scene_*")):
         if not path.is_file() or path.suffix.lower() not in MEDIA_EXTENSIONS:
             continue
-        match = re.fullmatch(r"scene_(\d+)", path.stem, flags=re.IGNORECASE)
+        match = re.fullmatch(r"scene_(\d+)(?:_[A-Za-z0-9-]+)?", path.stem, flags=re.IGNORECASE)
         if not match:
             errors.append(f"media_name_invalid:{path.name}")
             continue
