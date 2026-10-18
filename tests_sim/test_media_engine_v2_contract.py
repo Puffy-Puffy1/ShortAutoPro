@@ -63,13 +63,17 @@ class MediaEngineContractTests(unittest.TestCase):
                 "validated": True, "checksum_sha256": "unique", "path": str(second_path),
                 "probe": {}, "must_hits": 1,
             }
+            observed_used_hashes = []
+            def reacquire(*args):
+                observed_used_hashes.append(set(args[4]))
+                return replacement
             with patch.object(media_engine_v2, "load_scene_map", return_value=scenes), \
                  patch.object(media_engine_v2, "_existing_asset_record", side_effect=[first, duplicate]), \
-                 patch.object(media_engine_v2, "acquire_scene", return_value=replacement) as acquire:
+                 patch.object(media_engine_v2, "acquire_scene", side_effect=reacquire):
                 payload = media_engine_v2.build_manifest(sid)
             self.assertEqual(payload["scenes"][0]["asset"]["checksum_sha256"], "same")
             self.assertEqual(payload["scenes"][1]["asset"]["checksum_sha256"], "unique")
-            self.assertEqual(acquire.call_args.args[4], {"same"})
+            self.assertEqual(observed_used_hashes, [{"same"}])
 
     def test_security_sensor_retrieval_variants_are_bounded(self):
         from media_provider_router_v2 import _query_variants
