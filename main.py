@@ -471,6 +471,7 @@ def assemble_and_render(p: Pipeline) -> None:
 
 def final_gates(p: Pipeline) -> int:
     p.run("10A - EVOLUTION E2E", "shortautopro_evolution.py", "e2e")
+    p.run("10A1 - PRODUCTION SUPERVISOR", "production_supervisor.py")
     p.run("10B - QUALITY GATE", "quality_check.py")
     p.run("11A - PUBLISH PACK", "publish_pack.py")
     p.run("11B - SOURCE & ATTRIBUTION LEDGER", "source_ledger.py")
