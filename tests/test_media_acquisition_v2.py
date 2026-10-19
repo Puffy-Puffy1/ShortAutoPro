@@ -22,6 +22,22 @@ class AcquisitionV2Tests(unittest.TestCase):
         self.assertEqual(result["hits"], 2)
         self.assertEqual(result["missing"], [])
 
+    def test_train_must_accepts_asset_metadata_for_locomotive(self):
+        result = verified_must(
+            {"title": "Soviet steam locomotive in winter", "description": "railway transport"},
+            {"must_have": ["train"]},
+        )
+        self.assertEqual(result["hits"], 1)
+        self.assertEqual(result["missing"], [])
+
+    def test_train_must_does_not_accept_search_query_as_evidence(self):
+        result = verified_must(
+            {"title": "Snowy mountain expedition", "query": "Soviet train in winter"},
+            {"must_have": ["train"]},
+        )
+        self.assertEqual(result["hits"], 0)
+        self.assertEqual(result["missing"], ["train"])
+
     def test_canvas_tent_must_does_not_accept_search_query_as_evidence(self):
         result = verified_must(
             {"title": "A snowy landscape in the mountains", "query": "canvas tent in snow"},
