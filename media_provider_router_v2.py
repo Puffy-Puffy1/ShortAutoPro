@@ -344,7 +344,7 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
             out.append(item)
     max_variants = 8 if any(
         str(item).strip().casefold() in {
-            "security sensor", "ship", "boat", "vessel", "ocean", "sea", "car", "automobile", "vehicle", "canvas tent", "tent", "snow", "train", "torn tent"
+            "security sensor", "ship", "boat", "vessel", "ocean", "sea", "car", "automobile", "vehicle", "canvas tent", "tent", "snow", "train", "torn tent", "topographic map"
         }
         for item in (must or [])
      ) else 4
