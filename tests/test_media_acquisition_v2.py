@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from media_provider_router_v2 import MediaProviderRouterV2
+from media_provider_router_v2 import MediaProviderRouterV2, _query_variants
 from media_validator_v2 import validate
 from media_must_verifier import verified_must
 import media_engine_v2
@@ -29,6 +29,15 @@ class AcquisitionV2Tests(unittest.TestCase):
         )
         self.assertEqual(result["hits"], 1)
         self.assertEqual(result["missing"], [])
+
+    def test_topographic_map_retrieval_aliases_are_bounded_and_used(self):
+        variants = _query_variants(
+            "topographic map of Dyatlov Pass Kholat Syakhl Ural mountains",
+            ["topographic map"],
+        )
+        self.assertLessEqual(len(variants), 8)
+        self.assertIn("contour map", variants)
+        self.assertIn("relief map", variants)
 
     def test_topographic_map_must_accepts_specific_map_metadata(self):
         result = verified_must(
