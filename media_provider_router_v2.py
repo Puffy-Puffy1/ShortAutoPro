@@ -41,9 +41,9 @@ def _normalize_image_extension(path: Path) -> Path:
     except OSError:
         return path
     actual = None
-    if head.startswith(b"\\xff\\xd8\\xff"):
+    if head.startswith(b"\xff\xd8\xff"):
         actual = ".jpg"
-    elif head.startswith(b"\\x89PNG\\r\\n\\x1a\\n"):
+    elif head.startswith(b"\x89PNG\r\n\x1a\n"):
         actual = ".png"
     elif head.startswith(b"RIFF") and head[8:12] == b"WEBP":
         actual = ".webp"
