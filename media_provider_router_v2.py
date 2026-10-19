@@ -36,7 +36,8 @@ def _normalize_image_extension(path: Path) -> Path:
     signatures are left unchanged so the validator still rejects HTML/error pages.
     """
     try:
-        head = path.read_bytes()[:16]
+        with path.open("rb") as stream:
+            head = stream.read(16)
     except OSError:
         return path
     actual = None
