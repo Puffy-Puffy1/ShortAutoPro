@@ -27,6 +27,33 @@ _WIKIMEDIA_LAST_REQUEST = 0.0
 _WIKIMEDIA_CACHE: dict[str, list[dict[str, Any]]] = {}
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", Path.home() / "ShortAutoPro")).resolve()
 
+def _normalize_image_extension(path: Path) -> Path:
+    """Match the stored image suffix to its actual file signature.
+
+    Wikimedia file URLs may return PNG/WebP bytes even when the API candidate
+    was classified as a generic image. Keeping those bytes under .jpg causes a
+    false CONTENT_SIGNATURE_MISMATCH and rejects otherwise valid media. Unknown
+    signatures are left unchanged so the validator still rejects HTML/error pages.
+    """
+    try:
+        head = path.read_bytes()[:16]
+    except OSError:
+        return path
+    actual = None
+    if head.startswith(b"\\xff\\xd8\\xff"):
+        actual = ".jpg"
+    elif head.startswith(b"\\x89PNG\\r\\n\\x1a\\n"):
+        actual = ".png"
+    elif head.startswith(b"RIFF") and head[8:12] == b"WEBP":
+        actual = ".webp"
+    if actual is None or path.suffix.lower() == actual:
+        return path
+    target = path.with_suffix(actual)
+    if target.exists():
+        target.unlink()
+    path.replace(target)
+    return target
+
 def _tokens(value: str) -> set[str]:
     return set(re.findall(r"[a-z0-9]+", str(value or "").casefold()))
 
@@ -534,6 +561,8 @@ class MediaProviderRouterV2:
                     mark_asset_bad(url,provider=provider,asset_id=candidate.get("id"),reason="REQUEST_ERROR")
                     print(f"SAP_MEDIA_DOWNLOAD_FAILURE provider={provider} class={type(exc).__name__} attempts=3")
                     return False,"",{"error_class":"DOWNLOAD_FAILED"}
+            if ext == ".jpg":
+                dest = _normalize_image_extension(dest)
             result=validate(dest)
             candidate["asset_id"]=candidate.get("id")
             candidate["provenance"]=dict(candidate.get("provenance") or {})
