@@ -4,6 +4,39 @@ from unittest.mock import patch
 import media_engine_v2
 
 class MediaEngineV2FailureTests(unittest.TestCase):
+
+    def test_critical_low_resolution_candidate_is_rejected_and_next_candidate_used(self):
+        with tempfile.TemporaryDirectory() as td:
+            media = Path(td) / "media"
+            media.mkdir()
+            destination = media / "scene_01.jpg"
+            candidate_low = {"fonte": "Mock", "id": "low", "tipo": "imagem", "must_hits": 1}
+            candidate_good = {"fonte": "Mock", "id": "good", "tipo": "imagem", "must_hits": 1}
+            def download(candidate, number, sid):
+                destination.write_bytes(b"asset-bytes-" + candidate["id"].encode())
+                return True, str(destination), {}
+            def validate(path):
+                is_low = b"low" in Path(path).read_bytes()
+                return {
+                    "sha256": media_engine_v2.sha256(Path(path)),
+                    "probe": {"width": 100, "height": 100} if is_low else {"width": 1920, "height": 1080},
+                }
+            with patch.object(media_engine_v2.PROVIDER, "search", return_value=[candidate_low, candidate_good]), \
+                 patch.object(media_engine_v2.PROVIDER, "prepare", return_value=[candidate_low, candidate_good]), \
+                 patch.object(media_engine_v2.PROVIDER, "download", side_effect=download), \
+                 patch.object(media_engine_v2, "validate_asset", side_effect=validate), \
+                 patch.object(media_engine_v2, "_local_library_asset", return_value=None):
+                result = media_engine_v2.acquire_scene(
+                    "X", 1, {"query": "ship", "must_have": ["ship"]}, media
+                )
+            self.assertEqual(result["asset_id"], "good")
+            self.assertEqual(result["probe"]["width"], 1920)
+
+    def test_minimum_visual_resolution_matches_visual_qa_critical_threshold(self):
+        self.assertIsNotNone(media_engine_v2._resolution_issue({"width": 100, "height": 100}))
+        self.assertIsNone(media_engine_v2._resolution_issue({"width": 320, "height": 180}))
+        self.assertIsNotNone(media_engine_v2._resolution_issue({"width": 0, "height": 0}))
+
     def test_empty_provider_is_media_incomplete(self):
         with tempfile.TemporaryDirectory() as td:
             base=Path(td); media=base/"imagens"/"short_X"; media.mkdir(parents=True)
