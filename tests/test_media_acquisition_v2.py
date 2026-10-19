@@ -110,7 +110,7 @@ class AcquisitionV2Tests(unittest.TestCase):
                 return True, "/tmp/verified-b.mp4", {"validated": True}
         fake = FakeEngineProvider()
         with patch.object(media_engine_v2, "PROVIDER", fake), \
-             patch.object(media_engine_v2, "validate_asset", return_value={"probe": {}, "sha256": "b"}), \
+             patch.object(media_engine_v2, "validate_asset", return_value={"probe": {"width": 1920, "height": 1080}, "sha256": "b"}), \
              patch.object(media_engine_v2, "_candidate_record", return_value={"asset_id": "b"}):
             result = media_engine_v2.acquire_scene(
                 "SID_B", 1, {"query": "test", "must_have": ["test"], "avoid": []}, Path("/tmp")
