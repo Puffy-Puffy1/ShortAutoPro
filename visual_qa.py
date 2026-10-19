@@ -57,6 +57,24 @@ def atomic(path: Path, payload: Any) -> None:
                 pass
 
 
+def _provider_from_asset(path: Path, score_row: dict[str, Any]) -> str:
+    """Prefer structured provenance, then recover known provider from asset filename."""
+    provider = str(score_row.get("provider", "") or "").strip()
+    if provider:
+        return provider
+    stem = path.stem.casefold()
+    for suffix, name in (
+        ("_wikimedia_commons", "Wikimedia Commons"),
+        ("_wikimedia", "Wikimedia"),
+        ("_pexels", "Pexels"),
+        ("_pixabay", "Pixabay"),
+        ("_coverr", "Coverr"),
+    ):
+        if stem.endswith(suffix):
+            return name
+    return ""
+
+
 def load(path: Path) -> dict[str, Any]:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -595,7 +613,7 @@ def main() -> int:
                 and isinstance(score_rows[scene_no - 1], dict)
                 else {}
             )
-            provider = str(score_row.get("provider", "") or "")
+            provider = _provider_from_asset(path, score_row)
 
             item = {
                 "scene": scene_no,
