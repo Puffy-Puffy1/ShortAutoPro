@@ -316,6 +316,7 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
         "snow": ("snowfall", "snow-covered", "snowy landscape", "winter camping"),
         "train": ("railway train", "railroad train", "locomotive", "railway locomotive", "rail transport", "passenger train"),
         "torn tent": ("ripped tent", "damaged tent", "torn canvas tent", "torn tent fabric"),
+        "topographic map": ("topographical map", "topographic chart", "topographical chart", "contour map", "terrain contour map", "relief map", "elevation map", "Dyatlov Pass map", "Kholat Syakhl map"),
     }
     for term in must_terms:
         for alias in retrieval_aliases.get(term.casefold(), ()):
