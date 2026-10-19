@@ -22,7 +22,20 @@ from typing import Any
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", Path.home() / "ShortAutoPro")).resolve()
 MEDIA_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".webm", ".mkv"}
-ENGINE_VERSION = "2.0.1"
+ENGINE_VERSION = "2.0.2"
+MIN_VISUAL_PIXELS = 320 * 180
+
+
+def _resolution_issue(probe: dict[str, Any]) -> str | None:
+    """Reject media below the minimum resolution enforced by rendered visual QA."""
+    try:
+        width = int(probe.get("width") or 0)
+        height = int(probe.get("height") or 0)
+    except (AttributeError, TypeError, ValueError, OverflowError):
+        return "LOW_RESOLUTION:dimensions_unavailable"
+    if width <= 0 or height <= 0 or width * height < MIN_VISUAL_PIXELS:
+        return f"LOW_RESOLUTION:{width}x{height}"
+    return None
 
 def _asset_name_is_forbidden(path: Path) -> bool:
     name = path.name.casefold()
@@ -196,6 +209,8 @@ def _existing_asset_record(
         if validated.get("sha256") != expected:
             return None
         probe = validated["probe"]
+        if _resolution_issue(probe):
+            return None
         record["path"] = str(path)
         record["probe"] = probe
         record["validated"] = True
@@ -250,6 +265,8 @@ def _local_library_asset(
             if sha256(path) != expected:
                 continue
             probe = ffprobe_asset(path)
+            if _resolution_issue(probe):
+                continue
         except RuntimeError:
             continue
         record = dict(candidate)
@@ -351,6 +368,14 @@ def acquire_scene(
                 continue
             validation = validate_asset(destination)
             path = Path(destination)
+            resolution_error = _resolution_issue(validation.get("probe", {}))
+            if resolution_error:
+                failures.append(f"{candidate.get('fonte', '?')}:{resolution_error}")
+                try:
+                    path.unlink(missing_ok=True)
+                except OSError:
+                    pass
+                continue
             checksum = str(validation.get("sha256") or sha256(path))
             # Different provider records can point to byte-identical images.
             # Reject a repeated visual asset and continue through the already
