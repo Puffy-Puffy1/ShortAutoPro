@@ -53,6 +53,32 @@ class RenderEngineV2ContractTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "REAL_MEDIA_MISSING"):
                     engine.build_job(sid)
 
+    def test_render_identity_binds_canonical_topic_and_validated_render(self):
+        import hashlib
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            sid = "identity_case"
+            job = base / "render_jobs" / sid / "render_001"
+            job.mkdir(parents=True)
+            (base / "roteiros").mkdir()
+            (base / "manifests").mkdir()
+            topic = "Caso histórico validado"
+            (base / "roteiros" / f"used_topic_{sid}.txt").write_text(topic, encoding="utf-8")
+            (job / "job.json").write_text(json.dumps({"short_id": sid, "render_id": "render_001"}), encoding="utf-8")
+            (job / "manifest.json").write_text(json.dumps({"short_id": sid, "assets": []}), encoding="utf-8")
+            (job / "timeline.json").write_text(json.dumps({"short_id": sid, "scenes": []}), encoding="utf-8")
+            (job / "render_report.json").write_text(json.dumps({"status": "PASSED", "short_id": sid}), encoding="utf-8")
+            final = base / "videos" / f"short_v6_{sid}.mp4"
+            final.parent.mkdir(parents=True)
+            final.write_bytes(b"validated mp4 bytes")
+            with mock.patch.object(engine, "BASE", base):
+                output = engine.write_render_identity(sid, job, final)
+            payload = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual(payload["short_id"], sid)
+            self.assertEqual(payload["topic_sha256"], hashlib.sha256(topic.encode("utf-8")).hexdigest())
+            self.assertEqual(payload["final_video_sha256"], engine.sha256(final))
+            self.assertEqual(payload["render_id"], "render_001")
+
     def test_ffprobe_contract_is_fail_closed(self):
         with tempfile.TemporaryDirectory() as tmp:
             job = Path(tmp)
