@@ -10,14 +10,14 @@ class MediaProviderV2Tests(unittest.TestCase):
         with __import__("tempfile").TemporaryDirectory() as tmp:
             root = Path(tmp)
             png = root / "scene_01_wikimedia.jpg"
-            png.write_bytes(b"\\x89PNG\\r\\n\\x1a\\n" + b"fixture")
+            png.write_bytes(b"\x89PNG\r\n\x1a\n" + b"fixture")
             normalized = _normalize_image_extension(png)
             self.assertEqual(normalized.suffix, ".png")
             self.assertTrue(normalized.is_file())
             self.assertFalse(png.exists())
 
             webp = root / "scene_02_wikimedia.jpg"
-            webp.write_bytes(b"RIFF" + b"\\x00\\x00\\x00\\x00" + b"WEBP" + b"fixture")
+            webp.write_bytes(b"RIFF" + b"\x00\x00\x00\x00" + b"WEBP" + b"fixture")
             normalized = _normalize_image_extension(webp)
             self.assertEqual(normalized.suffix, ".webp")
             self.assertTrue(normalized.is_file())
