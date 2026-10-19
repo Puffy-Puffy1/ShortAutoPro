@@ -314,6 +314,8 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
         "canvas tent": ("tent", "camping tent", "canvas shelter", "tent in snow"),
         "tent": ("canvas tent", "camping tent", "tent in snow", "snow tent"),
         "snow": ("snowfall", "snow-covered", "snowy landscape", "winter camping"),
+        "train": ("railway train", "railroad train", "locomotive", "railway locomotive", "rail transport", "passenger train"),
+        "torn tent": ("ripped tent", "damaged tent", "torn canvas tent", "torn tent fabric"),
     }
     for term in must_terms:
         for alias in retrieval_aliases.get(term.casefold(), ()):
@@ -341,7 +343,7 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
             out.append(item)
     max_variants = 8 if any(
         str(item).strip().casefold() in {
-            "security sensor", "ship", "boat", "vessel", "ocean", "sea", "car", "automobile", "vehicle", "canvas tent", "tent", "snow"
+            "security sensor", "ship", "boat", "vessel", "ocean", "sea", "car", "automobile", "vehicle", "canvas tent", "tent", "snow", "train", "torn tent"
         }
         for item in (must or [])
      ) else 4
