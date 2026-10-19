@@ -125,6 +125,15 @@ STRICT_VISUAL_ALIASES = {
         "vintage", "historic", "historical", "antique", "retro",
         "period photograph", "period document", "old-fashioned",
     ),
+    "torn tent": (
+        "torn tent", "torn tents", "ripped tent", "ripped tents",
+        "damaged tent", "damaged camping tent", "torn canvas tent", "torn tent fabric",
+    ),
+    "train": (
+        "train", "trains", "railway train", "railroad train", "passenger train",
+        "freight train", "locomotive", "railway locomotive", "steam locomotive",
+        "rail transport",
+    ),
     "car": (
         "car", "cars", "automobile", "automobiles", "motorcar", "motor cars",
         "motor vehicle", "motor vehicles",
