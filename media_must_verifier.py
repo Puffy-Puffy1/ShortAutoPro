@@ -134,6 +134,11 @@ STRICT_VISUAL_ALIASES = {
         "freight train", "locomotive", "railway locomotive", "steam locomotive",
         "rail transport",
     ),
+    "topographic map": (
+        "topographic map", "topographical map", "topographic chart",
+        "topographical chart", "contour map", "terrain contour map",
+        "relief map", "elevation map",
+    ),
     "car": (
         "car", "cars", "automobile", "automobiles", "motorcar", "motor cars",
         "motor vehicle", "motor vehicles",
