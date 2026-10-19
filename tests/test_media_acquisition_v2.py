@@ -24,7 +24,7 @@ class AcquisitionV2Tests(unittest.TestCase):
 
     def test_canvas_tent_must_does_not_accept_search_query_as_evidence(self):
         result = verified_must(
-            {"title": "A snowy mountain landscape", "query": "canvas tent in snow"},
+            {"title": "A snowy landscape in the mountains", "query": "canvas tent in snow"},
             {"must_have": ["canvas tent", "snow"]},
         )
         self.assertEqual(result["hits"], 1)
