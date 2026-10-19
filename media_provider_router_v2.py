@@ -310,6 +310,10 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
         "car": ("automobile", "automobiles", "motorcar", "motor vehicle", "road vehicle", "cars"),
         "automobile": ("car", "cars", "motorcar", "motor vehicle", "road vehicle"),
         "vehicle": ("car", "automobile", "motor vehicle", "road vehicle"),
+        # Query expansion only: catalogs may index the visible shelter without its fabric.
+        "canvas tent": ("tent", "camping tent", "canvas shelter", "tent in snow"),
+        "tent": ("canvas tent", "camping tent", "tent in snow", "snow tent"),
+        "snow": ("snowfall", "snow-covered", "snowy landscape", "winter camping"),
     }
     for term in must_terms:
         for alias in retrieval_aliases.get(term.casefold(), ()):
@@ -337,10 +341,10 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
             out.append(item)
     max_variants = 8 if any(
         str(item).strip().casefold() in {
-            "security sensor", "ship", "boat", "vessel", "ocean", "sea", "car", "automobile", "vehicle"
+            "security sensor", "ship", "boat", "vessel", "ocean", "sea", "car", "automobile", "vehicle", "canvas tent", "tent", "snow"
         }
         for item in (must or [])
-    ) else 4
+     ) else 4
     return out[:max_variants]
 
 
