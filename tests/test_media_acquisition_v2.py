@@ -30,6 +30,22 @@ class AcquisitionV2Tests(unittest.TestCase):
         self.assertEqual(result["hits"], 1)
         self.assertEqual(result["missing"], [])
 
+    def test_topographic_map_must_accepts_specific_map_metadata(self):
+        result = verified_must(
+            {"title": "Topographical contour map of the Ural Mountains"},
+            {"must_have": ["topographic map"]},
+        )
+        self.assertEqual(result["hits"], 1)
+        self.assertEqual(result["missing"], [])
+
+    def test_topographic_map_must_does_not_accept_search_query_as_evidence(self):
+        result = verified_must(
+            {"title": "Winter landscape of the Ural Mountains", "query": "topographic map"},
+            {"must_have": ["topographic map"]},
+        )
+        self.assertEqual(result["hits"], 0)
+        self.assertEqual(result["missing"], ["topographic map"])
+
     def test_train_must_does_not_accept_search_query_as_evidence(self):
         result = verified_must(
             {"title": "Snowy mountain expedition", "query": "Soviet train in winter"},
