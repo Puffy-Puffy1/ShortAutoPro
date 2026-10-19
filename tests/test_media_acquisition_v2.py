@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from media_provider_router_v2 import MediaProviderRouterV2
 from media_validator_v2 import validate
+from media_must_verifier import verified_must
 import media_engine_v2
 import render_engine_v2
 
@@ -13,6 +14,22 @@ class FakeProvider:
     def search(self,query,must,avoid,**kwargs): return list(self.candidates)
 
 class AcquisitionV2Tests(unittest.TestCase):
+    def test_canvas_tent_must_accepts_asset_metadata_for_tent(self):
+        result = verified_must(
+            {"title": "A damaged camping tent in a snowy field", "description": "snowfall"},
+            {"must_have": ["canvas tent", "snow"]},
+        )
+        self.assertEqual(result["hits"], 2)
+        self.assertEqual(result["missing"], [])
+
+    def test_canvas_tent_must_does_not_accept_search_query_as_evidence(self):
+        result = verified_must(
+            {"title": "A snowy mountain landscape", "query": "canvas tent in snow"},
+            {"must_have": ["canvas tent", "snow"]},
+        )
+        self.assertEqual(result["hits"], 1)
+        self.assertEqual(result["missing"], ["canvas tent"])
+
     def test_router_retries_bounded_query_when_provider_returns_empty(self):
         class QuerySensitiveProvider:
             name = "test"
