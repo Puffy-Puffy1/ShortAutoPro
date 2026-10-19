@@ -2,10 +2,34 @@ import unittest
 from pathlib import Path
 
 from media_provider_v2 import MediaProviderV2
-from media_provider_router_v2 import _query_variants
+from media_provider_router_v2 import _normalize_image_extension, _query_variants
 
 
 class MediaProviderV2Tests(unittest.TestCase):
+    def test_image_extension_matches_downloaded_signature(self):
+        with __import__("tempfile").TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            png = root / "scene_01_wikimedia.jpg"
+            png.write_bytes(b"\\x89PNG\\r\\n\\x1a\\n" + b"fixture")
+            normalized = _normalize_image_extension(png)
+            self.assertEqual(normalized.suffix, ".png")
+            self.assertTrue(normalized.is_file())
+            self.assertFalse(png.exists())
+
+            webp = root / "scene_02_wikimedia.jpg"
+            webp.write_bytes(b"RIFF" + b"\\x00\\x00\\x00\\x00" + b"WEBP" + b"fixture")
+            normalized = _normalize_image_extension(webp)
+            self.assertEqual(normalized.suffix, ".webp")
+            self.assertTrue(normalized.is_file())
+
+    def test_unknown_download_signature_is_not_relabelled(self):
+        with __import__("tempfile").TemporaryDirectory() as tmp:
+            path = Path(tmp) / "scene_01_wikimedia.jpg"
+            path.write_bytes(b"<html>rate limited</html>")
+            normalized = _normalize_image_extension(path)
+            self.assertEqual(normalized, path)
+            self.assertTrue(path.is_file())
+
     def test_provider_boundary_is_small_and_explicit(self):
         self.assertEqual(
             {"search", "prepare", "download"},
