@@ -112,6 +112,10 @@ def _phrase_present(text: str, phrase: str) -> bool:
 
 
 STRICT_VISUAL_ALIASES = {
+    # A tent is the core visible object; archival catalogs rarely record its fabric.
+    # This is a narrow visual equivalence, not acceptance of the search query.
+    "canvas tent": ("canvas tent", "canvas tents", "camping tent", "camping tents", "tent", "tents"),
+    "snow": ("snow", "snowfall", "snow-covered", "snow covered", "snowy landscape"),
     # Vehicle/terrain wording varies widely across historical photo catalogs.
     # These aliases still require each concept to appear in the asset's own
     # descriptive metadata; they never use the search query as evidence.
