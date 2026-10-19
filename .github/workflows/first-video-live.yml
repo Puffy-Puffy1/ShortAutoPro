@@ -24,6 +24,8 @@ on:
       - "visual_pipeline_bridge_v42.py"
       - "visual_selection_engine_v4.py"
       - "visual_qa.py"
+      - "tests_sim/test_rendered_visual_diversity.py"
+      - "tests_sim/test_media_provider_v2.py"
       - "production_manifest.py"
       - "render_engine_v2.py"
       - "tests/test_media_acquisition_v2.py"
