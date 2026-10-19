@@ -199,7 +199,7 @@ class WikimediaProvider(Provider):
             params={"action":"query","generator":"search","gsrsearch":query,
                     "gsrnamespace":6,"gsrlimit":20,
                     "prop":"imageinfo|categories",
-                    "iiprop":"url|mime|size|extmetadata","iiurlwidth":1400,
+                    "iiprop":"url|mime|size|extmetadata","iiurlwidth":1920,
                     "cllimit":"max","format":"json"}
             global _WIKIMEDIA_LAST_REQUEST
             cache_key = str(query).strip().casefold()
