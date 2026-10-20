@@ -17,6 +17,8 @@ class MediaExternalResilienceTests(unittest.TestCase):
         provider.name = "fake"
         provider.search.return_value = [{
             "fonte": "fake", "id": "asset-1", "url": "https://example.test/1.jpg",
+            "title": "car beside cliff on rural road",
+            "image_description": "car beside cliff on rural road",
             "must_hits": 2, "avoid_hits": 0, "score": 100,
         }]
         router = media_router.MediaProviderRouterV2(providers=[provider])
@@ -25,6 +27,32 @@ class MediaExternalResilienceTests(unittest.TestCase):
 
         self.assertEqual(len(candidates), 1)
         self.assertEqual(provider.search.call_count, 1)
+
+    def test_router_continues_after_must_only_irrelevant_candidate(self):
+        provider = Mock()
+        provider.name = "fake"
+        irrelevant = {
+            "fonte": "fake", "id": "irrelevant", "url": "https://example.test/irrelevant.jpg",
+            "title": "Portrait of Lord Buddha created with money",
+            "image_description": "Portrait made from money",
+            "must_hits": 2, "avoid_hits": 0, "score": 100,
+        }
+        relevant = {
+            "fonte": "fake", "id": "relevant", "url": "https://example.test/relevant.jpg",
+            "title": "car beside cliff on rural road",
+            "image_description": "car beside cliff on rural road",
+            "must_hits": 2, "avoid_hits": 0, "score": 80,
+        }
+        provider.search.side_effect = lambda query, must, avoid: (
+            [irrelevant] if query == "car beside cliff on rural road" else [relevant]
+        )
+        router = media_router.MediaProviderRouterV2(providers=[provider])
+
+        candidates = router.search("car beside cliff on rural road", ["car", "cliff"], [])
+
+        self.assertGreater(provider.search.call_count, 1)
+        self.assertTrue(any(c["id"] == "relevant" and c["query_relevance"]["ok"] for c in candidates))
+        self.assertTrue(any(c["id"] == "irrelevant" and not c["query_relevance"]["ok"] for c in candidates))
 
     def test_vintage_must_accept_explicit_historical_asset_metadata(self):
         from media_must_verifier import verified_must
