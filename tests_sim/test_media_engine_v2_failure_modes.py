@@ -105,6 +105,37 @@ class MediaEngineV2FailureTests(unittest.TestCase):
             self.assertEqual(result["must_total"], 1)
             self.assertEqual(result["verification_mode"], "strict_evidence_query_relaxed")
 
+    def test_relaxed_query_does_not_accept_irrelevant_asset_even_if_must_matches(self):
+        with tempfile.TemporaryDirectory() as td:
+            media = Path(td) / "media"
+            media.mkdir()
+            candidate = {
+                "fonte": "Wikimedia", "id": "generic-money-image", "tipo": "imagem",
+                "must_hits": 1, "avoid_hits": 0, "score": 100,
+                "descricao": "Portrait of Lord Buddha created with money",
+                "query_relevance": {
+                    "ok": False, "matched_terms": ["money"],
+                    "matched_count": 1, "query_term_count": 6,
+                    "required_terms": 4, "ratio": 0.167,
+                },
+            }
+            with patch.object(
+                media_engine_v2.PROVIDER, "search", side_effect=[[candidate], [candidate]]
+            ), patch.object(
+                media_engine_v2.PROVIDER, "prepare", return_value=[candidate]
+            ), patch(
+                "media_must_verifier.verified_must",
+                return_value={"hits": 1, "total": 1, "missing": []},
+            ), patch.object(
+                media_engine_v2, "_local_library_asset", return_value=None
+            ):
+                with self.assertRaisesRegex(RuntimeError, "query_relevance_rejected=1"):
+                    media_engine_v2.acquire_scene(
+                        "X", 1,
+                        {"query": "bundle of twenty dollar bills ransom money", "must_have": ["money"]},
+                        media,
+                    )
+
     def test_query_relaxation_requires_independent_must_evidence(self):
         with tempfile.TemporaryDirectory() as td:
             base = Path(td)

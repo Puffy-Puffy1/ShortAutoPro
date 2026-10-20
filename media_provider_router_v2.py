@@ -5,6 +5,7 @@ Providers are isolated adapters. No provider imports midia.py.
 """
 from __future__ import annotations
 
+import math
 import os
 import re
 import time
@@ -57,6 +58,64 @@ def _normalize_image_extension(path: Path) -> Path:
 
 def _tokens(value: str) -> set[str]:
     return set(re.findall(r"[a-z0-9]+", str(value or "").casefold()))
+
+
+_QUERY_STOPWORDS = {
+    "a", "an", "the", "of", "in", "on", "at", "by", "for", "from",
+    "and", "or", "to", "with", "after", "before", "during", "near",
+    "over", "under", "above", "below", "around", "about", "into", "onto",
+    "through", "is", "are", "was", "were", "be", "been", "being", "it",
+    "its", "this", "that", "these", "those", "as", "via", "old", "scene",
+    "photo", "picture", "image", "view", "close", "up",
+}
+_QUERY_TOKEN_ALIASES = {
+    "airplanes": "airplane", "mountains": "mountain", "hikers": "hiker",
+    "bills": "bill", "dollars": "dollar", "passengers": "passenger",
+    "stairs": "stair", "letters": "letter", "documents": "document",
+    "files": "file", "investigators": "investigator",
+    "investigations": "investigation", "airliners": "airliner",
+    "aircrafts": "aircraft", "pages": "page", "forests": "forest",
+    "snowy": "snow", "snowing": "snow", "snowfall": "snow",
+}
+
+
+def _meaningful_query_tokens(value: str) -> set[str]:
+    result = set()
+    for token in _tokens(value):
+        if token in _QUERY_STOPWORDS or len(token) < 3:
+            continue
+        result.add(_QUERY_TOKEN_ALIASES.get(token, token))
+    return result
+
+
+def _candidate_relevance_text(candidate: dict[str, Any]) -> str:
+    # Categories are useful for MUST evidence but too broad to prove shot relevance.
+    primary = [
+        candidate.get(key)
+        for key in ("title", "image_description", "description", "alt", "caption", "name")
+        if str(candidate.get(key) or "").strip()
+    ]
+    if primary:
+        return " ".join(str(value) for value in primary)
+    return str(candidate.get("descricao") or "")
+
+
+def query_relevance(query: str, candidate: dict[str, Any]) -> dict[str, Any]:
+    """Compare meaningful query terms with asset metadata, excluding query echo/categories."""
+    query_terms = _meaningful_query_tokens(query)
+    asset_terms = _meaningful_query_tokens(_candidate_relevance_text(candidate))
+    matched = sorted(query_terms & asset_terms)
+    required = max(1, math.ceil(len(query_terms) * 0.60)) if query_terms else 1
+    ratio = len(matched) / len(query_terms) if query_terms else 0.0
+    return {
+        "ok": bool(query_terms) and len(matched) >= required,
+        "matched_terms": matched,
+        "matched_count": len(matched),
+        "query_term_count": len(query_terms),
+        "required_terms": required,
+        "ratio": round(ratio, 3),
+    }
+
 
 def _score(query: str, description: str, must: list[str], avoid: list[str]) -> tuple[float,int,int]:
     q = _tokens(query)
@@ -404,8 +463,9 @@ class MediaProviderRouterV2:
                     # Stop expanding once this provider has a safe result set
                     # with explicit metadata hits for every MUST term. This
                     # reduces repeated calls to rate-limited public providers.
-                    if not must or any(
-                        int(item.get("must_hits", 0) or 0) >= len(must)
+                    if any(
+                        query_relevance(query, item)["ok"]
+                        and (not must or int(item.get("must_hits", 0) or 0) >= len(must))
                         and int(item.get("avoid_hits", 0) or 0) == 0
                         for item in found
                     ):
@@ -424,8 +484,10 @@ class MediaProviderRouterV2:
             )
             unique.setdefault(key, candidate)
         candidates = list(unique.values())
+        for candidate in candidates:
+            candidate["query_relevance"] = query_relevance(query, candidate)
 
-        # Deterministic ordering: evidence/MUST first, then score, then provider/id.
+        # Deterministic ordering: relevant metadata first, then MUST evidence and score.
         # AVOID is never relaxed here; prepare() still enforces the MUST contract.
         candidates = [
             c for c in candidates
@@ -433,6 +495,9 @@ class MediaProviderRouterV2:
         ]
         candidates.sort(
             key=lambda c: (
+                bool((c.get("query_relevance") or {}).get("ok")),
+                int((c.get("query_relevance") or {}).get("matched_count", 0) or 0),
+                float((c.get("query_relevance") or {}).get("ratio", 0) or 0),
                 int(c.get("must_hits", 0) or 0),
                 float(c.get("score", 0) or 0),
                 str(c.get("fonte", "")),

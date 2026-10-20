@@ -190,6 +190,9 @@ def _existing_asset_record(
         record = json.loads(sidecar.read_text(encoding="utf-8"))
         if not isinstance(record, dict):
             return None
+        relevance = record.get("query_relevance")
+        if not isinstance(relevance, dict) or relevance.get("ok") is not True:
+            return None
         if _asset_name_is_forbidden(path):
             return None
         expected = str(record.get("checksum_sha256") or "")
@@ -230,6 +233,7 @@ def _candidate_record(candidate: dict[str, Any], path: Path, probe: dict[str, An
         "url": str(candidate.get("url") or ""),
         "asset_type": "video" if str(candidate.get("tipo", "")).lower() in {"vídeo", "video"} else "image",
         "description": str(candidate.get("descricao") or ""),
+        "query_relevance": candidate.get("query_relevance", {}),
         "evidence_class": str(candidate.get("evidence_class") or ""),
         "must_hits": int(candidate.get("must_hits", 0) or 0),
         "must_total": int(candidate.get("_sap_must_total", 0) or 0),
@@ -256,7 +260,12 @@ def _local_library_asset(
     except Exception:
         return None
     used_asset_hashes = used_asset_hashes or set()
+    from media_provider_router_v2 import query_relevance
     for candidate in candidates:
+        relevance = query_relevance(query, candidate)
+        if not relevance.get("ok"):
+            continue
+        candidate["query_relevance"] = relevance
         path = Path(str(candidate.get("local_path") or "")).expanduser()
         expected = str(candidate.get("sha256") or "")
         if not path.is_file() or not expected or expected in used_asset_hashes:
@@ -293,11 +302,20 @@ def acquire_scene(
         raise RuntimeError(f"MEDIA_INPUT_INVALID:scene_{number:02d}:query_empty")
 
     candidates = PROVIDER.search(query, must, avoid, segmento=segment, visual_mode=visual_mode)
+    query_relevance_rejected = sum(
+        1 for candidate in candidates
+        if isinstance(candidate.get("query_relevance"), dict)
+        and candidate["query_relevance"].get("ok") is not True
+    )
     for candidate in candidates:
         candidate["_sap_must_total"] = len(must)
         candidate["_sap_short_id"] = short_id
         candidate["_sap_scene_number"] = number
-    strict = PROVIDER.prepare(candidates, len(must))
+    strict = [
+        candidate for candidate in PROVIDER.prepare(candidates, len(must))
+        if not isinstance(candidate.get("query_relevance"), dict)
+        or candidate["query_relevance"].get("ok") is True
+    ]
     verification_mode = "strict_must" if strict else ""
 
     # If the editorial query was too restrictive, a second retrieval may use
@@ -305,6 +323,7 @@ def acquire_scene(
     # every explicit MUST is independently verified against asset evidence
     # before any download is attempted.
     relaxed = []
+    relaxed_query_relevance_rejected = 0
     relaxed_evidence_diagnostics = []
     if not strict and must:
         relaxed = PROVIDER.search(
@@ -324,6 +343,10 @@ def acquire_scene(
         verified_relaxed = []
         if verifier is not None:
             for candidate in relaxed:
+                relevance = candidate.get("query_relevance")
+                if isinstance(relevance, dict) and relevance.get("ok") is not True:
+                    relaxed_query_relevance_rejected += 1
+                    continue
                 evidence = verifier(candidate, {"must_have": must})
                 missing = evidence.get("missing", [])
                 relaxed_evidence_diagnostics.append(
@@ -415,6 +438,10 @@ def acquire_scene(
             f"providers={','.join(providers) or '-'};"
             f"relaxed={len(relaxed)};"
             f"verified_relaxed={len(verified_relaxed) if must else 0}"
+        )
+        diagnostic += (
+            f";query_relevance_rejected={query_relevance_rejected};"
+            f"relaxed_query_relevance_rejected={relaxed_query_relevance_rejected}"
         )
         if relaxed_evidence_diagnostics:
             diagnostic += ";evidence=" + "|".join(relaxed_evidence_diagnostics[:8])

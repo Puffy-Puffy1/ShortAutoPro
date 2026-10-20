@@ -87,6 +87,44 @@ class MediaProviderV2Tests(unittest.TestCase):
         }
         self.assertEqual(provider.prepare([candidate], 1), [])
 
+    def test_query_relevance_ignores_generic_wikimedia_categories(self):
+        from media_provider_router_v2 import query_relevance
+
+        candidate = {
+            "title": "Portrait of Lord Buddha created with money in Kahtein festival",
+            "image_description": "Portrait created from money",
+            "tags": ["Category:Money", "Category:Portraits"],
+            "descricao": "Category:Money Category:Portraits",
+        }
+        result = query_relevance("bundle of twenty dollar bills ransom money", candidate)
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["matched_terms"], ["money"])
+
+    def test_query_relevance_accepts_specific_title_and_description_match(self):
+        from media_provider_router_v2 import query_relevance
+
+        candidate = {
+            "title": "Vintage Boeing 727 on airport tarmac",
+            "image_description": "Vintage Boeing 727 parked on airport tarmac",
+            "tags": ["Category:Airplanes"],
+        }
+        result = query_relevance("vintage Boeing 727 on airport tarmac", candidate)
+        self.assertTrue(result["ok"], result)
+        self.assertGreaterEqual(result["ratio"], 0.6)
+
+    def test_prepare_rejects_irrelevant_asset_even_when_must_hits(self):
+        provider = MediaProviderV2(router=object())
+        candidate = {
+            "id": "generic-money-image", "fonte": "Wikimedia",
+            "must_hits": 1, "avoid_hits": 0, "score": 100,
+            "query_relevance": {
+                "ok": False, "matched_terms": ["money"],
+                "matched_count": 1, "query_term_count": 6,
+                "required_terms": 4, "ratio": 0.167,
+            },
+        }
+        self.assertEqual(provider.prepare([candidate], 1), [])
+
     def test_prepare_prefers_strict_must_verification(self):
         provider = MediaProviderV2(router=object())
         candidates = [
