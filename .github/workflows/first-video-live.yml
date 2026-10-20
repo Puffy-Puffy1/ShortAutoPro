@@ -190,10 +190,16 @@ jobs:
           name: first-video-live-evidence
           path: |
             videos/short_v6_*.mp4
+            videos/short_*.ass
             reports/first_video/*.json
             reports/media/*.json
+            reports/evolution/visual_qa_*.json
             manifests/scene_map_*.json
             manifests/media_*.json
+            roteiros/scene_map_*.json
+            roteiros/short_*.txt
+            roteiros/speech_*.txt
+            roteiros/speech_*.json
             roteiros/pro_edit_plan_*.json
             first_video_ffprobe.json
           if-no-files-found: warn

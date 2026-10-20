@@ -53,6 +53,24 @@ class RenderEngineV2ContractTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "REAL_MEDIA_MISSING"):
                     engine.build_job(sid)
 
+    def test_parse_ass_strips_override_tags_for_remotion_text(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            ass = Path(tmp) / "captions.ass"
+            ass.write_text(
+                r"""[Script Info]
+ScriptType: v4.00+
+[V4+ Styles]
+Format: Name,Fontname
+Style: Dynamic,Arial
+[Events]
+Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text
+Dialogue: 0,0:00:00.00,0:00:01.00,Dynamic,,0,0,0,,Antes {\c&H00D9E7FF&\b1}destaque{\c&HFFFFFF&\b1} depois\Nsegunda linha
+""",
+                encoding="utf-8",
+            )
+            cues = engine.parse_ass(ass)
+            self.assertEqual(cues[0]["text"], "Antes destaque depois\nsegunda linha")
+
     def test_render_identity_binds_canonical_topic_and_validated_render(self):
         import hashlib
         with tempfile.TemporaryDirectory() as tmp:
