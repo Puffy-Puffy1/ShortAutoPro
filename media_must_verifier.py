@@ -160,6 +160,14 @@ STRICT_VISUAL_ALIASES = {
         "aircraft", "airplane", "airplanes", "aeroplane", "aeroplanes",
         "plane", "planes",
     ),
+    # Archival image catalogs often identify the object as a manuscript or codex
+    # without repeating editorial qualifiers such as its century or page material.
+    # Evidence must still occur in the asset metadata, never in the search query.
+    "manuscript": (
+        "manuscript", "manuscripts", "illuminated manuscript",
+        "medieval manuscript", "manuscript page", "manuscript pages",
+        "codex", "codices", "book of hours",
+    ),
     # Conservative visual equivalences used only for explicit-MUST evidence.
     # These affect acceptance only when the asset itself contains the alias.
     "ship": (

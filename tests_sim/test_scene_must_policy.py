@@ -27,6 +27,15 @@ class SceneMustPolicyTests(unittest.TestCase):
             ],
         )
 
+    def test_collapses_redundant_manuscript_descriptors_to_one_verifiable_object(self):
+        anchors, events = normalize_visual_musts([
+            "medieval manuscript",
+            "aged parchment pages",
+        ])
+        self.assertEqual(anchors, ["manuscript"])
+        self.assertEqual([event["to"] for event in events], ["manuscript", "manuscript"])
+        self.assertTrue(all(event["reason"] == "NON_ATOMIC_VISUAL_QUALIFIER" for event in events))
+
     def test_deduplicates_after_normalization(self):
         anchors, events = normalize_visual_musts([
             "single engine aircraft",

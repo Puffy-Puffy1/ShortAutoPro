@@ -24,6 +24,14 @@ _NON_ATOMIC_VISUAL_MUSTS = {
     "historic aircraft": "aircraft",
     "historical aircraft": "aircraft",
     "antique aircraft": "aircraft",
+    # A single scene object was emitted as two overlapping, hard-to-match MUSTs.
+    # Normalize these exact descriptors to the visible object; its metadata must
+    # still independently prove that a manuscript is present.
+    "medieval manuscript": "manuscript",
+    "aged parchment pages": "manuscript",
+    "aged parchment page": "manuscript",
+    "medieval manuscript pages": "manuscript",
+    "illuminated manuscript pages": "manuscript",
 }
 
 

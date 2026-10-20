@@ -63,6 +63,22 @@ class AcquisitionV2Tests(unittest.TestCase):
         self.assertEqual(result["hits"], 0)
         self.assertEqual(result["missing"], ["train"])
 
+    def test_manuscript_must_accepts_asset_metadata_alias(self):
+        result = verified_must(
+            {"title": "15th-century illuminated manuscript leaf"},
+            {"must_have": ["manuscript"]},
+        )
+        self.assertEqual(result["hits"], 1)
+        self.assertEqual(result["missing"], [])
+
+    def test_manuscript_must_does_not_accept_search_query_as_evidence(self):
+        result = verified_must(
+            {"title": "Old parchment page", "query": "medieval manuscript"},
+            {"must_have": ["manuscript"]},
+        )
+        self.assertEqual(result["hits"], 0)
+        self.assertEqual(result["missing"], ["manuscript"])
+
     def test_canvas_tent_must_does_not_accept_search_query_as_evidence(self):
         result = verified_must(
             {"title": "A snowy landscape in the mountains", "query": "canvas tent in snow"},
