@@ -112,6 +112,34 @@ class MediaProviderV2Tests(unittest.TestCase):
         self.assertTrue(result["ok"], result)
         self.assertGreaterEqual(result["ratio"], 0.6)
 
+    def test_query_relevance_accepts_relevant_partial_title_for_long_scene_query(self):
+        from media_provider_router_v2 import query_relevance
+
+        candidate = {
+            "title": "Pine forest in winter after snowfall",
+            "image_description": "Snow-covered conifer forest",
+            "tags": ["Category:Forests"],
+        }
+        result = query_relevance(
+            "frigid Ural mountains forest winter snowstorm", candidate
+        )
+        self.assertTrue(result["ok"], result)
+        self.assertGreaterEqual(result["matched_count"], 2)
+
+    def test_query_relevance_still_rejects_single_generic_overlap(self):
+        from media_provider_router_v2 import query_relevance
+
+        candidate = {
+            "title": "Portrait of money at a festival",
+            "image_description": "Portrait created from money",
+            "tags": ["Category:Money", "Category:Portraits"],
+        }
+        result = query_relevance(
+            "bundle of twenty dollar bills ransom money", candidate
+        )
+        self.assertFalse(result["ok"], result)
+        self.assertEqual(result["matched_count"], 1)
+
     def test_prepare_rejects_irrelevant_asset_even_when_must_hits(self):
         provider = MediaProviderV2(router=object())
         candidate = {
