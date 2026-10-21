@@ -57,6 +57,22 @@ class MediaMustVerifierForestTests(unittest.TestCase):
             variants,
         )
 
+    def test_must_aliases_preserve_the_original_scene_context(self):
+        variants = _query_variants(
+            "vintage forensic investigation equipment in winter snow field",
+            ["snow"],
+        )
+        self.assertLessEqual(len(variants), 8)
+        self.assertTrue(
+            any(
+                "vintage forensic investigation equipment" in item.casefold()
+                and "snowfall" in item.casefold()
+                for item in variants
+            ),
+            variants,
+        )
+        self.assertNotIn("snow", variants[1:3])
+
     def test_woodland_metadata_matches_forest_query_relevance(self):
         result = query_relevance(
             "Soviet military checkpoint in winter forest",
