@@ -16,6 +16,26 @@ class ShortAutoBrainIntegrationTests(unittest.TestCase):
         self.assertIn('"script_score":0.14', text)
         self.assertIn('"technical_score":0.15', text)
 
+    def test_brain_enforcement_blocks_human_approval_and_review_decisions(self):
+        from release_gate import brain_enforcement_issues
+
+        self.assertEqual(
+            brain_enforcement_issues(True, "PASS", "PASS", "HUMAN_APPROVAL_REQUIRED"),
+            ["shortauto_brain_approval_required"],
+        )
+        self.assertEqual(
+            brain_enforcement_issues(True, "PASS", "PASS", "HUMAN_REVIEW_REQUIRED"),
+            ["shortauto_brain_approval_required"],
+        )
+        self.assertEqual(
+            brain_enforcement_issues(True, "PASS", "PASS", "AUTO_RELEASE_ALLOWED"),
+            [],
+        )
+        self.assertEqual(
+            brain_enforcement_issues(False, "PASS", "PASS", "HUMAN_APPROVAL_REQUIRED"),
+            [],
+        )
+
     def test_control_center_exposes_brain_operations(self):
         text = (ROOT / "control_center.sh").read_text(encoding="utf-8")
         self.assertIn("SHORTAUTO PRO - CONTROL CENTER 4.0", text)
