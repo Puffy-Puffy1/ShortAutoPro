@@ -31,6 +31,9 @@ on:
       - "tests/test_media_acquisition_v2.py"
       - "tests_sim/test_render_engine_v2_contract.py"
       - "tests_sim/test_render_engine_v2_manifest_e2e.py"
+      - "release_gate.py"
+      - "shortauto_brain.py"
+      - "tests_sim/test_shortauto_brain_integration.py"
   workflow_dispatch:
     inputs:
       topic:
