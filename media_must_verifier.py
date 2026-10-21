@@ -116,6 +116,8 @@ STRICT_VISUAL_ALIASES = {
     # This is a narrow visual equivalence, not acceptance of the search query.
     "canvas tent": ("canvas tent", "canvas tents", "camping tent", "camping tents", "tent", "tents"),
     "snow": ("snow", "snowfall", "snow-covered", "snow covered", "snowy landscape"),
+    # Darkness must be explicitly supported by asset metadata, not inferred from a query.
+    "darkness": ("darkness", "dark", "night", "nighttime", "at night", "low light", "low-light"),
     # Forest catalogs use several equivalent biome and woodland labels.
     # The asset metadata must contain one of these terms; search queries alone never count.
     "forest": (
