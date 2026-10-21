@@ -372,18 +372,7 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
         for term in must_terms:
             if term.casefold() not in {v.casefold() for v in variants}:
                 variants.append(term)
-    # Explicit MUST anchors are part of retrieval recovery. They do not relax
-    # acceptance; they give providers a chance to return assets whose metadata
-    # proves the required visual concept even when the editorial query is noisy.
-    must_terms = [str(item).strip() for item in (must or []) if str(item).strip()]
-    if must_terms:
-        combined = " ".join(must_terms)
-        if combined and combined.casefold() not in {v.casefold() for v in variants}:
-            variants.append(combined)
-        for term in must_terms:
-            if term.casefold() not in {v.casefold() for v in variants}:
-                variants.append(term)
-
+    # Explicit MUST anchors are retrieval fallbacks, never acceptance evidence.
     # Retrieval aliases are query expansion only. Acceptance remains fail-closed
     # because media_must_verifier independently proves the explicit MUST from
     # the returned asset evidence.
@@ -441,7 +430,7 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
             out.append(item)
     max_variants = 8 if any(
         str(item).strip().casefold() in {
-            "security sensor", "ship", "boat", "vessel", "ocean", "sea", "car", "automobile", "vehicle", "canvas tent", "tent", "snow", "train", "torn tent", "topographic map"
+            "security sensor", "ship", "boat", "vessel", "ocean", "sea", "car", "automobile", "vehicle", "canvas tent", "tent", "snow", "train", "torn tent", "topographic map", "forest"
         }
         for item in (must or [])
      ) else 4
