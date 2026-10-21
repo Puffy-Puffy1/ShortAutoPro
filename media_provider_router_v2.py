@@ -407,7 +407,7 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
         if not aliases:
             continue
         if term.casefold() in raw_tokens:
-            pattern = re.compile(rf"\\b{re.escape(term)}\\b", re.IGNORECASE)
+            pattern = re.compile(rf"\b{re.escape(term)}\b", re.IGNORECASE)
             for alias in aliases:
                 contextual = pattern.sub(alias, raw, count=1)
                 if contextual.casefold() not in {v.casefold() for v in variants}:
