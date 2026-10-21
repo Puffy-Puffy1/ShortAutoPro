@@ -167,6 +167,17 @@ class MediaProviderV2Tests(unittest.TestCase):
         self.assertTrue(result["ok"], result)
         self.assertGreaterEqual(result["matched_count"], 2)
 
+    def test_query_relevance_accepts_one_overlap_for_short_scene_prompt(self):
+        from media_provider_router_v2 import query_relevance
+
+        result = query_relevance(
+            "mysterious old ocean voyage atmosphere",
+            {"title": "Ocean liner at sea", "description": "Historic vessel"},
+        )
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["matched_terms"], ["ocean"])
+        self.assertEqual(result["required_terms"], 1)
+
     def test_query_relevance_still_rejects_single_generic_overlap(self):
         from media_provider_router_v2 import query_relevance
 
