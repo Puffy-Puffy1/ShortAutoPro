@@ -404,10 +404,25 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
         "torn tent": ("ripped tent", "damaged tent", "torn canvas tent", "torn tent fabric"),
         "topographic map": ("topographical map", "topographic chart", "topographical chart", "contour map", "terrain contour map", "relief map", "elevation map", "Dyatlov Pass map", "Kholat Syakhl map"),
     }
+    # Prefer contextual alternatives over broad MUST-only searches. For
+    # example, keep "vintage forensic equipment" when expanding "snow" to
+    # "snowfall"; searching only "snow" tends to return generic images that
+    # pass the weather MUST but duplicate other scenes.
+    raw_tokens = raw.casefold().split()
     for term in must_terms:
-        for alias in retrieval_aliases.get(term.casefold(), ()):
-            if alias.casefold() not in {v.casefold() for v in variants}:
-                variants.append(alias)
+        aliases = retrieval_aliases.get(term.casefold(), ())
+        if not aliases:
+            continue
+        if term.casefold() in raw_tokens:
+            pattern = re.compile(rf"\\b{re.escape(term)}\\b", re.IGNORECASE)
+            for alias in aliases:
+                contextual = pattern.sub(alias, raw, count=1)
+                if contextual.casefold() not in {v.casefold() for v in variants}:
+                    variants.append(contextual)
+        else:
+            for alias in aliases:
+                if alias.casefold() not in {v.casefold() for v in variants}:
+                    variants.append(alias)
 
     # Strip punctuation while preserving the original word order.
     normalized = re.sub(r"[^A-Za-z0-9À-ÿ]+", " ", raw).strip()
