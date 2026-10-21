@@ -158,16 +158,16 @@ Módulos legados não devem ser removidos apenas por parecerem duplicados. Prime
 
 ### Correções incrementais em andamento
 
-- **Aprovação do Brain:** o workflow FIRST_VIDEO agora define `SAP_BRAIN_ENFORCE=1` na etapa de produção. Assim, uma decisão `HUMAN_APPROVAL_REQUIRED` deve bloquear a decisão de release sem relaxar o gate de qualidade. A execução CI iniciada após esta mudança ainda precisa confirmar o comportamento real.
-- **Resolução de mídia Wikimedia:** o router agora prefere a miniatura quando ela já tem pelo menos 1280×720 pixels; se a miniatura for menor e o original atingir esse limite, seleciona o original. MUST/AVOID e validação independente continuam obrigatórios. Foram adicionados testes para os dois caminhos e para metadados de resolução ausentes; o CI desta revisão precisa confirmar os testes.
-- **Prova anterior:** a execução #39667362494 continua sendo a prova de geração confirmada para o commit `6888e742ef048d9dfea83593714aed239e50281d`; ela não valida as alterações novas descritas acima.
+- **Aprovação do Brain:** o workflow FIRST_VIDEO define `SAP_BRAIN_ENFORCE=1` na etapa de produção. Uma decisão `HUMAN_APPROVAL_REQUIRED` deve bloquear a liberação quando o pipeline alcançar o release gate; a execução recente falhou antes dessa etapa, portanto esse comportamento ainda não foi confirmado no fluxo completo.
+- **Resolução de mídia Wikimedia:** o router prefere a miniatura se ela tiver pelo menos 1280×720 pixels; se a miniatura for menor e o original atingir esse limite, seleciona o original. MUST/AVOID e validação independente continuam obrigatórios. Foram adicionados testes para os caminhos de seleção.
+- **Falha real da prova mais recente:** a execução #39670163401 não gerou o MP4. A cena 2 teve 22 candidatos Wikimedia rejeitados pelo filtro de relevância, apesar de não ter requisitos MUST. O erro foi `MEDIA_INCOMPLETE:scene_02`. O router foi ajustado para exigir um termo coincidente em queries curtas (até quatro termos relevantes) e dois em queries mais longas; MUST/AVOID continuam como gates separados. A alteração ainda precisa passar no CI.
 
 ### Pendências que continuam abertas
 
-1. **Confirmar no CI:** validar que os testes de seleção de resolução passam e que o gate do Brain bloqueia corretamente sem impedir a coleta do artefato MP4 de diagnóstico.
-2. **Qualidade da cena 1:** confirmar no próximo relatório se o fallback de resolução eliminou o aviso; se o próprio original for pequeno, procurar outra mídia semanticamente validada. Não reduzir limites nem relaxar MUST.
-3. **Consolidação estrutural:** ainda falta auditar imports, entrypoints, outputs e testes antes de remover qualquer módulo legado. Não declarar consolidação total sem essa evidência.
-4. **PR:** manter as alterações na PR #150 até revisão; não mesclar nem alterar `main` como parte desta etapa.
+1. **Confirmar no CI:** validar os testes de resolução e relevância, e confirmar que o gate do Brain bloqueia corretamente quando a execução chega à etapa de release.
+2. **Qualidade da cena 1:** verificar se a seleção de resolução elimina o aviso; se o próprio original for pequeno, procurar outra mídia semanticamente validada. Não reduzir limites nem relaxar MUST.
+3. **Consolidação estrutural:** auditar imports, entrypoints, outputs e testes antes de remover módulos legados. Não declarar consolidação total sem evidência.
+4. **PR:** manter as alterações na PR #150 até revisão; não mesclar nem alterar `main` nesta etapa.
 
 ## 11. Limites desta consolidação
 
