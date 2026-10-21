@@ -128,6 +128,7 @@ jobs:
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SAP_BRAIN_ENFORCE: "1"
           TOPIC: ${{ inputs.topic || 'mistérios históricos e casos inexplicáveis' }}
           SHORT_ID: ${{ inputs.short_id }}
           WHISPER_CLI: ${{ runner.temp }}/whisper.cpp/build/bin/whisper-cli
