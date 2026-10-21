@@ -76,6 +76,8 @@ _QUERY_TOKEN_ALIASES = {
     "investigations": "investigation", "airliners": "airliner",
     "aircrafts": "aircraft", "pages": "page", "forests": "forest",
     "snowy": "snow", "snowing": "snow", "snowfall": "snow",
+    "woodland": "forest", "woodlands": "forest", "woods": "forest",
+    "forested": "forest", "taiga": "forest",
 }
 
 
@@ -405,6 +407,10 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
         "canvas tent": ("tent", "camping tent", "canvas shelter", "tent in snow"),
         "tent": ("canvas tent", "camping tent", "tent in snow", "snow tent"),
         "snow": ("snowfall", "snow-covered", "snowy landscape", "winter camping"),
+        # Wikimedia often indexes forests by biome or woodland terminology.
+        # These variants broaden retrieval only; the returned asset must still
+        # independently prove the forest MUST before it can be accepted.
+        "forest": ("woodland", "woodlands", "woods", "pine forest", "coniferous forest", "boreal forest", "taiga"),
         "train": ("railway train", "railroad train", "locomotive", "railway locomotive", "rail transport", "passenger train"),
         "torn tent": ("ripped tent", "damaged tent", "torn canvas tent", "torn tent fabric"),
         "topographic map": ("topographical map", "topographic chart", "topographical chart", "contour map", "terrain contour map", "relief map", "elevation map", "Dyatlov Pass map", "Kholat Syakhl map"),
