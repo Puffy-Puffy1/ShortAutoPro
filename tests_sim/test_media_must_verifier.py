@@ -71,7 +71,26 @@ class MediaMustVerifierForestTests(unittest.TestCase):
             ),
             variants,
         )
-        self.assertNotIn("snow", variants[1:3])
+        self.assertEqual(variants[0], "vintage forensic investigation equipment in winter snow field")
+        self.assertIn("snow", variants)
+
+    def test_darkness_must_accepts_explicit_night_metadata(self):
+        for evidence in (
+            "dark mountain slope at night",
+            "nighttime landscape in low light",
+        ):
+            self.assertTrue(
+                requirement_matches("darkness", {"description": evidence}),
+                evidence,
+            )
+
+    def test_darkness_must_does_not_accept_unrelated_scene(self):
+        self.assertFalse(
+            requirement_matches(
+                "darkness",
+                {"description": "bright snowy mountain landscape in daylight"},
+            )
+        )
 
     def test_woodland_metadata_matches_forest_query_relevance(self):
         result = query_relevance(
