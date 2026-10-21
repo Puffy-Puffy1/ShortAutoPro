@@ -143,6 +143,26 @@ Módulos legados não devem ser removidos apenas por parecerem duplicados. Prime
 - [ ] A prova real produz um MP4 novo validado por FFprobe.
 - [ ] A branch fica em PR até revisão; não alterar `main` diretamente.
 
-## 10. Limites desta consolidação
+## 10. Estado verificado em 2026-10-21
+
+### Prova real executada
+
+- Execução: [FIRST_VIDEO Live Proof #39667362494](https://github.com/Puffy-Puffy1/ShortAutoPro/actions/runs/39667362494).
+- Commit testado: `6888e742ef048d9dfea83593714aed239e50281d`.
+- Resultado do job: sucesso; renderização real por Remotion e validação FFprobe passaram.
+- Artefato: [first-video-live-evidence](https://github.com/Puffy-Puffy1/ShortAutoPro/actions/runs/39667362494/artifacts/12378332478).
+- Arquivo validado: MP4 1080×1920, 30 FPS, H.264 + AAC, duração aproximada de 43,4 s; vídeo e áudio presentes.
+- Mídia: relatório passou em 12/12 cenas, sem erros.
+- Validação visual: score 97,5/100, zero issues e um warning de baixa resolução em `scene_01_wikimedia.jpg`.
+- Testes de migração, render V2, stress e validação portátil passaram no mesmo commit.
+
+### Pendências que continuam abertas
+
+1. **Aprovação do Brain:** o relatório do Brain retornou `HUMAN_APPROVAL_REQUIRED`, enquanto o release gate calculou `ACCEPTABLE` com score 89,7 e registrou `obtain_shortauto_brain_human_approval`. Isso não prova publicação automática, mas exige revisar a política de integração para que nenhum fluxo de publicação trate uma aprovação humana pendente como autorização.
+2. **Resolução da cena 1:** substituir ou elevar a qualidade da mídia quando existir alternativa validada; não reduzir os limites de qualidade nem relaxar os requisitos MUST para remover o aviso.
+3. **Consolidação estrutural:** a prova de geração confirma o caminho de produção testado, mas não prova que todos os módulos legados foram removidos ou que todos os itens deste contrato estão concluídos.
+4. **PR:** manter as alterações na PR #150 até revisão; não mesclar nem alterar `main` como parte desta etapa.
+
+## 11. Limites desta consolidação
 
 Este documento define o contrato de arquitetura e o caminho de migração; não prova que todos os módulos já estejam conformes. Cada checkbox precisa de teste, inspeção de imports/calls e evidência de execução. A implementação é incremental para evitar uma reescrita ampla que introduza regressões.
