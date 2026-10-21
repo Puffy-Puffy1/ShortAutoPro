@@ -2,7 +2,7 @@ import unittest
 from pathlib import Path
 
 from media_provider_v2 import MediaProviderV2
-from media_provider_router_v2 import _normalize_image_extension, _query_variants
+from media_provider_router_v2 import _normalize_image_extension, _query_variants, _wikimedia_image_url
 
 
 class MediaProviderV2Tests(unittest.TestCase):
@@ -21,6 +21,32 @@ class MediaProviderV2Tests(unittest.TestCase):
             normalized = _normalize_image_extension(webp)
             self.assertEqual(normalized.suffix, ".webp")
             self.assertTrue(normalized.is_file())
+
+    def test_wikimedia_uses_large_thumbnail_when_available(self):
+        info = {
+            "thumburl": "https://example.test/thumb.jpg",
+            "url": "https://example.test/original.jpg",
+            "thumbwidth": 1920,
+            "thumbheight": 1080,
+            "width": 4000,
+            "height": 3000,
+        }
+        self.assertEqual(_wikimedia_image_url(info), info["thumburl"])
+
+    def test_wikimedia_falls_back_to_original_when_thumbnail_is_too_small(self):
+        info = {
+            "thumburl": "https://example.test/thumb.jpg",
+            "url": "https://example.test/original.jpg",
+            "thumbwidth": 640,
+            "thumbheight": 480,
+            "width": 2400,
+            "height": 1600,
+        }
+        self.assertEqual(_wikimedia_image_url(info), info["url"])
+
+    def test_wikimedia_keeps_available_url_when_resolution_is_unknown(self):
+        info = {"thumburl": "https://example.test/thumb.jpg", "url": ""}
+        self.assertEqual(_wikimedia_image_url(info), info["thumburl"])
 
     def test_unknown_download_signature_is_not_relabelled(self):
         with __import__("tempfile").TemporaryDirectory() as tmp:
