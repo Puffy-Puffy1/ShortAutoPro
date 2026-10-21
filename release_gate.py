@@ -47,6 +47,13 @@ def brain_enforcement_issues(enforced: bool, status: str, budget_status: str, de
  return issues
 
 
+def brain_repair_actions(decision: str) -> list[str]:
+    """Explain human approval requirements without changing the release decision."""
+    if decision.upper() in {"HUMAN_APPROVAL_REQUIRED", "HUMAN_REVIEW_REQUIRED"}:
+        return ["obtain_shortauto_brain_human_approval"]
+    return []
+
+
 def brain_snapshot()->dict[str,Any]:
  try:
   import shortauto_brain as brain
@@ -120,6 +127,7 @@ def main()->int:
  if components["audio_score"]<90:actions.append("remaster_audio")
  if components["subtitle_score"]<85:actions.append("repair_caption_layout")
  if str(brain_budget.get("status","")).upper()=="BLOCK":actions.append("review_shortauto_brain_quality_budget")
+ actions.extend(brain_repair_actions(str(brain_quality.get("decision",""))))
  if str(intelligence_conf.get("decision","")).upper()=="REPAIR":actions.append("review_intelligence_explainable_qa")
  input_identity={"production_manifest_sha256":file_sha(PRODUCTION_MANIFEST),"final_quality_sha256":file_sha(FINAL_QUALITY)}
  if not input_identity["production_manifest_sha256"]:critical.append("production_manifest_identity_missing")
