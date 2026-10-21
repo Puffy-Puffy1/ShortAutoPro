@@ -403,13 +403,12 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
         else:
             candidates.append(term_aliases[0])
 
-    # Keep at least one compact alias query for catalogs using alternate labels.
+    # Preserve each explicit anchor as a standalone retrieval option.
+    candidates.extend(must_terms)
+
+    # Include bounded alias fallbacks for catalogs using alternate labels.
     for term in must_terms:
-        term_aliases = aliases.get(term.casefold(), ())
-        if len(term_aliases) > 1:
-            candidates.append(term_aliases[1])
-        elif term_aliases:
-            candidates.append(term_aliases[0])
+        candidates.extend(aliases.get(term.casefold(), ()))
 
     if len(words) > 4:
         candidates.append(" ".join(words[:4]))
