@@ -365,13 +365,6 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
         return []
     variants = [raw]
     must_terms = [str(item).strip() for item in (must or []) if str(item).strip()]
-    if must_terms:
-        combined = " ".join(must_terms)
-        if combined and combined.casefold() not in {v.casefold() for v in variants}:
-            variants.append(combined)
-        for term in must_terms:
-            if term.casefold() not in {v.casefold() for v in variants}:
-                variants.append(term)
     # Explicit MUST anchors are retrieval fallbacks, never acceptance evidence.
     # Retrieval aliases are query expansion only. Acceptance remains fail-closed
     # because media_must_verifier independently proves the explicit MUST from
@@ -435,6 +428,16 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
         variants.append(" ".join(words[:4]))
     if len(words) > 2:
         variants.append(" ".join(words[:2]))
+    # Broad MUST-only queries come last so they cannot crowd out contextual
+    # variants when the provider request budget is capped.
+    if must_terms:
+        combined = " ".join(must_terms)
+        if combined and combined.casefold() not in {v.casefold() for v in variants}:
+            variants.append(combined)
+        for term in must_terms:
+            if term.casefold() not in {v.casefold() for v in variants}:
+                variants.append(term)
+
     # Deduplicate case-insensitively and cap network amplification.
     out = []
     seen = set()
