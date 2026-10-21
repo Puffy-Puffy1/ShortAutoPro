@@ -63,6 +63,21 @@ class MediaProviderV2Tests(unittest.TestCase):
         )
 
 
+    def test_darkness_alias_preserves_scene_context(self):
+        variants = _query_variants(
+            "dark snowy mountain slope at night winter storm",
+            ["darkness"],
+        )
+        self.assertLessEqual(len(variants), 8)
+        self.assertTrue(
+            any(
+                "snowy mountain slope" in item.casefold()
+                and "nighttime" in item.casefold()
+                for item in variants
+            ),
+            variants,
+        )
+
     def test_car_must_uses_bounded_vehicle_retrieval_aliases(self):
         variants = _query_variants(
             "archival photograph of a car on a city street",
