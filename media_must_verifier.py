@@ -116,6 +116,12 @@ STRICT_VISUAL_ALIASES = {
     # This is a narrow visual equivalence, not acceptance of the search query.
     "canvas tent": ("canvas tent", "canvas tents", "camping tent", "camping tents", "tent", "tents"),
     "snow": ("snow", "snowfall", "snow-covered", "snow covered", "snowy landscape"),
+    # Forest catalogs use several equivalent biome and woodland labels.
+    # The asset metadata must contain one of these terms; search queries alone never count.
+    "forest": (
+        "forest", "forests", "woodland", "woodlands", "woods", "pine forest",
+        "coniferous forest", "boreal forest", "taiga", "forested area",
+    ),
     # Vehicle/terrain wording varies widely across historical photo catalogs.
     # These aliases still require each concept to appear in the asset's own
     # descriptive metadata; they never use the search query as evidence.
