@@ -156,11 +156,17 @@ Módulos legados não devem ser removidos apenas por parecerem duplicados. Prime
 - Validação visual: score 97,5/100, zero issues e um warning de baixa resolução em `scene_01_wikimedia.jpg`.
 - Testes de migração, render V2, stress e validação portátil passaram no mesmo commit.
 
+### Correções incrementais em andamento
+
+- **Aprovação do Brain:** o workflow FIRST_VIDEO agora define `SAP_BRAIN_ENFORCE=1` na etapa de produção. Assim, uma decisão `HUMAN_APPROVAL_REQUIRED` deve bloquear a decisão de release sem relaxar o gate de qualidade. A execução CI iniciada após esta mudança ainda precisa confirmar o comportamento real.
+- **Resolução de mídia Wikimedia:** o router agora prefere a miniatura quando ela já tem pelo menos 1280×720 pixels; se a miniatura for menor e o original atingir esse limite, seleciona o original. MUST/AVOID e validação independente continuam obrigatórios. Foram adicionados testes para os dois caminhos e para metadados de resolução ausentes; o CI desta revisão precisa confirmar os testes.
+- **Prova anterior:** a execução #39667362494 continua sendo a prova de geração confirmada para o commit `6888e742ef048d9dfea83593714aed239e50281d`; ela não valida as alterações novas descritas acima.
+
 ### Pendências que continuam abertas
 
-1. **Aprovação do Brain:** o relatório do Brain retornou `HUMAN_APPROVAL_REQUIRED`, enquanto o release gate calculou `ACCEPTABLE` com score 89,7 e registrou `obtain_shortauto_brain_human_approval`. Isso não prova publicação automática, mas exige revisar a política de integração para que nenhum fluxo de publicação trate uma aprovação humana pendente como autorização.
-2. **Resolução da cena 1:** substituir ou elevar a qualidade da mídia quando existir alternativa validada; não reduzir os limites de qualidade nem relaxar os requisitos MUST para remover o aviso.
-3. **Consolidação estrutural:** a prova de geração confirma o caminho de produção testado, mas não prova que todos os módulos legados foram removidos ou que todos os itens deste contrato estão concluídos.
+1. **Confirmar no CI:** validar que os testes de seleção de resolução passam e que o gate do Brain bloqueia corretamente sem impedir a coleta do artefato MP4 de diagnóstico.
+2. **Qualidade da cena 1:** confirmar no próximo relatório se o fallback de resolução eliminou o aviso; se o próprio original for pequeno, procurar outra mídia semanticamente validada. Não reduzir limites nem relaxar MUST.
+3. **Consolidação estrutural:** ainda falta auditar imports, entrypoints, outputs e testes antes de remover qualquer módulo legado. Não declarar consolidação total sem essa evidência.
 4. **PR:** manter as alterações na PR #150 até revisão; não mesclar nem alterar `main` como parte desta etapa.
 
 ## 11. Limites desta consolidação
