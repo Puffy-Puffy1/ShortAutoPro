@@ -428,13 +428,16 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
         variants.append(" ".join(words[:4]))
     if len(words) > 2:
         variants.append(" ".join(words[:2]))
-    # Broad MUST-only queries come last so they cannot crowd out contextual
-    # variants when the provider request budget is capped.
+    # Keep the combined MUST query available for multi-anchor scenes, but
+    # place it after contextual variants so the cap preserves scene meaning.
     if must_terms:
         combined = " ".join(must_terms)
         if combined and combined.casefold() not in {v.casefold() for v in variants}:
             variants.append(combined)
-        for term in must_terms:
+        # A single anchor is already represented in contextual variants when
+        # present in the original query. Add the bare term only as a last resort.
+        if len(must_terms) == 1:
+            term = must_terms[0]
             if term.casefold() not in {v.casefold() for v in variants}:
                 variants.append(term)
 
