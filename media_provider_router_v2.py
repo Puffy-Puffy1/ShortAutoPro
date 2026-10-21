@@ -353,110 +353,84 @@ class LocalLibraryProvider(Provider):
             return []
 
 def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
-    """Return bounded, deterministic fallbacks for providers that return no hits.
+    """Build a small, deterministic set of retrieval fallbacks.
 
-    The fallback only changes the provider search query. It never relaxes MUST
-    or AVOID verification; MediaProviderV2.prepare() remains the semantic gate.
-    This prevents a single overly-specific/empty provider query from becoming
-    an immediate scene-level providers_empty failure.
+    Query expansion only changes provider search terms. MUST and AVOID checks
+    remain strict and are enforced separately before an asset can be accepted.
     """
     raw = " ".join(str(query or "").split()).strip()
     if not raw:
         return []
-    variants = [raw]
+
     must_terms = [str(item).strip() for item in (must or []) if str(item).strip()]
-    # Explicit MUST anchors are retrieval fallbacks, never acceptance evidence.
-    # Retrieval aliases are query expansion only. Acceptance remains fail-closed
-    # because media_must_verifier independently proves the explicit MUST from
-    # the returned asset evidence.
-    retrieval_aliases = {
+    normalized = re.sub(r"[^A-Za-z0-9À-ÿ]+", " ", raw).strip()
+    words = normalized.split()
+    aliases = {
         "security sensor": ("motion sensor", "alarm sensor", "door sensor"),
-        # Commons often indexes maritime images under "vessel", "boat", or
-        # "watercraft" rather than the exact editorial MUST word "ship".
-        # These are retrieval-only variants; the asset's own metadata must
-        # still prove the MUST through media_must_verifier before acceptance.
         "ship": ("vessel", "boat", "watercraft"),
         "boat": ("ship", "vessel", "watercraft"),
         "vessel": ("ship", "boat", "watercraft"),
         "ocean": ("sea", "open water"),
         "sea": ("ocean", "open water"),
-        # Public catalogs often index cars as automobiles or road vehicles.
-        # Retrieval only: explicit MUST acceptance still uses asset metadata.
-        "car": ("automobile", "automobiles", "motorcar", "motor vehicle", "road vehicle", "cars"),
-        "automobile": ("car", "cars", "motorcar", "motor vehicle", "road vehicle"),
+        "car": ("automobile", "motor vehicle", "road vehicle", "cars"),
+        "automobile": ("car", "motor vehicle", "road vehicle"),
         "vehicle": ("car", "automobile", "motor vehicle", "road vehicle"),
-        # Query expansion only: catalogs may index the visible shelter without its fabric.
         "canvas tent": ("tent", "camping tent", "canvas shelter", "tent in snow"),
         "tent": ("canvas tent", "camping tent", "tent in snow", "snow tent"),
         "snow": ("snowfall", "snow-covered", "snowy landscape", "winter camping"),
-        # Wikimedia often indexes forests by biome or woodland terminology.
-        # These variants broaden retrieval only; the returned asset must still
-        # independently prove the forest MUST before it can be accepted.
-        "forest": ("woodland", "woodlands", "woods", "pine forest", "coniferous forest", "boreal forest", "taiga"),
-        "train": ("railway train", "railroad train", "locomotive", "railway locomotive", "rail transport", "passenger train"),
-        "torn tent": ("ripped tent", "damaged tent", "torn canvas tent", "torn tent fabric"),
-        "topographic map": ("topographical map", "topographic chart", "topographical chart", "contour map", "terrain contour map", "relief map", "elevation map", "Dyatlov Pass map", "Kholat Syakhl map"),
+        "forest": ("woodland", "woodlands", "woods", "pine forest", "coniferous forest", "taiga"),
+        "train": ("railway train", "locomotive", "rail transport", "passenger train"),
+        "torn tent": ("ripped tent", "damaged tent", "torn canvas tent"),
+        "topographic map": ("topographical map", "contour map", "relief map", "elevation map"),
     }
-    # Prefer contextual alternatives over broad MUST-only searches. For
-    # example, keep "vintage forensic equipment" when expanding "snow" to
-    # "snowfall"; searching only "snow" tends to return generic images that
-    # pass the weather MUST but duplicate other scenes.
-    raw_tokens = raw.casefold().split()
-    for term in must_terms:
-        aliases = retrieval_aliases.get(term.casefold(), ())
-        if not aliases:
-            continue
-        if term.casefold() in raw_tokens:
-            pattern = re.compile(rf"\b{re.escape(term)}\b", re.IGNORECASE)
-            for alias in aliases:
-                contextual = pattern.sub(alias, raw, count=1)
-                if contextual.casefold() not in {v.casefold() for v in variants}:
-                    variants.append(contextual)
-        else:
-            for alias in aliases:
-                if alias.casefold() not in {v.casefold() for v in variants}:
-                    variants.append(alias)
 
-    # Strip punctuation while preserving the original word order.
-    normalized = re.sub(r"[^A-Za-z0-9À-ÿ]+", " ", raw).strip()
-    if normalized and normalized.casefold() not in {v.casefold() for v in variants}:
-        variants.append(normalized)
-    words = normalized.split()
-    # Provider APIs can fail on long natural-language queries. Try the most
-    # informative bounded prefixes, then a compact two-term query.
-    if len(words) > 4:
-        variants.append(" ".join(words[:4]))
-    if len(words) > 2:
-        variants.append(" ".join(words[:2]))
-    # Keep the combined MUST query available for multi-anchor scenes, but
-    # place it after contextual variants so the cap preserves scene meaning.
+    candidates = [raw]
+    if normalized and normalized.casefold() != raw.casefold():
+        candidates.append(normalized)
+
+    # Keep the combined editorial anchors early for multi-anchor scenes.
     if must_terms:
-        combined = " ".join(must_terms)
-        if combined and combined.casefold() not in {v.casefold() for v in variants}:
-            variants.append(combined)
-        # A single anchor is already represented in contextual variants when
-        # present in the original query. Add the bare term only as a last resort.
-        if len(must_terms) == 1:
-            term = must_terms[0]
-            if term.casefold() not in {v.casefold() for v in variants}:
-                variants.append(term)
+        candidates.append(" ".join(must_terms))
 
-    # Deduplicate case-insensitively and cap network amplification.
-    out = []
+    # Add a limited number of context-preserving variants before broad aliases.
+    for term in must_terms:
+        term_aliases = aliases.get(term.casefold(), ())
+        if not term_aliases:
+            continue
+        pattern = re.compile(rf"\b{re.escape(term)}\b", re.IGNORECASE)
+        if pattern.search(raw):
+            candidates.append(pattern.sub(term_aliases[0], raw, count=1))
+        else:
+            candidates.append(term_aliases[0])
+
+    # Keep at least one compact alias query for catalogs using alternate labels.
+    for term in must_terms:
+        term_aliases = aliases.get(term.casefold(), ())
+        if len(term_aliases) > 1:
+            candidates.append(term_aliases[1])
+        elif term_aliases:
+            candidates.append(term_aliases[0])
+
+    if len(words) > 4:
+        candidates.append(" ".join(words[:4]))
+    if len(words) > 2:
+        candidates.append(" ".join(words[:2]))
+    if len(must_terms) == 1:
+        candidates.append(must_terms[0])
+
+    # Deduplicate once, preserving priority and limiting provider requests.
+    result = []
     seen = set()
-    for item in variants:
+    max_variants = 8 if any(term.casefold() in aliases for term in must_terms) else 4
+    for candidate in candidates:
+        item = " ".join(str(candidate or "").split()).strip()
         key = item.casefold()
-        if key and key not in seen:
+        if item and key not in seen:
             seen.add(key)
-            out.append(item)
-    max_variants = 8 if any(
-        str(item).strip().casefold() in {
-            "security sensor", "ship", "boat", "vessel", "ocean", "sea", "car", "automobile", "vehicle", "canvas tent", "tent", "snow", "train", "torn tent", "topographic map", "forest"
-        }
-        for item in (must or [])
-     ) else 4
-    return out[:max_variants]
-
+            result.append(item)
+            if len(result) == max_variants:
+                break
+    return result
 
 class MediaProviderRouterV2:
     def __init__(self, providers=None):
