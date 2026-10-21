@@ -107,11 +107,10 @@ def query_relevance(query: str, candidate: dict[str, Any]) -> dict[str, Any]:
     query_terms = _meaningful_query_tokens(query)
     asset_terms = _meaningful_query_tokens(_candidate_relevance_text(candidate))
     matched = sorted(query_terms & asset_terms)
-    # Search queries often include setting, location, weather, and narrative context.
-    # Requiring 60% of every token rejects valid assets whose title names only the
-    # central subject. Require two meaningful metadata overlaps for longer queries;
-    # retain one for short queries. MUST/AVOID verification remains a separate gate.
-    required = min(2, len(query_terms)) if query_terms else 1
+    # Short scene prompts often contain several contextual words but describe
+    # one clear subject. One metadata overlap is enough for these prompts;
+    # longer queries still need two independent overlaps. MUST/AVOID stays separate.
+    required = 1 if 0 < len(query_terms) <= 4 else 2
     ratio = len(matched) / len(query_terms) if query_terms else 0.0
     return {
         "ok": bool(query_terms) and len(matched) >= required,
