@@ -243,6 +243,23 @@ class CoverrProvider(Provider):
         except Exception as exc: note_exception(self.name,exc)
         return out
 
+def _wikimedia_image_url(info: dict[str, Any]) -> str:
+    """Prefer a sufficiently large thumbnail, falling back to the original when needed."""
+    thumbnail = str(info.get("thumburl") or "").strip()
+    original = str(info.get("url") or "").strip()
+    thumb_width = int(info.get("thumbwidth") or 0)
+    thumb_height = int(info.get("thumbheight") or 0)
+    original_width = int(info.get("width") or 0)
+    original_height = int(info.get("height") or 0)
+    min_pixels = 1280 * 720
+
+    if thumbnail and thumb_width * thumb_height >= min_pixels:
+        return thumbnail
+    if original and original_width * original_height >= min_pixels:
+        return original
+    return thumbnail or original
+
+
 class WikimediaProvider(Provider):
     name="wikimedia"
     def search(self, query, must, avoid):
@@ -303,7 +320,7 @@ class WikimediaProvider(Provider):
             pages=(r.json().get("query") or {}).get("pages") or {}
             for item in pages.values():
                 info=(item.get("imageinfo") or [{}])[0]
-                url=info.get("thumburl") or info.get("url")
+                url=_wikimedia_image_url(info)
                 mime=str(info.get("mime") or "")
                 if not url or not mime.startswith("image/"): continue
                 title=str(item.get("title") or "")
