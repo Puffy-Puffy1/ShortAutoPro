@@ -401,6 +401,20 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
         pattern = re.compile(rf"\b{re.escape(term)}\b", re.IGNORECASE)
         if pattern.search(raw):
             candidates.append(pattern.sub(term_aliases[0], raw, count=1))
+            continue
+
+        # Match an explicit synonym already present in the scene query so the
+        # fallback keeps its subject and setting instead of becoming one word.
+        synonym_pattern = next(
+            (
+                re.compile(rf"\b{re.escape(alias)}\b", re.IGNORECASE)
+                for alias in term_aliases
+                if re.search(rf"\b{re.escape(alias)}\b", raw, re.IGNORECASE)
+            ),
+            None,
+        )
+        if synonym_pattern:
+            candidates.append(synonym_pattern.sub(term_aliases[0], raw, count=1))
         else:
             candidates.append(term_aliases[0])
 
