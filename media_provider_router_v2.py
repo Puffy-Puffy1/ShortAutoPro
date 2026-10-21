@@ -378,7 +378,7 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
         "canvas tent": ("tent", "camping tent", "canvas shelter", "tent in snow"),
         "tent": ("canvas tent", "camping tent", "tent in snow", "snow tent"),
         "snow": ("snowfall", "snow-covered", "snowy landscape", "winter camping"),
-        "darkness": ("night", "nighttime", "at night", "low-light", "dark"),
+        "darkness": ("nighttime", "dark", "darkness", "at night", "low-light", "night"),
         "forest": ("woodland", "woodlands", "woods", "pine forest", "coniferous forest", "taiga"),
         "train": ("railway train", "locomotive", "rail transport", "passenger train"),
         "torn tent": ("ripped tent", "damaged tent", "torn canvas tent"),
