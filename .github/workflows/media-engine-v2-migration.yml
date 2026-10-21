@@ -6,6 +6,10 @@ on:
     branches: [main]
     paths:
       - "media_engine_v2.py"
+      - "media_provider_v2.py"
+      - "media_provider_router_v2.py"
+      - "media_validator_v2.py"
+      - "media_must_verifier.py"
       - "render_plan_v2.py"
       - "render_engine_v2.py"
       - "main.py"
