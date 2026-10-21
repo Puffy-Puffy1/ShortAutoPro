@@ -36,6 +36,19 @@ class ShortAutoBrainIntegrationTests(unittest.TestCase):
             [],
         )
 
+    def test_brain_human_approval_is_reported_as_repair_action(self):
+        from release_gate import brain_repair_actions
+
+        self.assertEqual(
+            brain_repair_actions("HUMAN_APPROVAL_REQUIRED"),
+            ["obtain_shortauto_brain_human_approval"],
+        )
+        self.assertEqual(
+            brain_repair_actions("HUMAN_REVIEW_REQUIRED"),
+            ["obtain_shortauto_brain_human_approval"],
+        )
+        self.assertEqual(brain_repair_actions("AUTO_RELEASE_ALLOWED"), [])
+
     def test_control_center_exposes_brain_operations(self):
         text = (ROOT / "control_center.sh").read_text(encoding="utf-8")
         self.assertIn("SHORTAUTO PRO - CONTROL CENTER 4.0", text)
