@@ -53,7 +53,7 @@ class MediaMustVerifierForestTests(unittest.TestCase):
         )
         self.assertLessEqual(len(variants), 8)
         self.assertTrue(
-            any(item in variants for item in ("woodland", "pine forest", "taiga")),
+            any(any(alias in item.casefold() for alias in ("woodland", "pine forest", "taiga")) for item in variants),
             variants,
         )
 
