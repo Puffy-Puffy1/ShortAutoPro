@@ -37,6 +37,17 @@ def _resolution_issue(probe: dict[str, Any]) -> str | None:
         return f"LOW_RESOLUTION:{width}x{height}"
     return None
 
+def _relaxed_relevance_acceptable(candidate: dict[str, Any]) -> bool:
+    """Allow one query anchor only in fallback, after MUST is independently verified."""
+    relevance = candidate.get("query_relevance")
+    if not isinstance(relevance, dict) or relevance.get("ok") is True:
+        return True
+    try:
+        return int(relevance.get("matched_count", 0) or 0) >= 1
+    except (TypeError, ValueError):
+        return False
+
+
 def _asset_name_is_forbidden(path: Path) -> bool:
     name = path.name.casefold()
     return any(token in name for token in ("slate", "placeholder", "neutral_editorial", "editorial_reuse"))
@@ -347,10 +358,9 @@ def acquire_scene(
         verified_relaxed = []
         if verifier is not None:
             for candidate in relaxed:
-                relevance = candidate.get("query_relevance")
-                if isinstance(relevance, dict) and relevance.get("ok") is not True:
-                    relaxed_query_relevance_rejected += 1
-                    continue
+                # Verify the explicit MUST first. A fallback candidate with
+                # complete semantic proof may pass on one contextual query
+                # anchor; the primary search still uses the normal threshold.
                 evidence = verifier(candidate, {"must_have": must})
                 missing = evidence.get("missing", [])
                 relaxed_evidence_diagnostics.append(
@@ -359,6 +369,11 @@ def acquire_scene(
                     f"{int(evidence.get('hits', 0) or 0)}/{len(must)}:"
                     f"missing={','.join(map(str, missing)) or '-'}"
                 )
+                if int(evidence.get("hits", 0) or 0) != len(must) or not must:
+                    continue
+                if not _relaxed_relevance_acceptable(candidate):
+                    relaxed_query_relevance_rejected += 1
+                    continue
                 if (
                     int(evidence.get("hits", 0) or 0) == len(must)
                     and len(must) > 0
