@@ -33,6 +33,9 @@ on:
       - "tests_sim/test_render_engine_v2_manifest_e2e.py"
       - "release_gate.py"
       - "shortauto_brain.py"
+      - "shortauto_intelligence_layer.py"
+      - "tests_sim/test_shortauto_intelligence_layer.py"
+      - "tests_sim/test_media_must_verifier.py"
       - "tests_sim/test_shortauto_brain_integration.py"
   workflow_dispatch:
     inputs:
@@ -196,6 +199,7 @@ jobs:
             videos/short_v6_*.mp4
             videos/short_*.ass
             reports/first_video/*.json
+            reports/intelligence/*.json
             reports/media/*.json
             reports/evolution/visual_qa_*.json
             manifests/scene_map_*.json

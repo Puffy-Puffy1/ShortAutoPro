@@ -734,6 +734,12 @@ def pre_phase(sid: str) -> dict[str, Any]:
         "status":"PASS" if locked["coverage"]>=80 else "REVIEW",
     }
     atomic(REPORTS / f"pre_{sid}.json",payload)
+    unsupported = [
+        {"sentence": row["script_sentence"], "support": row["support"], "text": row["text"][:120]}
+        for row in locked["sentences"] if not row["locked"]
+    ]
+    if unsupported:
+        print("INTELLIGENCE_CLAIM_LOCK_UNSUPPORTED=" + json.dumps(unsupported, ensure_ascii=False))
     print(f"INTELLIGENCE_PRE={payload['status']} claims={len(claims)} coverage={locked['coverage']} story={story['score']}")
     return payload
 

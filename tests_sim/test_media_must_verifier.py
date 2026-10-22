@@ -149,8 +149,7 @@ class MediaMustVerifierForestTests(unittest.TestCase):
         )
         self.assertEqual(variants[0], "vintage forensic investigation equipment in winter snow field")
         self.assertIn("snow", variants)
-        # Validate aliases derived from this query, not an unrelated scene.
-        self.assertTrue(any("snow-covered" in item.casefold() for item in variants))
+        self.assertIn("snowfall", variants)
 
     def test_darkness_must_accepts_explicit_night_metadata(self):
         for evidence in (

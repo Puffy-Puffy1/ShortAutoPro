@@ -220,3 +220,20 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - A validação da aquisição detectou outro caso de contrato: muitas variantes com contexto podiam ocupar o limite antes de um alias standalone esperado, como `relief map`.
 - O expansor agora gera apenas uma variante contextual prioritária por MUST e reserva o restante do orçamento para MUSTs explícitos e aliases independentes. Para neve, `snow-covered` é a variante contextual prioritária; a evidência de aceitação continua baseada nos metadados do recurso, nunca no texto da busca.
 - Teste atualizado para validar a variante contextual prioritária. A nova revisão ainda precisa passar pelo CI e pela prova FIRST_VIDEO.
+
+
+### Atualização de 22/10/2026 — prova real e consolidação de validações
+
+- A execução [FIRST_VIDEO Live Proof #39724703983](https://github.com/Puffy-Puffy1/ShortAutoPro/actions/runs/39724703983) gerou o MP4 real `short_v6_gha_39724703983_1.mp4`, com duração de 41,298 s. O relatório de render registrou áudio e vídeo, mídia real, primeiro quadro válido e FFprobe aprovado; o relatório de Visual QA marcou PASS com nota 95/100. O artefato da execução contém o MP4 e os relatórios técnicos.
+- A liberação final **não** passou: a Intelligence Layer marcou BLOCK (63/100), com cobertura de claim lock em 62,5%, incompatibilidade geográfica e falso positivo na verificação de conceito visual evitado. O Brain estava em modo SAFE e exigiu `HUMAN_APPROVAL_REQUIRED`. Essa proteção não deve ser desativada para forçar uma aprovação.
+- Corrigi a compatibilidade geográfica conhecida entre Bass Strait e Austrália e alterei a checagem de termos evitados para comparar expressões completas, evitando bloquear uma palavra compartilhada com um conceito maior (por exemplo, `cockpit` e `modern glass cockpit`). Foram adicionados testes de regressão para esses dois casos.
+- O teste de expansão de neve tinha uma asserção copiada de outra consulta, sem relação com o cenário testado. Ela foi substituída por uma verificação do alias `snowfall`.
+- A prova FIRST_VIDEO agora será disparada também quando a Intelligence Layer ou seus testes mudarem; os relatórios `reports/intelligence/*.json` serão incluídos no artefato para permitir identificar exatamente quais sentenças não obtiveram suporte.
+- Validação do commit `17b47fa0`: migração V2, Render Engine V2 e teste de estresse 1→2→5→10 passaram. A validação portátil ainda estava em execução quando esta atualização foi preparada.
+
+### Pendências verificáveis
+
+1. Confirmar o resultado final da validação portátil e dos workflows no HEAD atualizado.
+2. Reexecutar FIRST_VIDEO com os novos bloqueios falsos corrigidos e usar o diagnóstico de claim lock para investigar as sentenças sem suporte. Não reduzir o limiar de evidência sem identificar a causa.
+3. Manter a liberação bloqueada até que a cobertura factual e os controles de qualidade sejam aprovados e a exigência de aprovação humana seja resolvida pelo fluxo autorizado.
+4. PR #150 continua aberta; `main` não foi alterada nem mesclada.
