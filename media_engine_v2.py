@@ -326,8 +326,12 @@ def acquire_scene(
     relaxed_query_relevance_rejected = 0
     relaxed_evidence_diagnostics = []
     if not strict and must:
+        # Keep explicit MUST terms in the fallback search query so discovery
+        # can find matching assets. They are still independently verified below;
+        # search text is never accepted as evidence.
+        relaxed_query = " ".join([query, *must]).strip()
         relaxed = PROVIDER.search(
-            query,
+            relaxed_query,
             [],
             avoid,
             segmento=segment,
