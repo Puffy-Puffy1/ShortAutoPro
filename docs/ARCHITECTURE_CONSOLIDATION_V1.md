@@ -160,14 +160,18 @@ Módulos legados não devem ser removidos apenas por parecerem duplicados. Prime
 
 - **Aprovação do Brain:** o workflow FIRST_VIDEO define `SAP_BRAIN_ENFORCE=1` na etapa de produção. Uma decisão `HUMAN_APPROVAL_REQUIRED` deve bloquear a liberação quando o pipeline alcançar o release gate; a execução recente falhou antes dessa etapa, portanto esse comportamento ainda não foi confirmado no fluxo completo.
 - **Resolução de mídia Wikimedia:** o router prefere a miniatura se ela tiver pelo menos 1280×720 pixels; se a miniatura for menor e o original atingir esse limite, seleciona o original. MUST/AVOID e validação independente continuam obrigatórios. Foram adicionados testes para os caminhos de seleção.
-- **Falha real da prova mais recente:** a execução #39670163401 não gerou o MP4. A cena 2 teve 22 candidatos Wikimedia rejeitados pelo filtro de relevância, apesar de não ter requisitos MUST. O erro foi `MEDIA_INCOMPLETE:scene_02`. O router foi ajustado para exigir um termo coincidente em queries curtas (até quatro termos relevantes) e dois em queries mais longas; MUST/AVOID continuam como gates separados. A alteração ainda precisa passar no CI.
+- **Falha real da prova #39670163401:** não gerou MP4; a cena 2 teve 22 candidatos Wikimedia rejeitados por relevância apesar de não ter MUST. Foi ajustado o limite para queries curtas; a correção, isoladamente, não resolveu todas as cenas.
+- **Falhas reais das provas #39671726198 e #39671720102:** ambas pararam no Media Engine, antes de áudio/render/FFprobe. A primeira falhou na cena 4 (`must=elevator`) e a segunda na cena 3 (`must=interior`): havia candidatos de busca, mas nenhum comprovou o MUST nos metadados aceitos. Isso é uma falha de descoberta/adequação da intenção visual, não evidência para enfraquecer o verificador.
+- **Correção incremental atual:** a busca alternativa agora inclui os MUST no texto usado para descobrir candidatos, sem passar MUST ao filtro permissivo e sem aceitar o texto da busca como prova. O verificador independente continua obrigatório. Foi acrescentada uma asserção de regressão para confirmar que a segunda busca recebe a query com o MUST. Commit da correção: `175397a4f2289359e55c7bc5860cdd7d1cbfa2cf`; teste: `ecf04129c5c6f51b3a85539b656d6b79336bce68`. O CI dos novos commits ainda precisa confirmar o resultado.
+- **Validação estrutural já observada:** Portable Validation, Media Engine V2 Migration, Render Engine V2 (contrato e smoke) e Render Engine V2 Stress passaram no commit `b664691`. Isso valida contratos e testes automatizados desses workflows, mas não prova que a produção real chegou ao MP4.
 
 ### Pendências que continuam abertas
 
-1. **Confirmar no CI:** validar os testes de resolução e relevância, e confirmar que o gate do Brain bloqueia corretamente quando a execução chega à etapa de release.
-2. **Qualidade da cena 1:** verificar se a seleção de resolução elimina o aviso; se o próprio original for pequeno, procurar outra mídia semanticamente validada. Não reduzir limites nem relaxar MUST.
-3. **Consolidação estrutural:** auditar imports, entrypoints, outputs e testes antes de remover módulos legados. Não declarar consolidação total sem evidência.
-4. **PR:** manter as alterações na PR #150 até revisão; não mesclar nem alterar `main` nesta etapa.
+1. **Confirmar no CI:** executar os testes de falha de mídia e observar nova FIRST_VIDEO após a busca alternativa com MUST; só considerar sucesso após MP4 novo e FFprobe aprovados.
+2. **Gate do Brain:** confirmar que `SAP_BRAIN_ENFORCE=1` bloqueia a liberação quando a execução chega ao release gate; as falhas atuais ocorreram antes dessa etapa.
+3. **Qualidade da cena 1:** verificar se a seleção de resolução elimina o aviso; se o próprio original for pequeno, procurar outra mídia semanticamente validada. Não reduzir limites nem relaxar MUST.
+4. **Consolidação estrutural:** continuar inventariando imports, entrypoints, outputs e testes antes de remover módulos legados. Não declarar consolidação total sem evidência.
+5. **PR:** manter as alterações na PR #150 até revisão; não mesclar nem alterar `main` nesta etapa.
 
 ## 11. Limites desta consolidação
 
