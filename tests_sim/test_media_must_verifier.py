@@ -25,6 +25,27 @@ class MediaMustVerifierSecuritySensorTests(unittest.TestCase):
         )
 
 
+class MediaMustVerifierCanvasRingTests(unittest.TestCase):
+    def test_canvas_ring_must_accept_wrestling_ring_metadata(self):
+        for evidence in (
+            "professional wrestler in a wrestling ring",
+            "boxing ring with two athletes",
+            "professional wrestling ring during a match",
+        ):
+            self.assertTrue(
+                requirement_matches("canvas ring", {"description": evidence}),
+                evidence,
+            )
+
+    def test_canvas_ring_must_reject_generic_wrestler_without_ring_evidence(self):
+        self.assertFalse(
+            requirement_matches(
+                "canvas ring",
+                {"description": "professional wrestler portrait backstage"},
+            )
+        )
+
+
 class MediaMustVerifierInteriorTests(unittest.TestCase):
     def test_interior_must_accepts_explicit_indoor_space_metadata(self):
         for evidence in (
