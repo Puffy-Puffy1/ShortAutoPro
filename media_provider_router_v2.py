@@ -446,6 +446,19 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
         # aliases for the dedicated fallback list below. This reserves room
         # for every explicit MUST anchor in the bounded query set.
 
+    # Pilot archives often title the person separately from cockpit/radio
+    # equipment. These searches improve discovery only; query relevance and
+    # independent MUST verification still decide whether an asset is valid.
+    if (
+        "pilot" in {term.casefold() for term in must_terms}
+        and re.search(r"\b(?:cockpit|headset|radio)\b", raw, re.IGNORECASE)
+    ):
+        candidates.extend((
+            "pilot in cockpit headset",
+            "aircraft cockpit pilot",
+            "pilot radio headset",
+        ))
+
     # Preserve each explicit anchor as a standalone retrieval option.
     candidates.extend(must_terms)
 

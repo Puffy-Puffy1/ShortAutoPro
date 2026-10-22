@@ -357,3 +357,12 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - Testes positivos e negativos cobrem a regra contextual, a preservação do campo `era` e a proibição de usar somente a consulta como prova de equipamento.
 - Esta correção não afirma que uma imagem genérica de neve é equipamento de esqui, nem prova que o material é soviético. Se a cena precisar mostrar equipamento claramente identificado como soviético, isso exige evidência de origem separada. A âncora automática apenas seleciona o objeto visual.
 - No commit anterior, os testes de migração, validação portátil, Render Engine V2 e stress passaram; FIRST_VIDEO continua incompleto. O próximo critério é CI verde e nova prova real validada, sem diminuir os gates de mídia ou factualidade.
+
+## 26. Busca contextual para cenas de piloto — 22/10/2026
+
+- Prova real: FIRST_VIDEO #39874615573. O roteiro escolhido foi o desaparecimento de Frederick Valentich. A aquisição parou na cena 1, antes de renderizar; FFprobe foi ignorado.
+- Consulta visual: pilot screaming inside cockpit headset; MUST explícito: pilot. Foram encontrados 40 candidatos iniciais e 22 na recuperação, mas a relevância rejeitou os candidatos porque alguns metadados confirmavam apenas pilot, sem evidência contextual de cockpit/headset/rádio.
+- Correção: o router acrescenta até três buscas contextuais curtas (pilot in cockpit headset, aircraft cockpit pilot, pilot radio headset) quando o MUST é pilot e a consulta original menciona cockpit, headset ou rádio. Isso amplia a descoberta; não altera a consulta original, o resultado de relevância ou a verificação independente do MUST.
+- Testes confirmam que metadados como Pilot in cockpit wearing a radio headset podem ser relevantes e que Portrait of a pilot continua insuficiente para a consulta completa. Nenhum requisito de aceitação foi afrouxado.
+- Pendência independente: INTELLIGENCE_PRE=REVIEW com cobertura de claim lock de 62,5%. As sentenças sobre o fragmento de Cessna e a hipótese de desorientação espacial foram marcadas com suporte insuficiente, junto de uma pergunta retórica; a revisão factual deve examinar as duas alegações substantivas e manter a pergunta editorial fora do cálculo factual conforme a política existente. Não reduzir o limiar para fazer o gate passar.
+- Aguardam-se CI verde e nova FIRST_VIDEO. Só confirmar conclusão após MP4 novo, áudio/vídeo válidos, FFprobe aprovado e gate final autorizado.

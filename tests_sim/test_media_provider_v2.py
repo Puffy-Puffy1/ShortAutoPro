@@ -249,6 +249,23 @@ class MediaProviderV2Tests(unittest.TestCase):
         self.assertEqual(provider.prepare(candidates, 2), [])
 
 
+    def test_pilot_search_variants_add_cockpit_context_without_relaxing_relevance(self):
+        query = "pilot screaming inside cockpit headset"
+        variants = _query_variants(query, ["pilot"])
+        self.assertLessEqual(len(variants), 8)
+        self.assertEqual(variants[0], query)
+        self.assertIn("pilot in cockpit headset", variants)
+        self.assertIn("aircraft cockpit pilot", variants)
+
+        from media_provider_router_v2 import query_relevance
+
+        contextual = query_relevance(
+            query,
+            {"title": "Pilot in cockpit wearing a radio headset"},
+        )
+        generic = query_relevance(query, {"title": "Portrait of a pilot"})
+        self.assertTrue(contextual["ok"], contextual)
+        self.assertFalse(generic["ok"], generic)
     def test_microphone_search_variants_preserve_aviation_context(self):
         query = "vintage aviation radio microphone and control panel"
         variants = _query_variants(query, ["microphone"])
