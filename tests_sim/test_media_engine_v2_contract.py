@@ -75,6 +75,23 @@ class MediaEngineContractTests(unittest.TestCase):
             self.assertEqual(payload["scenes"][1]["asset"]["checksum_sha256"], "unique")
             self.assertEqual(observed_used_hashes, [{"same"}])
 
+    def test_relaxed_fallback_allows_one_anchor_only_after_must_verification(self):
+        accept = media_engine_v2._relaxed_relevance_acceptable
+        self.assertTrue(accept({"query_relevance": {"ok": True, "matched_count": 2}}))
+        self.assertTrue(accept({"query_relevance": {"ok": False, "matched_count": 1}}))
+        self.assertFalse(accept({"query_relevance": {"ok": False, "matched_count": 0}}))
+        self.assertTrue(accept({}))
+
+    def test_quill_pen_search_variants_are_bounded_and_contextual(self):
+        from media_provider_router_v2 import _query_variants
+        variants = _query_variants(
+            "vintage quill pen and inkwell on old wooden desk",
+            ["quill pen"],
+        )
+        self.assertLessEqual(len(variants), 8)
+        self.assertTrue(any("feather quill" in item.casefold() for item in variants), variants)
+        self.assertEqual(variants[0], "vintage quill pen and inkwell on old wooden desk")
+
     def test_security_sensor_retrieval_variants_are_bounded(self):
         from media_provider_router_v2 import _query_variants
         variants = _query_variants(
