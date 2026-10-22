@@ -264,6 +264,24 @@ def temporal_intelligence(script: str, scene_rows: list[dict[str, Any]]) -> dict
     }
 
 
+def _location_name_variant(left: str, right: str) -> bool:
+    """Treat a specific region and its full-name component as compatible labels."""
+    left = " ".join(str(left or "").casefold().split())
+    right = " ".join(str(right or "").casefold().split())
+    if not left or not right:
+        return False
+    if left == right:
+        return True
+
+    shorter, longer = sorted((left, right), key=len)
+    # A two-word place name can be a component of a more specific regional name
+    # (e.g. "Ural Mountains" in "Northern Ural Mountains"). A single generic
+    # word like "mountains" is not enough to infer that two places are the same.
+    if len(shorter.split()) < 2:
+        return False
+    return bool(re.search(rf"(?<!\w){re.escape(shorter)}(?!\w)", longer))
+
+
 def geographic_consistency(scene_rows: list[dict[str, Any]]) -> dict[str, Any]:
     # A country and a location inside it are compatible, not contradictory.
     location_parents = {"bass strait": {"australia"}}
@@ -279,11 +297,23 @@ def geographic_consistency(scene_rows: list[dict[str, Any]]) -> dict[str, Any]:
             if other.casefold() != expected
             and other.casefold() not in location_parents.get(expected, set())
             and expected not in location_parents.get(other.casefold(), set())
+            and not _location_name_variant(other.casefold(), expected)
         }
-        wrong = [other for other in other_locs if other and other in query]
+        wrong = [
+            other for other in other_locs
+            if other and re.search(rf"(?<!\w){re.escape(other)}(?!\w)", query)
+        ]
         if wrong:
-            mismatches.append({"scene": index, "expected": loc, "query_contains_other_location": wrong})
-    return {"locations": locations, "mismatches": mismatches, "status": "PASS" if not mismatches else "BLOCK"}
+            mismatches.append({
+                "scene": index,
+                "expected": loc,
+                "query_contains_other_location": sorted(wrong),
+            })
+    return {
+        "locations": locations,
+        "mismatches": mismatches,
+        "status": "PASS" if not mismatches else "BLOCK",
+    }
 
 
 def scene_purpose(scene_rows: list[dict[str, Any]]) -> dict[str, Any]:

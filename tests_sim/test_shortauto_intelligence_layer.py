@@ -41,6 +41,28 @@ class IntelligenceLayerTests(unittest.TestCase):
         self.assertEqual(result["status"], "BLOCK")
         self.assertEqual(result["mismatches"][0]["scene"], 2)
 
+    def test_geographic_consistency_allows_specific_and_component_region_names(self):
+        rows = [
+            {
+                "location": "Northern Ural Mountains",
+                "query": "archival winter camp in the Ural Mountains",
+                "segment": "The camp was in the northern Ural range.",
+            },
+            {
+                "location": "Ural Mountains",
+                "query": "snowy mountain terrain",
+                "segment": "The range was covered in snow.",
+            },
+            {
+                "location": "Kholat Syakhl",
+                "query": "Kholat Syakhl winter camp",
+                "segment": "The camp site.",
+            },
+        ]
+        result = intel.geographic_consistency(rows)
+        self.assertEqual(result["status"], "PASS")
+        self.assertEqual(result["mismatches"], [])
+
     def test_geographic_consistency_allows_country_parent_of_region(self):
         rows = [
             {
