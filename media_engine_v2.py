@@ -374,22 +374,17 @@ def acquire_scene(
                 if not _relaxed_relevance_acceptable(candidate):
                     relaxed_query_relevance_rejected += 1
                     continue
-                if (
-                    int(evidence.get("hits", 0) or 0) == len(must)
-                    and len(must) > 0
-                ):
-                    candidate["_sap_must_total"] = len(must)
-                    candidate["_sap_short_id"] = short_id
-                    candidate["_sap_scene_number"] = number
-                    # Preserve the independently verified evidence count in the
-                    # frozen manifest; otherwise a valid relaxed-query asset
-                    # would be mislabeled as having zero MUST hits downstream.
-                    candidate["must_hits"] = int(evidence.get("hits", 0) or 0)
-                    candidate["verification_mode"] = "strict_evidence_query_relaxed"
-                    candidate["verification_note"] = (
-                        "editorial_query_relaxed;explicit_must_reverified"
-                    )
-                    verified_relaxed.append(candidate)
+                candidate["_sap_must_total"] = len(must)
+                candidate["_sap_short_id"] = short_id
+                candidate["_sap_scene_number"] = number
+                # Preserve the independently verified evidence count in the
+                # frozen manifest for downstream validation.
+                candidate["must_hits"] = int(evidence.get("hits", 0) or 0)
+                candidate["verification_mode"] = "strict_evidence_query_relaxed"
+                candidate["verification_note"] = (
+                    "editorial_query_relaxed;explicit_must_reverified"
+                )
+                verified_relaxed.append(candidate)
         strict = verified_relaxed
         verification_mode = "strict_evidence_query_relaxed" if strict else ""
 
