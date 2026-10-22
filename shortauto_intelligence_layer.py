@@ -265,13 +265,22 @@ def temporal_intelligence(script: str, scene_rows: list[dict[str, Any]]) -> dict
 
 
 def geographic_consistency(scene_rows: list[dict[str, Any]]) -> dict[str, Any]:
+    # A country and a location inside it are compatible, not contradictory.
+    location_parents = {"bass strait": {"australia"}}
     locations = [(i, str(x.get("location") or "").strip()) for i, x in enumerate(scene_rows, 1)]
     locations = [(i, loc) for i, loc in locations if loc]
     mismatches = []
     for index, loc in locations:
         query = str(scene_rows[index-1].get("query") or "").casefold()
-        other_locs = {x.casefold() for _, x in locations if x.casefold() != loc.casefold()}
-        wrong = [x for x in other_locs if x and x in query]
+        expected = loc.casefold()
+        other_locs = {
+            other.casefold()
+            for _, other in locations
+            if other.casefold() != expected
+            and other.casefold() not in location_parents.get(expected, set())
+            and expected not in location_parents.get(other.casefold(), set())
+        }
+        wrong = [other for other in other_locs if other and other in query]
         if wrong:
             mismatches.append({"scene": index, "expected": loc, "query_contains_other_location": wrong})
     return {"locations": locations, "mismatches": mismatches, "status": "PASS" if not mismatches else "BLOCK"}
@@ -369,13 +378,22 @@ def visual_system(scene_rows: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def semantic_visual_safety(scene_rows: list[dict[str, Any]]) -> dict[str, Any]:
+    def normalized_phrase(value: Any) -> str:
+        return " ".join(WORD_RE.findall(str(value or "").casefold()))
+
     violations = []
     for index, item in enumerate(scene_rows, 1):
-        spoken = tokens(segment(item))
-        query = tokens(item.get("query", ""))
-        must = tokens(" ".join(map(str, item.get("must_have", []) if isinstance(item.get("must_have"), list) else [])))
-        avoid = tokens(" ".join(map(str, item.get("avoid", []) if isinstance(item.get("avoid"), list) else [])))
-        introduced = sorted((query - spoken - must) & avoid)
+        spoken = f" {normalized_phrase(segment(item))} "
+        query = f" {normalized_phrase(item.get('query', ''))} "
+        must = f" {normalized_phrase(" ".join(map(str, item.get("must_have", []) if isinstance(item.get("must_have"), list) else [])))} "
+        avoid = item.get("avoid", []) if isinstance(item.get("avoid"), list) else []
+        introduced = sorted({
+            phrase for term in avoid
+            if (phrase := normalized_phrase(term))
+            and f" {phrase} " in query
+            and f" {phrase} " not in spoken
+            and f" {phrase} " not in must
+        })
         if introduced:
             violations.append({"scene": index, "introduced_avoid_terms": introduced})
     return {"violations": violations, "status": "PASS" if not violations else "BLOCK"}
