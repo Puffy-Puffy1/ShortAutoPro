@@ -321,3 +321,13 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - Testes adicionados em `tests_sim/test_media_must_verifier.py`: relevância positiva para `skis poles` versus `ski pole` e teste negativo que confirma que essa relevância não substitui o MUST `snow`. O verificador de mídia permanece independente e não aceita neve com base na consulta.
 - A mudança não flexibiliza MUST/AVOID, resolução, checksum ou FFprobe. A validação depende do CI e de nova prova real; não há MP4 novo validado neste estado. A camada de inteligência também marcou `INTELLIGENCE_PRE=REVIEW` com cobertura 50,0%, uma pendência separada que deve continuar bloqueando a liberação final enquanto não for resolvida com evidência factual.
 
+
+
+## 22. Integridade de cache do Media Engine V2 — 22/10/2026
+
+- Auditoria de consistência: a validação de um asset em cache verificava checksum, Short ID, número da cena e quantidade de MUSTs, mas não comprovava que o arquivo fora adquirido para a mesma consulta e para os mesmos critérios visuais. Duas cenas com um único MUST poderiam compartilhar contagem e, ainda assim, exigir mídias diferentes.
+- Correção: cada asset congelado agora contém **scene_contract_fingerprint**, um SHA-256 determinístico da consulta, segmento, modo visual, MUSTs e AVOIDs normalizados. O reuso do cache exige correspondência exata dessa assinatura.
+- Sidecars antigos sem assinatura são tratados como cache não validado e não são reutilizados; o fluxo volta à aquisição normal. A regra não flexibiliza a comprovação independente de MUST, resolução, checksum, duplicidade ou FFprobe.
+- Testes novos cobrem estabilidade da assinatura, rejeição de cache de outro contrato mesmo com a mesma quantidade de MUSTs e aceitação de cache válido com assinatura correspondente.
+- Versão do Media Engine atualizada para **2.0.4**. A validação deste commit depende do CI; manter FIRST_VIDEO como não concluído até existir um MP4 real validado e o gate final passar.
+

@@ -23,7 +23,7 @@ from typing import Any
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", Path.home() / "ShortAutoPro")).resolve()
 MEDIA_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".webm", ".mkv"}
-ENGINE_VERSION = "2.0.3"
+ENGINE_VERSION = "2.0.4"
 MIN_VISUAL_PIXELS = 320 * 180
 
 
@@ -74,6 +74,36 @@ def _manifest_integrity(payload: dict[str, Any]) -> str:
     unsigned = dict(payload)
     unsigned.pop("integrity_sha256", None)
     return hashlib.sha256(_canonical_json(unsigned)).hexdigest()
+
+
+def _contract_values(value: Any) -> list[str]:
+    """Normalize a list of contract terms for a stable scene fingerprint."""
+    if isinstance(value, str):
+        values = [value]
+    elif isinstance(value, (list, tuple, set)):
+        values = list(value)
+    else:
+        values = []
+    return sorted({
+        re.sub(r"\s+", " ", str(item or "")).strip().casefold()
+        for item in values
+        if str(item or "").strip()
+    })
+
+
+def _scene_contract_fingerprint(scene: dict[str, Any]) -> str:
+    """Bind a cached asset to the exact visual-acquisition contract that selected it."""
+    query = str(scene.get("query") or scene.get("busca") or scene.get("segment") or "")
+    segment = str(scene.get("segment") or "")
+    visual_mode = str(scene.get("visual_mode") or scene.get("modo_visual") or "")
+    payload = {
+        "query": re.sub(r"\s+", " ", query).strip().casefold(),
+        "segment": re.sub(r"\s+", " ", segment).strip().casefold(),
+        "visual_mode": re.sub(r"\s+", " ", visual_mode).strip().casefold(),
+        "must_have": _contract_values(scene.get("must_have") or []),
+        "avoid": _contract_values(scene.get("avoid") or []),
+    }
+    return hashlib.sha256(_canonical_json(payload)).hexdigest()
 
 
 from media_provider_v2 import MediaProviderV2
@@ -239,6 +269,7 @@ def _existing_asset_record(
             return None
         expected = str(record.get("checksum_sha256") or "")
         must_total = len(scene.get("must_have") or [])
+        contract_fingerprint = _scene_contract_fingerprint(scene)
         expected_short_id = media_dir.name.removeprefix("short_")
         if (
             not expected
@@ -246,6 +277,7 @@ def _existing_asset_record(
             or str(record.get("short_id") or "") != expected_short_id
             or int(record.get("scene_number", 0) or 0) != number
             or int(record.get("must_total", 0) or 0) != must_total
+            or record.get("scene_contract_fingerprint") != contract_fingerprint
         ):
             return None
         if sha256(path) != expected:
@@ -279,6 +311,7 @@ def _candidate_record(candidate: dict[str, Any], path: Path, probe: dict[str, An
         "evidence_class": str(candidate.get("evidence_class") or ""),
         "must_hits": int(candidate.get("must_hits", 0) or 0),
         "must_total": int(candidate.get("_sap_must_total", 0) or 0),
+        "scene_contract_fingerprint": str(candidate.get("_sap_scene_contract_fingerprint") or ""),
         "path": str(path),
         "checksum_sha256": sha256(path),
         "license": str(candidate.get("license") or ""),
@@ -340,6 +373,7 @@ def acquire_scene(
     avoid = [str(x).strip() for x in (scene.get("avoid") or []) if str(x).strip()]
     visual_mode = str(scene.get("visual_mode") or scene.get("modo_visual") or "").strip()
     segment = str(scene.get("segment") or "").strip()
+    contract_fingerprint = _scene_contract_fingerprint(scene)
     if not query:
         raise RuntimeError(f"MEDIA_INPUT_INVALID:scene_{number:02d}:query_empty")
 
@@ -353,11 +387,14 @@ def acquire_scene(
         candidate["_sap_must_total"] = len(must)
         candidate["_sap_short_id"] = short_id
         candidate["_sap_scene_number"] = number
+        candidate["_sap_scene_contract_fingerprint"] = contract_fingerprint
     strict = [
         candidate for candidate in PROVIDER.prepare(candidates, len(must))
         if not isinstance(candidate.get("query_relevance"), dict)
         or candidate["query_relevance"].get("ok") is True
     ]
+    for candidate in strict:
+        candidate["_sap_scene_contract_fingerprint"] = contract_fingerprint
     verification_mode = "strict_must" if strict else ""
 
     # If the editorial query was too restrictive, a second retrieval may use
@@ -408,6 +445,7 @@ def acquire_scene(
                 candidate["_sap_must_total"] = len(must)
                 candidate["_sap_short_id"] = short_id
                 candidate["_sap_scene_number"] = number
+                candidate["_sap_scene_contract_fingerprint"] = contract_fingerprint
                 # Preserve the independently verified evidence count in the
                 # frozen manifest for downstream validation.
                 candidate["must_hits"] = int(evidence.get("hits", 0) or 0)
@@ -468,6 +506,7 @@ def acquire_scene(
     # compatibility path for libraries created by the previous pipeline.
     local = _local_library_asset(query, must, avoid, used_asset_hashes)
     if local is not None:
+        local["scene_contract_fingerprint"] = contract_fingerprint
         return local
 
     if not candidates:

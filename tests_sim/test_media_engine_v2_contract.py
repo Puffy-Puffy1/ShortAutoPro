@@ -96,6 +96,112 @@ class MediaEngineContractTests(unittest.TestCase):
                 scenes = media_engine_v2.load_scene_map(sid)
             self.assertEqual(scenes[0]["must_have"], ["rib cage"])
 
+    def test_scene_contract_fingerprint_is_stable_and_tracks_visual_requirements(self):
+        first = {
+            "query": "  Blue   Boat ",
+            "segment": "Boat on the water",
+            "visual_mode": "Object",
+            "must_have": ["boat", "water"],
+            "avoid": ["airplane", "cartoon"],
+        }
+        reordered = {
+            "query": "blue boat",
+            "segment": " boat   on the water ",
+            "visual_mode": "object",
+            "must_have": ["water", "BOAT", "boat"],
+            "avoid": ["cartoon", "airplane"],
+        }
+        self.assertEqual(
+            media_engine_v2._scene_contract_fingerprint(first),
+            media_engine_v2._scene_contract_fingerprint(reordered),
+        )
+        changed = dict(reordered, must_have=["airplane"])
+        self.assertNotEqual(
+            media_engine_v2._scene_contract_fingerprint(first),
+            media_engine_v2._scene_contract_fingerprint(changed),
+        )
+
+    def test_cached_asset_is_rejected_when_scene_contract_changes(self):
+        with tempfile.TemporaryDirectory() as td:
+            media_dir = Path(td) / "short_TEST_CACHE"
+            media_dir.mkdir(parents=True)
+            asset = media_dir / "scene_01_wikimedia.jpg"
+            asset.write_bytes(b"cached fixture")
+
+            old_scene = {
+                "query": "red vintage car",
+                "segment": "red car",
+                "visual_mode": "object",
+                "must_have": ["car"],
+                "avoid": ["boat"],
+            }
+            current_scene = {
+                "query": "blue wooden boat",
+                "segment": "boat offshore",
+                "visual_mode": "object",
+                "must_have": ["boat"],
+                "avoid": ["car"],
+            }
+            record = {
+                "query_relevance": {"ok": True},
+                "checksum_sha256": media_engine_v2.sha256(asset),
+                "validated": True,
+                "short_id": "TEST_CACHE",
+                "scene_number": 1,
+                "must_total": 1,
+                "scene_contract_fingerprint": media_engine_v2._scene_contract_fingerprint(old_scene),
+            }
+            (media_dir / "scene_01.json").write_text(
+                json.dumps(record), encoding="utf-8"
+            )
+
+            with patch.object(media_engine_v2, "validate_asset") as validate:
+                result = media_engine_v2._existing_asset_record(
+                    media_dir, 1, current_scene
+                )
+
+            self.assertIsNone(result)
+            validate.assert_not_called()
+
+    def test_matching_scene_contract_allows_a_valid_cached_asset(self):
+        with tempfile.TemporaryDirectory() as td:
+            media_dir = Path(td) / "short_TEST_CACHE"
+            media_dir.mkdir(parents=True)
+            asset = media_dir / "scene_01_wikimedia.jpg"
+            asset.write_bytes(b"valid cached fixture")
+            checksum = media_engine_v2.sha256(asset)
+            scene = {
+                "query": "red vintage car",
+                "segment": "red car",
+                "visual_mode": "object",
+                "must_have": ["car"],
+                "avoid": ["boat"],
+            }
+            record = {
+                "query_relevance": {"ok": True},
+                "checksum_sha256": checksum,
+                "validated": True,
+                "short_id": "TEST_CACHE",
+                "scene_number": 1,
+                "must_total": 1,
+                "scene_contract_fingerprint": media_engine_v2._scene_contract_fingerprint(scene),
+            }
+            (media_dir / "scene_01.json").write_text(
+                json.dumps(record), encoding="utf-8"
+            )
+            probe = {"width": 1920, "height": 1080}
+            with patch.object(
+                media_engine_v2,
+                "validate_asset",
+                return_value={"sha256": checksum, "probe": probe},
+            ) as validate:
+                cached = media_engine_v2._existing_asset_record(
+                    media_dir, 1, scene
+                )
+            self.assertIsNotNone(cached)
+            self.assertEqual(cached["scene_contract_fingerprint"], record["scene_contract_fingerprint"])
+            validate.assert_called_once()
+
     def test_manifest_schema_is_frozen_and_complete(self):
         with tempfile.TemporaryDirectory() as td:
             base = Path(td)
