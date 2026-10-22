@@ -46,6 +46,39 @@ class MediaMustVerifierCanvasRingTests(unittest.TestCase):
         )
 
 
+class MediaMustVerifierQuillPenTests(unittest.TestCase):
+    def test_quill_pen_accepts_explicit_catalog_equivalents(self):
+        for evidence in (
+            "antique quill pen beside an inkwell",
+            "feather quill pen on a writing desk",
+            "writing quill and ink bottle",
+            "quill with inkwell in a historical study",
+        ):
+            self.assertTrue(
+                requirement_matches("quill pen", {"description": evidence}),
+                evidence,
+            )
+
+    def test_quill_pen_rejects_a_generic_feather(self):
+        self.assertFalse(
+            requirement_matches(
+                "quill pen",
+                {"description": "feather on a wooden table beside a bottle"},
+            )
+        )
+
+    def test_quill_search_variants_preserve_context(self):
+        variants = _query_variants(
+            "vintage quill pen and inkwell on old wooden desk",
+            ["quill pen"],
+        )
+        self.assertLessEqual(len(variants), 8)
+        self.assertTrue(
+            any("feather quill" in item.casefold() for item in variants),
+            variants,
+        )
+
+
 class MediaMustVerifierInteriorTests(unittest.TestCase):
     def test_interior_must_accepts_explicit_indoor_space_metadata(self):
         for evidence in (
