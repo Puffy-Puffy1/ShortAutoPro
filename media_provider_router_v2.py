@@ -437,8 +437,9 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
             synonym_pattern = re.compile(rf"\b{re.escape(synonym)}\b", re.IGNORECASE)
             for alias in term_aliases:
                 candidates.append(synonym_pattern.sub(alias, raw, count=1))
-        else:
-            candidates.extend(term_aliases)
+        # When the MUST is absent from the original query, keep its
+        # aliases for the dedicated fallback list below. This reserves room
+        # for every explicit MUST anchor in the bounded query set.
 
     # Preserve each explicit anchor as a standalone retrieval option.
     candidates.extend(must_terms)
