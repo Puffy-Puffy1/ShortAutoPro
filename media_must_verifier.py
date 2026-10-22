@@ -214,6 +214,19 @@ STRICT_VISUAL_ALIASES = {
         "underground passage",
         "passageway",
     ),
+    # Catalogs often describe an indoor scene by its concrete space rather than
+    # using the abstract word "interior". These terms still come from asset metadata.
+    "interior": (
+        "interior",
+        "indoors",
+        "indoor",
+        "inside",
+        "room",
+        "rooms",
+        "hallway",
+        "corridor",
+        "lobby",
+    ),
     "security sensor": (
         "security sensor",
         "motion sensor",
