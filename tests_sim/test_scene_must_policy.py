@@ -58,6 +58,29 @@ class SceneMustPolicyTests(unittest.TestCase):
         self.assertEqual(anchors, ["book", "parchment pages"])
         self.assertEqual(events, [])
 
+    def test_ripped_tent_and_snow_anchors_normalize_only_with_visual_context(self):
+        query = "vintage black and white photo of a torn tent in snowy mountains"
+        anchors, events = normalize_visual_musts(
+            ["ripped canvas", "snowy background"],
+            context=query,
+        )
+        self.assertEqual(anchors, ["torn tent", "snow"])
+        self.assertEqual(
+            [(event["from"], event["to"], event["reason"]) for event in events],
+            [
+                ("ripped canvas", "torn tent", "CONTEXTUAL_TENT_ANCHOR"),
+                ("snowy background", "snow", "CONTEXTUAL_SNOW_ANCHOR"),
+            ],
+        )
+
+    def test_tent_and_snow_requirements_remain_unchanged_without_context(self):
+        anchors, events = normalize_visual_musts(
+            ["ripped canvas", "snowy background"],
+            context="a building interior at night",
+        )
+        self.assertEqual(anchors, ["ripped canvas", "snowy background"])
+        self.assertEqual(events, [])
+
     def test_deduplicates_after_normalization(self):
         anchors, events = normalize_visual_musts([
             "single engine aircraft",

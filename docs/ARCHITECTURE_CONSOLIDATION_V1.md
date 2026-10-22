@@ -242,9 +242,20 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 ## 13. Diagnóstico da prova FIRST_VIDEO #39732545372 — 22/10/2026
 
 - Execução: [FIRST_VIDEO Live Proof #39732545372](https://github.com/Puffy-Puffy1/ShortAutoPro/actions/runs/39732545372). Preparação, dependências e credenciais passaram; a etapa de produção parou no Media Engine V2 e a validação final do MP4 foi pulada.
-- A cena 1 usou a consulta \`old illustrated manuscript open pages studio lighting\`, mas definiu os MUSTs \`book\` e \`parchment pages\`. O router encontrou 57 candidatos, porém nenhum comprovou os dois requisitos nos metadados; o bloqueio \`MEDIA_INCOMPLETE\` foi correto e não deve ser contornado.
-- Correção consolidada nesta revisão: a política normaliza \`book\` e \`parchment page(s)\` para a única âncora visual \`manuscript\` **somente quando a própria consulta visual cita manuscript/Voynich**. Consultas genéricas sobre livros preservam os MUSTs originais. A normalização acontece na entrada do mapa de cenas do Media Engine e emite \`SCENE_MUST_NORMALIZED\` para auditoria.
+- A cena 1 usou a consulta `old illustrated manuscript open pages studio lighting`, mas definiu os MUSTs `book` e `parchment pages`. O router encontrou 57 candidatos, porém nenhum comprovou os dois requisitos nos metadados; o bloqueio `MEDIA_INCOMPLETE` foi correto e não deve ser contornado.
+- Correção consolidada nesta revisão: a política normaliza `book` e `parchment page(s)` para a única âncora visual `manuscript` **somente quando a própria consulta visual cita manuscript/Voynich**. Consultas genéricas sobre livros preservam os MUSTs originais. A normalização acontece na entrada do mapa de cenas do Media Engine e emite `SCENE_MUST_NORMALIZED` para auditoria.
 - O verificador independente de MUST continua obrigatório: o texto da consulta não conta como evidência. A mudança não aceita candidatos sem metadados que comprovem um manuscrito; reduz apenas a duplicação incompatível dos requisitos.
-- Foram adicionados testes da política com e sem contexto, um teste de integração da carga do mapa de cenas e filtros do workflow para esses testes. O motor foi versionado como \`2.0.3\`.
-- A mesma execução mostrou \`INTELLIGENCE_PRE=REVIEW\` (119 claims, cobertura 22,2%). Como a aquisição falhou antes do render e do release gate, ainda não há novo MP4 validado nem confirmação de liberação final. O próximo critério é o CI verde e uma prova real que chegue a FFprobe, sem reduzir os gates factuais.
+- Foram adicionados testes da política com e sem contexto, um teste de integração da carga do mapa de cenas e filtros do workflow para esses testes. O motor foi versionado como `2.0.3`.
+- A mesma execução mostrou `INTELLIGENCE_PRE=REVIEW` (119 claims, cobertura 22,2%). Como a aquisição falhou antes do render e do release gate, ainda não há novo MP4 validado nem confirmação de liberação final. O próximo critério é o CI verde e uma prova real que chegue a FFprobe, sem reduzir os gates factuais.
+
+
+
+## 14. Diagnóstico da prova FIRST_VIDEO #39817616597 — 22/10/2026
+
+- Execução: [FIRST_VIDEO Live Proof #39817616597](https://github.com/Puffy-Puffy1/ShortAutoPro/actions/runs/39817616597). A instalação, o bundle Remotion e as credenciais passaram, mas a aquisição de mídia parou na cena 1; a etapa FFprobe foi ignorada porque não houve render novo.
+- Tema escolhido: incidente de Dyatlov. Consulta visual: \`vintage black and white photo of a torn tent in snowy mountains\`. O mapa de cena gerou os requisitos \`ripped canvas\` e \`snowy background\`; o router encontrou 39 candidatos primários e 19 candidatos de recuperação, mas nenhum comprovou os termos originais por metadados.
+- Ajuste contextual consolidado: quando a consulta cita uma barraca, \`ripped canvas\` vira \`torn tent\`; quando cita neve, \`snowy background\` vira \`snow\`. Os requisitos genéricos não são alterados fora desse contexto. As novas âncoras usam equivalências já suportadas pelo verificador independente.
+- A busca, a consulta e os MUSTs normalizados não contam como evidência. A mídia precisa continuar comprovando a barraca rasgada e a neve por metadados do próprio candidato. Foram adicionados testes unitários da política e teste de integração de \`load_scene_map\`.
+- O workflow de contrato, a validação portátil, o stress 1→2→5→10 e o Render Engine V2 passaram no commit \`0e04305\`; a prova real falhou antes de gerar MP4. A camada de inteligência marcou \`INTELLIGENCE_PRE=REVIEW\` (cobertura 25,0%) e \`INTELLIGENCE_SCENE=BLOCK\` com um bloqueio crítico, mas esse bloqueio ainda precisa de diagnóstico específico pelos relatórios/telemetria.
+- Próximo critério: CI verde para esta correção e nova prova real. Não marcar o vídeo como concluído até o MP4 real conter áudio/vídeo válidos, FFprobe passar e a liberação final respeitar os controles de aprovação.
 

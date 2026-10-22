@@ -39,6 +39,8 @@ _CONTEXTUAL_MANUSCRIPT_MUSTS = {
     "parchment page": "manuscript",
     "parchment pages": "manuscript",
 }
+_TENT_CONTEXT = re.compile(r"\b(?:tent|tents|camping)\b", re.IGNORECASE)
+_SNOW_CONTEXT = re.compile(r"\b(?:snow|snowy|snowfall|snow-covered|snow covered)\b", re.IGNORECASE)
 
 
 def normalize_visual_musts(
@@ -47,9 +49,9 @@ def normalize_visual_musts(
 ) -> tuple[list[str], list[dict[str, str]]]:
     """Return deduplicated visual anchors and auditable normalization events.
 
-    Generic book/parchment labels become manuscript only when the scene's
-    own visual query explicitly names a manuscript or the Voynich manuscript.
-    Unrelated scenes keep their original requirements.
+    Book/parchment labels become manuscript in manuscript scenes. Ripped-canvas
+    and snowy-background labels become concrete tent/snow anchors only when the
+    scene query supports that context. Unrelated scenes keep their requirements.
     """
     if isinstance(value, str):
         values = [value]
@@ -75,6 +77,12 @@ def normalize_visual_musts(
         if anchor == original and manuscript_context and key in _CONTEXTUAL_MANUSCRIPT_MUSTS:
             anchor = _CONTEXTUAL_MANUSCRIPT_MUSTS[key]
             reason = "CONTEXTUAL_MANUSCRIPT_ANCHOR"
+        elif anchor == original and key == "ripped canvas" and _TENT_CONTEXT.search(str(context or "")):
+            anchor = "torn tent"
+            reason = "CONTEXTUAL_TENT_ANCHOR"
+        elif anchor == original and key == "snowy background" and _SNOW_CONTEXT.search(str(context or "")):
+            anchor = "snow"
+            reason = "CONTEXTUAL_SNOW_ANCHOR"
 
         if anchor != original:
             events.append({"from": original, "to": anchor, "reason": reason})
