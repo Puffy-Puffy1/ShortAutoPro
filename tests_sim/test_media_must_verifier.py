@@ -25,6 +25,28 @@ class MediaMustVerifierSecuritySensorTests(unittest.TestCase):
         )
 
 
+class MediaMustVerifierInteriorTests(unittest.TestCase):
+    def test_interior_must_accepts_explicit_indoor_space_metadata(self):
+        for evidence in (
+            "hotel hallway with doors",
+            "historic room interior",
+            "lobby of an old building",
+            "corridor inside a hotel",
+        ):
+            self.assertTrue(
+                requirement_matches("interior", {"description": evidence}),
+                evidence,
+            )
+
+    def test_interior_must_rejects_explicit_outdoor_metadata(self):
+        self.assertFalse(
+            requirement_matches(
+                "interior",
+                {"description": "hotel exterior street facade outdoors"},
+            )
+        )
+
+
 class MediaMustVerifierForestTests(unittest.TestCase):
     def test_forest_must_accepts_explicit_woodland_equivalents(self):
         for evidence in (
