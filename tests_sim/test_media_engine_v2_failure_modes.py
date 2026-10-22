@@ -83,7 +83,7 @@ class MediaEngineV2FailureTests(unittest.TestCase):
             }
             with patch.object(
                 media_engine_v2.PROVIDER, "search", side_effect=[[candidate], [candidate]]
-            ), patch.object(
+            ) as search, patch.object(
                 media_engine_v2.PROVIDER, "prepare", return_value=[]
             ), patch(
                 "media_must_verifier.verified_must",
@@ -101,6 +101,7 @@ class MediaEngineV2FailureTests(unittest.TestCase):
                 result = media_engine_v2.acquire_scene(
                     "X", 1, {"query": "long query", "must_have": ["ship"]}, media
                 )
+            self.assertEqual(search.call_args_list[1].args[0], "long query ship")
             self.assertEqual(result["must_hits"], 1)
             self.assertEqual(result["must_total"], 1)
             self.assertEqual(result["verification_mode"], "strict_evidence_query_relaxed")
