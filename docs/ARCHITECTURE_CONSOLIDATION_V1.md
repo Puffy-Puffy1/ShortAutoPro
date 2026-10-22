@@ -311,3 +311,13 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - A normalização não é prova. O verificador independente ainda exige que os metadados do candidato contenham evidência explícita de caixa torácica; descrições apenas de coluna e crânio são rejeitadas. Testes unitários e de integração cobrem os dois lados da regra.
 - Nesta execução, a camada factual marcou cobertura de claim lock de 77,8% e a análise de cenas marcou REVIEW sem bloqueio crítico. A aquisição de mídia foi o bloqueio imediato; não foi produzido novo MP4 nem executado FFprobe sobre um vídeo novo.
 - Pendência: confirmar CI e nova execução FIRST_VIDEO. O projeto só pode ser considerado concluído após MP4 real, áudio/vídeo válidos, FFprobe aprovado e gate de liberação respeitado.
+
+
+## 21. Compatibilidade lexical para aquisição de mídia — 22/10/2026
+
+- Prova real: [FIRST_VIDEO #39845718669](https://github.com/Puffy-Puffy1/ShortAutoPro/actions/runs/39845718669). A instalação e os gates de preparação passaram; a aquisição parou na cena 3, antes de gerar novo MP4 e antes da validação FFprobe.
+- Consulta: `vintage wooden skis and poles in snow`; MUST: `snow`. O router encontrou 82 candidatos, mas 81 falharam no filtro de relevância textual; a recuperação restante não encontrou metadados que comprovassem neve. O bloqueio do MUST continua correto.
+- Ajuste concentrado em `media_provider_router_v2.py`: o comparador de relevância agora normaliza formas comuns de catálogo `skis/skiing/skiers → ski` e `poles → pole`. Isso reduz falsos negativos de relevância quando a consulta e o catálogo descrevem a mesma cena com formas singular/plural.
+- Testes adicionados em `tests_sim/test_media_must_verifier.py`: relevância positiva para `skis poles` versus `ski pole` e teste negativo que confirma que essa relevância não substitui o MUST `snow`. O verificador de mídia permanece independente e não aceita neve com base na consulta.
+- A mudança não flexibiliza MUST/AVOID, resolução, checksum ou FFprobe. A validação depende do CI e de nova prova real; não há MP4 novo validado neste estado. A camada de inteligência também marcou `INTELLIGENCE_PRE=REVIEW` com cobertura 50,0%, uma pendência separada que deve continuar bloqueando a liberação final enquanto não for resolvida com evidência factual.
+

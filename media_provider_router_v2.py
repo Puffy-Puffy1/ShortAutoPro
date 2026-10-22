@@ -77,6 +77,8 @@ _QUERY_TOKEN_ALIASES = {
     "manuscrita": "manuscript", "manuscritas": "manuscript",
     "investigations": "investigation", "airliners": "airliner",
     "aircrafts": "aircraft", "pages": "page", "forests": "forest",
+    # Normalize common catalog word forms for the metadata relevance check.
+    "skis": "ski", "skiing": "ski", "skiers": "ski", "poles": "pole",
     "snowy": "snow", "snowing": "snow", "snowfall": "snow",
     "woodland": "forest", "woodlands": "forest", "woods": "forest",
     "forested": "forest", "taiga": "forest",

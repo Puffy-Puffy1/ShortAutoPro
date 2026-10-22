@@ -193,6 +193,20 @@ class MediaMustVerifierForestTests(unittest.TestCase):
         self.assertTrue(result["ok"], result)
 
 
+    def test_ski_catalog_singular_plural_matches_query_relevance(self):
+        result = query_relevance(
+            "skis poles",
+            {"title": "ski pole"},
+        )
+        self.assertTrue(result["ok"], result)
+        self.assertEqual(set(result["matched_terms"]), {"ski", "pole"})
+
+    def test_ski_relevance_does_not_bypass_explicit_snow_must(self):
+        candidate = {"title": "ski pole"}
+        self.assertTrue(query_relevance("skis poles", candidate)["ok"])
+        self.assertFalse(requirement_matches("snow", candidate))
+
+
 
 
 class MediaMustVerifierMicrophoneTests(unittest.TestCase):
