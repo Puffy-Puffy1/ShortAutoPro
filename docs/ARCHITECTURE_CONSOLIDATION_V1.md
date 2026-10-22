@@ -301,3 +301,13 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - Ajuste: o router agora tenta até cinco rótulos de catálogo para a busca — `communication microphone`, `aviation microphone`, `pilot microphone`, `radio microphone` e `aircraft microphone` — mantendo a consulta original como primeira opção e respeitando o limite de oito variantes.
 - A alteração afeta somente a descoberta de candidatos. O requisito continua sendo `microphone`: descrições de rádio, handset ou painel sem evidência explícita de microfone continuam rejeitadas. Foram adicionados testes da expansão contextual e do bloqueio de equipamento sem microfone.
 - As validações estruturais do commit `93b9809` passaram, mas a prova real ainda falhou antes do render. A mudança precisa passar pelos testes e por uma nova prova; não considerar o vídeo concluído até FFprobe e o release gate passarem.
+
+
+## 20. Ajuste contextual para radiografia da caixa torácica — 22/10/2026
+
+- Prova real: [FIRST_VIDEO #39844165759](https://github.com/Puffy-Puffy1/ShortAutoPro/actions/runs/39844165759). O vídeo não chegou à renderização porque a aquisição foi bloqueada na cena 7.
+- Consulta da cena: "medical x ray showing human rib cage and skeletal structure". O requisito emitido era "skeleton"; o Media Engine encontrou 58 candidatos, mas nenhum comprovou esse termo exato nos metadados aceitos.
+- Correção contextual: quando o próprio texto da cena menciona "rib cage" ou "ribcage", o requisito "skeleton" é normalizado para "rib cage". Fora desse contexto, o requisito original permanece intacto.
+- A normalização não é prova. O verificador independente ainda exige que os metadados do candidato contenham evidência explícita de caixa torácica; descrições apenas de coluna e crânio são rejeitadas. Testes unitários e de integração cobrem os dois lados da regra.
+- Nesta execução, a camada factual marcou cobertura de claim lock de 77,8% e a análise de cenas marcou REVIEW sem bloqueio crítico. A aquisição de mídia foi o bloqueio imediato; não foi produzido novo MP4 nem executado FFprobe sobre um vídeo novo.
+- Pendência: confirmar CI e nova execução FIRST_VIDEO. O projeto só pode ser considerado concluído após MP4 real, áudio/vídeo válidos, FFprobe aprovado e gate de liberação respeitado.

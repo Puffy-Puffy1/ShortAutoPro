@@ -4,6 +4,22 @@ from media_must_verifier import requirement_matches
 from media_provider_router_v2 import _query_variants, query_relevance
 
 
+class MediaMustVerifierRibCageTests(unittest.TestCase):
+    def test_rib_cage_requires_explicit_asset_metadata(self):
+        self.assertTrue(
+            requirement_matches(
+                "rib cage",
+                {"description": "medical x ray showing human rib cage and skeletal structure"},
+            )
+        )
+        self.assertFalse(
+            requirement_matches(
+                "rib cage",
+                {"description": "medical x ray showing the human spine and skull"},
+            )
+        )
+
+
 class MediaMustVerifierSecuritySensorTests(unittest.TestCase):
     def test_security_sensor_accepts_verified_visual_equivalents(self):
         for evidence in (

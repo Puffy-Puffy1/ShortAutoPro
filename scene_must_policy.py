@@ -42,6 +42,7 @@ _CONTEXTUAL_MANUSCRIPT_MUSTS = {
 _TENT_CONTEXT = re.compile(r"\b(?:tent|tents|camping)\b", re.IGNORECASE)
 _SNOW_CONTEXT = re.compile(r"\b(?:snow|snowy|snowfall|snow-covered|snow covered)\b", re.IGNORECASE)
 _OCEAN_CONTEXT = re.compile(r"\b(?:ocean|oceans|sea|seas|open water)\b", re.IGNORECASE)
+_RIB_CAGE_CONTEXT = re.compile(r"\b(?:rib cage|ribcage)\b", re.IGNORECASE)
 
 
 def normalize_visual_musts(
@@ -50,9 +51,9 @@ def normalize_visual_musts(
 ) -> tuple[list[str], list[dict[str, str]]]:
     """Return deduplicated visual anchors and auditable normalization events.
 
-    Book/parchment labels become manuscript in manuscript scenes. Ripped-canvas
-    and snowy-background labels become concrete tent/snow anchors only when the
-    scene query supports that context. Unrelated scenes keep their requirements.
+    Book/parchment, tent/snow, ocean/water and rib-cage labels normalize only
+    when the scene query supplies the matching context. Unrelated requirements
+    remain unchanged; normalized anchors still require asset-metadata evidence.
     """
     if isinstance(value, str):
         values = [value]
@@ -87,6 +88,9 @@ def normalize_visual_musts(
         elif anchor == original and key == "water" and _OCEAN_CONTEXT.search(str(context or "")):
             anchor = "ocean"
             reason = "CONTEXTUAL_OCEAN_ANCHOR"
+        elif anchor == original and key == "skeleton" and _RIB_CAGE_CONTEXT.search(str(context or "")):
+            anchor = "rib cage"
+            reason = "CONTEXTUAL_RIB_CAGE_ANCHOR"
 
         if anchor != original:
             events.append({"from": original, "to": anchor, "reason": reason})

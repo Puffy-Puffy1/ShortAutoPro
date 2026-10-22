@@ -74,6 +74,28 @@ class MediaEngineContractTests(unittest.TestCase):
                 scenes = media_engine_v2.load_scene_map(sid)
             self.assertEqual(scenes[0]["must_have"], ["ocean"])
 
+    def test_load_scene_map_normalizes_skeleton_for_rib_cage_xray_query(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            sid = "TEST_RIB_CAGE_MUST"
+            scripts = base / "roteiros"
+            scripts.mkdir(parents=True)
+            scene_map = scripts / f"scene_map_{sid}.json"
+            scene_map.write_text(
+                json.dumps({
+                    "scenes": [{
+                        "scene_id": "07",
+                        "query": "medical x ray showing human rib cage and skeletal structure",
+                        "must_have": ["skeleton"],
+                        "avoid": [],
+                    }]
+                }),
+                encoding="utf-8",
+            )
+            with patch.object(media_engine_v2, "BASE", base):
+                scenes = media_engine_v2.load_scene_map(sid)
+            self.assertEqual(scenes[0]["must_have"], ["rib cage"])
+
     def test_manifest_schema_is_frozen_and_complete(self):
         with tempfile.TemporaryDirectory() as td:
             base = Path(td)

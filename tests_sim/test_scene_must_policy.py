@@ -104,6 +104,29 @@ class SceneMustPolicyTests(unittest.TestCase):
         self.assertEqual(anchors, ["water"])
         self.assertEqual(events, [])
 
+    def test_skeleton_normalizes_to_rib_cage_only_in_matching_visual_context(self):
+        anchors, events = normalize_visual_musts(
+            ["skeleton"],
+            context="medical x ray showing human rib cage and skeletal structure",
+        )
+        self.assertEqual(anchors, ["rib cage"])
+        self.assertEqual(
+            events,
+            [{
+                "from": "skeleton",
+                "to": "rib cage",
+                "reason": "CONTEXTUAL_RIB_CAGE_ANCHOR",
+            }],
+        )
+
+    def test_generic_skeleton_requirement_stays_unchanged_without_rib_cage_context(self):
+        anchors, events = normalize_visual_musts(
+            ["skeleton"],
+            context="full human skeleton on a stand",
+        )
+        self.assertEqual(anchors, ["skeleton"])
+        self.assertEqual(events, [])
+
     def test_deduplicates_after_normalization(self):
         anchors, events = normalize_visual_musts([
             "single engine aircraft",
