@@ -201,3 +201,10 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 3. Só declarar prova real concluída quando existir MP4 novo com áudio/vídeo válidos e FFprobe aprovado.
 4. Continuar a consolidação estrutural por responsabilidade e contratos; não apagar módulos legados sem mapa de dependências e testes.
 5. Manter a PR #150 aberta até revisão; `main` permanece intocada.
+
+ 
+### Atualização adicional — falha real da cena 8
+- A execução [FIRST_VIDEO #39721581915](https://github.com/Puffy-Puffy1/ShortAutoPro/actions/runs/39721581915) avançou até a aquisição de mídia, mas falhou na cena 8: `must=snow`, 80 candidatos, nenhum com metadado aceito que comprovasse neve. Não houve confirmação de MP4 novo nem FFprobe. Isso demonstra que a correção de busca da cena 5 não pode ser considerada validada pela prova completa.
+- O verificador já reconhece `snow`, `snowfall`, `snow-covered`, `snow covered` e `snowy landscape`; o bloqueio foi a ausência dessas evidências nos candidatos, não a falta de um alias no verificador.
+- Foi ajustada a expansão de consultas para experimentar aliases mantendo o restante do contexto da cena, por exemplo `forensic medical report document snow-covered background`, antes de depender de termos isolados. O MUST continua sendo validado exclusivamente contra os metadados descritivos do candidato; a consulta não é prova.
+- Foi adicionado um teste de regressão para assegurar que a expansão de neve preserve o contexto editorial. Aguardando CI após o commit.
