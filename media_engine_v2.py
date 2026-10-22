@@ -15,6 +15,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import subprocess
 import tempfile
 from pathlib import Path
@@ -52,7 +53,7 @@ def _relaxed_relevance_acceptable(
     must_tokens = {
         token
         for item in must
-        for token in __import__("re").findall(r"[a-z0-9]+", str(item).casefold())
+        for token in re.findall(r"[a-z0-9]+", str(item).casefold())
     }
     contextual_matches = [
         str(term).casefold()
