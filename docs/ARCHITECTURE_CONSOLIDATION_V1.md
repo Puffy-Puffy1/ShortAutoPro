@@ -237,3 +237,14 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 2. Reexecutar FIRST_VIDEO com os novos bloqueios falsos corrigidos e usar o diagnóstico de claim lock para investigar as sentenças sem suporte. Não reduzir o limiar de evidência sem identificar a causa.
 3. Manter a liberação bloqueada até que a cobertura factual e os controles de qualidade sejam aprovados e a exigência de aprovação humana seja resolvida pelo fluxo autorizado.
 4. PR #150 continua aberta; `main` não foi alterada nem mesclada.
+
+
+## 13. Diagnóstico da prova FIRST_VIDEO #39732545372 — 22/10/2026
+
+- Execução: [FIRST_VIDEO Live Proof #39732545372](https://github.com/Puffy-Puffy1/ShortAutoPro/actions/runs/39732545372). Preparação, dependências e credenciais passaram; a etapa de produção parou no Media Engine V2 e a validação final do MP4 foi pulada.
+- A cena 1 usou a consulta \`old illustrated manuscript open pages studio lighting\`, mas definiu os MUSTs \`book\` e \`parchment pages\`. O router encontrou 57 candidatos, porém nenhum comprovou os dois requisitos nos metadados; o bloqueio \`MEDIA_INCOMPLETE\` foi correto e não deve ser contornado.
+- Correção consolidada nesta revisão: a política normaliza \`book\` e \`parchment page(s)\` para a única âncora visual \`manuscript\` **somente quando a própria consulta visual cita manuscript/Voynich**. Consultas genéricas sobre livros preservam os MUSTs originais. A normalização acontece na entrada do mapa de cenas do Media Engine e emite \`SCENE_MUST_NORMALIZED\` para auditoria.
+- O verificador independente de MUST continua obrigatório: o texto da consulta não conta como evidência. A mudança não aceita candidatos sem metadados que comprovem um manuscrito; reduz apenas a duplicação incompatível dos requisitos.
+- Foram adicionados testes da política com e sem contexto, um teste de integração da carga do mapa de cenas e filtros do workflow para esses testes. O motor foi versionado como \`2.0.3\`.
+- A mesma execução mostrou \`INTELLIGENCE_PRE=REVIEW\` (119 claims, cobertura 22,2%). Como a aquisição falhou antes do render e do release gate, ainda não há novo MP4 validado nem confirmação de liberação final. O próximo critério é o CI verde e uma prova real que chegue a FFprobe, sem reduzir os gates factuais.
+

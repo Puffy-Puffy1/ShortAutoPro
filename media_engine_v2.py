@@ -23,7 +23,7 @@ from typing import Any
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", Path.home() / "ShortAutoPro")).resolve()
 MEDIA_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".webm", ".mkv"}
-ENGINE_VERSION = "2.0.2"
+ENGINE_VERSION = "2.0.3"
 MIN_VISUAL_PIXELS = 320 * 180
 
 
@@ -78,6 +78,7 @@ def _manifest_integrity(payload: dict[str, Any]) -> str:
 
 from media_provider_v2 import MediaProviderV2
 from media_validator_v2 import validate as validate_asset
+from scene_must_policy import normalize_visual_musts
 
 PROVIDER = MediaProviderV2()
 
@@ -188,6 +189,21 @@ def load_scene_map(short_id: str) -> list[dict[str, Any]]:
             raise RuntimeError(f"MEDIA_INPUT_INVALID:scene_{index:02d}:scene_id_empty")
         if scene_id in seen_ids:
             raise RuntimeError(f"MEDIA_INPUT_INVALID:scene_{index:02d}:duplicate_scene_id")
+        scene_query = str(scene.get("query") or scene.get("busca") or scene.get("segment") or "").strip()
+        musts, events = normalize_visual_musts(
+            scene.get("must_have") or [],
+            context=scene_query,
+        )
+        scene["must_have"] = musts
+        if events:
+            print(
+                "SCENE_MUST_NORMALIZED="
+                + json.dumps(
+                    {"scene": scene_id, "events": events},
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                )
+            )
         seen_ids.add(scene_id)
     return rows
 

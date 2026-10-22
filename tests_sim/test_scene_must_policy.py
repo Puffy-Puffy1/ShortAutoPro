@@ -36,6 +36,28 @@ class SceneMustPolicyTests(unittest.TestCase):
         self.assertEqual([event["to"] for event in events], ["manuscript", "manuscript"])
         self.assertTrue(all(event["reason"] == "NON_ATOMIC_VISUAL_QUALIFIER" for event in events))
 
+    def test_book_and_parchment_anchors_collapse_only_in_manuscript_context(self):
+        anchors, events = normalize_visual_musts(
+            ["book", "parchment pages"],
+            context="old illustrated manuscript open pages studio lighting",
+        )
+        self.assertEqual(anchors, ["manuscript"])
+        self.assertEqual(
+            [(event["from"], event["to"], event["reason"]) for event in events],
+            [
+                ("book", "manuscript", "CONTEXTUAL_MANUSCRIPT_ANCHOR"),
+                ("parchment pages", "manuscript", "CONTEXTUAL_MANUSCRIPT_ANCHOR"),
+            ],
+        )
+
+    def test_generic_book_requirements_remain_unchanged_without_manuscript_context(self):
+        anchors, events = normalize_visual_musts(
+            ["book", "parchment pages"],
+            context="a person reading a book",
+        )
+        self.assertEqual(anchors, ["book", "parchment pages"])
+        self.assertEqual(events, [])
+
     def test_deduplicates_after_normalization(self):
         anchors, events = normalize_visual_musts([
             "single engine aircraft",

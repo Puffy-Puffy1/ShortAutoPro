@@ -8,6 +8,28 @@ import media_engine_v2
 
 
 class MediaEngineContractTests(unittest.TestCase):
+    def test_load_scene_map_normalizes_book_requirements_for_manuscript_query(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            sid = "TEST_MANUSCRIPT_MUST"
+            scripts = base / "roteiros"
+            scripts.mkdir(parents=True)
+            scene_map = scripts / f"scene_map_{sid}.json"
+            scene_map.write_text(
+                json.dumps({
+                    "scenes": [{
+                        "scene_id": "01",
+                        "query": "old illustrated manuscript open pages studio lighting",
+                        "must_have": ["book", "parchment pages"],
+                        "avoid": [],
+                    }]
+                }),
+                encoding="utf-8",
+            )
+            with patch.object(media_engine_v2, "BASE", base):
+                scenes = media_engine_v2.load_scene_map(sid)
+            self.assertEqual(scenes[0]["must_have"], ["manuscript"])
+
     def test_manifest_schema_is_frozen_and_complete(self):
         with tempfile.TemporaryDirectory() as td:
             base = Path(td)

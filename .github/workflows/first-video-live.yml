@@ -15,6 +15,8 @@ on:
       - "scene_director.py"
       - "scene_must_policy.py"
       - "media_engine_v2.py"
+      - "tests_sim/test_scene_must_policy.py"
+      - "tests_sim/test_media_engine_v2_contract.py"
       - "media_must_verifier.py"
       - "media_provider_router_v2.py"
       - "profile_runtime.py"
