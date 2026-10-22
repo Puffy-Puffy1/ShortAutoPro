@@ -385,15 +385,20 @@ def semantic_visual_safety(scene_rows: list[dict[str, Any]]) -> dict[str, Any]:
     for index, item in enumerate(scene_rows, 1):
         spoken = f" {normalized_phrase(segment(item))} "
         query = f" {normalized_phrase(item.get('query', ''))} "
-        must = f" {normalized_phrase(" ".join(map(str, item.get("must_have", []) if isinstance(item.get("must_have"), list) else [])))} "
+        must_values = item.get("must_have", []) if isinstance(item.get("must_have"), list) else []
+        must = f" {normalized_phrase(' '.join(map(str, must_values)))} "
         avoid = item.get("avoid", []) if isinstance(item.get("avoid"), list) else []
-        introduced = sorted({
-            phrase for term in avoid
-            if (phrase := normalized_phrase(term))
-            and f" {phrase} " in query
-            and f" {phrase} " not in spoken
-            and f" {phrase} " not in must
-        })
+        introduced = []
+        for term in avoid:
+            phrase = normalized_phrase(term)
+            if (
+                phrase
+                and f" {phrase} " in query
+                and f" {phrase} " not in spoken
+                and f" {phrase} " not in must
+            ):
+                introduced.append(phrase)
+        introduced = sorted(set(introduced))
         if introduced:
             violations.append({"scene": index, "introduced_avoid_terms": introduced})
     return {"violations": violations, "status": "PASS" if not violations else "BLOCK"}
