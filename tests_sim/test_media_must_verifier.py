@@ -142,7 +142,7 @@ class MediaMustVerifierForestTests(unittest.TestCase):
         self.assertTrue(
             any(
                 "vintage forensic investigation equipment" in item.casefold()
-                and "snowfall" in item.casefold()
+                and "snow-covered" in item.casefold()
                 for item in variants
             ),
             variants,
