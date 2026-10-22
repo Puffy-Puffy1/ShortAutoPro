@@ -30,6 +30,20 @@ SCRIPT_HISTORY = STATE / f"script_history_{CHANNEL}.json"
 FAILURE_KB = STATE / "failure_knowledge_base.json"
 WORD_RE = re.compile(r"[A-Za-zÀ-ÿ0-9'-]+", re.UNICODE)
 YEAR_RE = re.compile(r"\b(?:18|19|20)\d{2}\b")
+SOURCE_HEADING_RE = re.compile(r"^(?:={2,}\s*[^=]+?\s*={2,}|#{1,6}\s+\S.*)$")
+EDITORIAL_QUESTION_RE = re.compile(
+    r"^\s*(?:o que realmente aconteceu|o que aconteceu|você acha que|qual é sua teoria|qual teoria|será que|what really happened|what happened)\b.*\?\s*$",
+    re.IGNORECASE,
+)
+CALL_TO_ACTION_RE = re.compile(
+    r"^\s*(?:comente|comenta|inscreva[- ]se|curta|compartilhe|siga|deixe\s+(?:seu\s+)?coment[aá]rio|subscribe|comment below|like and subscribe|follow)\b",
+    re.IGNORECASE,
+)
+CLAIM_SINGLE_SUPPORT_THRESHOLD = 0.38
+CLAIM_MULTI_SUPPORT_THRESHOLD = 0.60
+CLAIM_MULTI_MIN_OVERLAP = 0.15
+CLAIM_MULTI_MAX_SENTENCES = 3
+
 CAP_RE = re.compile(r"\b[A-ZÀ-Ý][A-Za-zÀ-ÿ'-]+(?:\s+[A-ZÀ-Ý][A-Za-zÀ-ÿ'-]+){0,3}\b")
 STOP = {
     "a","o","as","os","um","uma","de","da","do","das","dos","e","em","no","na",
@@ -137,15 +151,27 @@ def script_source(sid: str) -> tuple[str, str]:
     return read(R / f"short_{sid}.txt"), read(R / f"fonte_{sid}.txt")
 
 
+def _is_editorial_prompt(sentence: str) -> bool:
+    """Identify explicit rhetorical prompts/CTAs that do not assert factual claims."""
+    value = str(sentence or "").strip()
+    return bool(
+        EDITORIAL_QUESTION_RE.match(value)
+        or CALL_TO_ACTION_RE.match(value)
+    )
+
+
 def claim_engine(source: str) -> list[dict[str, Any]]:
     claims = []
-    for index, sent in enumerate(sentences(source), 1):
+    for sent in sentences(source):
+        sent = sent.strip()
+        if not sent or SOURCE_HEADING_RE.fullmatch(sent):
+            continue
         ts = tokens(sent)
         if len(ts) < 2:
             continue
         confidence = 1.0 if (YEAR_RE.search(sent) or len(ts) >= 5) else 0.85
         claims.append({
-            "claim_id": f"claim_{index:03d}",
+            "claim_id": f"claim_{len(claims) + 1:03d}",
             "text": sent,
             "confidence": confidence,
             "evidence_type": "source_sentence",
@@ -156,25 +182,84 @@ def claim_engine(source: str) -> list[dict[str, Any]]:
 
 def claim_lock(script: str, claims: list[dict[str, Any]]) -> dict[str, Any]:
     rows, unsupported = [], []
+    factual_rows = []
+
     for index, sent in enumerate(sentences(script), 1):
+        if _is_editorial_prompt(sent):
+            rows.append({
+                "script_sentence": index,
+                "text": sent,
+                "claim_type": "editorial_prompt",
+                "claim_id": None,
+                "support": 0.0,
+                "aggregate_support": 0.0,
+                "supporting_claim_ids": [],
+                "locked": True,
+                "coverage_exempt": True,
+            })
+            continue
+
+        sentence_tokens = tokens(sent)
         ranked = sorted(
-            ((overlap(sent, claim["text"]), claim) for claim in claims),
-            key=lambda item: item[0], reverse=True,
+            (
+                (overlap(sent, str(claim.get("text") or "")), claim)
+                for claim in claims
+                if not SOURCE_HEADING_RE.fullmatch(str(claim.get("text") or "").strip())
+            ),
+            key=lambda item: item[0],
+            reverse=True,
         )
         score, best = ranked[0] if ranked else (0.0, None)
-        locked = bool(best and score >= 0.38)
+
+        supporting = [
+            (candidate_score, claim)
+            for candidate_score, claim in ranked
+            if candidate_score >= CLAIM_MULTI_MIN_OVERLAP
+        ][:CLAIM_MULTI_MAX_SENTENCES]
+        evidence_tokens = set()
+        for _, claim in supporting:
+            evidence_tokens.update(tokens(claim.get("text", "")))
+        aggregate_support = (
+            len(sentence_tokens & evidence_tokens) / len(sentence_tokens)
+            if sentence_tokens else 0.0
+        )
+
+        single_claim_supported = bool(
+            best and score >= CLAIM_SINGLE_SUPPORT_THRESHOLD
+        )
+        multi_claim_supported = (
+            len(supporting) >= 2
+            and aggregate_support >= CLAIM_MULTI_SUPPORT_THRESHOLD
+        )
+        locked = single_claim_supported or multi_claim_supported
         row = {
             "script_sentence": index,
             "text": sent,
+            "claim_type": "factual",
             "claim_id": best.get("claim_id") if best else None,
             "support": round(score, 3),
+            "aggregate_support": round(aggregate_support, 3),
+            "supporting_claim_ids": [claim.get("claim_id") for _, claim in supporting],
             "locked": locked,
+            "coverage_exempt": False,
         }
         rows.append(row)
+        factual_rows.append(row)
         if not locked:
             unsupported.append(index)
-    coverage = 100.0 * (len(rows) - len(unsupported)) / max(1, len(rows))
-    return {"coverage": round(coverage, 1), "unsupported": unsupported, "sentences": rows}
+
+    coverage = (
+        100.0
+        if not factual_rows
+        else 100.0 * sum(1 for row in factual_rows if row["locked"]) / len(factual_rows)
+    )
+    return {
+        "coverage": round(coverage, 1),
+        "unsupported": unsupported,
+        "sentences": rows,
+        "factual_sentence_count": len(factual_rows),
+        "editorial_prompt_count": len(rows) - len(factual_rows),
+    }
 
 
 def story_architecture(script: str) -> dict[str, Any]:
@@ -766,7 +851,7 @@ def pre_phase(sid: str) -> dict[str, Any]:
     atomic(REPORTS / f"pre_{sid}.json",payload)
     unsupported = [
         {"sentence": row["script_sentence"], "support": row["support"], "text": row["text"][:120]}
-        for row in locked["sentences"] if not row["locked"]
+        for row in locked["sentences"] if not row["locked"] and not row.get("coverage_exempt")
     ]
     if unsupported:
         print("INTELLIGENCE_CLAIM_LOCK_UNSUPPORTED=" + json.dumps(unsupported, ensure_ascii=False))

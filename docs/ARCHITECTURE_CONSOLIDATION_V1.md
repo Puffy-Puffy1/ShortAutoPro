@@ -267,3 +267,12 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - Foi acrescentado teste de regressão para o par de nomes regionais; o teste existente que exige bloquear Adelaide/Sydney permanece intacto.
 - O diagnóstico veio do artefato de evidências da execução, não de suposição. A cobertura factual do roteiro continua baixa (25%) e precisa ser corrigida em fase própria; este ajuste só trata a compatibilidade geográfica. A validação final ainda depende da nova prova real, do FFprobe e do release gate.
 
+
+## 16. Ajuste do Claim Lock com evidência composta — 22/10/2026
+
+- O artefato de FIRST_VIDEO #39817616597 mostrou que algumas frases factuais estavam distribuídas por mais de uma sentença da fonte. Exemplo: a frase inicial do roteiro tinha suporte individual máximo de 0,357, abaixo do limite de 0,38, mas as duas sentenças-fonte mais relevantes cobriam em conjunto 64,3% dos tokens factuais do roteiro.
+- O Claim Lock mantém o limite original de 0,38 para suporte por uma única sentença. Para evidência composta, aceita no máximo três sentenças-fonte independentes, cada uma com sobreposição mínima de 0,15, e exige cobertura combinada mínima de 0,60. A cobertura agregada e os IDs das sentenças que apoiam a afirmação são registrados no relatório para auditoria.
+- Títulos de seção como “Testes militares” deixam de ser tratados como sentenças-fonte factuais. Perguntas retóricas reconhecidas e chamadas para ação de encerramento ficam identificadas como prompts editoriais e fora do denominador de cobertura factual; não são apresentados como afirmações com evidência.
+- Foram adicionados testes para suporte composto, rejeição de títulos como evidência e exclusão de prompts/CTAs. A mudança não reduz o limiar de suporte individual nem torna automaticamente válidas as afirmações sem apoio; a frase sobre teorias continuará em revisão se não atingir um dos critérios.
+- A nova prova precisa confirmar a cobertura factual no contexto real. O vídeo só estará aprovado quando aquisição, render/FFprobe e release gate passarem.
+

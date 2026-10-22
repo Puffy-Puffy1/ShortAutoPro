@@ -16,6 +16,46 @@ class IntelligenceLayerTests(unittest.TestCase):
         self.assertEqual(locked["coverage"], 100.0)
         self.assertTrue(all(x["locked"] for x in locked["sentences"]))
 
+    def test_claim_lock_combines_multiple_source_sentences_without_lowering_single_claim_threshold(self):
+        source = (
+            "Incidente do Passo Dyatlov foi um acontecimento que resultou na morte de nove "
+            "esquiadores ao norte dos montes Urais, na antiga União Soviética, na noite de "
+            "2 de fevereiro de 1959. Investigadores da época determinaram que os esquiadores "
+            "rasgaram suas barracas de dentro para fora, fugindo a pé sob forte nevasca."
+        )
+        script = (
+            "Nove esquiadores experientes fugiram de sua barraca rasgando-a por dentro, "
+            "na noite de 2 de fevereiro de 1959, sob forte nevasca."
+        )
+        result = intel.claim_lock(script, intel.claim_engine(source))
+        row = result["sentences"][0]
+        self.assertLess(row["support"], intel.CLAIM_SINGLE_SUPPORT_THRESHOLD)
+        self.assertGreaterEqual(row["aggregate_support"], intel.CLAIM_MULTI_SUPPORT_THRESHOLD)
+        self.assertGreaterEqual(len(row["supporting_claim_ids"]), 2)
+        self.assertTrue(row["locked"])
+        self.assertEqual(result["coverage"], 100.0)
+
+    def test_claim_engine_does_not_treat_source_section_headings_as_evidence(self):
+        claims = intel.claim_engine(
+            "=== Testes militares ===\nPesquisadores analisaram as evidências do incidente."
+        )
+        self.assertTrue(claims)
+        self.assertFalse(any(claim["text"].startswith("===") for claim in claims))
+
+    def test_claim_lock_excludes_explicit_rhetorical_prompt_and_call_to_action(self):
+        source = "Os esquiadores acamparam nas montanhas durante o inverno."
+        script = (
+            "Os esquiadores acamparam nas montanhas durante o inverno. "
+            "O que realmente aconteceu naquela noite gelada? "
+            "Comente sua teoria e inscreva-se."
+        )
+        result = intel.claim_lock(script, intel.claim_engine(source))
+        self.assertEqual(result["coverage"], 100.0)
+        self.assertEqual(result["factual_sentence_count"], 1)
+        self.assertEqual(result["editorial_prompt_count"], 2)
+        self.assertEqual(result["unsupported"], [])
+        self.assertTrue(all(row["coverage_exempt"] for row in result["sentences"][1:]))
+
     def test_story_architecture_contains_core_roles(self):
         script = "A mystery began. The men planned an escape. But one detail changed everything. The search intensified. A clue appeared. Nobody knows the final answer."
         result = intel.story_architecture(script)
