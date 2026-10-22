@@ -75,12 +75,21 @@ class MediaEngineContractTests(unittest.TestCase):
             self.assertEqual(payload["scenes"][1]["asset"]["checksum_sha256"], "unique")
             self.assertEqual(observed_used_hashes, [{"same"}])
 
-    def test_relaxed_fallback_allows_one_anchor_only_after_must_verification(self):
+    def test_relaxed_fallback_requires_context_beyond_verified_must(self):
         accept = media_engine_v2._relaxed_relevance_acceptable
-        self.assertTrue(accept({"query_relevance": {"ok": True, "matched_count": 2}}))
-        self.assertTrue(accept({"query_relevance": {"ok": False, "matched_count": 1}}))
-        self.assertFalse(accept({"query_relevance": {"ok": False, "matched_count": 0}}))
-        self.assertTrue(accept({}))
+        self.assertTrue(
+            accept({"query_relevance": {"ok": True, "matched_terms": ["quill", "inkwell"]}}, ["quill pen"])
+        )
+        self.assertTrue(
+            accept({"query_relevance": {"ok": False, "matched_terms": ["inkwell"]}}, ["quill pen"])
+        )
+        self.assertFalse(
+            accept({"query_relevance": {"ok": False, "matched_terms": ["quill"]}}, ["quill pen"])
+        )
+        self.assertFalse(
+            accept({"query_relevance": {"ok": False, "matched_terms": ["money"]}}, ["money"])
+        )
+        self.assertTrue(accept({}, ["quill pen"]))
 
     def test_quill_pen_search_variants_are_bounded_and_contextual(self):
         from media_provider_router_v2 import _query_variants
