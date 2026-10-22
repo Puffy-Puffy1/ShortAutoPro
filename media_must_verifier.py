@@ -191,6 +191,17 @@ STRICT_VISUAL_ALIASES = {
         "boxing ring",
         "wrestling arena ring",
     ),
+    # Historical catalogs may label the writing tool as a quill or feather pen.
+    # Require explicit writing-tool metadata; a generic feather is not enough.
+    "quill pen": (
+        "quill pen",
+        "feather quill pen",
+        "writing quill",
+        "quill and ink",
+        "quill with inkwell",
+        "quill",
+        "feather pen",
+    ),
     "boat": (
         "boat", "boats", "ship", "ships", "vessel", "vessels", "watercraft",
     ),
