@@ -37,15 +37,29 @@ def _resolution_issue(probe: dict[str, Any]) -> str | None:
         return f"LOW_RESOLUTION:{width}x{height}"
     return None
 
-def _relaxed_relevance_acceptable(candidate: dict[str, Any]) -> bool:
-    """Allow one query anchor only in fallback, after MUST is independently verified."""
+def _relaxed_relevance_acceptable(
+    candidate: dict[str, Any],
+    must: list[str],
+) -> bool:
+    """Require one contextual query match beyond the independently verified MUST."""
     relevance = candidate.get("query_relevance")
     if not isinstance(relevance, dict) or relevance.get("ok") is True:
         return True
-    try:
-        return int(relevance.get("matched_count", 0) or 0) >= 1
-    except (TypeError, ValueError):
+
+    matched_terms = relevance.get("matched_terms", [])
+    if not isinstance(matched_terms, (list, tuple, set)):
         return False
+    must_tokens = {
+        token
+        for item in must
+        for token in __import__("re").findall(r"[a-z0-9]+", str(item).casefold())
+    }
+    contextual_matches = [
+        str(term).casefold()
+        for term in matched_terms
+        if str(term).casefold() not in must_tokens
+    ]
+    return bool(contextual_matches)
 
 
 def _asset_name_is_forbidden(path: Path) -> bool:
@@ -371,7 +385,7 @@ def acquire_scene(
                 )
                 if int(evidence.get("hits", 0) or 0) != len(must) or not must:
                     continue
-                if not _relaxed_relevance_acceptable(candidate):
+                if not _relaxed_relevance_acceptable(candidate, must):
                     relaxed_query_relevance_rejected += 1
                     continue
                 candidate["_sap_must_total"] = len(must)
