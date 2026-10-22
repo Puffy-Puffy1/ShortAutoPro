@@ -192,7 +192,7 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 ### Correção incremental da cena 5
 - O verificador reconhece agora rótulos de catálogo explícitos para pena de escrever: `quill pen`, `feather quill pen`, `writing quill`, `quill and ink`, `quill with inkwell`, `quill` e `feather pen`. Uma pena genérica, sem evidência de escrita, continua rejeitada.
 - A busca acrescenta variantes limitadas como `feather quill` e `writing quill`, preservando a consulta editorial original.
-- Na recuperação de busca, o Media Engine verifica o MUST antes da relevância. Só um candidato que comprove todos os MUST pode usar o limiar de um termo contextual coincidente; a busca primária mantém seu limiar normal. Candidatos sem evidência do MUST continuam rejeitados.
+- Na recuperação de busca, o Media Engine verifica o MUST antes da relevância. Só um candidato que comprove todos os MUST pode usar o limiar de um termo contextual coincidente além dos próprios termos MUST; uma coincidência composta apenas pelo MUST (por exemplo, `money` para MUST `money`) continua rejeitada. A busca primária mantém seu limiar normal. Candidatos sem evidência do MUST continuam rejeitados.
 - Foram adicionados testes para os aliases da pena, rejeição de pena genérica, variantes de busca e regra de relevância na recuperação. O código e os testes foram enviados à branch; o resultado do CI após estas alterações ainda precisa ser confirmado.
 
 ### Próximos passos
