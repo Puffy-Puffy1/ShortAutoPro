@@ -182,6 +182,15 @@ STRICT_VISUAL_ALIASES = {
         "ship", "ships", "vessel", "vessels", "boat", "boats",
         "watercraft", "merchant ship", "cargo ship",
     ),
+    # Wrestling catalogs may label the ring as a wrestling ring or boxing ring;
+    # this remains asset-metadata evidence, not query text.
+    "canvas ring": (
+        "canvas ring",
+        "wrestling ring",
+        "professional wrestling ring",
+        "boxing ring",
+        "wrestling arena ring",
+    ),
     "boat": (
         "boat", "boats", "ship", "ships", "vessel", "vessels", "watercraft",
     ),
