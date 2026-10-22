@@ -127,6 +127,29 @@ class SceneMustPolicyTests(unittest.TestCase):
         self.assertEqual(anchors, ["skeleton"])
         self.assertEqual(events, [])
 
+    def test_soviet_train_collapses_to_visual_anchor_only_in_matching_context(self):
+        anchors, events = normalize_visual_musts(
+            ["soviet train"],
+            context="vintage soviet train winter tracks Ural mountains",
+        )
+        self.assertEqual(anchors, ["train"])
+        self.assertEqual(
+            events,
+            [{
+                "from": "soviet train",
+                "to": "train",
+                "reason": "CONTEXTUAL_SOVIET_TRAIN_ANCHOR",
+            }],
+        )
+
+    def test_soviet_train_requirement_remains_unchanged_without_context(self):
+        anchors, events = normalize_visual_musts(
+            ["soviet train"],
+            context="snow-covered forest",
+        )
+        self.assertEqual(anchors, ["soviet train"])
+        self.assertEqual(events, [])
+
     def test_deduplicates_after_normalization(self):
         anchors, events = normalize_visual_musts([
             "single engine aircraft",

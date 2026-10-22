@@ -331,3 +331,13 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - Testes novos cobrem estabilidade da assinatura, rejeição de cache de outro contrato mesmo com a mesma quantidade de MUSTs e aceitação de cache válido com assinatura correspondente.
 - Versão do Media Engine atualizada para **2.0.4**. A validação deste commit depende do CI; manter FIRST_VIDEO como não concluído até existir um MP4 real validado e o gate final passar.
 
+
+## 23. Ajuste contextual de trem histórico — 22/10/2026
+
+- Prova real: [FIRST_VIDEO #39857552666](https://github.com/Puffy-Puffy1/ShortAutoPro/actions/runs/39857552666). A instalação, o bundle Remotion e as credenciais passaram; a aquisição parou na cena 2 e FFprobe foi ignorado porque não existiu novo MP4.
+- Diagnóstico: consulta `vintage soviet train winter tracks Ural mountains`, MUST `soviet train`; 12 candidatos, nenhum confirmou a expressão inteira. A cena 1 da barraca conseguiu avançar depois dos ajustes contextuais existentes; o bloqueio se deslocou para o trem.
+- Alteração consolidada: normalizar `soviet train` para a âncora visual `train` apenas quando a própria consulta mencionar trem/ferrovia soviética. O contexto original e o campo `era` são preservados; somente o objeto visual obrigatório é simplificado. A aceitação continua dependendo de metadados do próprio candidato que comprovem um trem, nunca do texto da consulta.
+- Testes adicionados para a normalização positiva, para preservar o MUST sem contexto compatível e para garantir que `era="Soviet Union, 1959"` e a consulta permaneçam intactos em `load_scene_map`.
+- Esta simplificação não prova insígnias, operador ou fabricação soviética do recurso. Se a imagem precisar demonstrar explicitamente uma locomotiva identificada como soviética, os metadados precisam provar esse detalhe em requisito separado. Nesta cena, a âncora automatizada representa o objeto “trem”; a época/contexto editorial permanece separada.
+- O Render Engine V2 e o stress passaram no commit `ebc6aa0`; validação portátil e migração foram canceladas por execuções posteriores concorrentes e precisam de nova confirmação após o próximo commit. A prova FIRST_VIDEO falhou antes da renderização, portanto não há MP4 novo validado.
+- Próximo critério: CI verde e nova FIRST_VIDEO. Não declarar concluído até render real, áudio/vídeo válidos, FFprobe aprovado e gate final respeitado.
