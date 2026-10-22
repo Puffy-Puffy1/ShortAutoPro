@@ -393,7 +393,7 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
         "vehicle": ("car", "automobile", "motor vehicle", "road vehicle"),
         "canvas tent": ("tent", "camping tent", "canvas shelter", "tent in snow"),
         "tent": ("canvas tent", "camping tent", "tent in snow", "snow tent"),
-        "snow": ("snowfall", "snow-covered", "snowy landscape", "winter camping"),
+        "snow": ("snow-covered", "snowfall", "snowy landscape", "winter camping"),
         "darkness": ("nighttime", "dark", "darkness", "at night", "low-light", "night"),
         "forest": ("woodland", "woodlands", "woods", "pine forest", "coniferous forest", "taiga"),
         "train": ("railway train", "locomotive", "rail transport", "passenger train"),
@@ -419,8 +419,9 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
 
         pattern = re.compile(rf"\b{re.escape(term)}\b", re.IGNORECASE)
         if pattern.search(raw):
-            for alias in term_aliases:
-                candidates.append(pattern.sub(alias, raw, count=1))
+            # Keep one context-preserving variant; standalone aliases below
+            # retain coverage without crowding out other required anchors.
+            candidates.append(pattern.sub(term_aliases[0], raw, count=1))
             continue
 
         # If the scene already uses an equivalent phrase, preserve context
@@ -435,8 +436,7 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
         )
         if synonym:
             synonym_pattern = re.compile(rf"\b{re.escape(synonym)}\b", re.IGNORECASE)
-            for alias in term_aliases:
-                candidates.append(synonym_pattern.sub(alias, raw, count=1))
+            candidates.append(synonym_pattern.sub(term_aliases[0], raw, count=1))
         # When the MUST is absent from the original query, keep its
         # aliases for the dedicated fallback list below. This reserves room
         # for every explicit MUST anchor in the bounded query set.
