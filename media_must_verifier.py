@@ -182,6 +182,13 @@ STRICT_VISUAL_ALIASES = {
         "ship", "ships", "vessel", "vessels", "boat", "boats",
         "watercraft", "merchant ship", "cargo ship",
     ),
+    # Ski-catalog descriptions vary between the object and its equipment label.
+    # These aliases still require the actual ski/gear wording in asset metadata.
+    "ski equipment": (
+        "ski equipment", "ski gear", "ski", "skis", "wooden ski", "wooden skis",
+        "ski pole", "ski poles", "ski boot", "ski boots",
+        "cross-country ski", "cross-country skis",
+    ),
     # Wrestling catalogs may label the ring as a wrestling ring or boxing ring;
     # this remains asset-metadata evidence, not query text.
     "canvas ring": (

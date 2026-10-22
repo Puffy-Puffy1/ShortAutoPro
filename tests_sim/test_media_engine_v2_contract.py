@@ -227,6 +227,31 @@ class MediaEngineContractTests(unittest.TestCase):
             self.assertEqual(scenes[0]["era"], "Soviet Union, 1959")
             self.assertIn("soviet", scenes[0]["query"].casefold())
 
+    def test_load_scene_map_normalizes_ski_equipment_without_erasing_era(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            sid = "TEST_SKI_EQUIPMENT_MUST"
+            scripts = base / "roteiros"
+            scripts.mkdir(parents=True)
+            scene_map = scripts / f"scene_map_{sid}.json"
+            scene_map.write_text(
+                json.dumps({
+                    "scenes": [{
+                        "scene_id": "02",
+                        "query": "vintage soviet skiing expedition equipment and wooden skis",
+                        "era": "Soviet Union, 1959",
+                        "must_have": ["vintage equipment", "skis"],
+                        "avoid": [],
+                    }]
+                }),
+                encoding="utf-8",
+            )
+            with patch.object(media_engine_v2, "BASE", base):
+                scenes = media_engine_v2.load_scene_map(sid)
+            self.assertEqual(scenes[0]["must_have"], ["ski equipment"])
+            self.assertEqual(scenes[0]["era"], "Soviet Union, 1959")
+            self.assertIn("wooden skis", scenes[0]["query"].casefold())
+
     def test_manifest_schema_is_frozen_and_complete(self):
         with tempfile.TemporaryDirectory() as td:
             base = Path(td)

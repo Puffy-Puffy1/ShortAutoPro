@@ -348,3 +348,12 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - Causa: esses fixtures criavam sidecars com checksum, short ID e número da cena, mas não incluíam `scene_contract_fingerprint`, que passou a ser obrigatório na versão 2.0.4. O comportamento de rejeitar sidecars sem a assinatura é intencional: sem ela, não é possível comprovar que o asset pertence à mesma consulta, MUSTs e AVOIDs.
 - Correção nesta revisão: os três testes agora criam sidecars por meio de um pequeno helper que calcula a assinatura usando exatamente o contrato da cena em teste. Nenhuma validação de produção foi relaxada; a suíte continua a testar a reutilização de um cache válido.
 - A correção está agrupada com esta atualização da documentação. É necessário confirmar de novo os testes independentes, a validação portátil e FIRST_VIDEO; a prova real só conta como concluída após novo MP4 e FFprobe aprovados.
+
+## 25. Ajuste contextual de equipamento de esqui — 22/10/2026
+
+- Prova real: [FIRST_VIDEO #39873268494](https://github.com/Puffy-Puffy1/ShortAutoPro/actions/runs/39873268494). A instalação, o bundle Remotion e as credenciais passaram; a aquisição parou na cena 2, antes do render. FFprobe foi ignorado porque nenhum MP4 novo foi produzido.
+- Diagnóstico: consulta `vintage soviet skiing expedition equipment and wooden skis`; MUSTs `vintage equipment` e `skis`. O router encontrou 41 candidatos na busca principal e 12 no fallback; nenhum comprovou simultaneamente os dois MUSTs.
+- Correção consolidada: quando o contexto visual menciona esqui, os dois rótulos sobrepostos viram uma única âncora concreta: `ski equipment`. O query e a época da cena permanecem intactos. O verificador passou a aceitar variações de catálogo como `wooden skis`, `ski poles` e `ski boots`, apenas quando essas palavras estão nos metadados descritivos da mídia.
+- Testes positivos e negativos cobrem a regra contextual, a preservação do campo `era` e a proibição de usar somente a consulta como prova de equipamento.
+- Esta correção não afirma que uma imagem genérica de neve é equipamento de esqui, nem prova que o material é soviético. Se a cena precisar mostrar equipamento claramente identificado como soviético, isso exige evidência de origem separada. A âncora automática apenas seleciona o objeto visual.
+- No commit anterior, os testes de migração, validação portátil, Render Engine V2 e stress passaram; FIRST_VIDEO continua incompleto. O próximo critério é CI verde e nova prova real validada, sem diminuir os gates de mídia ou factualidade.
