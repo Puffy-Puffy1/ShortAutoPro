@@ -208,3 +208,9 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - O verificador já reconhece `snow`, `snowfall`, `snow-covered`, `snow covered` e `snowy landscape`; o bloqueio foi a ausência dessas evidências nos candidatos, não a falta de um alias no verificador.
 - Foi ajustada a expansão de consultas para experimentar aliases mantendo o restante do contexto da cena, por exemplo `forensic medical report document snow-covered background`, antes de depender de termos isolados. O MUST continua sendo validado exclusivamente contra os metadados descritivos do candidato; a consulta não é prova.
 - Foi adicionado um teste de regressão para assegurar que a expansão de neve preserve o contexto editorial. Aguardando CI após o commit.
+
+ 
+### Ajuste de regressão do expansor de consultas
+- A primeira rodada após a expansão contextual detectou um teste de contrato: variantes de aliases estavam ocupando o limite de consultas antes que todos os MUSTs explícitos (como `ship` e `ocean`) entrassem na lista.
+- Corrigi a ordem: primeiro preserva a consulta original e o contexto, depois reserva espaço para âncoras MUST explícitas, e só então usa aliases independentes. O limite continua em até 8 consultas por cena e a regra de evidência do MUST não foi alterada.
+- CI do commit `f23de5a6` está em andamento para confirmar a regressão corrigida e a prova FIRST_VIDEO. Não considerar essa correção validada até os workflows terminarem.
