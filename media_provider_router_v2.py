@@ -401,6 +401,7 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
         "train": ("railway train", "locomotive", "rail transport", "passenger train"),
         "torn tent": ("ripped tent", "damaged tent", "torn canvas tent"),
         "topographic map": ("topographical map", "contour map", "relief map", "elevation map"),
+        "microphone": ("communication microphone", "aviation microphone", "pilot microphone", "radio microphone", "aircraft microphone"),
         "quill pen": ("feather quill", "writing quill", "quill and ink", "feather pen"),
     }
 

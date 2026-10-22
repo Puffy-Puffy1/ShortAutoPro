@@ -249,5 +249,17 @@ class MediaProviderV2Tests(unittest.TestCase):
         self.assertEqual(provider.prepare(candidates, 2), [])
 
 
+    def test_microphone_search_variants_preserve_aviation_context(self):
+        query = "vintage aviation radio microphone and control panel"
+        variants = _query_variants(query, ["microphone"])
+        self.assertLessEqual(len(variants), 8)
+        self.assertEqual(variants[0], query)
+        self.assertIn(
+            "vintage aviation radio communication microphone and control panel",
+            variants,
+        )
+        self.assertIn("pilot microphone", variants)
+        self.assertIn("aircraft microphone", variants)
+
 if __name__ == "__main__":
     unittest.main()

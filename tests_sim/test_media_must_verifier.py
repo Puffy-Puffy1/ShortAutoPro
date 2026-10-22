@@ -177,5 +177,30 @@ class MediaMustVerifierForestTests(unittest.TestCase):
         self.assertTrue(result["ok"], result)
 
 
+
+
+class MediaMustVerifierMicrophoneTests(unittest.TestCase):
+    def test_microphone_requires_explicit_microphone_evidence(self):
+        for evidence in (
+            "Aircraft radio microphone and control panel",
+            "Pilot microphone inside a vintage cockpit",
+            "Aviation communications microphone",
+        ):
+            self.assertTrue(
+                requirement_matches("microphone", {"description": evidence}),
+                evidence,
+            )
+
+    def test_radio_equipment_without_microphone_evidence_is_rejected(self):
+        for evidence in (
+            "Vintage aircraft radio and control panel",
+            "Radio handset in a cockpit",
+            "Aircraft transceiver mounted in the cockpit",
+        ):
+            self.assertFalse(
+                requirement_matches("microphone", {"description": evidence}),
+                evidence,
+            )
+
 if __name__ == "__main__":
     unittest.main()

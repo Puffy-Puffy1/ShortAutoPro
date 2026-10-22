@@ -292,3 +292,12 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - A verificação independente continua exigindo evidência de `ocean` (com as equivalências visuais já aceitas pelo verificador); não há aprovação automática de candidato. Foram adicionados testes unitários do contexto e teste de integração do carregamento do mapa de cenas.
 - O resultado da prova real no HEAD mais recente ainda é necessário para confirmar se a aquisição avança; não declarar MP4 concluído antes de FFprobe e do release gate.
 
+
+
+## 19. Busca contextual para microfone de rádio de aviação — 22/10/2026
+
+- Execução: [FIRST_VIDEO Live Proof #39821922789](https://github.com/Puffy-Puffy1/ShortAutoPro/actions/runs/39821922789). A aquisição de mídia parou na cena 5; a geração do MP4 e a validação FFprobe foram puladas.
+- Consulta: `vintage aviation radio microphone and control panel`; MUST: `microphone`. O router encontrou 40 candidatos na busca inicial, mas nenhum chegou à lista estrita aceita; 34 foram rejeitados pela relevância da consulta. A busca de recuperação encontrou mais 20, sem evidência explícita de microfone nos metadados.
+- Ajuste: o router agora tenta até cinco rótulos de catálogo para a busca — `communication microphone`, `aviation microphone`, `pilot microphone`, `radio microphone` e `aircraft microphone` — mantendo a consulta original como primeira opção e respeitando o limite de oito variantes.
+- A alteração afeta somente a descoberta de candidatos. O requisito continua sendo `microphone`: descrições de rádio, handset ou painel sem evidência explícita de microfone continuam rejeitadas. Foram adicionados testes da expansão contextual e do bloqueio de equipamento sem microfone.
+- As validações estruturais do commit `93b9809` passaram, mas a prova real ainda falhou antes do render. A mudança precisa passar pelos testes e por uma nova prova; não considerar o vídeo concluído até FFprobe e o release gate passarem.
