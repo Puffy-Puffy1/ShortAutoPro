@@ -167,6 +167,30 @@ class MediaProviderV2Tests(unittest.TestCase):
         self.assertTrue(result["ok"], result)
         self.assertGreaterEqual(result["matched_count"], 2)
 
+    def test_query_relevance_maps_portuguese_manuscript_to_catalog_term(self):
+        from media_provider_router_v2 import query_relevance
+
+        query = "Voynich documentary context manuscrito nunca comprovadamente archive"
+        candidate = {
+            "title": "Voynich manuscript folios from the Beinecke library",
+            "image_description": "Illustrated pages from the Voynich manuscript",
+        }
+        result = query_relevance(query, candidate)
+        self.assertTrue(result["ok"], result)
+        self.assertIn("voynich", result["matched_terms"])
+        self.assertIn("manuscript", result["matched_terms"])
+        self.assertEqual(result["required_terms"], 2)
+
+    def test_portuguese_manuscript_alias_does_not_accept_only_subject_overlap(self):
+        from media_provider_router_v2 import query_relevance
+
+        result = query_relevance(
+            "Voynich documentary context manuscrito nunca comprovadamente archive",
+            {"title": "Voynich astronomy lecture", "image_description": "Modern lecture hall"},
+        )
+        self.assertFalse(result["ok"], result)
+        self.assertEqual(result["matched_count"], 1)
+
     def test_query_relevance_accepts_one_overlap_for_short_scene_prompt(self):
         from media_provider_router_v2 import query_relevance
 

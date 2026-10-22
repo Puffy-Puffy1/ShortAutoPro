@@ -276,3 +276,11 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - Foram adicionados testes para suporte composto, rejeição de títulos como evidência e exclusão de prompts/CTAs. A mudança não reduz o limiar de suporte individual nem torna automaticamente válidas as afirmações sem apoio; a frase sobre teorias continuará em revisão se não atingir um dos critérios.
 - A nova prova precisa confirmar a cobertura factual no contexto real. O vídeo só estará aprovado quando aquisição, render/FFprobe e release gate passarem.
 
+
+## 17. Recuperação de relevância para termos traduzidos — 22/10/2026
+
+- A execução [FIRST_VIDEO #39819589135](https://github.com/Puffy-Puffy1/ShortAutoPro/actions/runs/39819589135) falhou na cena 1 com a consulta longa `Voynich documentary context manuscrito nunca comprovadamente archive`, sem MUSTs explícitos. O candidato encontrado foi rejeitado porque a consulta usava a palavra portuguesa `manuscrito`, enquanto o catálogo usa `manuscript`; sem MUSTs, o motor também não executava o caminho de recuperação focado em MUST.
+- A política de relevância agora normaliza as formas portuguesas comuns de “manuscrito” para o termo de catálogo `manuscript`. Isso permite que um candidato com metadados que contenham ambos `Voynich` e `manuscript` atinja o requisito de dois termos para uma consulta longa.
+- A correção não ignora a relevância: um candidato que só compartilhe “Voynich”, sem evidência adicional no título/descrição, continua rejeitado. Foram adicionados testes positivo e negativo para essa distinção.
+- O objetivo é corrigir incompatibilidade de idioma na busca; aprovação do candidato continua dependente dos metadados, dos requisitos MUST/AVOID aplicáveis e da validação independente da mídia.
+

@@ -73,6 +73,8 @@ _QUERY_TOKEN_ALIASES = {
     "bills": "bill", "dollars": "dollar", "passengers": "passenger",
     "stairs": "stair", "letters": "letter", "documents": "document",
     "files": "file", "investigators": "investigator",
+    "manuscrito": "manuscript", "manuscritos": "manuscript",
+    "manuscrita": "manuscript", "manuscritas": "manuscript",
     "investigations": "investigation", "airliners": "airliner",
     "aircrafts": "aircraft", "pages": "page", "forests": "forest",
     "snowy": "snow", "snowing": "snow", "snowfall": "snow",
