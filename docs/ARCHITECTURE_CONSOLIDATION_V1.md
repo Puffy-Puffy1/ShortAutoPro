@@ -284,3 +284,11 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - A correção não ignora a relevância: um candidato que só compartilhe “Voynich”, sem evidência adicional no título/descrição, continua rejeitado. Foram adicionados testes positivo e negativo para essa distinção.
 - O objetivo é corrigir incompatibilidade de idioma na busca; aprovação do candidato continua dependente dos metadados, dos requisitos MUST/AVOID aplicáveis e da validação independente da mídia.
 
+
+## 18. Eliminação de MUSTs redundantes para oceano/água — 22/10/2026
+
+- A execução [FIRST_VIDEO #39820116159](https://github.com/Puffy-Puffy1/ShortAutoPro/actions/runs/39820116159) parou na cena 3, cuja consulta dizia “Bass Strait dark ocean aerial view at dusk”, mas os MUSTs eram `ocean` e `water`. Foram encontrados 75 candidatos, mas nenhum comprovou separadamente ambos os termos exigidos.
+- A política agora consolida `water` em `ocean` apenas quando a consulta da própria cena contém oceano, mar ou águas abertas. Uma exigência genérica de `water` continua intacta em outros contextos, como pia, rio ou torneira.
+- A verificação independente continua exigindo evidência de `ocean` (com as equivalências visuais já aceitas pelo verificador); não há aprovação automática de candidato. Foram adicionados testes unitários do contexto e teste de integração do carregamento do mapa de cenas.
+- O resultado da prova real no HEAD mais recente ainda é necessário para confirmar se a aquisição avança; não declarar MP4 concluído antes de FFprobe e do release gate.
+

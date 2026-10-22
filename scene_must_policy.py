@@ -41,6 +41,7 @@ _CONTEXTUAL_MANUSCRIPT_MUSTS = {
 }
 _TENT_CONTEXT = re.compile(r"\b(?:tent|tents|camping)\b", re.IGNORECASE)
 _SNOW_CONTEXT = re.compile(r"\b(?:snow|snowy|snowfall|snow-covered|snow covered)\b", re.IGNORECASE)
+_OCEAN_CONTEXT = re.compile(r"\b(?:ocean|oceans|sea|seas|open water)\b", re.IGNORECASE)
 
 
 def normalize_visual_musts(
@@ -83,6 +84,9 @@ def normalize_visual_musts(
         elif anchor == original and key == "snowy background" and _SNOW_CONTEXT.search(str(context or "")):
             anchor = "snow"
             reason = "CONTEXTUAL_SNOW_ANCHOR"
+        elif anchor == original and key == "water" and _OCEAN_CONTEXT.search(str(context or "")):
+            anchor = "ocean"
+            reason = "CONTEXTUAL_OCEAN_ANCHOR"
 
         if anchor != original:
             events.append({"from": original, "to": anchor, "reason": reason})

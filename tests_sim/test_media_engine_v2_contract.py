@@ -52,6 +52,28 @@ class MediaEngineContractTests(unittest.TestCase):
                 scenes = media_engine_v2.load_scene_map(sid)
             self.assertEqual(scenes[0]["must_have"], ["torn tent", "snow"])
 
+    def test_load_scene_map_collapses_duplicate_ocean_water_requirements(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            sid = "TEST_OCEAN_WATER_MUST"
+            scripts = base / "roteiros"
+            scripts.mkdir(parents=True)
+            scene_map = scripts / f"scene_map_{sid}.json"
+            scene_map.write_text(
+                json.dumps({
+                    "scenes": [{
+                        "scene_id": "01",
+                        "query": "Bass Strait dark ocean aerial view at dusk",
+                        "must_have": ["ocean", "water"],
+                        "avoid": [],
+                    }]
+                }),
+                encoding="utf-8",
+            )
+            with patch.object(media_engine_v2, "BASE", base):
+                scenes = media_engine_v2.load_scene_map(sid)
+            self.assertEqual(scenes[0]["must_have"], ["ocean"])
+
     def test_manifest_schema_is_frozen_and_complete(self):
         with tempfile.TemporaryDirectory() as td:
             base = Path(td)

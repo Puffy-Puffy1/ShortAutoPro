@@ -81,6 +81,29 @@ class SceneMustPolicyTests(unittest.TestCase):
         self.assertEqual(anchors, ["ripped canvas", "snowy background"])
         self.assertEqual(events, [])
 
+    def test_water_collapses_to_ocean_only_when_query_names_ocean_or_sea(self):
+        anchors, events = normalize_visual_musts(
+            ["ocean", "water"],
+            context="Bass Strait dark ocean aerial view at dusk",
+        )
+        self.assertEqual(anchors, ["ocean"])
+        self.assertEqual(
+            events,
+            [{
+                "from": "water",
+                "to": "ocean",
+                "reason": "CONTEXTUAL_OCEAN_ANCHOR",
+            }],
+        )
+
+    def test_generic_water_requirement_remains_unchanged_outside_ocean_context(self):
+        anchors, events = normalize_visual_musts(
+            ["water"],
+            context="indoor sink with running water",
+        )
+        self.assertEqual(anchors, ["water"])
+        self.assertEqual(events, [])
+
     def test_deduplicates_after_normalization(self):
         anchors, events = normalize_visual_musts([
             "single engine aircraft",
