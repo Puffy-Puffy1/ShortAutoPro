@@ -98,7 +98,10 @@ def normalize_visual_musts(
         elif anchor == original and key == "skeleton" and _RIB_CAGE_CONTEXT.search(str(context or "")):
             anchor = "rib cage"
             reason = "CONTEXTUAL_RIB_CAGE_ANCHOR"
-        elif anchor == original and key in {"vintage equipment", "skis"} and _SKI_CONTEXT.search(str(context or "")):
+        elif anchor == original and key == "vintage equipment" and _SKI_CONTEXT.search(str(context or "")):
+            anchor = "vintage"
+            reason = "CONTEXTUAL_VINTAGE_SKI_CONTEXT"
+        elif anchor == original and key == "skis" and _SKI_CONTEXT.search(str(context or "")):
             anchor = "ski equipment"
             reason = "CONTEXTUAL_SKI_EQUIPMENT_ANCHOR"
 

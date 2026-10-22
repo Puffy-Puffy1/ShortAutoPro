@@ -86,24 +86,24 @@ class AcquisitionV2Tests(unittest.TestCase):
         self.assertEqual(result["hits"], 0)
         self.assertEqual(result["missing"], ["train"])
 
-    def test_ski_equipment_must_accepts_asset_metadata_for_wooden_skis(self):
+    def test_vintage_ski_equipment_requires_both_era_and_object_evidence(self):
         result = verified_must(
             {"title": "Wooden skis from a vintage expedition"},
-            {"must_have": ["ski equipment"]},
+            {"must_have": ["vintage", "ski equipment"]},
         )
-        self.assertEqual(result["hits"], 1)
+        self.assertEqual(result["hits"], 2)
         self.assertEqual(result["missing"], [])
 
-    def test_ski_equipment_must_does_not_accept_search_query_as_evidence(self):
+    def test_vintage_ski_equipment_rejects_query_only_and_modern_object_metadata(self):
         result = verified_must(
             {
                 "title": "Snow-covered mountain expedition",
                 "query": "vintage ski equipment and wooden skis",
             },
-            {"must_have": ["ski equipment"]},
+            {"must_have": ["vintage", "ski equipment"]},
         )
         self.assertEqual(result["hits"], 0)
-        self.assertEqual(result["missing"], ["ski equipment"])
+        self.assertEqual(result["missing"], ["vintage", "ski equipment"])
 
     def test_manuscript_must_accepts_asset_metadata_alias(self):
         result = verified_must(

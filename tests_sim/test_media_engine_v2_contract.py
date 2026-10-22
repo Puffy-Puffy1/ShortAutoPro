@@ -248,7 +248,7 @@ class MediaEngineContractTests(unittest.TestCase):
             )
             with patch.object(media_engine_v2, "BASE", base):
                 scenes = media_engine_v2.load_scene_map(sid)
-            self.assertEqual(scenes[0]["must_have"], ["ski equipment"])
+            self.assertEqual(scenes[0]["must_have"], ["vintage", "ski equipment"])
             self.assertEqual(scenes[0]["era"], "Soviet Union, 1959")
             self.assertIn("wooden skis", scenes[0]["query"].casefold())
 

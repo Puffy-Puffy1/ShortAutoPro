@@ -150,16 +150,16 @@ class SceneMustPolicyTests(unittest.TestCase):
         self.assertEqual(anchors, ["soviet train"])
         self.assertEqual(events, [])
 
-    def test_ski_equipment_labels_collapse_only_in_matching_context(self):
+    def test_ski_requirements_preserve_vintage_as_a_separate_evidence_anchor(self):
         anchors, events = normalize_visual_musts(
             ["vintage equipment", "skis"],
             context="vintage soviet skiing expedition equipment and wooden skis",
         )
-        self.assertEqual(anchors, ["ski equipment"])
+        self.assertEqual(anchors, ["vintage", "ski equipment"])
         self.assertEqual(
             [(event["from"], event["to"], event["reason"]) for event in events],
             [
-                ("vintage equipment", "ski equipment", "CONTEXTUAL_SKI_EQUIPMENT_ANCHOR"),
+                ("vintage equipment", "vintage", "CONTEXTUAL_VINTAGE_SKI_CONTEXT"),
                 ("skis", "ski equipment", "CONTEXTUAL_SKI_EQUIPMENT_ANCHOR"),
             ],
         )
