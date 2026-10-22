@@ -410,30 +410,35 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
     if must_terms:
         candidates.append(" ".join(must_terms))
 
-    # Add a limited number of context-preserving variants before broad aliases.
+    # Expand aliases in context before falling back to single-word searches.
+    # This helps catalogs that index alternate labels but preserves the scene.
     for term in must_terms:
         term_aliases = aliases.get(term.casefold(), ())
         if not term_aliases:
             continue
+
         pattern = re.compile(rf"\b{re.escape(term)}\b", re.IGNORECASE)
         if pattern.search(raw):
-            candidates.append(pattern.sub(term_aliases[0], raw, count=1))
+            for alias in term_aliases:
+                candidates.append(pattern.sub(alias, raw, count=1))
             continue
 
-        # Match an explicit synonym already present in the scene query so the
-        # fallback keeps its subject and setting instead of becoming one word.
-        synonym_pattern = next(
+        # If the scene already uses an equivalent phrase, preserve context
+        # while trying each catalog label. The explicit MUST remains unchanged.
+        synonym = next(
             (
-                re.compile(rf"\b{re.escape(alias)}\b", re.IGNORECASE)
+                alias
                 for alias in term_aliases
                 if re.search(rf"\b{re.escape(alias)}\b", raw, re.IGNORECASE)
             ),
             None,
         )
-        if synonym_pattern:
-            candidates.append(synonym_pattern.sub(term_aliases[0], raw, count=1))
+        if synonym:
+            synonym_pattern = re.compile(rf"\b{re.escape(synonym)}\b", re.IGNORECASE)
+            for alias in term_aliases:
+                candidates.append(synonym_pattern.sub(alias, raw, count=1))
         else:
-            candidates.append(term_aliases[0])
+            candidates.extend(term_aliases)
 
     # Preserve each explicit anchor as a standalone retrieval option.
     candidates.extend(must_terms)
