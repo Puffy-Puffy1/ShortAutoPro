@@ -214,3 +214,9 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - A primeira rodada após a expansão contextual detectou um teste de contrato: variantes de aliases estavam ocupando o limite de consultas antes que todos os MUSTs explícitos (como `ship` e `ocean`) entrassem na lista.
 - Corrigi a ordem: primeiro preserva a consulta original e o contexto, depois reserva espaço para âncoras MUST explícitas, e só então usa aliases independentes. O limite continua em até 8 consultas por cena e a regra de evidência do MUST não foi alterada.
 - CI do commit `f23de5a6` está em andamento para confirmar a regressão corrigida e a prova FIRST_VIDEO. Não considerar essa correção validada até os workflows terminarem.
+
+ 
+### Segundo ajuste do limite de consultas
+- A validação da aquisição detectou outro caso de contrato: muitas variantes com contexto podiam ocupar o limite antes de um alias standalone esperado, como `relief map`.
+- O expansor agora gera apenas uma variante contextual prioritária por MUST e reserva o restante do orçamento para MUSTs explícitos e aliases independentes. Para neve, `snow-covered` é a variante contextual prioritária; a evidência de aceitação continua baseada nos metadados do recurso, nunca no texto da busca.
+- Teste atualizado para validar a variante contextual prioritária. A nova revisão ainda precisa passar pelo CI e pela prova FIRST_VIDEO.
