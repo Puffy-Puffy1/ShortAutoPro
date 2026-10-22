@@ -178,3 +178,26 @@ Módulos legados não devem ser removidos apenas por parecerem duplicados. Prime
 ## 11. Limites desta consolidação
 
 Este documento define o contrato de arquitetura e o caminho de migração; não prova que todos os módulos já estejam conformes. Cada checkbox precisa de teste, inspeção de imports/calls e evidência de execução. A implementação é incremental para evitar uma reescrita ampla que introduza regressões.
+
+ 
+## 12. Estado verificado em 2026-10-22 — continuação
+
+### CI observado
+- [Portable Validation #39719797414](https://github.com/Puffy-Puffy1/ShortAutoPro/actions/runs/39719797414): sucesso.
+- [Render Engine V2 #39719797524](https://github.com/Puffy-Puffy1/ShortAutoPro/actions/runs/39719797524): contrato e smoke test passaram.
+- [Render Engine V2 Stress #39719797418](https://github.com/Puffy-Puffy1/ShortAutoPro/actions/runs/39719797418): sucesso.
+- [Media Engine V2 Migration #39719797558](https://github.com/Puffy-Puffy1/ShortAutoPro/actions/runs/39719797558): sucesso.
+- [FIRST_VIDEO Live Proof #39719772361](https://github.com/Puffy-Puffy1/ShortAutoPro/actions/runs/39719772361): falhou na cena 5, antes da renderização. A exigência era `quill pen`; 12 candidatos foram encontrados, mas nenhum passou pela combinação de relevância e evidência obrigatória. Não foi confirmado MP4 novo nem FFprobe nesta execução.
+
+### Correção incremental da cena 5
+- O verificador reconhece agora rótulos de catálogo explícitos para pena de escrever: `quill pen`, `feather quill pen`, `writing quill`, `quill and ink`, `quill with inkwell`, `quill` e `feather pen`. Uma pena genérica, sem evidência de escrita, continua rejeitada.
+- A busca acrescenta variantes limitadas como `feather quill` e `writing quill`, preservando a consulta editorial original.
+- Na recuperação de busca, o Media Engine verifica o MUST antes da relevância. Só um candidato que comprove todos os MUST pode usar o limiar de um termo contextual coincidente; a busca primária mantém seu limiar normal. Candidatos sem evidência do MUST continuam rejeitados.
+- Foram adicionados testes para os aliases da pena, rejeição de pena genérica, variantes de busca e regra de relevância na recuperação. O código e os testes foram enviados à branch; o resultado do CI após estas alterações ainda precisa ser confirmado.
+
+### Próximos passos
+1. Confirmar que os testes novos passam nos workflows.
+2. Observar uma nova execução FIRST_VIDEO e verificar qual cena falha, se houver.
+3. Só declarar prova real concluída quando existir MP4 novo com áudio/vídeo válidos e FFprobe aprovado.
+4. Continuar a consolidação estrutural por responsabilidade e contratos; não apagar módulos legados sem mapa de dependências e testes.
+5. Manter a PR #150 aberta até revisão; `main` permanece intocada.
