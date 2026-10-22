@@ -341,3 +341,10 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - Esta simplificação não prova insígnias, operador ou fabricação soviética do recurso. Se a imagem precisar demonstrar explicitamente uma locomotiva identificada como soviética, os metadados precisam provar esse detalhe em requisito separado. Nesta cena, a âncora automatizada representa o objeto “trem”; a época/contexto editorial permanece separada.
 - O Render Engine V2 e o stress passaram no commit `ebc6aa0`; validação portátil e migração foram canceladas por execuções posteriores concorrentes e precisam de nova confirmação após o próximo commit. A prova FIRST_VIDEO falhou antes da renderização, portanto não há MP4 novo validado.
 - Próximo critério: CI verde e nova FIRST_VIDEO. Não declarar concluído até render real, áudio/vídeo válidos, FFprobe aprovado e gate final respeitado.
+
+## 24. Sincronização dos fixtures de cache — 22/10/2026
+
+- CI do commit `a19b53f`: a compilação e os testes de Media Engine V2 passaram, mas três testes de aquisição legada falharam em `tests/test_media_acquisition_v2.py`: a retomada de asset, o escopo de diretório e a reutilização no manifest.
+- Causa: esses fixtures criavam sidecars com checksum, short ID e número da cena, mas não incluíam `scene_contract_fingerprint`, que passou a ser obrigatório na versão 2.0.4. O comportamento de rejeitar sidecars sem a assinatura é intencional: sem ela, não é possível comprovar que o asset pertence à mesma consulta, MUSTs e AVOIDs.
+- Correção nesta revisão: os três testes agora criam sidecars por meio de um pequeno helper que calcula a assinatura usando exatamente o contrato da cena em teste. Nenhuma validação de produção foi relaxada; a suíte continua a testar a reutilização de um cache válido.
+- A correção está agrupada com esta atualização da documentação. É necessário confirmar de novo os testes independentes, a validação portátil e FIRST_VIDEO; a prova real só conta como concluída após novo MP4 e FFprobe aprovados.

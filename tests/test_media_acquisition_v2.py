@@ -1,3 +1,4 @@
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -12,6 +13,28 @@ import render_engine_v2
 class FakeProvider:
     def __init__(self,name,candidates): self.name=name; self.candidates=candidates
     def search(self,query,must,avoid,**kwargs): return list(self.candidates)
+
+
+
+def write_cached_asset_sidecar(sidecar, asset, scene, short_id, scene_number):
+    """Create a cache fixture bound to the exact visual scene contract."""
+    record = {
+        "checksum_sha256": media_engine_v2.sha256(asset),
+        "query_relevance": {
+            "ok": True,
+            "matched_terms": ["test"],
+            "matched_count": 1,
+            "query_term_count": 1,
+            "required_terms": 1,
+            "ratio": 1.0,
+        },
+        "scene_contract_fingerprint": media_engine_v2._scene_contract_fingerprint(scene),
+        "must_total": len(scene.get("must_have") or []),
+        "validated": True,
+        "short_id": short_id,
+        "scene_number": scene_number,
+    }
+    sidecar.write_text(json.dumps(record), encoding="utf-8")
 
 class AcquisitionV2Tests(unittest.TestCase):
     def test_canvas_tent_must_accepts_asset_metadata_for_tent(self):
@@ -199,9 +222,12 @@ class AcquisitionV2Tests(unittest.TestCase):
             sidecar = media_dir / "scene_01.json"
             asset.write_bytes(b"x" * 2000)
             digest = media_engine_v2.sha256(asset)
-            sidecar.write_text(
-                __import__("json").dumps({"checksum_sha256": digest, "query_relevance": {"ok": True, "matched_terms": ["test"], "matched_count": 1, "query_term_count": 1, "required_terms": 1, "ratio": 1.0}, "must_total": 1, "validated": True, "short_id": media_dir.name.removeprefix("short_"), "scene_number": 1}),
-                encoding="utf-8",
+            write_cached_asset_sidecar(
+                sidecar,
+                asset,
+                {"must_have": ["test"]},
+                media_dir.name.removeprefix("short_"),
+                1,
             )
             with patch.object(media_engine_v2, "ffprobe_asset", return_value={"width": 1080, "height": 1920}), \
                  patch.object(media_engine_v2, "validate_asset", return_value={"sha256": digest, "probe": {"width": 1080, "height": 1920}, "validated": True}):
@@ -249,9 +275,12 @@ class AcquisitionV2Tests(unittest.TestCase):
             asset = media_a / "scene_01.jpg"
             asset.write_bytes(b"x" * 2000)
             digest = media_engine_v2.sha256(asset)
-            (media_a / "scene_01.json").write_text(
-                __import__("json").dumps({"checksum_sha256": digest, "query_relevance": {"ok": True, "matched_terms": ["test"], "matched_count": 1, "query_term_count": 1, "required_terms": 1, "ratio": 1.0}, "must_total": 1, "validated": True, "short_id": media_a.name.removeprefix("short_"), "scene_number": 1}),
-                encoding="utf-8",
+            write_cached_asset_sidecar(
+                media_a / "scene_01.json",
+                asset,
+                {"must_have": ["x"]},
+                media_a.name.removeprefix("short_"),
+                1,
             )
             with patch.object(media_engine_v2, "ffprobe_asset", return_value={"width": 1080, "height": 1920}), \
                  patch.object(media_engine_v2, "validate_asset", return_value={"sha256": digest, "probe": {"width": 1080, "height": 1920}, "validated": True}):
@@ -288,9 +317,12 @@ class AcquisitionV2Tests(unittest.TestCase):
             asset = base / "imagens" / f"short_{sid}" / "scene_01.jpg"
             asset.write_bytes(b"x" * 2000)
             digest = media_engine_v2.sha256(asset)
-            (asset.parent / "scene_01.json").write_text(
-                __import__("json").dumps({"checksum_sha256": digest, "query_relevance": {"ok": True, "matched_terms": ["test"], "matched_count": 1, "query_term_count": 1, "required_terms": 1, "ratio": 1.0}, "must_total": 1, "validated": True, "short_id": sid, "scene_number": 1}),
-                encoding="utf-8",
+            write_cached_asset_sidecar(
+                asset.parent / "scene_01.json",
+                asset,
+                {"query": "test", "must_have": ["test"]},
+                sid,
+                1,
             )
             with patch.object(media_engine_v2, "ffprobe_asset", return_value={"width": 1080, "height": 1920}), \
                  patch.object(media_engine_v2, "validate_asset", return_value={"sha256": digest, "probe": {"width": 1080, "height": 1920}, "validated": True}), \
