@@ -41,6 +41,23 @@ class IntelligenceLayerTests(unittest.TestCase):
         self.assertEqual(result["status"], "BLOCK")
         self.assertEqual(result["mismatches"][0]["scene"], 2)
 
+    def test_geographic_consistency_allows_country_parent_of_region(self):
+        rows = [
+            {
+                "location": "Bass Strait",
+                "query": "ocean search and rescue boat waves Australia",
+                "segment": "Teams searched the sea.",
+            },
+            {
+                "location": "Australia",
+                "query": "airplane metal debris on beach sand coast",
+                "segment": "A fragment was found.",
+            },
+        ]
+        result = intel.geographic_consistency(rows)
+        self.assertEqual(result["status"], "PASS")
+        self.assertEqual(result["mismatches"], [])
+
     def test_visual_system_detects_repeated_shot_run(self):
         rows = [
             {"shot_type": "close_up", "segment": "a"},
@@ -60,6 +77,17 @@ class IntelligenceLayerTests(unittest.TestCase):
         }]
         result = intel.semantic_visual_safety(rows)
         self.assertEqual(result["status"], "BLOCK")
+
+    def test_semantic_visual_safety_matches_full_avoid_phrase(self):
+        rows = [{
+            "segment": "The pilot checked the cockpit instruments.",
+            "query": "vintage airplane cockpit instrument panel gauges",
+            "must_have": ["dashboard", "gauges"],
+            "avoid": ["modern glass cockpit", "flying saucer"],
+        }]
+        result = intel.semantic_visual_safety(rows)
+        self.assertEqual(result["status"], "PASS")
+        self.assertEqual(result["violations"], [])
 
     def test_historical_authenticity_penalizes_modern_term(self):
         rows = [{"era": "1948", "query": "1948 beach smartphone tourist", "segment": "The beach."}]
