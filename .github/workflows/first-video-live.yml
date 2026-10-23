@@ -50,6 +50,10 @@ on:
         required: false
         type: string
 
+concurrency:
+  group: shortautopro-first-video-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 

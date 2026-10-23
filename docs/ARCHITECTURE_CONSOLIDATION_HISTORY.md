@@ -259,3 +259,9 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - O ajuste não toca nos validadores, MUST/AVOID, inteligência factual ou liberação final. A nova execução do FIRST_VIDEO e o CI precisam comprovar que a preparação e a geração do vídeo avançam.
 - Continuam válidos os critérios: MP4 novo com áudio/vídeo válidos, FFprobe aprovado e gate final autorizado. Esta alteração de workflow não conta como evidência de renderização bem-sucedida.
 
+
+## 31. Concorrência entre provas FIRST_VIDEO — 23/10/2026
+
+- Foram observadas várias execuções antigas reportando `in_progress` ao mesmo tempo, algumas sem progresso visível na preparação. Os logs desses jobs não estavam disponíveis durante a execução, portanto a causa original não foi confirmada.
+- O workflow recebeu `concurrency.group` por `github.ref` com `cancel-in-progress: true`: futuras execuções do FIRST_VIDEO na mesma branch substituem uma execução anterior do mesmo grupo em vez de disputar runners/artefatos. A configuração não altera os gates de render, mídia, factualidade ou aprovação.
+- Execuções iniciadas antes da configuração de concorrência podem não pertencer a esse grupo retroativamente; verificar individualmente seus estados. A nova configuração deve ser confirmada no CI após este commit.

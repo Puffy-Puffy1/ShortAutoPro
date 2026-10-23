@@ -147,7 +147,7 @@ Módulos legados não devem ser removidos apenas por parecerem duplicados. Prime
 
 ### Branch e validação
 - Branch: `fix/first-video-canonical-entrypoint-20261014`.
-- Commit atual no momento desta consolidação: `d9ff6c1f499ac7301ab38cb5eb7f2bb9ca3f0e0f`.
+- Último ajuste operacional de runtime observado: commit `d9ff6c1f499ac7301ab38cb5eb7f2bb9ca3f0e0f`; a cronologia detalhada foi separada para `ARCHITECTURE_CONSOLIDATION_HISTORY.md`.
 - PR #150 continua aberta; `main` não foi alterada nem mesclada.
 - Última prova real observada: [FIRST_VIDEO #39877884641](https://github.com/Puffy-Puffy1/ShortAutoPro/actions/runs/39877884641), ativa na etapa `Run FIRST_VIDEO`; FFprobe ainda pendente e nenhum artefato MP4 disponível na consulta mais recente.
 - No commit anterior `ce63f53`, os quatro workflows estruturais (migração Media Engine, validação portátil, Render Engine e stress 1→2→5→10) passaram. No commit atual, a migração Media Engine já passou; os demais workflows estão sendo revalidados após a mudança do setup FFmpeg.
@@ -157,6 +157,7 @@ Módulos legados não devem ser removidos apenas por parecerem duplicados. Prime
 - **Integridade de mídia:** o verificador continua exigindo evidência nos metadados do próprio asset. Consulta de busca, nome de arquivo ou normalização não contam como prova.
 - **Cache do Media Engine:** ativos em cache devem corresponder à assinatura do contrato da cena, incluindo consulta, MUST/AVOID e contexto visual.
 - **Setup do FFmpeg:** o workflow reutiliza FFmpeg/FFprobe se ambos estiverem funcionais; caso precise instalar, as chamadas a `apt-get` têm limite de 180 segundos. Essa melhoria operacional ainda depende da conclusão da nova prova.
+- **Concorrência da prova real:** o workflow usa um grupo por branch e cancela a execução anterior do mesmo grupo ao iniciar outra, para evitar duas gerações novas disputando recursos. A regra vale para execuções iniciadas com essa configuração.
 - **Inteligência factual:** em provas anteriores, algumas sentenças substantivas ficaram com suporte abaixo do limiar; isso é uma pendência independente da aquisição de mídia. Não baixar o limiar nem classificar o roteiro como aprovado para forçar a liberação.
 
 ### Critérios de conclusão
