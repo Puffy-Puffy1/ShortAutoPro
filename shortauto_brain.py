@@ -136,12 +136,18 @@ def scene_list(scene_doc: dict[str, Any]) -> list[dict[str, Any]]:
     return [item for item in raw if isinstance(item, dict)] if isinstance(raw, list) else []
 
 
-def scene_text(scene: dict[str, Any]) -> str:
-    fields = (
-        "narration", "text", "segment", "segmento", "script",
-        "query", "visual_query", "description",
-    )
-    return " ".join(str(scene.get(key, "") or "") for key in fields).strip()
+def scene_narration_text(scene: dict[str, Any]) -> str:
+    """Return only spoken content; search prompts and descriptions are not facts.
+
+    A single canonical narration field is used to avoid counting duplicate
+    representations of the same words. Visual-query metadata stays available
+    to the visual pipeline but cannot dilute or manufacture factual support.
+    """
+    for key in ("narration", "text", "segment", "segmento", "script"):
+        value = str(scene.get(key) or "").strip()
+        if value:
+            return value
+    return ""
 
 
 def build_evidence_map(
@@ -150,7 +156,7 @@ def build_evidence_map(
 ) -> dict[str, Any]:
     mapped, unsupported = [], []
     for index, scene in enumerate(scenes, 1):
-        text = scene_text(scene)
+        text = scene_narration_text(scene)
         ranked = sorted(
             ((overlap(text, fact["text"]), fact) for fact in facts),
             key=lambda item: item[0],
@@ -160,6 +166,7 @@ def build_evidence_map(
         item = {
             "scene": index,
             "scene_text": text,
+            "evidence_basis": "narration_only",
             "fact_id": best.get("fact_id") if best else None,
             "support_overlap": round(best_score, 3),
             "supported": bool(best and best_score >= 0.18),
