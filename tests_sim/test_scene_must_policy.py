@@ -172,6 +172,27 @@ class SceneMustPolicyTests(unittest.TestCase):
         self.assertEqual(anchors, ["vintage equipment", "skis"])
         self.assertEqual(events, [])
 
+    def test_book_page_normalizes_to_page_in_printed_text_context(self):
+        query = "vintage book page with Persian text printed"
+        anchors, events = normalize_visual_musts(["book page"], context=query)
+        self.assertEqual(anchors, ["page"])
+        self.assertEqual(
+            events,
+            [{
+                "from": "book page",
+                "to": "page",
+                "reason": "CONTEXTUAL_BOOK_PAGE_ANCHOR",
+            }],
+        )
+
+    def test_book_page_requirement_stays_specific_without_printed_page_context(self):
+        anchors, events = normalize_visual_musts(
+            ["book page"],
+            context="rare book with a leather cover in a museum",
+        )
+        self.assertEqual(anchors, ["book page"])
+        self.assertEqual(events, [])
+
     def test_deduplicates_after_normalization(self):
         anchors, events = normalize_visual_musts([
             "single engine aircraft",

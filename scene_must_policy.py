@@ -49,6 +49,7 @@ _SOVIET_TRAIN_CONTEXT = re.compile(
     re.IGNORECASE,
 )
 _SKI_CONTEXT = re.compile(r"\b(?:ski|skis|skiing|skier|skiers)\b", re.IGNORECASE)
+_BOOK_PAGE_CONTEXT = re.compile(r"\b(?:book\s+pages?|printed\s+pages?|page\s+(?:with|of)\s+(?:printed\s+)?text|(?:persian|printed)\s+text)\b", re.IGNORECASE)
 
 
 def normalize_visual_musts(
@@ -104,6 +105,9 @@ def normalize_visual_musts(
         elif anchor == original and key == "skis" and _SKI_CONTEXT.search(str(context or "")):
             anchor = "ski equipment"
             reason = "CONTEXTUAL_SKI_EQUIPMENT_ANCHOR"
+        elif anchor == original and key in {"book page", "book pages"} and _BOOK_PAGE_CONTEXT.search(str(context or "")):
+            anchor = "page"
+            reason = "CONTEXTUAL_BOOK_PAGE_ANCHOR"
 
         elif anchor == original and key == "soviet train" and _SOVIET_TRAIN_CONTEXT.search(str(context or "")):
             anchor = "train"
