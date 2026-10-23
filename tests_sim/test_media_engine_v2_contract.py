@@ -162,6 +162,31 @@ class MediaEngineContractTests(unittest.TestCase):
                 scenes = media_engine_v2.load_scene_map(sid)
             self.assertEqual(scenes[0]["must_have"], ["pilot"])
 
+    def test_load_scene_map_uses_musts_to_normalize_ski_winter_gear(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            sid = "TEST_SOVIET_SKIERS"
+            scripts = base / "roteiros"
+            scripts.mkdir(parents=True)
+            scene_map = scripts / f"scene_map_{sid}.json"
+            scene_map.write_text(
+                json.dumps({
+                    "scenes": [{
+                        "scene_id": "01",
+                        "query": "soviet winter mountain expedition snow landscape 1950s",
+                        "must_have": ["skiers", "snow", "winter gear"],
+                        "avoid": [],
+                    }]
+                }),
+                encoding="utf-8",
+            )
+            with patch.object(media_engine_v2, "BASE", base):
+                scenes = media_engine_v2.load_scene_map(sid)
+            self.assertEqual(
+                scenes[0]["must_have"],
+                ["skiers", "snow", "ski equipment"],
+            )
+
     def test_scene_contract_fingerprint_is_stable_and_tracks_visual_requirements(self):
         first = {
             "query": "  Blue   Boat ",

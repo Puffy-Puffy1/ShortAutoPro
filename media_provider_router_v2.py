@@ -460,20 +460,28 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
             "pilot radio headset",
         ))
 
-    # Ski catalogs may describe the object and its snowy setting using separate
-    # labels. Add a few contextual searches, but keep snow as a strict MUST.
-    if (
-        "snow" in {term.casefold() for term in must_terms}
-        and _SKI_SEARCH_CONTEXT.search(raw)
-    ):
-        candidates.extend((
-            "wooden skis in snow",
-            "abandoned skis in snow",
-            "ski equipment in deep snow",
-        ))
-
     # Preserve each explicit anchor as a standalone retrieval option.
     candidates.extend(must_terms)
+
+    # Ski catalogs may index snow separately from the skiers/equipment.
+    # Use the query or explicit MUSTs to detect that context, but never relax
+    # the independent metadata requirement for snow.
+    ski_context = _SKI_SEARCH_CONTEXT.search(raw) or any(
+        _SKI_SEARCH_CONTEXT.search(term) for term in must_terms
+    )
+    if "snow" in {term.casefold() for term in must_terms} and ski_context:
+        other_ski_musts = [
+            term for term in must_terms if term.casefold() != "snow"
+        ]
+        if other_ski_musts:
+            candidates.append(" ".join([raw, *other_ski_musts]))
+            candidates.append("wooden skis in snow")
+        else:
+            candidates.extend((
+                "wooden skis in snow",
+                "abandoned skis in snow",
+                "ski equipment in deep snow",
+            ))
 
     # Include bounded alias fallbacks for catalogs using alternate labels.
     for term in must_terms:

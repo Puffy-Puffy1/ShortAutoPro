@@ -149,14 +149,14 @@ Módulos legados não devem ser removidos apenas por parecerem duplicados. Prime
 - Branch: `fix/first-video-canonical-entrypoint-20261014`.
 - Último ajuste operacional de runtime observado: commit `d9ff6c1f499ac7301ab38cb5eb7f2bb9ca3f0e0f`; a cronologia detalhada foi separada para `ARCHITECTURE_CONSOLIDATION_HISTORY.md`.
 - PR #150 continua aberta; `main` não foi alterada nem mesclada.
-- Última prova real concluída: [FIRST_VIDEO #39877884641](https://github.com/Puffy-Puffy1/ShortAutoPro/actions/runs/39877884641). Falhou na cena 6 por ausência de evidência de `snow` nos metadados de mídia; a etapa FFprobe foi ignorada e não houve MP4 novo confirmado.
+- Última prova real concluída: [FIRST_VIDEO #39878775061](https://github.com/Puffy-Puffy1/ShortAutoPro/actions/runs/39878775061). Falhou na cena 1: os MUSTs `skiers`, `snow` e `winter gear` não foram comprovados juntos nos metadados; FFprobe foi ignorado e não há MP4 novo confirmado.
 - No commit anterior `ce63f53`, os quatro workflows estruturais (migração Media Engine, validação portátil, Render Engine e stress 1→2→5→10) passaram. No commit atual, a migração Media Engine já passou; os demais workflows estão sendo revalidados após a mudança do setup FFmpeg.
 
 ### Correções atuais agrupadas
 - **MUST visual contextual:** requisitos compostos são normalizados apenas quando a consulta visual fornece o contexto correspondente (manuscrito, barraca/neve, oceano/água, caixa torácica, equipamento de esqui, trem histórico, página impressa e equipamento de comunicação).
 - **Integridade de mídia:** o verificador continua exigindo evidência nos metadados do próprio asset. Consulta de busca, nome de arquivo ou normalização não contam como prova.
 - **Cache do Media Engine:** ativos em cache devem corresponder à assinatura do contrato da cena, incluindo consulta, MUST/AVOID e contexto visual.
-- **Busca contextual de neve + esqui:** o router agora tenta variantes curtas (`wooden skis in snow`, `abandoned skis in snow`, `ski equipment in deep snow`) antes de gastar o limite de consultas com aliases genéricos. A aceitação continua exigindo neve nos metadados do asset.
+- **Busca contextual de neve + esqui:** o router usa tanto a consulta quanto MUSTs de esqui para criar variantes dentro do limite de oito; em cenas com vários MUSTs, preserva o contexto e cada âncora independente. `winter gear` vira `ski equipment` apenas se os MUSTs/contexto indicarem esqui. Neve, esquiadores e equipamento continuam exigindo prova independente nos metadados.
 - **Setup do FFmpeg:** o workflow reutiliza FFmpeg/FFprobe se ambos estiverem funcionais; caso precise instalar, as chamadas a `apt-get` têm limite de 180 segundos. Essa melhoria operacional ainda depende da conclusão da nova prova.
 - **Concorrência da prova real:** o workflow usa um grupo por branch e cancela a execução anterior do mesmo grupo ao iniciar outra, para evitar duas gerações novas disputando recursos. A regra vale para execuções iniciadas com essa configuração.
 - **Inteligência factual:** em provas anteriores, algumas sentenças substantivas ficaram com suporte abaixo do limiar; isso é uma pendência independente da aquisição de mídia. Não baixar o limiar nem classificar o roteiro como aprovado para forçar a liberação.

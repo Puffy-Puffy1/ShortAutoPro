@@ -244,6 +244,20 @@ class MediaMustVerifierSkiSnowSearchTests(unittest.TestCase):
         self.assertIn("ski equipment in deep snow", variants)
         self.assertIn("snow", variants)
 
+    def test_ski_musts_supply_context_when_the_query_omits_ski_words(self):
+        query = "soviet winter mountain expedition snow landscape 1950s"
+        variants = _query_variants(query, ["skiers", "snow", "ski equipment"])
+        self.assertLessEqual(len(variants), 8)
+        self.assertEqual(variants[0], query)
+        self.assertIn("skiers", variants)
+        self.assertIn("snow", variants)
+        self.assertIn("ski equipment", variants)
+        self.assertIn(
+            "soviet winter mountain expedition snow landscape 1950s skiers ski equipment",
+            variants,
+        )
+        self.assertIn("wooden skis in snow", variants)
+
     def test_ski_context_does_not_bypass_snow_metadata_requirement(self):
         self.assertTrue(
             requirement_matches(
@@ -259,5 +273,3 @@ class MediaMustVerifierSkiSnowSearchTests(unittest.TestCase):
         )
 
 
-if __name__ == "__main__":
-    unittest.main()

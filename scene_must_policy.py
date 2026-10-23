@@ -107,6 +107,9 @@ def normalize_visual_musts(
         elif anchor == original and key == "skis" and _SKI_CONTEXT.search(str(context or "")):
             anchor = "ski equipment"
             reason = "CONTEXTUAL_SKI_EQUIPMENT_ANCHOR"
+        elif anchor == original and key == "winter gear" and _SKI_CONTEXT.search(str(context or "")):
+            anchor = "ski equipment"
+            reason = "CONTEXTUAL_SKI_EQUIPMENT_ANCHOR"
         elif anchor == original and key in {"book page", "book pages"} and _BOOK_PAGE_CONTEXT.search(str(context or "")):
             anchor = "page"
             reason = "CONTEXTUAL_BOOK_PAGE_ANCHOR"

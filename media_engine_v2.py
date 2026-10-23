@@ -23,7 +23,7 @@ from typing import Any
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", Path.home() / "ShortAutoPro")).resolve()
 MEDIA_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".webm", ".mkv"}
-ENGINE_VERSION = "2.0.6"
+ENGINE_VERSION = "2.0.7"
 MIN_VISUAL_PIXELS = 320 * 180
 
 
@@ -220,9 +220,19 @@ def load_scene_map(short_id: str) -> list[dict[str, Any]]:
         if scene_id in seen_ids:
             raise RuntimeError(f"MEDIA_INPUT_INVALID:scene_{index:02d}:duplicate_scene_id")
         scene_query = str(scene.get("query") or scene.get("busca") or scene.get("segment") or "").strip()
+        raw_musts = scene.get("must_have") or []
+        if isinstance(raw_musts, str):
+            context_musts = [raw_musts]
+        elif isinstance(raw_musts, (list, tuple)):
+            context_musts = [
+                str(item).strip() for item in raw_musts if str(item).strip()
+            ]
+        else:
+            context_musts = []
+        normalization_context = " ".join([scene_query, *context_musts]).strip()
         musts, events = normalize_visual_musts(
-            scene.get("must_have") or [],
-            context=scene_query,
+            raw_musts,
+            context=normalization_context,
         )
         scene["must_have"] = musts
         if events:

@@ -273,3 +273,12 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - Correção de descoberta: ao detectar `snow` como MUST em consulta de esqui, o router acrescenta três buscas contextuais específicas (`wooden skis in snow`, `abandoned skis in snow`, `ski equipment in deep snow`) antes das variantes genéricas. A consulta original continua primeiro, as variantes permanecem limitadas a oito e a consulta nunca passa a valer como evidência.
 - Testes positivos e negativos asseguram que as variantes existam e que esquis descritos dentro de um museu, sem neve comprovada, continuem sendo rejeitados para MUST `snow`.
 - Pendência: o novo commit precisa passar na migração, validação portátil, Render Engine, stress 1→2→5→10 e nova prova real. Só considerar concluído após MP4 novo, áudio/vídeo válidos, FFprobe e gate final autorizados.
+
+## 33. Contexto composto dos MUSTs de expedição de esqui — 23/10/2026
+
+- Prova real: [FIRST_VIDEO #39878775061](https://github.com/Puffy-Puffy1/ShortAutoPro/actions/runs/39878775061), tema Dyatlov. A preparação, incluindo FFmpeg e Whisper, terminou; a aquisição de mídia parou na cena 1, antes de renderizar.
+- A consulta era `soviet winter mountain expedition snow landscape 1950s`; os MUSTs gerados foram `skiers`, `snow` e `winter gear`. Foram encontrados 75 candidatos, mas nenhum comprovou todos os requisitos nos metadados independentes. O bloqueio foi correto; FFprobe não executou.
+- O problema específico foi de contexto: a query não mencionava esqui embora os MUSTs incluíssem `skiers`. A carga do mapa agora monta o contexto da política com a consulta e os MUSTs originais, permitindo normalizar `winter gear` para `ski equipment` apenas quando o contexto contém `ski/skier`.
+- O router mantém cada MUST individual entre as variantes limitadas e acrescenta uma consulta contextual que combina query original + MUSTs restantes. Para descoberta de neve/esqui, adiciona variantes específicas, mas continua exigindo `snow`, `skiers` e `ski equipment` nos metadados do asset. Query não conta como evidência.
+- Adicionados testes unitários para normalização positiva/negativa, integração no `load_scene_map`, variantes de busca com esqui explícito ou somente nos MUSTs e rejeição de um candidato de esquis em ambiente interno sem neve. Media Engine atualizado de `2.0.6` para `2.0.7`.
+- Nova CI precisa confirmar os testes e uma prova FIRST_VIDEO subsequente. Só considerar produção concluída com MP4 novo, áudio/vídeo válidos, FFprobe aprovado e liberação final autorizada.

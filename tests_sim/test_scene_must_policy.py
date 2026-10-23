@@ -215,6 +215,32 @@ class SceneMustPolicyTests(unittest.TestCase):
             self.assertEqual(anchors, ["pilot"], query)
             self.assertEqual(events, [], query)
 
+    def test_winter_gear_collapses_to_ski_equipment_when_skiers_are_required(self):
+        anchors, events = normalize_visual_musts(
+            ["skiers", "snow", "winter gear"],
+            context=(
+                "soviet winter mountain expedition snow landscape 1950s "
+                "skiers snow winter gear"
+            ),
+        )
+        self.assertEqual(anchors, ["skiers", "snow", "ski equipment"])
+        self.assertEqual(
+            events,
+            [{
+                "from": "winter gear",
+                "to": "ski equipment",
+                "reason": "CONTEXTUAL_SKI_EQUIPMENT_ANCHOR",
+            }],
+        )
+
+    def test_winter_gear_stays_generic_without_ski_context(self):
+        anchors, events = normalize_visual_musts(
+            ["winter gear"],
+            context="winter mountain expedition in cold weather",
+        )
+        self.assertEqual(anchors, ["winter gear"])
+        self.assertEqual(events, [])
+
     def test_deduplicates_after_normalization(self):
         anchors, events = normalize_visual_musts([
             "single engine aircraft",
