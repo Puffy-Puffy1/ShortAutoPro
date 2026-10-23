@@ -241,3 +241,12 @@ O histórico detalhado de execuções, falhas e correções anteriores foi prese
 - Os testes recém-adicionados da integração multimodal do Gemini, do verificador de pixels e do fallback fail-closed passaram nessa execução. O erro foi uma expectativa de teste desatualizada, não uma falha da lógica de aquisição/renderização.
 - Correção restrita: a asserção agora espera `ubuntu-24.04`, mantendo a verificação de runner hospedado e permissões somente de leitura. Nenhum gate de mídia ou produção foi relaxado.
 - A suíte portátil e o workflow de migração precisam ser executados novamente antes de marcar esta etapa como validada.
+
+
+## 19. Redução do tempo de preparação do FFmpeg — 23/10/2026
+
+- Após a consolidação em ação compartilhada, FIRST_VIDEO, Media Engine V2 Migration, Render Engine V2 Stress e Portable Validation permaneceram em `Set up FFmpeg and FFprobe` por vários minutos na mesma execução. Não havia erro do Media Engine registrado nessa etapa.
+- A instalação APT anterior permitia até três tentativas, com até 60 segundos para cada atualização e 90 segundos para cada instalação, antes de ativar o fallback estático. Em ambiente de repositórios lentos, esse orçamento podia atrasar todos os workflows.
+- Ajuste consolidado: APT agora tem uma tentativa com até 30 segundos para atualizar índices e 45 segundos para instalar, com retries HTTP internos desabilitados. Se não concluir, a ação segue diretamente para os binários estáticos fixados e verifica ambos executando `-version`.
+- O comportamento permanece fail-closed: se nem sistema nem fallback fornecerem executáveis válidos, o workflow falha. Não é permitido ignorar FFmpeg/FFprobe nem mudar os gates de renderização ou qualidade.
+- A nova revisão precisa confirmar que a preparação termina e que os cinco workflows usam a ação compartilhada; FIRST_VIDEO ainda depende de gerar MP4 real novo, validar áudio/vídeo por FFprobe e passar pelos gates finais.

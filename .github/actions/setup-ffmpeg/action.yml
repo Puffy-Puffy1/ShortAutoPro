@@ -17,26 +17,21 @@ runs:
           available=true
         else
           available=false
-          for attempt in 1 2 3; do
-            echo "APT FFmpeg setup attempt $attempt/3"
-            if sudo timeout 60s apt-get \
-                -o Acquire::Retries=2 \
-                -o Acquire::http::Timeout=15 \
-                -o Acquire::https::Timeout=15 \
-                update -qq \
-              && sudo timeout 90s env DEBIAN_FRONTEND=noninteractive apt-get \
-                -o Acquire::Retries=3 \
-                -o Acquire::http::Timeout=15 \
-                -o Acquire::https::Timeout=15 \
-                install -y -qq ffmpeg; then
-              available=true
-              break
-            fi
-            if [ "$attempt" -lt 3 ]; then
-              echo "APT attempt $attempt failed; retrying."
-              sleep $((attempt * 5))
-            fi
-          done
+          echo "APT FFmpeg setup attempt 1/1"
+          if sudo timeout 30s apt-get \
+              -o Acquire::Retries=0 \
+              -o Acquire::http::Timeout=8 \
+              -o Acquire::https::Timeout=8 \
+              update -qq \
+            && sudo timeout 45s env DEBIAN_FRONTEND=noninteractive apt-get \
+              -o Acquire::Retries=0 \
+              -o Acquire::http::Timeout=8 \
+              -o Acquire::https::Timeout=8 \
+              install -y -qq ffmpeg; then
+            available=true
+          else
+            echo "APT did not finish inside the bounded window; switching to pinned static binaries."
+          fi
         fi
 
         echo "available=$available" >> "$GITHUB_OUTPUT"
