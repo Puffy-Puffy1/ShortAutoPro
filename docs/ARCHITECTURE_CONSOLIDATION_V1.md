@@ -374,7 +374,7 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - A correção não afeta as sentenças factuais: os limiares de suporte simples/múltiplo permanecem iguais. As alegações sobre o fragmento de Cessna e a hipótese de desorientação continuam necessitando evidência; não se devem descartar nem baixar o limiar para forçar o status PASS.
 - Próximo critério: testes de Intelligence Layer verdes e uma nova prova FIRST_VIDEO. O MP4 ainda não foi gerado nem passou por FFprobe; liberação final permanece pendente.
 
-## 28. Normalização contextual de páginas impressas — 23/10/2026
+## 28. Normalização contextual de páginas impressas — 22/10/2026
 
 - Prova real: [FIRST_VIDEO #39875354754](https://github.com/Puffy-Puffy1/ShortAutoPro/actions/runs/39875354754), tema `O Caso de Taman Shud`. A aquisição passou pelas cinco primeiras cenas e parou na cena 6; o render e FFprobe foram ignorados.
 - Consulta da cena 6: `vintage book page with Persian text printed`; MUST: `book page`. Foram encontrados 9 candidatos primários e 6 no fallback, mas nenhum metadado comprovou a expressão composta.
@@ -383,3 +383,12 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - Foram adicionados testes positivos e negativos para a política, teste de integração de `load_scene_map` e versão do Media Engine atualizada de `2.0.4` para `2.0.5`. Os filtros de FIRST_VIDEO já monitoram o arquivo de política e esses testes.
 - No commit anterior `af21b8a5`, migração Media Engine V2, Render Engine V2, stress 1→2→5→10 e validação portátil passaram. A prova #39875698889 estava em andamento na última consulta, ainda em instalação de FFmpeg; não a considerar validação desta nova correção.
 - Pendência: confirmar CI verde e executar nova FIRST_VIDEO. Só declarar o vídeo real concluído depois de obter MP4 novo, áudio/vídeo válidos, FFprobe aprovado e decisão final de liberação autorizada.
+
+## 29. Alinhamento de MUSTs para equipamento de comunicação — 22/10/2026
+
+- Prova real: [FIRST_VIDEO #39876892806](https://github.com/Puffy-Puffy1/ShortAutoPro/actions/runs/39876892806), tema `Desaparecimento de Frederick Valentich`. A aquisição parou na cena 6; a etapa FFprobe foi ignorada porque não existiu render novo.
+- Consulta: `vintage aviation radio microphone and headset equipment`; MUST gerado: `pilot`. O router encontrou 59 candidatos primários e 20 candidatos no fallback, mas nenhum tinha evidência de piloto nos próprios metadados. O bloqueio foi correto porque consulta de equipamento não prova a presença de uma pessoa.
+- Correção contextual: quando a consulta descreve rádio/microfone/headset/transceiver e não descreve piloto ou pessoa visível, normalizar o MUST `pilot` para `microphone`. Quando a consulta exige um piloto visível (por exemplo, `pilot screaming inside cockpit`), o requisito `pilot` permanece. Consulta original e relevância não são alteradas.
+- A evidência de microfone continua obrigatória no metadado do candidato; o texto da busca não é evidência. Existem testes unitários positivos/negativos e testes de integração no carregamento do mapa de cenas. Media Engine atualizado de `2.0.5` para `2.0.6`.
+- A camada de inteligência desta execução indicou `INTELLIGENCE_PRE=REVIEW` com cobertura de claim lock 71,4% e `INTELLIGENCE_SCENE=REVIEW`. Duas alegações substantivas ficaram com suporte lexical baixo; essa revisão factual é independente da falha de mídia e não deve ser resolvida reduzindo o limiar de evidência.
+- Próximo critério: CI verde para a alteração contextual e nova prova real. Não declarar vídeo concluído até existir MP4 real com áudio/vídeo válidos, FFprobe aprovado e gate final autorizado.

@@ -118,6 +118,50 @@ class MediaEngineContractTests(unittest.TestCase):
                 scenes = media_engine_v2.load_scene_map(sid)
             self.assertEqual(scenes[0]["must_have"], ["page"])
 
+    def test_load_scene_map_normalizes_pilot_to_microphone_for_equipment_query(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            sid = "TEST_PILOT_RADIO_EQUIPMENT"
+            scripts = base / "roteiros"
+            scripts.mkdir(parents=True)
+            scene_map = scripts / f"scene_map_{sid}.json"
+            scene_map.write_text(
+                json.dumps({
+                    "scenes": [{
+                        "scene_id": "06",
+                        "query": "vintage aviation radio microphone and headset equipment",
+                        "must_have": ["pilot"],
+                        "avoid": [],
+                    }]
+                }),
+                encoding="utf-8",
+            )
+            with patch.object(media_engine_v2, "BASE", base):
+                scenes = media_engine_v2.load_scene_map(sid)
+            self.assertEqual(scenes[0]["must_have"], ["microphone"])
+
+    def test_load_scene_map_keeps_pilot_when_visual_query_shows_a_person(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            sid = "TEST_VISIBLE_PILOT"
+            scripts = base / "roteiros"
+            scripts.mkdir(parents=True)
+            scene_map = scripts / f"scene_map_{sid}.json"
+            scene_map.write_text(
+                json.dumps({
+                    "scenes": [{
+                        "scene_id": "01",
+                        "query": "pilot screaming inside cockpit wearing headset",
+                        "must_have": ["pilot"],
+                        "avoid": [],
+                    }]
+                }),
+                encoding="utf-8",
+            )
+            with patch.object(media_engine_v2, "BASE", base):
+                scenes = media_engine_v2.load_scene_map(sid)
+            self.assertEqual(scenes[0]["must_have"], ["pilot"])
+
     def test_scene_contract_fingerprint_is_stable_and_tracks_visual_requirements(self):
         first = {
             "query": "  Blue   Boat ",

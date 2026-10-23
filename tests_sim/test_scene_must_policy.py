@@ -193,6 +193,28 @@ class SceneMustPolicyTests(unittest.TestCase):
         self.assertEqual(anchors, ["book page"])
         self.assertEqual(events, [])
 
+    def test_pilot_requirement_maps_to_microphone_for_equipment_only_query(self):
+        query = "vintage aviation radio microphone and headset equipment"
+        anchors, events = normalize_visual_musts(["pilot"], context=query)
+        self.assertEqual(anchors, ["microphone"])
+        self.assertEqual(
+            events,
+            [{
+                "from": "pilot",
+                "to": "microphone",
+                "reason": "CONTEXTUAL_PILOT_EQUIPMENT_ANCHOR",
+            }],
+        )
+
+    def test_visible_pilot_requirement_is_preserved_when_person_is_in_query(self):
+        for query in (
+            "pilot screaming inside cockpit wearing headset",
+            "aviator standing beside vintage aircraft",
+        ):
+            anchors, events = normalize_visual_musts(["pilot"], context=query)
+            self.assertEqual(anchors, ["pilot"], query)
+            self.assertEqual(events, [], query)
+
     def test_deduplicates_after_normalization(self):
         anchors, events = normalize_visual_musts([
             "single engine aircraft",
