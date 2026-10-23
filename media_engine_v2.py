@@ -539,7 +539,7 @@ def acquire_scene(
             query,
             [*candidates, *relaxed],
             must=must,
-            limit=2,
+            limit=3,
         )
         for candidate in visual_fallback_candidates:
             candidate["_sap_must_total"] = len(must)

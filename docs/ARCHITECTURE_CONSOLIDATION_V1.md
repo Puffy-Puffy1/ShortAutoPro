@@ -294,3 +294,9 @@ O histórico detalhado de execuções, falhas e correções anteriores foi prese
 - `classified ad/advertising` is normalized as advertising, so it cannot alone justify a scene asking for classified government documents.
 - The relaxed-relevance rescue cannot use the generic catalog word `file` as its only independent context anchor. Explicit MUST verification and downstream visual-quality gates remain unchanged.
 - Added regression tests for the false-positive metadata patterns observed in FIRST_VIDEO artifact `gha_40010398873_1`.
+
+## 25. Bounded visual-candidate retry — 23/10/2026
+
+- When metadata-only acquisition cannot verify every explicit MUST, the pixel-verification fallback now examines up to three ranked candidates instead of stopping after two.
+- A rejected image is removed and the next candidate is checked; no MUST/AVOID thresholds were lowered, and only a complete pixel-verification PASS can be accepted.
+- Regression test simulates two candidates failing visibility for `people` / `winter clothing`, then verifies the third candidate succeeds and is the one placed in the manifest.

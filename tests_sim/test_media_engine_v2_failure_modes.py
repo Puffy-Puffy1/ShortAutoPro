@@ -193,24 +193,46 @@ class MediaEngineV2FailureTests(unittest.TestCase):
                         "X", 1, {"query": "long query", "must_have": ["ship"]}, media
                     )
 
-    def test_visual_fallback_checks_partial_context_match_with_pixels(self):
+    def test_visual_fallback_checks_next_candidate_after_pixel_rejections(self):
         with tempfile.TemporaryDirectory() as td:
             media = Path(td) / "media"
             media.mkdir()
             destination = media / "scene_04_wikimedia.jpg"
-            candidate = {
-                "fonte": "Wikimedia",
-                "id": "scene4-partial-context",
-                "tipo": "image",
-                "url": "https://example.test/scene_04.jpg",
-                "title": "Soviet people",
-                "must_hits": 1,
-                "avoid_hits": 0,
-                "score": 80,
-            }
+            candidates = [
+                {
+                    "fonte": "Wikimedia",
+                    "id": "scene4-first-false-positive",
+                    "tipo": "image",
+                    "url": "https://example.test/scene_04_first.jpg",
+                    "title": "Vintage Soviet hikers outdoors",
+                    "must_hits": 1,
+                    "avoid_hits": 0,
+                    "score": 90,
+                },
+                {
+                    "fonte": "Wikimedia",
+                    "id": "scene4-second-false-positive",
+                    "tipo": "image",
+                    "url": "https://example.test/scene_04_second.jpg",
+                    "title": "Soviet vintage scene outdoors",
+                    "must_hits": 1,
+                    "avoid_hits": 0,
+                    "score": 80,
+                },
+                {
+                    "fonte": "Wikimedia",
+                    "id": "scene4-third-valid-candidate",
+                    "tipo": "image",
+                    "url": "https://example.test/scene_04_third.jpg",
+                    "title": "Soviet people",
+                    "must_hits": 1,
+                    "avoid_hits": 0,
+                    "score": 70,
+                },
+            ]
 
-            def download(_candidate, _number, _sid):
-                destination.write_bytes(b"mock image data")
+            def download(candidate, _number, _sid):
+                destination.write_bytes(candidate["id"].encode("utf-8"))
                 return True, str(destination), {}
 
             def validate(path):
@@ -220,8 +242,28 @@ class MediaEngineV2FailureTests(unittest.TestCase):
                     "probe": {"width": 1920, "height": 1080},
                 }
 
+            blocked = {
+                "status": "BLOCK",
+                "method": "gemini_image_pixels",
+                "reason": "must_visibility_failed",
+                "must": [
+                    {"anchor": "people", "visible": True, "confidence": 0.97, "evidence": "people are visible"},
+                    {"anchor": "winter clothing", "visible": False, "confidence": 0.95, "evidence": "winter clothing is not visible"},
+                ],
+                "avoid": [],
+            }
+            passed = {
+                "status": "PASS",
+                "method": "gemini_image_pixels",
+                "must": [
+                    {"anchor": "people", "visible": True, "confidence": 0.97, "evidence": "people are visible"},
+                    {"anchor": "winter clothing", "visible": True, "confidence": 0.96, "evidence": "heavy winter clothing is visible"},
+                ],
+                "avoid": [],
+            }
+
             with patch.object(
-                media_engine_v2.PROVIDER, "search", side_effect=[[candidate], [candidate]]
+                media_engine_v2.PROVIDER, "search", side_effect=[candidates, candidates]
             ), patch.object(
                 media_engine_v2.PROVIDER, "prepare", return_value=[]
             ), patch(
@@ -235,15 +277,7 @@ class MediaEngineV2FailureTests(unittest.TestCase):
                 media_engine_v2, "_local_library_asset", return_value=None
             ), patch(
                 "media_visual_verifier.verify_image_requirements",
-                return_value={
-                    "status": "PASS",
-                    "method": "gemini_image_pixels",
-                    "must": [
-                        {"anchor": "people", "visible": True, "confidence": 0.97, "evidence": "people are visible"},
-                        {"anchor": "winter clothing", "visible": True, "confidence": 0.96, "evidence": "heavy winter clothing is visible"},
-                    ],
-                    "avoid": [],
-                },
+                side_effect=[blocked, blocked, passed],
             ) as visual_verify:
                 result = media_engine_v2.acquire_scene(
                     "X",
@@ -256,7 +290,8 @@ class MediaEngineV2FailureTests(unittest.TestCase):
                     media,
                 )
 
-            visual_verify.assert_called_once()
+            self.assertEqual(visual_verify.call_count, 3)
+            self.assertEqual(result["asset_id"], "scene4-third-valid-candidate")
             self.assertEqual(result["verification_mode"], "gemini_visual_must")
             self.assertEqual(result["evidence_class"], "visual_model")
             self.assertEqual(result["must_hits"], 2)
