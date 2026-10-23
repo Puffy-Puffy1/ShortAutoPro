@@ -193,6 +193,95 @@ class MediaEngineV2FailureTests(unittest.TestCase):
                         "X", 1, {"query": "long query", "must_have": ["ship"]}, media
                     )
 
+    def test_visual_fallback_checks_partial_context_match_with_pixels(self):
+        with tempfile.TemporaryDirectory() as td:
+            media = Path(td) / "media"
+            media.mkdir()
+            destination = media / "scene_04_wikimedia.jpg"
+            candidate = {
+                "fonte": "Wikimedia",
+                "id": "scene4-partial-context",
+                "tipo": "image",
+                "url": "https://example.test/scene_04.jpg",
+                "title": "Soviet people",
+                "must_hits": 1,
+                "avoid_hits": 0,
+                "score": 80,
+            }
+
+            def download(_candidate, _number, _sid):
+                destination.write_bytes(b"mock image data")
+                return True, str(destination), {}
+
+            def validate(path):
+                path = Path(path)
+                return {
+                    "sha256": media_engine_v2.sha256(path),
+                    "probe": {"width": 1920, "height": 1080},
+                }
+
+            with patch.object(
+                media_engine_v2.PROVIDER, "search", side_effect=[[candidate], [candidate]]
+            ), patch.object(
+                media_engine_v2.PROVIDER, "prepare", return_value=[]
+            ), patch(
+                "media_must_verifier.verified_must",
+                return_value={"hits": 1, "total": 2, "missing": ["winter clothing"]},
+            ), patch.object(
+                media_engine_v2.PROVIDER, "download", side_effect=download
+            ), patch.object(
+                media_engine_v2, "validate_asset", side_effect=validate
+            ), patch.object(
+                media_engine_v2, "_local_library_asset", return_value=None
+            ), patch(
+                "media_visual_verifier.verify_image_requirements",
+                return_value={
+                    "status": "PASS",
+                    "method": "gemini_image_pixels",
+                    "must": [
+                        {"anchor": "people", "visible": True, "confidence": 0.97, "evidence": "people are visible"},
+                        {"anchor": "winter clothing", "visible": True, "confidence": 0.96, "evidence": "heavy winter clothing is visible"},
+                    ],
+                    "avoid": [],
+                },
+            ) as visual_verify:
+                result = media_engine_v2.acquire_scene(
+                    "X",
+                    4,
+                    {
+                        "query": "group of vintage Soviet skiers walking outdoors",
+                        "must_have": ["people", "winter clothing"],
+                        "avoid": [],
+                    },
+                    media,
+                )
+
+            visual_verify.assert_called_once()
+            self.assertEqual(result["verification_mode"], "gemini_visual_must")
+            self.assertEqual(result["evidence_class"], "visual_model")
+            self.assertEqual(result["must_hits"], 2)
+            self.assertEqual(result["metadata_must_hits"], 1)
+            self.assertEqual(result["visual_verification"]["status"], "PASS")
+
+    def test_visual_fallback_rejects_candidates_matching_only_must_terms(self):
+        candidate = {
+            "fonte": "Wikimedia",
+            "id": "must-only-context",
+            "tipo": "image",
+            "url": "https://example.test/people_winter_clothing.jpg",
+            "title": "people in winter clothing",
+            "must_hits": 2,
+            "avoid_hits": 0,
+            "score": 90,
+        }
+        selected = media_engine_v2._visual_fallback_candidates(
+            "group of vintage Soviet skiers walking outdoors",
+            [candidate],
+            must=["people", "winter clothing"],
+            limit=2,
+        )
+        self.assertEqual(selected, [])
+
     def test_visual_fallback_accepts_only_after_pixel_verification_passes(self):
         with tempfile.TemporaryDirectory() as td:
             base = Path(td)

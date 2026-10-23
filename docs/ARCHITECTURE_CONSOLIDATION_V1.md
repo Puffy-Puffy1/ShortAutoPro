@@ -279,3 +279,10 @@ O histórico detalhado de execuções, falhas e correções anteriores foi prese
 - O verificador por pixels continua obrigatório para todos os MUST e AVOID, e mídia não verificada é rejeitada. Foi adicionado um teste de regressão que coloca um candidato com MUST metadata acima de um candidato genérico de maior relevância textual.
 - Validações do commit anterior: Render Engine V2, Media Engine V2 Migration, Portable Validation e Stress 1→2→5→10 passaram. A prova real continua pendente de geração de um novo MP4, FFprobe e aprovação pelos gates finais.
 
+## 23. Fallback visual contextual relevance — 23/10/2026
+
+- The bounded pixel-verification fallback now accepts a candidate whose metadata relevance is below the normal score threshold only when at least one matched query-context term is independent of the explicit MUST tokens.
+- A candidate whose only overlap comes from the MUST anchors is still excluded from visual inspection. Provider text, search terms, filenames, and metadata do not prove visibility.
+- Every selected image still has to pass download integrity, resolution/media validation, and pixel-level verification of every MUST and AVOID. The existing confidence threshold remains unchanged, and metadata hits remain reported separately from pixel evidence.
+- Regression coverage models scene 4 ("group of vintage Soviet skiers walking outdoors", MUSTs "people" and "winter clothing") with a partial contextual match, plus a negative case with MUST-only overlap.
+- CI and the next FIRST_VIDEO proof must validate this change. The latest live attempt failed before render at scene 4; no new MP4 has yet been confirmed.
