@@ -241,6 +241,29 @@ class SceneMustPolicyTests(unittest.TestCase):
         self.assertEqual(anchors, ["winter gear"])
         self.assertEqual(events, [])
 
+    def test_generic_text_collapses_with_document_only_in_archive_context(self):
+        anchors, events = normalize_visual_musts(
+            ["document", "text"],
+            context="old soviet investigation report paper document with russian text",
+        )
+        self.assertEqual(anchors, ["document"])
+        self.assertEqual(
+            events,
+            [{
+                "from": "text",
+                "to": "document",
+                "reason": "CONTEXTUAL_DOCUMENT_TEXT_ANCHOR",
+            }],
+        )
+
+    def test_document_and_text_stay_separate_without_archive_context(self):
+        anchors, events = normalize_visual_musts(
+            ["document", "text"],
+            context="a person reading a book outdoors",
+        )
+        self.assertEqual(anchors, ["document", "text"])
+        self.assertEqual(events, [])
+
     def test_deduplicates_after_normalization(self):
         anchors, events = normalize_visual_musts([
             "single engine aircraft",

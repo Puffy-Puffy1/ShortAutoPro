@@ -52,6 +52,10 @@ _SKI_CONTEXT = re.compile(r"\b(?:ski|skis|skiing|skier|skiers)\b", re.IGNORECASE
 _COMMUNICATION_EQUIPMENT_CONTEXT = re.compile(r"\b(?:radio|microphone|headset|transceiver|communications equipment)\b", re.IGNORECASE)
 _VISIBLE_PILOT_CONTEXT = re.compile(r"\b(?:pilot|aviator|person|people|man|woman|figure|crew|cockpit)\b", re.IGNORECASE)
 _BOOK_PAGE_CONTEXT = re.compile(r"\b(?:book\s+pages?|printed\s+pages?|page\s+(?:with|of)\s+(?:printed\s+)?text|(?:persian|printed)\s+text)\b", re.IGNORECASE)
+_DOCUMENT_TEXT_CONTEXT = re.compile(
+    r"\b(?:document|documents|report|reports|paper|papers|investigation|archive|letter|letters)\b",
+    re.IGNORECASE,
+)
 
 
 def normalize_visual_musts(
@@ -119,6 +123,19 @@ def normalize_visual_musts(
         elif anchor == original and key in {"book page", "book pages"} and _BOOK_PAGE_CONTEXT.search(item_context):
             anchor = "page"
             reason = "CONTEXTUAL_BOOK_PAGE_ANCHOR"
+        elif (
+            anchor == original
+            and key == "text"
+            and any(
+                re.sub(r"\s+", " ", other).strip().casefold() == "document"
+                for other in other_values
+            )
+            and _DOCUMENT_TEXT_CONTEXT.search(str(context or ""))
+        ):
+            # A generic "text" anchor duplicates a document object in archive
+            # queries; the document itself must still pass independent evidence.
+            anchor = "document"
+            reason = "CONTEXTUAL_DOCUMENT_TEXT_ANCHOR"
         elif (
             anchor == original
             and key == "pilot"

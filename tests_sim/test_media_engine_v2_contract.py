@@ -343,6 +343,28 @@ class MediaEngineContractTests(unittest.TestCase):
             self.assertEqual(scenes[0]["era"], "Soviet Union, 1959")
             self.assertIn("wooden skis", scenes[0]["query"].casefold())
 
+    def test_load_scene_map_normalizes_generic_text_for_archive_document_query(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            sid = "TEST_ARCHIVE_DOCUMENT_TEXT"
+            scripts = base / "roteiros"
+            scripts.mkdir(parents=True)
+            scene_map = scripts / f"scene_map_{sid}.json"
+            scene_map.write_text(
+                json.dumps({
+                    "scenes": [{
+                        "scene_id": "06",
+                        "query": "old soviet investigation report paper document with russian text",
+                        "must_have": ["document", "text"],
+                        "avoid": [],
+                    }]
+                }),
+                encoding="utf-8",
+            )
+            with patch.object(media_engine_v2, "BASE", base):
+                scenes = media_engine_v2.load_scene_map(sid)
+            self.assertEqual(scenes[0]["must_have"], ["document"])
+
     def test_manifest_schema_is_frozen_and_complete(self):
         with tempfile.TemporaryDirectory() as td:
             base = Path(td)

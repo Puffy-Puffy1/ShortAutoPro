@@ -190,3 +190,14 @@ O histórico detalhado de execuções, falhas e correções anteriores foi prese
 
 - A âncora `vintage equipment` só é normalizada quando a consulta visual, e não apenas outro MUST, traz contexto explícito de esqui/época.
 - A validação da política será repetida pelo workflow de migração, agora acionado também quando `scene_must_policy.py` muda.
+
+
+## Correção da prova FIRST_VIDEO #39911433843 — 23/10/2026
+
+- A execução [FIRST_VIDEO Live Proof #39911433843](https://github.com/Puffy-Puffy1/ShortAutoPro/actions/runs/39911433843) passou por setup, Remotion bundle e credenciais, mas falhou na aquisição da cena 6; FFprobe foi ignorado porque o pipeline não chegou à renderização.
+- A consulta era \`old soviet investigation report paper document with russian text\`, com MUSTs \`document,text\`. Foram encontrados 24 candidatos; nenhum comprovou ambos como etiquetas separadas, embora um candidato tenha comprovado \`document\`. A regra continua a exigir evidência real do objeto; não é correto simplesmente desativar o MUST.
+- Correção agrupada nesta revisão: \`text\` é consolidado em \`document\` somente quando a própria consulta está em contexto de documento/relatório/arquivo e outro MUST já exige explicitamente \`document\`. A exigência de documento continua passando pelo verificador independente; consultas fora desse contexto mantêm \`document\` e \`text\` separados.
+- Foram adicionados testes unitários positivos/negativos e um teste da integração no carregamento do mapa de cenas. A mudança se limita à política de requisitos da mídia; não altera critérios de áudio, renderização, FFprobe ou liberação final.
+- A camada de inteligência da mesma execução registrou \`INTELLIGENCE_PRE=REVIEW\` com cobertura de claim lock em 50,0%. Esse problema factual é separado da aquisição de mídia e permanece pendente; não reduzir o limiar nem declarar aprovação automática.
+- Critério de conclusão inalterado: CI verde, MP4 real novo, áudio/vídeo presentes, FFprobe aprovado, Visual QA/Intelligence Layer aprovados e qualquer aprovação humana processada pelo fluxo autorizado. PR #150 continua aberta; \`main\` não foi alterada.
+
