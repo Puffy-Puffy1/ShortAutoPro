@@ -58,12 +58,12 @@ def normalize_visual_musts(
     value: Any,
     context: str = "",
 ) -> tuple[list[str], list[dict[str, str]]]:
-    """Return deduplicated visual anchors and auditable normalization events.
+    """Normalize visual anchors without letting a MUST prove itself.
 
-    Book/page, pilot/equipment, tent/snow, ocean/water, rib-cage, ski-equipment
-    and era-qualified train labels normalize only when the scene query supplies
-    matching context. Unrelated requirements remain unchanged; normalized
-    anchors still require independent asset-metadata evidence.
+    The scene query and other distinct MUSTs can provide context. The current
+    MUST is excluded to prevent self-referential matches such as "pilot"
+    making itself look like a visible person. Asset metadata is still verified
+    independently before a candidate can be accepted.
     """
     if isinstance(value, str):
         values = [value]
@@ -72,16 +72,22 @@ def normalize_visual_musts(
     else:
         values = []
 
-    manuscript_context = bool(_MANUSCRIPT_CONTEXT.search(str(context or "")))
     normalized: list[str] = []
     events: list[dict[str, str]] = []
     seen: set[str] = set()
 
-    for raw in values:
+    for index, raw in enumerate(values):
         original = re.sub(r"\s+", " ", str(raw or "")).strip()
         if not original:
             continue
 
+        other_values = [
+            str(other).strip()
+            for other_index, other in enumerate(values)
+            if other_index != index and str(other).strip()
+        ]
+        item_context = " ".join([item_context.strip(), *other_values]).strip()
+        manuscript_context = bool(_MANUSCRIPT_CONTEXT.search(item_context))
         key = original.casefold()
         anchor = _NON_ATOMIC_VISUAL_MUSTS.get(key, original)
         reason = "NON_ATOMIC_VISUAL_QUALIFIER"
@@ -89,40 +95,40 @@ def normalize_visual_musts(
         if anchor == original and manuscript_context and key in _CONTEXTUAL_MANUSCRIPT_MUSTS:
             anchor = _CONTEXTUAL_MANUSCRIPT_MUSTS[key]
             reason = "CONTEXTUAL_MANUSCRIPT_ANCHOR"
-        elif anchor == original and key == "ripped canvas" and _TENT_CONTEXT.search(str(context or "")):
+        elif anchor == original and key == "ripped canvas" and _TENT_CONTEXT.search(item_context):
             anchor = "torn tent"
             reason = "CONTEXTUAL_TENT_ANCHOR"
-        elif anchor == original and key == "snowy background" and _SNOW_CONTEXT.search(str(context or "")):
+        elif anchor == original and key == "snowy background" and _SNOW_CONTEXT.search(item_context):
             anchor = "snow"
             reason = "CONTEXTUAL_SNOW_ANCHOR"
-        elif anchor == original and key == "water" and _OCEAN_CONTEXT.search(str(context or "")):
+        elif anchor == original and key == "water" and _OCEAN_CONTEXT.search(item_context):
             anchor = "ocean"
             reason = "CONTEXTUAL_OCEAN_ANCHOR"
-        elif anchor == original and key == "skeleton" and _RIB_CAGE_CONTEXT.search(str(context or "")):
+        elif anchor == original and key == "skeleton" and _RIB_CAGE_CONTEXT.search(item_context):
             anchor = "rib cage"
             reason = "CONTEXTUAL_RIB_CAGE_ANCHOR"
-        elif anchor == original and key == "vintage equipment" and _SKI_CONTEXT.search(str(context or "")):
+        elif anchor == original and key == "vintage equipment" and _SKI_CONTEXT.search(item_context):
             anchor = "vintage"
             reason = "CONTEXTUAL_VINTAGE_SKI_CONTEXT"
-        elif anchor == original and key == "skis" and _SKI_CONTEXT.search(str(context or "")):
+        elif anchor == original and key == "skis" and _SKI_CONTEXT.search(item_context):
             anchor = "ski equipment"
             reason = "CONTEXTUAL_SKI_EQUIPMENT_ANCHOR"
-        elif anchor == original and key == "winter gear" and _SKI_CONTEXT.search(str(context or "")):
+        elif anchor == original and key == "winter gear" and _SKI_CONTEXT.search(item_context):
             anchor = "ski equipment"
             reason = "CONTEXTUAL_SKI_EQUIPMENT_ANCHOR"
-        elif anchor == original and key in {"book page", "book pages"} and _BOOK_PAGE_CONTEXT.search(str(context or "")):
+        elif anchor == original and key in {"book page", "book pages"} and _BOOK_PAGE_CONTEXT.search(item_context):
             anchor = "page"
             reason = "CONTEXTUAL_BOOK_PAGE_ANCHOR"
         elif (
             anchor == original
             and key == "pilot"
-            and _COMMUNICATION_EQUIPMENT_CONTEXT.search(str(context or ""))
-            and not _VISIBLE_PILOT_CONTEXT.search(str(context or ""))
+            and _COMMUNICATION_EQUIPMENT_CONTEXT.search(item_context)
+            and not _VISIBLE_PILOT_CONTEXT.search(item_context)
         ):
             anchor = "microphone"
             reason = "CONTEXTUAL_PILOT_EQUIPMENT_ANCHOR"
 
-        elif anchor == original and key == "soviet train" and _SOVIET_TRAIN_CONTEXT.search(str(context or "")):
+        elif anchor == original and key == "soviet train" and _SOVIET_TRAIN_CONTEXT.search(item_context):
             anchor = "train"
             reason = "CONTEXTUAL_SOVIET_TRAIN_ANCHOR"
 

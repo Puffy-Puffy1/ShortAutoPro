@@ -221,18 +221,9 @@ def load_scene_map(short_id: str) -> list[dict[str, Any]]:
             raise RuntimeError(f"MEDIA_INPUT_INVALID:scene_{index:02d}:duplicate_scene_id")
         scene_query = str(scene.get("query") or scene.get("busca") or scene.get("segment") or "").strip()
         raw_musts = scene.get("must_have") or []
-        if isinstance(raw_musts, str):
-            context_musts = [raw_musts]
-        elif isinstance(raw_musts, (list, tuple)):
-            context_musts = [
-                str(item).strip() for item in raw_musts if str(item).strip()
-            ]
-        else:
-            context_musts = []
-        normalization_context = " ".join([scene_query, *context_musts]).strip()
         musts, events = normalize_visual_musts(
             raw_musts,
-            context=normalization_context,
+            context=scene_query,
         )
         scene["must_have"] = musts
         if events:

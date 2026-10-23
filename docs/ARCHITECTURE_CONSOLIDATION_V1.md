@@ -169,3 +169,11 @@ Módulos legados não devem ser removidos apenas por parecerem duplicados. Prime
 5. Manter a PR aberta para revisão. Não declarar conclusão com base apenas nos testes E2E sintéticos.
 
 O histórico detalhado de execuções, falhas e correções anteriores foi preservado em [ARCHITECTURE_CONSOLIDATION_HISTORY.md](ARCHITECTURE_CONSOLIDATION_HISTORY.md).
+
+
+## Estado consolidado — 23/10/2026
+
+- Último commit analisado: `d303741fa41a1962986594df5a6b2466db63b459`.
+- Correção em andamento: remover contexto autorreferente na normalização de MUSTs; o CI anterior encontrou 1 falha de teste de integração.
+- Bloqueio separado da prova real: timeout do `apt-get update` durante instalação do FFmpeg, antes de executar FIRST_VIDEO.
+- Critérios de conclusão permanecem: testes relevantes verdes, nova prova real, MP4 com áudio/vídeo válidos, FFprobe aprovado e gate final autorizado. PR #150 continua aberta; não fazer merge automaticamente.

@@ -282,3 +282,12 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - O router mantém cada MUST individual entre as variantes limitadas e acrescenta uma consulta contextual que combina query original + MUSTs restantes. Para descoberta de neve/esqui, adiciona variantes específicas, mas continua exigindo `snow`, `skiers` e `ski equipment` nos metadados do asset. Query não conta como evidência.
 - Adicionados testes unitários para normalização positiva/negativa, integração no `load_scene_map`, variantes de busca com esqui explícito ou somente nos MUSTs e rejeição de um candidato de esquis em ambiente interno sem neve. Media Engine atualizado de `2.0.6` para `2.0.7`.
 - Nova CI precisa confirmar os testes e uma prova FIRST_VIDEO subsequente. Só considerar produção concluída com MP4 novo, áudio/vídeo válidos, FFprobe aprovado e liberação final autorizada.
+
+
+## 34. Correção do contexto autorreferente dos MUSTs — 23/10/2026
+
+- O CI no commit `d303741` revelou um teste de integração falhando: `pilot` não era normalizado para `microphone` numa consulta apenas de equipamentos porque o Media Engine adicionava o próprio MUST ao contexto e a política interpretava isso como evidência de uma pessoa visível.
+- Correção: `load_scene_map` agora passa apenas a consulta da cena como contexto-base. `normalize_visual_musts` acrescenta os outros MUSTs ao contexto de cada item, excluindo o requisito atual. Assim, requisitos como `skiers` ainda contextualizam `winter gear`, mas `pilot` não pode servir como evidência de si mesmo.
+- A mudança não altera os critérios do verificador de mídia. A consulta e os MUSTs continuam sendo instruções de busca, não evidência de que o candidato contém o objeto.
+- O teste `test_load_scene_map_normalizes_pilot_to_microphone_for_equipment_query` é a regressão direta que deve passar. Outros testes relevantes incluem os de piloto visível, esqui, manuscrito, barraca/neve e água/oceano.
+- A prova FIRST_VIDEO #39879410408 falhou antes da geração do vídeo por timeout de 180 segundos em `apt-get update` durante a instalação do FFmpeg. Isso é uma falha de preparação do runner distinta da falha de teste do Media Engine. A prova deve ser repetida após o ajuste do código; não há novo MP4 nem validação FFprobe nessa execução.
