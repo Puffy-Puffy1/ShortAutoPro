@@ -211,3 +211,14 @@ O histórico detalhado de execuções, falhas e correções anteriores foi prese
 - A imagem fixada não elimina a validação do binário: cada execução verifica `ffmpeg -version` e `ffprobe -version`. Nenhum caminho de renderização, gate de qualidade, MUST factual ou aprovação foi afrouxado.
 - No commit `828dde32`, Render Engine V2, Portable Validation e Render Engine V2 Stress passaram; Media Engine V2 Migration ainda estava em execução no momento da verificação. FIRST_VIDEO continua pendente de prova real completa.
 - Próximo critério: validar este ajuste operacional no CI e confirmar uma nova execução FIRST_VIDEO que entre no pipeline de produção, adquira as 12 cenas, gere MP4 novo e passe por FFprobe e gates finais. Não declarar concluído até isso acontecer.
+
+
+## 16. Consolidação do setup FFmpeg/FFprobe — 23/10/2026
+
+- As execuções no commit `5a344a0` mostraram que o setup de FFmpeg/FFprobe estava duplicado em cinco workflows. Em várias execuções, a etapa APT ficou em andamento por tempo excessivo; no FIRST_VIDEO anterior, `apt-get update` terminou com código `124` antes do início da produção.
+- Consolidação aplicada: criado `.github/actions/setup-ffmpeg/action.yml`, um componente reutilizável pelos workflows FIRST_VIDEO, Media Engine V2 Migration, Render Engine V2, Render Engine V2 Stress e Portable Validation. Os blocos de instalação repetidos foram substituídos por chamadas ao componente.
+- O componente reaproveita binários de sistema válidos; tenta instalar via APT com limites de tempo/retries e, se a fonte APT falhar, usa versões fixadas `ffmpeg-static@5.3.0` e `@derhuerst/ffprobe-static@5.3.0`. O fallback também é verificado executando ambos os binários; nenhum teste aceita a mera presença de um arquivo.
+- As workflows relevantes estão fixadas em `ubuntu-24.04` para reduzir variação da imagem entre execuções. Os testes de render e a prova real continuam obrigados a usar FFmpeg/FFprobe funcionais.
+- Esta consolidação trata somente da preparação do ambiente. Não muda o gate de MUST/evidência, não libera candidatos sem metadados, não relaxa a Intelligence Layer e não representa prova de vídeo concluída.
+- Critério da etapa: os cinco workflows devem passar pelo componente compartilhado. Depois, FIRST_VIDEO ainda precisa adquirir 12 cenas, renderizar MP4 novo, confirmar áudio/vídeo e FFprobe e passar pelos gates finais.
+

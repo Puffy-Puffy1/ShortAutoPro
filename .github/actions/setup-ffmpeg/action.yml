@@ -1,0 +1,76 @@
+name: Set up FFmpeg and FFprobe
+description: Reuse working system binaries, try APT with bounded retries, then use pinned static binaries if APT is unavailable.
+runs:
+  using: composite
+  steps:
+    - name: Reuse or install system FFmpeg/FFprobe
+      id: system
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        if command -v ffmpeg >/dev/null 2>&1 \
+          && command -v ffprobe >/dev/null 2>&1 \
+          && ffmpeg -version >/dev/null 2>&1 \
+          && ffprobe -version >/dev/null 2>&1; then
+          echo "Using the system FFmpeg and FFprobe."
+          available=true
+        else
+          available=false
+          for attempt in 1 2 3; do
+            echo "APT FFmpeg setup attempt $attempt/3"
+            if sudo timeout 60s apt-get \
+                -o Acquire::Retries=2 \
+                -o Acquire::http::Timeout=15 \
+                -o Acquire::https::Timeout=15 \
+                update -qq \
+              && sudo timeout 90s env DEBIAN_FRONTEND=noninteractive apt-get \
+                -o Acquire::Retries=3 \
+                -o Acquire::http::Timeout=15 \
+                -o Acquire::https::Timeout=15 \
+                install -y -qq ffmpeg; then
+              available=true
+              break
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "APT attempt $attempt failed; retrying."
+              sleep $((attempt * 5))
+            fi
+          done
+        fi
+
+        echo "available=$available" >> "$GITHUB_OUTPUT"
+
+    - name: Install pinned static binaries if APT is unavailable
+      if: steps.system.outputs.available != 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        prefix="$RUNNER_TEMP/shortautopro-ffmpeg"
+        bin_dir="$RUNNER_TEMP/shortautopro-bin"
+
+        npm install --prefix "$prefix" --no-audit --no-fund --save-exact \
+          ffmpeg-static@5.3.0 @derhuerst/ffprobe-static@5.3.0
+
+        ffmpeg_bin="$(node -p "require('$prefix/node_modules/ffmpeg-static')")"
+        ffprobe_bin="$(node -p "require('$prefix/node_modules/@derhuerst/ffprobe-static')")"
+        test -x "$ffmpeg_bin"
+        test -x "$ffprobe_bin"
+
+        mkdir -p "$bin_dir"
+        ln -sf "$ffmpeg_bin" "$bin_dir/ffmpeg"
+        ln -sf "$ffprobe_bin" "$bin_dir/ffprobe"
+        echo "$bin_dir" >> "$GITHUB_PATH"
+
+        "$bin_dir/ffmpeg" -version | head -n 1
+        "$bin_dir/ffprobe" -version | head -n 1
+        echo "SHORTAUTOPRO_FFMPEG_BACKEND=static-npm-fallback" >> "$GITHUB_ENV"
+
+    - name: Verify FFmpeg and FFprobe commands
+      shell: bash
+      run: |
+        set -euo pipefail
+        command -v ffmpeg
+        command -v ffprobe
+        ffmpeg -version | head -n 1
+        ffprobe -version | head -n 1
