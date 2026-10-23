@@ -410,11 +410,14 @@ def _visual_fallback_candidates(
         )
         unique.setdefault(key, candidate)
 
+    # Prioritize candidates whose own catalog metadata already matches a MUST.
+    # This only decides which images receive the bounded pixel check; it never
+    # accepts an asset. media_visual_verifier must still PASS every MUST/AVOID.
     ranked = sorted(
         unique.values(),
         key=lambda candidate: (
-            int((candidate.get("query_relevance") or {}).get("matched_count", 0) or 0),
             int(candidate.get("_sap_metadata_must_hits", 0) or 0),
+            int((candidate.get("query_relevance") or {}).get("matched_count", 0) or 0),
             float(candidate.get("score", 0) or 0),
         ),
         reverse=True,

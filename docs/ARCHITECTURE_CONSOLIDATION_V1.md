@@ -265,7 +265,17 @@ O histórico detalhado de execuções, falhas e correções anteriores foi prese
 ## 21. Correção de relevância Wikimedia sem afrouxar os critérios — 23/10/2026
 
 - A prova real [FIRST_VIDEO #39997883253](https://github.com/Puffy-Puffy1/ShortAutoPro/actions/runs/39997883253) falhou antes de renderizar. Para a cena 1, o router encontrou 20 candidatos Wikimedia, mas os 20 foram rejeitados pela relevância textual; o relatório mostrou ao menos um candidato com correspondência de MUST nos metadados.
-- A inspeção do código mostrou que o Wikimedia já recebe \`ObjectName\` do Commons, mas guardava esse dado apenas dentro da descrição agregada. O cálculo de relevância priorizava \`title\`, \`image_description\` e outros campos; quando havia um título genérico \`File:...\`, ignorava o \`ObjectName\` e não conseguia reconhecer o assunto descrito pelo catálogo.
-- Correção consolidada: \`ObjectName\` agora é preservado como campo separado \`object_name\` e incluído no texto descritivo de relevância. As categorias do Wikimedia continuam fora desse cálculo, porque categorias amplas não provam correspondência com a cena.
-- Foi adicionado um teste com título genérico de arquivo e \`ObjectName\` contendo termos contextuais; o teste existente de categoria genérica continua garantindo que um rótulo como \`Category:Money\` não torne um resultado irrelevante em relevante.
+- A inspeção do código mostrou que o Wikimedia já recebe `ObjectName` do Commons, mas guardava esse dado apenas dentro da descrição agregada. O cálculo de relevância priorizava `title`, `image_description` e outros campos; quando havia um título genérico `File:...`, ignorava o `ObjectName` e não conseguia reconhecer o assunto descrito pelo catálogo.
+- Correção consolidada: `ObjectName` agora é preservado como campo separado `object_name` e incluído no texto descritivo de relevância. As categorias do Wikimedia continuam fora desse cálculo, porque categorias amplas não provam correspondência com a cena.
+- Foi adicionado um teste com título genérico de arquivo e `ObjectName` contendo termos contextuais; o teste existente de categoria genérica continua garantindo que um rótulo como `Category:Money` não torne um resultado irrelevante em relevante.
 - Esta alteração melhora a leitura dos metadados já disponíveis; não reduz o limiar de relevância nem aprova mídia só por MUST. A próxima prova precisa confirmar se a consulta da cena encontra candidatos que passam pelo filtro e se os pixels atendem a todos os MUST/AVOID.
+
+
+## 22. Seleção do fallback visual baseada em evidência MUST — 23/10/2026
+
+- A prova real [FIRST_VIDEO #39999589038](https://github.com/Puffy-Puffy1/ShortAutoPro/actions/runs/39999589038) falhou na cena 4 antes da renderização. O assunto pedia uma sala de radar dos anos 1970 e exigia "radar screen". O router encontrou 23 candidatos; dois foram escolhidos para verificação por pixels e ambos falharam corretamente porque a tela de radar não estava visível.
+- O diagnóstico confirmou pelo menos um candidato com correspondência de MUST nos metadados, mas o fallback visual ordenava primeiro pela relevância geral da consulta e só depois pelos MUSTs. Como o fallback verifica no máximo dois candidatos, isso podia deixar de inspecionar primeiro os resultados com evidência de catálogo mais específica.
+- Correção desta revisão: o fallback prioriza agora, nessa ordem, correspondência de MUST nos metadados, relevância da consulta e score do provedor. É apenas uma ordem de seleção para os dois testes visuais; não aprova candidatos automaticamente e não altera limites de confiança.
+- O verificador por pixels continua obrigatório para todos os MUST e AVOID, e mídia não verificada é rejeitada. Foi adicionado um teste de regressão que coloca um candidato com MUST metadata acima de um candidato genérico de maior relevância textual.
+- Validações do commit anterior: Render Engine V2, Media Engine V2 Migration, Portable Validation e Stress 1→2→5→10 passaram. A prova real continua pendente de geração de um novo MP4, FFprobe e aprovação pelos gates finais.
+

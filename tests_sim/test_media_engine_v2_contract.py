@@ -454,6 +454,43 @@ class MediaEngineContractTests(unittest.TestCase):
             self.assertEqual(payload["scenes"][1]["asset"]["checksum_sha256"], "unique")
             self.assertEqual(observed_used_hashes, [{"same"}])
 
+    def test_visual_fallback_prioritizes_metadata_must_hits_before_general_relevance(self):
+        candidates = [
+            {
+                "fonte": "Wikimedia",
+                "id": "generic-high-relevance",
+                "tipo": "image",
+                "url": "https://example.test/generic.jpg",
+                "avoid_hits": 0,
+                "must_hits": 0,
+                "score": 95,
+            },
+            {
+                "fonte": "Wikimedia",
+                "id": "radar-screen-metadata-match",
+                "tipo": "image",
+                "url": "https://example.test/radar.jpg",
+                "avoid_hits": 0,
+                "must_hits": 1,
+                "score": 40,
+            },
+        ]
+
+        def fake_relevance(_query, candidate):
+            matched_count = 8 if candidate["id"] == "generic-high-relevance" else 3
+            return {"ok": True, "matched_count": matched_count}
+
+        with patch("media_provider_router_v2.query_relevance", side_effect=fake_relevance):
+            selected = media_engine_v2._visual_fallback_candidates(
+                "vintage 1970s air traffic control radar room interior",
+                candidates,
+                limit=2,
+            )
+
+        self.assertEqual(selected[0]["id"], "radar-screen-metadata-match")
+        self.assertEqual(selected[0]["_sap_metadata_must_hits"], 1)
+        self.assertEqual(len(selected), 2)
+
     def test_relaxed_fallback_requires_context_beyond_verified_must(self):
         accept = media_engine_v2._relaxed_relevance_acceptable
         self.assertTrue(
