@@ -300,3 +300,11 @@ O histórico detalhado de execuções, falhas e correções anteriores foi prese
 - When metadata-only acquisition cannot verify every explicit MUST, the pixel-verification fallback now examines up to three ranked candidates instead of stopping after two.
 - A rejected image is removed and the next candidate is checked; no MUST/AVOID thresholds were lowered, and only a complete pixel-verification PASS can be accepted.
 - Regression test simulates two candidates failing visibility for `people` / `winter clothing`, then verifies the third candidate succeeds and is the one placed in the manifest.
+
+## 26. Source-traceable script gate — 23/10/2026
+
+- FIRST_VIDEO #40012711009 on PR head `a7e6cc5` produced a real H.264/AAC MP4 and passed render/visual QA, but the release gate blocked it: `INTELLIGENCE_PRE=REVIEW`, claim-lock coverage 50%, and `INTELLIGENCE_FINAL=BLOCK`. Three of six factual script sentences failed the evidence-overlap contract; long compound paraphrases mixed several separate source claims.
+- The correction does not lower `CLAIM_SINGLE_SUPPORT_THRESHOLD`, `CLAIM_MULTI_SUPPORT_THRESHOLD`, claim coverage limits, or the final release gate. The roteiro prompts now require short, independently traceable factual sentences and preserve the source's factual terms.
+- New `script_claim_traceability.py` uses the same `claim_engine/claim_lock` implementation as the intelligence sidecar before the script is written. At coverage below 90%, it replaces the draft with a contiguous extract from the verified source plus a non-factual CTA, and reruns the same check. If the extract cannot pass, script generation stops before costly rendering.
+- When the source-only fallback is used, the scene-keyword bridge is regenerated so old AI queries are not paired with the changed narration. The targeted regression test covers preserved traceable scripts, fallback passing the original checker, and fail-closed behavior when no extractable source window exists.
+- This is a targeted root-cause correction for factual traceability; it does not prove final release success. FIRST_VIDEO must rerun on this commit, then produce a new MP4, complete FFprobe validation, and pass all final/human-approval gates. PR #150 remains open; `main` is unchanged.

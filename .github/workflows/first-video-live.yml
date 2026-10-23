@@ -8,6 +8,8 @@ on:
       - ".github/workflows/first-video-live.yml"
       - ".github/actions/setup-ffmpeg/action.yml"
       - "main.py"
+      - "roteiro.py"
+      - "script_claim_traceability.py"
       - "audio.py"
       - "audio_finalizer.py"
       - "tests_sim/test_audio_finalizer.py"
@@ -43,6 +45,7 @@ on:
       - "shortauto_brain.py"
       - "shortauto_intelligence_layer.py"
       - "tests_sim/test_shortauto_intelligence_layer.py"
+      - "tests_sim/test_script_claim_traceability.py"
       - "tests_sim/test_media_must_verifier.py"
       - "tests_sim/test_shortauto_brain_integration.py"
   workflow_dispatch:
@@ -134,6 +137,9 @@ jobs:
           test -n "$GEMINI_API_KEY" || { echo "::error::Missing GEMINI_API_KEY"; exit 1; }
           if [ -z "$PEXELS_API_KEY" ]; then echo "Pexels unavailable; continuing to configured fallback providers."; fi
           if [ -z "$PIXABAY_API_KEY" ]; then echo "Pixabay unavailable; continuing to configured fallback providers."; fi
+
+      - name: Verify source-traceable script fallback
+        run: python -m unittest tests_sim.test_script_claim_traceability -v
 
       - name: Run FIRST_VIDEO
         id: run-first-video
