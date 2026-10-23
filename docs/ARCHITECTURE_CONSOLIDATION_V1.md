@@ -392,3 +392,10 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - A evidência de microfone continua obrigatória no metadado do candidato; o texto da busca não é evidência. Existem testes unitários positivos/negativos e testes de integração no carregamento do mapa de cenas. Media Engine atualizado de `2.0.5` para `2.0.6`.
 - A camada de inteligência desta execução indicou `INTELLIGENCE_PRE=REVIEW` com cobertura de claim lock 71,4% e `INTELLIGENCE_SCENE=REVIEW`. Duas alegações substantivas ficaram com suporte lexical baixo; essa revisão factual é independente da falha de mídia e não deve ser resolvida reduzindo o limiar de evidência.
 - Próximo critério: CI verde para a alteração contextual e nova prova real. Não declarar vídeo concluído até existir MP4 real com áudio/vídeo válidos, FFprobe aprovado e gate final autorizado.
+
+## 30. Preparação de FFmpeg com limite de tempo — 22/10/2026
+
+- Na prova [FIRST_VIDEO #39877422258](https://github.com/Puffy-Puffy1/ShortAutoPro/actions/runs/39877422258), o job permaneceu em `Install FFmpeg`; a API não disponibilizou os logs enquanto o passo estava ativo. Uma execução anterior também foi observada nesse mesmo passo. Isso não confirma que `apt-get` era a causa, mas indica que a preparação merece limites claros.
+- Ajuste operacional: verificar primeiro se `ffmpeg` e `ffprobe` já estão instalados e executáveis; reutilizá-los quando disponíveis. Caso contrário, limitar `apt-get update` e instalação a 180 segundos cada, verificar os binários e deixar o job falhar claramente se não puder preparar o ambiente.
+- O ajuste não toca nos validadores, MUST/AVOID, inteligência factual ou liberação final. A nova execução do FIRST_VIDEO e o CI precisam comprovar que a preparação e a geração do vídeo avançam.
+- Continuam válidos os critérios: MP4 novo com áudio/vídeo válidos, FFprobe aprovado e gate final autorizado. Esta alteração de workflow não conta como evidência de renderização bem-sucedida.
