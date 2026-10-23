@@ -195,9 +195,19 @@ O histórico detalhado de execuções, falhas e correções anteriores foi prese
 ## Correção da prova FIRST_VIDEO #39911433843 — 23/10/2026
 
 - A execução [FIRST_VIDEO Live Proof #39911433843](https://github.com/Puffy-Puffy1/ShortAutoPro/actions/runs/39911433843) passou por setup, Remotion bundle e credenciais, mas falhou na aquisição da cena 6; FFprobe foi ignorado porque o pipeline não chegou à renderização.
-- A consulta era \`old soviet investigation report paper document with russian text\`, com MUSTs \`document,text\`. Foram encontrados 24 candidatos; nenhum comprovou ambos como etiquetas separadas, embora um candidato tenha comprovado \`document\`. A regra continua a exigir evidência real do objeto; não é correto simplesmente desativar o MUST.
-- Correção agrupada nesta revisão: \`text\` é consolidado em \`document\` somente quando a própria consulta está em contexto de documento/relatório/arquivo e outro MUST já exige explicitamente \`document\`. A exigência de documento continua passando pelo verificador independente; consultas fora desse contexto mantêm \`document\` e \`text\` separados.
+- A consulta era `old soviet investigation report paper document with russian text`, com MUSTs `document,text`. Foram encontrados 24 candidatos; nenhum comprovou ambos como etiquetas separadas, embora um candidato tenha comprovado `document`. A regra continua a exigir evidência real do objeto; não é correto simplesmente desativar o MUST.
+- Correção agrupada nesta revisão: `text` é consolidado em `document` somente quando a própria consulta está em contexto de documento/relatório/arquivo e outro MUST já exige explicitamente `document`. A exigência de documento continua passando pelo verificador independente; consultas fora desse contexto mantêm `document` e `text` separados.
 - Foram adicionados testes unitários positivos/negativos e um teste da integração no carregamento do mapa de cenas. A mudança se limita à política de requisitos da mídia; não altera critérios de áudio, renderização, FFprobe ou liberação final.
-- A camada de inteligência da mesma execução registrou \`INTELLIGENCE_PRE=REVIEW\` com cobertura de claim lock em 50,0%. Esse problema factual é separado da aquisição de mídia e permanece pendente; não reduzir o limiar nem declarar aprovação automática.
-- Critério de conclusão inalterado: CI verde, MP4 real novo, áudio/vídeo presentes, FFprobe aprovado, Visual QA/Intelligence Layer aprovados e qualquer aprovação humana processada pelo fluxo autorizado. PR #150 continua aberta; \`main\` não foi alterada.
+- A camada de inteligência da mesma execução registrou `INTELLIGENCE_PRE=REVIEW` com cobertura de claim lock em 50,0%. Esse problema factual é separado da aquisição de mídia e permanece pendente; não reduzir o limiar nem declarar aprovação automática.
+- Critério de conclusão inalterado: CI verde, MP4 real novo, áudio/vídeo presentes, FFprobe aprovado, Visual QA/Intelligence Layer aprovados e qualquer aprovação humana processada pelo fluxo autorizado. PR #150 continua aberta; `main` não foi alterada.
 
+
+
+## 15. Diagnóstico operacional do FIRST_VIDEO #39990137441 — 23/10/2026
+
+- Execução: [FIRST_VIDEO Live Proof #39990137441](https://github.com/Puffy-Puffy1/ShortAutoPro/actions/runs/39990137441). Falhou na etapa `Install FFmpeg`, com código de saída `124`; `Run FIRST_VIDEO` e FFprobe foram ignorados. Portanto, esta tentativa não dá evidência sobre a correção de mídia nem produziu um MP4 novo confirmado.
+- A etapa foi interrompida durante `apt-get update`, antes da instalação e antes de executar código do ShortAutoPro. Trata-se de bloqueio de preparação do runner, separado das falhas semânticas de mídia observadas em tentativas anteriores.
+- Consolidação nesta revisão: o workflow passa a usar explicitamente `ubuntu-24.04`, evitando depender da imagem `ubuntu-latest` observada como Ubuntu 26.04 no log. A instalação conserva a verificação dos binários reais e agora faz até três tentativas limitadas para atualizar os índices e instalar FFmpeg/FFprobe; depois falha claramente se não conseguir.
+- A imagem fixada não elimina a validação do binário: cada execução verifica `ffmpeg -version` e `ffprobe -version`. Nenhum caminho de renderização, gate de qualidade, MUST factual ou aprovação foi afrouxado.
+- No commit `828dde32`, Render Engine V2, Portable Validation e Render Engine V2 Stress passaram; Media Engine V2 Migration ainda estava em execução no momento da verificação. FIRST_VIDEO continua pendente de prova real completa.
+- Próximo critério: validar este ajuste operacional no CI e confirmar uma nova execução FIRST_VIDEO que entre no pipeline de produção, adquira as 12 cenas, gere MP4 novo e passe por FFprobe e gates finais. Não declarar concluído até isso acontecer.
