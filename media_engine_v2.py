@@ -365,7 +365,7 @@ def _local_library_asset(
 def _visual_fallback_candidates(
     query: str,
     candidates: list[dict[str, Any]],
-    must: list[str],
+    must: list[str] | None = None,
     limit: int = 2,
 ) -> list[dict[str, Any]]:
     """Choose a tiny set of relevant real images for pixel-level verification.
@@ -400,12 +400,15 @@ def _visual_fallback_candidates(
             continue
 
         relevance = query_relevance(query, candidate)
-        candidate["query_relevance"] = relevance
+        relevance_candidate = {**candidate, "query_relevance": relevance}
         # A below-threshold relevance score may still be inspected when at least
         # one independent scene-context term matches outside the MUST anchors.
         # Pixel verification remains the only path that can accept these assets.
-        if not _relaxed_relevance_acceptable(candidate, must):
+        if not _relaxed_relevance_acceptable(relevance_candidate, must or []):
             continue
+        # Copy only eligible candidates: a rejected result must not be mutated
+        # and affect a later retry or a different acquisition attempt.
+        candidate = dict(relevance_candidate)
         candidate["_sap_metadata_must_hits"] = int(candidate.get("must_hits", 0) or 0)
         key = (
             str(candidate.get("fonte") or candidate.get("source") or ""),

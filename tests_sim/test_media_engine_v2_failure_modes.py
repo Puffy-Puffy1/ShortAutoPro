@@ -263,6 +263,27 @@ class MediaEngineV2FailureTests(unittest.TestCase):
             self.assertEqual(result["metadata_must_hits"], 1)
             self.assertEqual(result["visual_verification"]["status"], "PASS")
 
+    def test_visual_fallback_does_not_mutate_rejected_provider_candidates(self):
+        candidate = {
+            "fonte": "Wikimedia",
+            "id": "rejected-without-context",
+            "tipo": "image",
+            "url": "https://example.test/people_winter.jpg",
+            "title": "people in winter clothing",
+            "must_hits": 2,
+            "avoid_hits": 0,
+            "score": 80,
+        }
+        original = dict(candidate)
+        selected = media_engine_v2._visual_fallback_candidates(
+            "group of vintage Soviet skiers walking outdoors",
+            [candidate],
+            must=["people", "winter clothing"],
+            limit=2,
+        )
+        self.assertEqual(selected, [])
+        self.assertEqual(candidate, original)
+
     def test_visual_fallback_rejects_candidates_matching_only_must_terms(self):
         candidate = {
             "fonte": "Wikimedia",
