@@ -22,13 +22,19 @@ IMAGE_SIGNATURES = {
 }
 
 
-def _blocked(reason: str, mime_type: str = "") -> dict[str, Any]:
-    return {
+def _blocked(
+    reason: str,
+    mime_type: str = "",
+    **details: Any,
+) -> dict[str, Any]:
+    result = {
         "status": "BLOCK",
         "method": "gemini_image_pixels",
         "reason": reason,
         "mime_type": mime_type,
     }
+    result.update(details)
+    return result
 
 
 def _read_image(path: Path) -> tuple[bytes, str] | None:
@@ -85,29 +91,36 @@ def _validated_rows(
         return None, f"{field}_anchors_mismatch"
 
     checked: list[dict[str, Any]] = []
+    errors: list[str] = []
     for anchor in expected:
         row = indexed[anchor.casefold()]
         visible = row.get("visible")
         confidence = row.get("confidence")
         evidence = str(row.get("evidence") or "").strip()
+
         if type(visible) is not bool:
             return None, f"{field}_visibility_uncertain"
         if isinstance(confidence, bool) or not isinstance(confidence, (int, float)):
             return None, f"{field}_confidence_invalid"
-        if float(confidence) < MIN_CONFIDENCE:
-            return None, f"{field}_confidence_below_threshold"
-        if visible is not expected_visible:
-            return None, f"{field}_visibility_failed"
-        if not evidence:
-            return None, f"{field}_evidence_missing"
+
+        confidence_value = float(confidence)
         checked.append({
             "anchor": anchor,
             "visible": visible,
-            "confidence": round(float(confidence), 3),
+            "confidence": round(confidence_value, 3),
             "evidence": evidence[:320],
         })
-    return checked, ""
 
+        # Collect policy failures rather than returning at the first mismatch.
+        # The blocked report can then explain exactly which anchor failed.
+        if confidence_value < MIN_CONFIDENCE:
+            errors.append(f"{field}_confidence_below_threshold")
+        if visible is not expected_visible:
+            errors.append(f"{field}_visibility_failed")
+        if not evidence:
+            errors.append(f"{field}_evidence_missing")
+
+    return checked, errors[0] if errors else ""
 
 def verify_image_requirements(
     path: str | Path,
@@ -162,11 +175,21 @@ def verify_image_requirements(
         return _blocked("visual_model_invalid_json", mime_type)
 
     must_rows, must_error = _validated_rows(payload, "must", requirements, True)
-    if must_error:
-        return _blocked(must_error, mime_type)
     avoid_rows, avoid_error = _validated_rows(payload, "avoid", forbidden, False)
+    if must_error:
+        return _blocked(
+            must_error,
+            mime_type,
+            must=must_rows or [],
+            avoid=avoid_rows or [],
+        )
     if avoid_error:
-        return _blocked(avoid_error, mime_type)
+        return _blocked(
+            avoid_error,
+            mime_type,
+            must=must_rows or [],
+            avoid=avoid_rows or [],
+        )
 
     return {
         "status": "PASS",

@@ -59,6 +59,11 @@ class MediaVisualVerifierTests(unittest.TestCase):
             )
         self.assertEqual(result["status"], "BLOCK")
         self.assertEqual(result["reason"], "must_visibility_failed")
+        self.assertEqual(result["must"][0]["anchor"], "torn tent")
+        self.assertFalse(result["must"][0]["visible"])
+        self.assertEqual(result["must"][1]["anchor"], "snow")
+        self.assertTrue(result["must"][1]["visible"])
+        self.assertEqual(result["avoid"][0]["anchor"], "people")
 
     @patch("media_visual_verifier.generate_text")
     def test_blocks_visible_avoid_element(self, generate):

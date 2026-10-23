@@ -264,6 +264,29 @@ class SceneMustPolicyTests(unittest.TestCase):
         self.assertEqual(anchors, ["document", "text"])
         self.assertEqual(events, [])
 
+    def test_tent_fabric_normalizes_to_torn_tent_only_when_damage_is_in_context(self):
+        anchors, events = normalize_visual_musts(
+            ["tent fabric", "snow"],
+            context="torn winter tent fabric in snow",
+        )
+        self.assertEqual(anchors, ["torn tent", "snow"])
+        self.assertEqual(
+            events,
+            [{
+                "from": "tent fabric",
+                "to": "torn tent",
+                "reason": "CONTEXTUAL_TENT_ANCHOR",
+            }],
+        )
+
+    def test_generic_tent_fabric_does_not_imply_a_tear(self):
+        anchors, events = normalize_visual_musts(
+            ["tent fabric"],
+            context="camping tent fabric display at an outdoor shop",
+        )
+        self.assertEqual(anchors, ["tent fabric"])
+        self.assertEqual(events, [])
+
     def test_deduplicates_after_normalization(self):
         anchors, events = normalize_visual_musts([
             "single engine aircraft",

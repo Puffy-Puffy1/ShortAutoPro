@@ -40,6 +40,7 @@ _CONTEXTUAL_MANUSCRIPT_MUSTS = {
     "parchment pages": "manuscript",
 }
 _TENT_CONTEXT = re.compile(r"\b(?:tent|tents|camping)\b", re.IGNORECASE)
+_TORN_TENT_CONTEXT = re.compile(r"\b(?:torn|ripped|damaged|cut|slashed|split)\b.{0,45}\b(?:tent|canvas|fabric)\b|\b(?:tent|canvas|fabric)\b.{0,45}\b(?:torn|ripped|damaged|cut|slashed|split)\b", re.IGNORECASE)
 _SNOW_CONTEXT = re.compile(r"\b(?:snow|snowy|snowfall|snow-covered|snow covered)\b", re.IGNORECASE)
 _OCEAN_CONTEXT = re.compile(r"\b(?:ocean|oceans|sea|seas|open water)\b", re.IGNORECASE)
 _RIB_CAGE_CONTEXT = re.compile(r"\b(?:rib cage|ribcage)\b", re.IGNORECASE)
@@ -100,6 +101,9 @@ def normalize_visual_musts(
             anchor = _CONTEXTUAL_MANUSCRIPT_MUSTS[key]
             reason = "CONTEXTUAL_MANUSCRIPT_ANCHOR"
         elif anchor == original and key == "ripped canvas" and _TENT_CONTEXT.search(item_context):
+            anchor = "torn tent"
+            reason = "CONTEXTUAL_TENT_ANCHOR"
+        elif anchor == original and key == "tent fabric" and _TORN_TENT_CONTEXT.search(item_context):
             anchor = "torn tent"
             reason = "CONTEXTUAL_TENT_ANCHOR"
         elif anchor == original and key == "snowy background" and _SNOW_CONTEXT.search(item_context):

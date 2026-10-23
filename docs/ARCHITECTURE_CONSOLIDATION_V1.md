@@ -250,3 +250,13 @@ O histórico detalhado de execuções, falhas e correções anteriores foi prese
 - Ajuste consolidado: APT agora tem uma tentativa com até 30 segundos para atualizar índices e 45 segundos para instalar, com retries HTTP internos desabilitados. Se não concluir, a ação segue diretamente para os binários estáticos fixados e verifica ambos executando `-version`.
 - O comportamento permanece fail-closed: se nem sistema nem fallback fornecerem executáveis válidos, o workflow falha. Não é permitido ignorar FFmpeg/FFprobe nem mudar os gates de renderização ou qualidade.
 - A nova revisão precisa confirmar que a preparação termina e que os cinco workflows usam a ação compartilhada; FIRST_VIDEO ainda depende de gerar MP4 real novo, validar áudio/vídeo por FFprobe e passar pelos gates finais.
+
+
+## 20. Diagnóstico da prova FIRST_VIDEO #39996808577 — 23/10/2026
+
+- Execução: [FIRST_VIDEO Live Proof #39996808577](https://github.com/Puffy-Puffy1/ShortAutoPro/actions/runs/39996808577). Preparação de FFmpeg/FFprobe, dependências, modelos de voz/transcrição e credenciais passou; a produção falhou na aquisição da cena 1. FFprobe foi ignorado, portanto não há MP4 novo validado.
+- O fallback por pixels foi acionado corretamente: o Media Engine baixou duas imagens candidatas e o Gemini respondeu às duas. Ambas foram bloqueadas porque o requisito gerado era "tent fabric" junto de "snow"; o mapa de cena não expressou com precisão a expectativa editorial de uma barraca rasgada.
+- Correção desta revisão: "tent fabric" normaliza para "torn tent" somente se o contexto da própria cena contiver também um termo de rasgo/dano, por exemplo "torn winter tent fabric in snow". Uma consulta genérica de tecido de barraca mantém "tent fabric". Foram adicionados testes unitários positivos/negativos e teste de integração da carga do mapa de cenas.
+- Melhoramos a observabilidade sem afrouxar a política: o verificador conserva no relatório os resultados individuais de MUST/AVOID mesmo quando bloqueia; o Media Engine emite a âncora, a visibilidade e a confiança de cada item. Arquivos com qualquer MUST ausente, AVOID presente ou evidência incerta continuam rejeitados e são apagados.
+- As quatro validações não-live passaram no commit anterior: migração do Media Engine, Render Engine V2, stress 1→2→5→10 e Portable Validation. A prova real segue sendo o gate final e precisa produzir um MP4 novo, passar em FFprobe e cumprir a liberação segura.
+- Pendência separada: o mesmo roteiro apresentou claim-lock em 55,6% e Intelligence Scene em REVIEW. Não corrigir essa cobertura reduzindo limiares: ela precisa de uma investigação factual independente após resolver a aquisição da mídia.

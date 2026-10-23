@@ -582,11 +582,25 @@ def acquire_scene(
                     }
                 if visual_result.get("status") != "PASS":
                     reason = str(visual_result.get("reason") or "visual_requirements_unverified")
-                    visual_rejections.append(reason)
+                    checks = []
+                    for group in ("must", "avoid"):
+                        rows = visual_result.get(group, [])
+                        if not isinstance(rows, list):
+                            continue
+                        for row in rows:
+                            if not isinstance(row, dict):
+                                continue
+                            checks.append(
+                                f"{group}:{str(row.get('anchor') or '?')}"
+                                f"={row.get('visible')}@{row.get('confidence')}"
+                            )
+                    check_summary = ",".join(checks)[:320] or "no_anchor_details"
+                    diagnostic = f"{reason};checks={check_summary}"
+                    visual_rejections.append(diagnostic)
                     failures.append(f"{candidate.get('fonte', '?')}:VISUAL_VERIFY_BLOCK")
                     print(
                         f"MEDIA_VISUAL_FALLBACK=BLOCK scene={number:02d} "
-                        f"reason={reason}"
+                        f"reason={diagnostic}"
                     )
                     try:
                         path.unlink(missing_ok=True)

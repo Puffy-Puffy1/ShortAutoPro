@@ -30,6 +30,28 @@ class MediaEngineContractTests(unittest.TestCase):
                 scenes = media_engine_v2.load_scene_map(sid)
             self.assertEqual(scenes[0]["must_have"], ["manuscript"])
 
+    def test_load_scene_map_normalizes_tent_fabric_only_when_torn_context_exists(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            sid = "TEST_TENT_FABRIC_MUST"
+            scripts = base / "roteiros"
+            scripts.mkdir(parents=True)
+            scene_map = scripts / f"scene_map_{sid}.json"
+            scene_map.write_text(
+                json.dumps({
+                    "scenes": [{
+                        "scene_id": "01",
+                        "query": "torn winter tent fabric in snow",
+                        "must_have": ["tent fabric", "snow"],
+                        "avoid": [],
+                    }]
+                }),
+                encoding="utf-8",
+            )
+            with patch.object(media_engine_v2, "BASE", base):
+                scenes = media_engine_v2.load_scene_map(sid)
+            self.assertEqual(scenes[0]["must_have"], ["torn tent", "snow"])
+
     def test_load_scene_map_normalizes_torn_tent_and_snow_requirements(self):
         with tempfile.TemporaryDirectory() as td:
             base = Path(td)
