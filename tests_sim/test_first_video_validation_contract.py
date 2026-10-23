@@ -26,7 +26,8 @@ class FirstVideoValidationContractTests(unittest.TestCase):
         content = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("python main.py run", content)
         self.assertIn("Validate generated MP4 with FFprobe", content)
-        self.assertIn("release_gate.py", content)
+        self.assertIn('SAP_BRAIN_ENFORCE: "1"', content)
+        self.assertNotIn("continue-on-error: true", content)
 
 
 if __name__ == "__main__":
