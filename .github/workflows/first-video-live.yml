@@ -91,8 +91,8 @@ jobs:
             && ffprobe -version >/dev/null 2>&1; then
             echo "FFmpeg and FFprobe are already available."
           else
-            sudo timeout 180s apt-get update -qq
-            sudo timeout 180s env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ffmpeg
+            sudo timeout 300s apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update -qq
+            sudo timeout 180s env DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=3 install -y -qq ffmpeg
           fi
           command -v ffmpeg
           command -v ffprobe

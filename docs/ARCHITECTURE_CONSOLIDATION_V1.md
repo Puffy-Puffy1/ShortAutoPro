@@ -177,3 +177,10 @@ O histórico detalhado de execuções, falhas e correções anteriores foi prese
 - Correção em andamento: remover contexto autorreferente na normalização de MUSTs; o CI anterior encontrou 1 falha de teste de integração.
 - Bloqueio separado da prova real: timeout do `apt-get update` durante instalação do FFmpeg, antes de executar FIRST_VIDEO.
 - Critérios de conclusão permanecem: testes relevantes verdes, nova prova real, MP4 com áudio/vídeo válidos, FFprobe aprovado e gate final autorizado. PR #150 continua aberta; não fazer merge automaticamente.
+
+
+## Atualização de CI — 23/10/2026
+
+- A política `scene_must_policy.py` agora aciona explicitamente o workflow de migração/testes do Media Engine.
+- FIRST_VIDEO usa retries e timeout ampliado para instalação do FFmpeg; a etapa continua exigindo os binários reais.
+- A confirmação depende dos workflows do commit mais recente e da prova FIRST_VIDEO completar render, FFprobe e gate final.

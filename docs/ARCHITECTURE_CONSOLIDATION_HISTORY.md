@@ -291,3 +291,10 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - A mudança não altera os critérios do verificador de mídia. A consulta e os MUSTs continuam sendo instruções de busca, não evidência de que o candidato contém o objeto.
 - O teste `test_load_scene_map_normalizes_pilot_to_microphone_for_equipment_query` é a regressão direta que deve passar. Outros testes relevantes incluem os de piloto visível, esqui, manuscrito, barraca/neve e água/oceano.
 - A prova FIRST_VIDEO #39879410408 falhou antes da geração do vídeo por timeout de 180 segundos em `apt-get update` durante a instalação do FFmpeg. Isso é uma falha de preparação do runner distinta da falha de teste do Media Engine. A prova deve ser repetida após o ajuste do código; não há novo MP4 nem validação FFprobe nessa execução.
+
+
+## 35. CI sensível à política de MUSTs e retry de FFmpeg — 23/10/2026
+
+- Incluído `scene_must_policy.py` nos filtros de `Media Engine V2 Migration` para que mudanças na política executem os testes de regressão em PRs e nos branches monitorados. O filtro anterior não iniciava esse workflow quando apenas a política mudava.
+- A etapa de instalação do FFmpeg em FIRST_VIDEO agora permite até 300 segundos para `apt-get update` e usa as opções de retry/timeouts do APT. A falha anterior terminou em `exit code 124` após 180 segundos, antes da geração do vídeo; a mudança tenta reduzir falhas transitórias sem ignorar a necessidade de `ffmpeg` e `ffprobe` funcionais.
+- A versão `6df2ff4` corrige a inicialização do contexto de MUSTs; a execução de CI deve validar essa versão e o ajuste do workflow. Ainda não há resultado final de prova real nem MP4 validado nesta etapa.
