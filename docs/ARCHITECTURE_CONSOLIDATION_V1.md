@@ -222,3 +222,14 @@ O histórico detalhado de execuções, falhas e correções anteriores foi prese
 - Esta consolidação trata somente da preparação do ambiente. Não muda o gate de MUST/evidência, não libera candidatos sem metadados, não relaxa a Intelligence Layer e não representa prova de vídeo concluída.
 - Critério da etapa: os cinco workflows devem passar pelo componente compartilhado. Depois, FIRST_VIDEO ainda precisa adquirir 12 cenas, renderizar MP4 novo, confirmar áudio/vídeo e FFprobe e passar pelos gates finais.
 
+
+
+## 17. Prova FIRST_VIDEO #39991872760 e verificação visual por pixels — 23/10/2026
+
+- Execução: [FIRST_VIDEO Live Proof #39991872760](https://github.com/Puffy-Puffy1/ShortAutoPro/actions/runs/39991872760). Preparação e credenciais Gemini passaram; o Media Engine bloqueou a cena 1 antes da renderização. FFprobe foi ignorado; esta execução não produziu um MP4 novo confirmado.
+- A cena pediu uma barraca rasgada em uma paisagem nevada. A normalização de contexto já funcionou ("ripped canvas" → "torn tent"), mas 64 candidatos primários e 20 candidatos de recuperação do Wikimedia não comprovaram simultaneamente "torn tent" e "snow" nos metadados.
+- A execução reportou Pexels, Pixabay e Coverr sem suas respectivas chaves. O workflow permite continuar sem essas fontes; não é correto tratá-las como disponíveis. A causa imediata foi falta de evidência de mídia nos candidatos disponíveis, não um erro de renderização.
+- Consolidação nesta revisão: a aquisição mantém primeiro o caminho estrito por metadados. Somente quando ele não encontra candidato aprovado, poderá baixar até duas imagens relevantes, validar integridade/resolução e usar o cliente gemini_runtime.py já existente para avaliar os pixels. Cada MUST precisa estar claramente visível e cada AVOID precisa estar ausente, com confiança mínima de 0,90 e evidência visual explícita.
+- Essa recuperação é fail-closed: indisponibilidade do Gemini, arquivo inválido, resposta malformada, item ausente ou confiança insuficiente mantêm o bloqueio. A consulta de busca, a descrição do provedor e o nome do arquivo não são enviados como prova visual. O relatório separa visual_verification de metadata_must_hits, preservando a proveniência.
+- Foram adicionados testes para o payload multimodal, limite de bytes/MIME, decisões positivas/negativas, fallback no Media Engine e exclusão dos arquivos cuja verificação visual falhar. A implementação precisa ainda passar pelos workflows e por uma nova prova real; não afirmar que a lacuna está resolvida antes dessas validações.
+- Pendência independente: a mesma execução registrou INTELLIGENCE_PRE=REVIEW com cobertura de claim lock em 66,7%. Essa cobertura factual não pode ser corrigida relaxando o gate de mídia; precisa de uma revisão separada e verificável do roteiro/fonte.

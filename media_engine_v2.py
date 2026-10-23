@@ -23,7 +23,7 @@ from typing import Any
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", Path.home() / "ShortAutoPro")).resolve()
 MEDIA_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".webm", ".mkv"}
-ENGINE_VERSION = "2.0.7"
+ENGINE_VERSION = "2.0.8"
 MIN_VISUAL_PIXELS = 320 * 180
 
 
@@ -362,6 +362,66 @@ def _local_library_asset(
     return None
 
 
+def _visual_fallback_candidates(
+    query: str,
+    candidates: list[dict[str, Any]],
+    limit: int = 2,
+) -> list[dict[str, Any]]:
+    """Choose a tiny set of relevant real images for pixel-level verification.
+
+    This is discovery only. No candidate is accepted until its downloaded pixels
+    pass media_visual_verifier and the existing media validator.
+    """
+    from media_provider_router_v2 import query_relevance
+
+    image_types = {"image", "imagem", "photo", "photograph", "fotografia", "picture"}
+    image_extensions = {".jpg", ".jpeg", ".png", ".webp"}
+    unique: dict[tuple[str, str, str], dict[str, Any]] = {}
+
+    for candidate in candidates:
+        if not isinstance(candidate, dict):
+            continue
+        kind = str(candidate.get("tipo") or candidate.get("asset_type") or "").strip().casefold()
+        if kind.startswith("video") or kind in {"vídeo", "movie", "clip"}:
+            continue
+        url = str(candidate.get("url") or "")
+        extension = Path(url.split("?", 1)[0]).suffix.casefold()
+        if kind:
+            if kind not in image_types:
+                continue
+        elif extension not in image_extensions:
+            continue
+
+        try:
+            if int(candidate.get("avoid_hits", 0) or 0) > 0:
+                continue
+        except (TypeError, ValueError):
+            continue
+
+        relevance = query_relevance(query, candidate)
+        if relevance.get("ok") is not True:
+            continue
+        candidate["query_relevance"] = relevance
+        candidate["_sap_metadata_must_hits"] = int(candidate.get("must_hits", 0) or 0)
+        key = (
+            str(candidate.get("fonte") or candidate.get("source") or ""),
+            str(candidate.get("id") or ""),
+            url,
+        )
+        unique.setdefault(key, candidate)
+
+    ranked = sorted(
+        unique.values(),
+        key=lambda candidate: (
+            int((candidate.get("query_relevance") or {}).get("matched_count", 0) or 0),
+            int(candidate.get("_sap_metadata_must_hits", 0) or 0),
+            float(candidate.get("score", 0) or 0),
+        ),
+        reverse=True,
+    )
+    return ranked[:max(1, min(int(limit), 3))]
+
+
 def acquire_scene(
     short_id: str,
     number: int,
@@ -405,6 +465,7 @@ def acquire_scene(
     relaxed = []
     relaxed_query_relevance_rejected = 0
     relaxed_evidence_diagnostics = []
+    verified_relaxed: list[dict[str, Any]] = []
     if not strict and must:
         # Keep explicit MUST terms in the fallback search query so discovery
         # can find matching assets. They are still independently verified below;
@@ -424,7 +485,6 @@ def acquire_scene(
         except Exception:
             verifier = None
 
-        verified_relaxed = []
         if verifier is not None:
             for candidate in relaxed:
                 # Verify the explicit MUST first. A fallback candidate with
@@ -458,6 +518,32 @@ def acquire_scene(
         strict = verified_relaxed
         verification_mode = "strict_evidence_query_relaxed" if strict else ""
 
+    visual_fallback_candidates: list[dict[str, Any]] = []
+    visual_rejections: list[str] = []
+    if not strict and must:
+        visual_fallback_candidates = _visual_fallback_candidates(
+            query,
+            [*candidates, *relaxed],
+            limit=2,
+        )
+        for candidate in visual_fallback_candidates:
+            candidate["_sap_must_total"] = len(must)
+            candidate["_sap_short_id"] = short_id
+            candidate["_sap_scene_number"] = number
+            candidate["_sap_scene_contract_fingerprint"] = contract_fingerprint
+            candidate["_sap_visual_verification_required"] = True
+            candidate["verification_mode"] = "gemini_visual_must"
+            candidate["verification_note"] = (
+                "pixel-level verification required; metadata hits remain separately recorded"
+            )
+        if visual_fallback_candidates:
+            verification_mode = "gemini_visual_must"
+            print(
+                f"MEDIA_VISUAL_FALLBACK=START scene={number:02d} "
+                f"candidates={len(visual_fallback_candidates)}"
+            )
+        strict = visual_fallback_candidates
+
     failures = []
     used_asset_hashes = used_asset_hashes or set()
 
@@ -483,6 +569,47 @@ def acquire_scene(
                 except OSError:
                     pass
                 continue
+
+            if candidate.get("_sap_visual_verification_required"):
+                try:
+                    from media_visual_verifier import verify_image_requirements
+                    visual_result = verify_image_requirements(path, must, avoid)
+                except Exception as exc:
+                    visual_result = {
+                        "status": "BLOCK",
+                        "method": "gemini_image_pixels",
+                        "reason": f"visual_verifier_error:{type(exc).__name__}",
+                    }
+                if visual_result.get("status") != "PASS":
+                    reason = str(visual_result.get("reason") or "visual_requirements_unverified")
+                    visual_rejections.append(reason)
+                    failures.append(f"{candidate.get('fonte', '?')}:VISUAL_VERIFY_BLOCK")
+                    print(
+                        f"MEDIA_VISUAL_FALLBACK=BLOCK scene={number:02d} "
+                        f"reason={reason}"
+                    )
+                    try:
+                        path.unlink(missing_ok=True)
+                    except OSError:
+                        pass
+                    continue
+
+                candidate["_sap_visual_verification"] = visual_result
+                candidate["_sap_metadata_must_hits"] = int(
+                    candidate.get("_sap_metadata_must_hits", candidate.get("must_hits", 0)) or 0
+                )
+                candidate["must_hits"] = len(must)
+                candidate["_sap_must_total"] = len(must)
+                candidate["evidence_class"] = "visual_model"
+                candidate["verification_mode"] = "gemini_visual_must"
+                candidate["verification_note"] = (
+                    "pixel-level Gemini verification passed; metadata MUST hits preserved separately"
+                )
+                print(
+                    f"MEDIA_VISUAL_FALLBACK=PASS scene={number:02d} "
+                    f"must={len(must)} avoid={len(avoid)}"
+                )
+
             checksum = str(validation.get("sha256") or sha256(path))
             # Different provider records can point to byte-identical images.
             # Reject a repeated visual asset and continue through the already
@@ -499,9 +626,19 @@ def acquire_scene(
             record["checksum_sha256"] = checksum
             record["verification_mode"] = str(candidate.get("verification_mode") or verification_mode or "strict_must")
             record["verification_note"] = str(candidate.get("verification_note") or "")
+            if isinstance(candidate.get("_sap_visual_verification"), dict):
+                record["visual_verification"] = candidate["_sap_visual_verification"]
+                record["metadata_must_hits"] = int(
+                    candidate.get("_sap_metadata_must_hits", 0) or 0
+                )
             return record
         except Exception as exc:
             failures.append(f"{candidate.get('fonte','?')}:{type(exc).__name__}")
+
+    # If all bounded pixel checks failed, these assets are still unverified and
+    # must not leave the gate in a partially accepted state.
+    if visual_fallback_candidates:
+        strict = []
 
     # Local Library is an explicit provider in the Router. Keep this secondary
     # compatibility path for libraries created by the previous pipeline.
@@ -530,6 +667,13 @@ def acquire_scene(
         )
         if relaxed_evidence_diagnostics:
             diagnostic += ";evidence=" + "|".join(relaxed_evidence_diagnostics[:8])
+        if visual_fallback_candidates:
+            diagnostic += (
+                f";visual_candidates={len(visual_fallback_candidates)};"
+                f"visual_blocked={len(visual_rejections)}"
+            )
+            if visual_rejections:
+                diagnostic += ";visual_reasons=" + "|".join(visual_rejections[:2])
         raise RuntimeError(
             f"MEDIA_INCOMPLETE:scene_{number:02d}:no_verified_asset:"
             f"must={','.join(must) or '-'};{diagnostic}"

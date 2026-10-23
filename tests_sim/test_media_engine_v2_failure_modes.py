@@ -193,4 +193,138 @@ class MediaEngineV2FailureTests(unittest.TestCase):
                         "X", 1, {"query": "long query", "must_have": ["ship"]}, media
                     )
 
+    def test_visual_fallback_accepts_only_after_pixel_verification_passes(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            media = base / "imagens" / "short_X"
+            media.mkdir(parents=True)
+            destination = media / "scene_01_wikimedia.jpg"
+            candidate = {
+                "fonte": "Wikimedia",
+                "id": "pixel-fixture",
+                "tipo": "image",
+                "url": "https://example.test/scene_01.jpg",
+                "title": "Torn tent in snow beneath snowy mountains",
+                "image_description": "A torn tent in a snowy mountain landscape",
+                "descricao": "Torn tent in snow beneath snowy mountains",
+                "must_hits": 0,
+                "avoid_hits": 0,
+                "score": 80,
+            }
+
+            def download(_candidate, _number, _sid):
+                destination.write_bytes(b"mock image data")
+                return True, str(destination), {}
+
+            def validate(path):
+                path = Path(path)
+                return {
+                    "sha256": media_engine_v2.sha256(path),
+                    "probe": {"width": 1920, "height": 1080},
+                }
+
+            with patch.object(
+                media_engine_v2.PROVIDER, "search", side_effect=[[candidate], [candidate]]
+            ), patch.object(
+                media_engine_v2.PROVIDER, "prepare", return_value=[]
+            ), patch(
+                "media_must_verifier.verified_must",
+                return_value={"hits": 0, "total": 2, "missing": ["torn tent", "snow"]},
+            ), patch.object(
+                media_engine_v2.PROVIDER, "download", side_effect=download
+            ), patch.object(
+                media_engine_v2, "validate_asset", side_effect=validate
+            ), patch.object(
+                media_engine_v2, "_local_library_asset", return_value=None
+            ), patch(
+                "media_visual_verifier.verify_image_requirements",
+                return_value={
+                    "status": "PASS",
+                    "method": "gemini_image_pixels",
+                    "must": [
+                        {"anchor": "torn tent", "visible": True, "confidence": 0.97, "evidence": "visible tear"},
+                        {"anchor": "snow", "visible": True, "confidence": 0.98, "evidence": "snow on ground"},
+                    ],
+                    "avoid": [
+                        {"anchor": "people", "visible": False, "confidence": 0.97, "evidence": "no people visible"}
+                    ],
+                },
+            ):
+                result = media_engine_v2.acquire_scene(
+                    "X",
+                    1,
+                    {
+                        "query": "torn vintage canvas tent fabric in snowy mountain landscape",
+                        "must_have": ["torn tent", "snow"],
+                        "avoid": ["people"],
+                    },
+                    media,
+                )
+
+            self.assertEqual(result["verification_mode"], "gemini_visual_must")
+            self.assertEqual(result["evidence_class"], "visual_model")
+            self.assertEqual(result["must_hits"], 2)
+            self.assertEqual(result["metadata_must_hits"], 0)
+            self.assertEqual(result["visual_verification"]["status"], "PASS")
+
+    def test_visual_fallback_blocks_and_deletes_image_when_avoid_is_visible(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            media = base / "imagens" / "short_X"
+            media.mkdir(parents=True)
+            destination = media / "scene_01_wikimedia.jpg"
+            candidate = {
+                "fonte": "Wikimedia",
+                "id": "blocked-pixel-fixture",
+                "tipo": "image",
+                "url": "https://example.test/scene_01.jpg",
+                "title": "Torn tent in snow beneath snowy mountains",
+                "image_description": "A torn tent in a snowy mountain landscape",
+                "descricao": "Torn tent in snow beneath snowy mountains",
+                "must_hits": 0,
+                "avoid_hits": 0,
+                "score": 80,
+            }
+
+            def download(_candidate, _number, _sid):
+                destination.write_bytes(b"mock image data")
+                return True, str(destination), {}
+
+            def validate(path):
+                path = Path(path)
+                return {
+                    "sha256": media_engine_v2.sha256(path),
+                    "probe": {"width": 1920, "height": 1080},
+                }
+
+            with patch.object(
+                media_engine_v2.PROVIDER, "search", side_effect=[[candidate], [candidate]]
+            ), patch.object(
+                media_engine_v2.PROVIDER, "prepare", return_value=[]
+            ), patch(
+                "media_must_verifier.verified_must",
+                return_value={"hits": 0, "total": 2, "missing": ["torn tent", "snow"]},
+            ), patch.object(
+                media_engine_v2.PROVIDER, "download", side_effect=download
+            ), patch.object(
+                media_engine_v2, "validate_asset", side_effect=validate
+            ), patch.object(
+                media_engine_v2, "_local_library_asset", return_value=None
+            ), patch(
+                "media_visual_verifier.verify_image_requirements",
+                return_value={"status": "BLOCK", "reason": "avoid_visibility_failed"},
+            ):
+                with self.assertRaisesRegex(RuntimeError, "MEDIA_INCOMPLETE"):
+                    media_engine_v2.acquire_scene(
+                        "X",
+                        1,
+                        {
+                            "query": "torn vintage canvas tent fabric in snowy mountain landscape",
+                            "must_have": ["torn tent", "snow"],
+                            "avoid": ["people"],
+                        },
+                        media,
+                    )
+            self.assertFalse(destination.exists())
+
 if __name__=="__main__": unittest.main()
