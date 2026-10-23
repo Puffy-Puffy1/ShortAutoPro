@@ -86,7 +86,7 @@ def normalize_visual_musts(
             for other_index, other in enumerate(values)
             if other_index != index and str(other).strip()
         ]
-        item_context = " ".join([item_context.strip(), *other_values]).strip()
+        item_context = " ".join([str(context or "").strip(), *other_values]).strip()
         manuscript_context = bool(_MANUSCRIPT_CONTEXT.search(item_context))
         key = original.casefold()
         anchor = _NON_ATOMIC_VISUAL_MUSTS.get(key, original)
