@@ -184,3 +184,9 @@ O histórico detalhado de execuções, falhas e correções anteriores foi prese
 - A política `scene_must_policy.py` agora aciona explicitamente o workflow de migração/testes do Media Engine.
 - FIRST_VIDEO usa retries e timeout ampliado para instalação do FFmpeg; a etapa continua exigindo os binários reais.
 - A confirmação depende dos workflows do commit mais recente e da prova FIRST_VIDEO completar render, FFprobe e gate final.
+
+
+## Ajuste de precisão dos MUSTs — 23/10/2026
+
+- A âncora `vintage equipment` só é normalizada quando a consulta visual, e não apenas outro MUST, traz contexto explícito de esqui/época.
+- A validação da política será repetida pelo workflow de migração, agora acionado também quando `scene_must_policy.py` muda.

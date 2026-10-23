@@ -298,3 +298,10 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - Incluído `scene_must_policy.py` nos filtros de `Media Engine V2 Migration` para que mudanças na política executem os testes de regressão em PRs e nos branches monitorados. O filtro anterior não iniciava esse workflow quando apenas a política mudava.
 - A etapa de instalação do FFmpeg em FIRST_VIDEO agora permite até 300 segundos para `apt-get update` e usa as opções de retry/timeouts do APT. A falha anterior terminou em `exit code 124` após 180 segundos, antes da geração do vídeo; a mudança tenta reduzir falhas transitórias sem ignorar a necessidade de `ffmpeg` e `ffprobe` funcionais.
 - A versão `6df2ff4` corrige a inicialização do contexto de MUSTs; a execução de CI deve validar essa versão e o ajuste do workflow. Ainda não há resultado final de prova real nem MP4 validado nesta etapa.
+
+
+## 36. Preservação da âncora de época no contexto de esqui — 23/10/2026
+
+- A execução de regressão da revisão `6df2ff4` mostrou que a âncora `vintage equipment` era reduzida a `vintage` apenas porque outro MUST dizia `skis`, mesmo quando a consulta só mencionava neve e montanhas.
+- Ajuste: a normalização de `vintage equipment` agora exige que a própria consulta contenha contexto explícito de esqui/época. Outros MUSTs continuam a contextualizar requisitos compatíveis, como `skiers` contextualizando `winter gear`, mas não substituem a evidência visual da época.
+- O teste `test_ski_equipment_requirements_remain_unchanged_without_context` cobre a regressão. A política continua a exigir verificação independente dos metadados do candidato.
