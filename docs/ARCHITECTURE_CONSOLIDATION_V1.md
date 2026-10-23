@@ -233,3 +233,11 @@ O histórico detalhado de execuções, falhas e correções anteriores foi prese
 - Essa recuperação é fail-closed: indisponibilidade do Gemini, arquivo inválido, resposta malformada, item ausente ou confiança insuficiente mantêm o bloqueio. A consulta de busca, a descrição do provedor e o nome do arquivo não são enviados como prova visual. O relatório separa visual_verification de metadata_must_hits, preservando a proveniência.
 - Foram adicionados testes para o payload multimodal, limite de bytes/MIME, decisões positivas/negativas, fallback no Media Engine e exclusão dos arquivos cuja verificação visual falhar. A implementação precisa ainda passar pelos workflows e por uma nova prova real; não afirmar que a lacuna está resolvida antes dessas validações.
 - Pendência independente: a mesma execução registrou INTELLIGENCE_PRE=REVIEW com cobertura de claim lock em 66,7%. Essa cobertura factual não pode ser corrigida relaxando o gate de mídia; precisa de uma revisão separada e verificável do roteiro/fonte.
+
+
+## 18. Ajuste da asserção do runner portátil — 23/10/2026
+
+- A execução [Portable Validation #39996149523](https://github.com/Puffy-Puffy1/ShortAutoPro/actions/runs/39996149523) executou 948 testes e falhou somente em `test_portable_validator_is_github_hosted_and_read_only`: o teste esperava `ubuntu-latest`, mas o workflow foi intencionalmente fixado em `ubuntu-24.04`.
+- Os testes recém-adicionados da integração multimodal do Gemini, do verificador de pixels e do fallback fail-closed passaram nessa execução. O erro foi uma expectativa de teste desatualizada, não uma falha da lógica de aquisição/renderização.
+- Correção restrita: a asserção agora espera `ubuntu-24.04`, mantendo a verificação de runner hospedado e permissões somente de leitura. Nenhum gate de mídia ou produção foi relaxado.
+- A suíte portátil e o workflow de migração precisam ser executados novamente antes de marcar esta etapa como validada.

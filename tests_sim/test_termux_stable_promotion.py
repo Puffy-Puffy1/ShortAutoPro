@@ -19,7 +19,7 @@ class TermuxStablePromotionTests(unittest.TestCase):
         self.assertIn("workflow_run.name == 'ShortAutoPro Portable Validation'", self.workflow)
 
     def test_portable_validator_is_github_hosted_and_read_only(self):
-        self.assertIn("runs-on: ubuntu-latest", self.portable)
+        self.assertIn("runs-on: ubuntu-24.04", self.portable)
         self.assertIn("contents: read", self.portable)
         self.assertNotIn("contents: write", self.portable)
         self.assertNotIn("runs-on: [self-hosted", self.portable)
