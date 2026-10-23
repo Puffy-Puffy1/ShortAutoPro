@@ -83,6 +83,7 @@ _QUERY_TOKEN_ALIASES = {
     "woodland": "forest", "woodlands": "forest", "woods": "forest",
     "forested": "forest", "taiga": "forest",
 }
+_SKI_SEARCH_CONTEXT = re.compile(r"\b(?:ski|skis|skiing|skier|skiers|ski equipment|wooden skis)\b", re.IGNORECASE)
 
 
 def _meaningful_query_tokens(value: str) -> set[str]:
@@ -457,6 +458,18 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
             "pilot in cockpit headset",
             "aircraft cockpit pilot",
             "pilot radio headset",
+        ))
+
+    # Ski catalogs may describe the object and its snowy setting using separate
+    # labels. Add a few contextual searches, but keep snow as a strict MUST.
+    if (
+        "snow" in {term.casefold() for term in must_terms}
+        and _SKI_SEARCH_CONTEXT.search(raw)
+    ):
+        candidates.extend((
+            "wooden skis in snow",
+            "abandoned skis in snow",
+            "ski equipment in deep snow",
         ))
 
     # Preserve each explicit anchor as a standalone retrieval option.

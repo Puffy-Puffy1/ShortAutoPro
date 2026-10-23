@@ -232,5 +232,32 @@ class MediaMustVerifierMicrophoneTests(unittest.TestCase):
                 evidence,
             )
 
+
+class MediaMustVerifierSkiSnowSearchTests(unittest.TestCase):
+    def test_ski_query_with_snow_must_adds_contextual_search_variants(self):
+        query = "old wooden ski equipment discarded in deep snow"
+        variants = _query_variants(query, ["snow"])
+        self.assertEqual(variants[0], query)
+        self.assertLessEqual(len(variants), 8)
+        self.assertIn("wooden skis in snow", variants)
+        self.assertIn("abandoned skis in snow", variants)
+        self.assertIn("ski equipment in deep snow", variants)
+        self.assertIn("snow", variants)
+
+    def test_ski_context_does_not_bypass_snow_metadata_requirement(self):
+        self.assertTrue(
+            requirement_matches(
+                "snow",
+                {"description": "old wooden skis abandoned in deep snow"},
+            )
+        )
+        self.assertFalse(
+            requirement_matches(
+                "snow",
+                {"description": "old wooden skis stored inside a museum"},
+            )
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

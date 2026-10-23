@@ -265,3 +265,11 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - Foram observadas várias execuções antigas reportando `in_progress` ao mesmo tempo, algumas sem progresso visível na preparação. Os logs desses jobs não estavam disponíveis durante a execução, portanto a causa original não foi confirmada.
 - O workflow recebeu `concurrency.group` por `github.ref` com `cancel-in-progress: true`: futuras execuções do FIRST_VIDEO na mesma branch substituem uma execução anterior do mesmo grupo em vez de disputar runners/artefatos. A configuração não altera os gates de render, mídia, factualidade ou aprovação.
 - Execuções iniciadas antes da configuração de concorrência podem não pertencer a esse grupo retroativamente; verificar individualmente seus estados. A nova configuração deve ser confirmada no CI após este commit.
+
+## 32. Recuperação contextual para esqui em neve — 23/10/2026
+
+- Prova real: [FIRST_VIDEO #39877884641](https://github.com/Puffy-Puffy1/ShortAutoPro/actions/runs/39877884641), tema Dyatlov. O setup concluiu e a produção entrou no Media Engine, mas parou na cena 6 antes de renderizar.
+- Consulta: `old wooden ski equipment discarded in deep snow`; MUST: `snow`. Foram encontrados 87 candidatos; 86 foram recusados pela relevância contextual e nenhum candidato elegível comprovou `snow` nos próprios metadados. O bloqueio foi correto e FFprobe foi ignorado.
+- Correção de descoberta: ao detectar `snow` como MUST em consulta de esqui, o router acrescenta três buscas contextuais específicas (`wooden skis in snow`, `abandoned skis in snow`, `ski equipment in deep snow`) antes das variantes genéricas. A consulta original continua primeiro, as variantes permanecem limitadas a oito e a consulta nunca passa a valer como evidência.
+- Testes positivos e negativos asseguram que as variantes existam e que esquis descritos dentro de um museu, sem neve comprovada, continuem sendo rejeitados para MUST `snow`.
+- Pendência: o novo commit precisa passar na migração, validação portátil, Render Engine, stress 1→2→5→10 e nova prova real. Só considerar concluído após MP4 novo, áudio/vídeo válidos, FFprobe e gate final autorizados.
