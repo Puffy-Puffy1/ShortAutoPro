@@ -55,10 +55,14 @@ def _relaxed_relevance_acceptable(
         for item in must
         for token in re.findall(r"[a-z0-9]+", str(item).casefold())
     }
+    # Catalog namespace/type words are not evidence that the image depicts
+    # the requested scene. They cannot be the only relaxed-context match.
+    weak_context_terms = {"file"}
     contextual_matches = [
         str(term).casefold()
         for term in matched_terms
         if str(term).casefold() not in must_tokens
+        and str(term).casefold() not in weak_context_terms
     ]
     return bool(contextual_matches)
 

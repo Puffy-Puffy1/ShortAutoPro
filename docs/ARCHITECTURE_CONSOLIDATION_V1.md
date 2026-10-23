@@ -286,3 +286,11 @@ O histórico detalhado de execuções, falhas e correções anteriores foi prese
 - Every selected image still has to pass download integrity, resolution/media validation, and pixel-level verification of every MUST and AVOID. The existing confidence threshold remains unchanged, and metadata hits remain reported separately from pixel evidence.
 - Regression coverage models scene 4 ("group of vintage Soviet skiers walking outdoors", MUSTs "people" and "winter clothing") with a partial contextual match, plus a negative case with MUST-only overlap.
 - CI and the next FIRST_VIDEO proof must validate this change. The latest live attempt failed before render at scene 4; no new MP4 has yet been confirmed.
+
+## 24. Wikimedia catalog-title disambiguation — 23/10/2026
+
+- Provider relevance strips Wikimedia's non-visual `File:` namespace so catalog plumbing cannot satisfy scene-query overlap.
+- Compound publication titles such as `The Case-Book of Sherlock Holmes` no longer count as separate visual concepts `case` and `book`.
+- `classified ad/advertising` is normalized as advertising, so it cannot alone justify a scene asking for classified government documents.
+- The relaxed-relevance rescue cannot use the generic catalog word `file` as its only independent context anchor. Explicit MUST verification and downstream visual-quality gates remain unchanged.
+- Added regression tests for the false-positive metadata patterns observed in FIRST_VIDEO artifact `gha_40010398873_1`.

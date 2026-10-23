@@ -505,6 +505,9 @@ class MediaEngineContractTests(unittest.TestCase):
         self.assertFalse(
             accept({"query_relevance": {"ok": False, "matched_terms": ["money"]}}, ["money"])
         )
+        self.assertFalse(
+            accept({"query_relevance": {"ok": False, "matched_terms": ["file"]}}, ["paper"])
+        )
         self.assertTrue(accept({}, ["quill pen"]))
 
     def test_quill_pen_search_variants_are_bounded_and_contextual(self):

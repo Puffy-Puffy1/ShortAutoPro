@@ -141,6 +141,39 @@ class MediaProviderV2Tests(unittest.TestCase):
         self.assertFalse(result["ok"])
         self.assertEqual(result["matched_terms"], ["money"])
 
+    def test_query_relevance_ignores_wikimedia_file_namespace_and_casebook_title(self):
+        from media_provider_router_v2 import query_relevance
+
+        candidate = {
+            "title": "File:Conan Doyle - The Case book of Sherlock Holmes, 1927.djvu",
+            "image_description": (
+                "File:Conan Doyle - The Case book of Sherlock Holmes. "
+                "Books from the United States; DjVu files in English; "
+                "Files by User:Cunegonde1/Books; scans from HathiTrust."
+            ),
+        }
+        result = query_relevance(
+            "detectives examining old case files on desk", candidate
+        )
+        self.assertFalse(result["ok"], result)
+        self.assertNotIn("case", result["matched_terms"])
+
+    def test_query_relevance_disambiguates_classified_ad_from_classified_documents(self):
+        from media_provider_router_v2 import query_relevance
+
+        candidate = {
+            "title": "File:Frantisek Dolejska classified ad 1869.jpg",
+            "image_description": (
+                "Classified ad promoting stenography classes; classified advertising "
+                "in newspapers of the Kingdom of Bohemia."
+            ),
+        }
+        result = query_relevance(
+            "old classified government documents in folder", candidate
+        )
+        self.assertFalse(result["ok"], result)
+        self.assertNotIn("classified", result["matched_terms"])
+
     def test_query_relevance_accepts_specific_title_and_description_match(self):
         from media_provider_router_v2 import query_relevance
 

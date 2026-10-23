@@ -102,9 +102,21 @@ def _candidate_relevance_text(candidate: dict[str, Any]) -> str:
         for key in ("title", "object_name", "image_description", "description", "alt", "caption", "name")
         if str(candidate.get(key) or "").strip()
     ]
-    if primary:
-        return " ".join(str(value) for value in primary)
-    return str(candidate.get("descricao") or "")
+    text = " ".join(str(value) for value in primary) if primary else str(candidate.get("descricao") or "")
+    # Wikimedia titles have a non-visual "File:" namespace prefix. Also keep
+    # the publication title "case book" from matching the visual concept
+    # "case files" as two independent context terms.
+    text = re.sub(r"\bFile:\s*", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\bcase[\s-]+book\b", "casebook", text, flags=re.IGNORECASE)
+    # "classified ad/advertising" means newspaper advertising, not classified
+    # government documents. Normalize that polysemy before relevance scoring.
+    text = re.sub(
+        r"\bclassified\s+(?:ads?|advertising)\b",
+        "advertisement",
+        text,
+        flags=re.IGNORECASE,
+    )
+    return text
 
 
 def query_relevance(query: str, candidate: dict[str, Any]) -> dict[str, Any]:
