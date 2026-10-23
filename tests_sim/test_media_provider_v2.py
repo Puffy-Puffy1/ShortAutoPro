@@ -167,6 +167,64 @@ class MediaProviderV2Tests(unittest.TestCase):
         self.assertTrue(result["ok"], result)
         self.assertGreaterEqual(result["matched_count"], 2)
 
+    def test_wikimedia_object_name_supports_contextual_relevance_with_generic_filename(self):
+        from unittest.mock import patch
+        import media_provider_router_v2 as router
+
+        query = "cryptographer analyzing ancient mysterious manuscript on desk"
+
+        class Response:
+            ok = True
+            status_code = 200
+            headers = {}
+
+            def json(self):
+                return {
+                    "query": {
+                        "pages": {
+                            "123": {
+                                "pageid": 123,
+                                "title": "File:scan_001.jpg",
+                                "imageinfo": [{
+                                    "mime": "image/jpeg",
+                                    "thumburl": "https://example.test/scan_001.jpg",
+                                    "url": "https://example.test/original_001.jpg",
+                                    "thumbwidth": 1920,
+                                    "thumbheight": 1080,
+                                    "width": 3000,
+                                    "height": 2000,
+                                    "extmetadata": {
+                                        "ObjectName": {"value": "Ancient manuscript on desk"},
+                                        "ImageDescription": {"value": ""},
+                                    },
+                                }],
+                                "categories": [
+                                    {"title": "Category:Manuscripts"},
+                                ],
+                            }
+                        }
+                    }
+                }
+
+        with patch.object(router, "provider_gate", return_value=(True, "", 0)), \
+             patch.object(router.requests, "get", return_value=Response()), \
+             patch.object(router, "note_response", return_value="SUCCESS"), \
+             patch.object(router, "note_provider_event"), \
+             patch.object(router, "_WIKIMEDIA_CACHE", {}):
+            candidates = router.WikimediaProvider().search(
+                query,
+                ["manuscript"],
+                [],
+            )
+
+        self.assertEqual(len(candidates), 1)
+        self.assertEqual(candidates[0]["object_name"], "Ancient manuscript on desk")
+        relevance = router.query_relevance(query, candidates[0])
+        self.assertTrue(relevance["ok"], relevance)
+        self.assertIn("ancient", relevance["matched_terms"])
+        self.assertIn("manuscript", relevance["matched_terms"])
+        self.assertIn("desk", relevance["matched_terms"])
+
     def test_query_relevance_maps_portuguese_manuscript_to_catalog_term(self):
         from media_provider_router_v2 import query_relevance
 

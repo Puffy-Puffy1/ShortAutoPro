@@ -260,3 +260,12 @@ O histórico detalhado de execuções, falhas e correções anteriores foi prese
 - Melhoramos a observabilidade sem afrouxar a política: o verificador conserva no relatório os resultados individuais de MUST/AVOID mesmo quando bloqueia; o Media Engine emite a âncora, a visibilidade e a confiança de cada item. Arquivos com qualquer MUST ausente, AVOID presente ou evidência incerta continuam rejeitados e são apagados.
 - As quatro validações não-live passaram no commit anterior: migração do Media Engine, Render Engine V2, stress 1→2→5→10 e Portable Validation. A prova real segue sendo o gate final e precisa produzir um MP4 novo, passar em FFprobe e cumprir a liberação segura.
 - Pendência separada: o mesmo roteiro apresentou claim-lock em 55,6% e Intelligence Scene em REVIEW. Não corrigir essa cobertura reduzindo limiares: ela precisa de uma investigação factual independente após resolver a aquisição da mídia.
+
+
+## 21. Correção de relevância Wikimedia sem afrouxar os critérios — 23/10/2026
+
+- A prova real [FIRST_VIDEO #39997883253](https://github.com/Puffy-Puffy1/ShortAutoPro/actions/runs/39997883253) falhou antes de renderizar. Para a cena 1, o router encontrou 20 candidatos Wikimedia, mas os 20 foram rejeitados pela relevância textual; o relatório mostrou ao menos um candidato com correspondência de MUST nos metadados.
+- A inspeção do código mostrou que o Wikimedia já recebe \`ObjectName\` do Commons, mas guardava esse dado apenas dentro da descrição agregada. O cálculo de relevância priorizava \`title\`, \`image_description\` e outros campos; quando havia um título genérico \`File:...\`, ignorava o \`ObjectName\` e não conseguia reconhecer o assunto descrito pelo catálogo.
+- Correção consolidada: \`ObjectName\` agora é preservado como campo separado \`object_name\` e incluído no texto descritivo de relevância. As categorias do Wikimedia continuam fora desse cálculo, porque categorias amplas não provam correspondência com a cena.
+- Foi adicionado um teste com título genérico de arquivo e \`ObjectName\` contendo termos contextuais; o teste existente de categoria genérica continua garantindo que um rótulo como \`Category:Money\` não torne um resultado irrelevante em relevante.
+- Esta alteração melhora a leitura dos metadados já disponíveis; não reduz o limiar de relevância nem aprova mídia só por MUST. A próxima prova precisa confirmar se a consulta da cena encontra candidatos que passam pelo filtro e se os pixels atendem a todos os MUST/AVOID.

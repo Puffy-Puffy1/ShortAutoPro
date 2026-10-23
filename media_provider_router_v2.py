@@ -99,7 +99,7 @@ def _candidate_relevance_text(candidate: dict[str, Any]) -> str:
     # Categories are useful for MUST evidence but too broad to prove shot relevance.
     primary = [
         candidate.get(key)
-        for key in ("title", "image_description", "description", "alt", "caption", "name")
+        for key in ("title", "object_name", "image_description", "description", "alt", "caption", "name")
         if str(candidate.get(key) or "").strip()
     ]
     if primary:
@@ -351,6 +351,7 @@ class WikimediaProvider(Provider):
                 out.append(_candidate(
                     self.name,"image",item.get("pageid"),url,desc,query,must,avoid,
                     title=title,
+                    object_name=metadata_value("ObjectName"),
                     image_description=metadata_value("ImageDescription"),
                     tags=categories,
                     license="Wikimedia Commons",
