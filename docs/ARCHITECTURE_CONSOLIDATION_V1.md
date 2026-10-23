@@ -366,3 +366,10 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - Testes confirmam que metadados como Pilot in cockpit wearing a radio headset podem ser relevantes e que Portrait of a pilot continua insuficiente para a consulta completa. Nenhum requisito de aceitação foi afrouxado.
 - Pendência independente: INTELLIGENCE_PRE=REVIEW com cobertura de claim lock de 62,5%. As sentenças sobre o fragmento de Cessna e a hipótese de desorientação espacial foram marcadas com suporte insuficiente, junto de uma pergunta retórica; a revisão factual deve examinar as duas alegações substantivas e manter a pergunta editorial fora do cálculo factual conforme a política existente. Não reduzir o limiar para fazer o gate passar.
 - Aguardam-se CI verde e nova FIRST_VIDEO. Só confirmar conclusão após MP4 novo, áudio/vídeo válidos, FFprobe aprovado e gate final autorizado.
+
+## 27. Correção de pergunta editorial no claim lock — 22/10/2026
+
+- FIRST_VIDEO #39874615573 gerou roteiro sobre Frederick Valentich e parou antes do render por falta de mídia com relevância comprovada para a cena piloto/cockpit. A auditoria factual registrou INTELLIGENCE_PRE=REVIEW, cobertura 62,5%; dois enunciados substantivos ficaram sem suporte suficiente e uma pergunta editorial também foi contada como factual.
+- O classificador já isentava perguntas explícitas como “O que realmente aconteceu?” e CTAs, mas não cobria a formulação comum “O que você acha que aconteceu?”. O regex foi ampliado com essa forma específica, e o teste agora cobre as duas perguntas e a CTA.
+- A correção não afeta as sentenças factuais: os limiares de suporte simples/múltiplo permanecem iguais. As alegações sobre o fragmento de Cessna e a hipótese de desorientação continuam necessitando evidência; não se devem descartar nem baixar o limiar para forçar o status PASS.
+- Próximo critério: testes de Intelligence Layer verdes e uma nova prova FIRST_VIDEO. O MP4 ainda não foi gerado nem passou por FFprobe; liberação final permanece pendente.

@@ -32,7 +32,7 @@ WORD_RE = re.compile(r"[A-Za-zÀ-ÿ0-9'-]+", re.UNICODE)
 YEAR_RE = re.compile(r"\b(?:18|19|20)\d{2}\b")
 SOURCE_HEADING_RE = re.compile(r"^(?:={2,}\s*[^=]+?\s*={2,}|#{1,6}\s+\S.*)$")
 EDITORIAL_QUESTION_RE = re.compile(
-    r"^\s*(?:o que realmente aconteceu|o que aconteceu|você acha que|qual é sua teoria|qual teoria|será que|what really happened|what happened)\b.*\?\s*$",
+    r"^\s*(?:o que realmente aconteceu|o que aconteceu|o que você acha que|você acha que|qual é sua teoria|qual teoria|será que|what really happened|what happened)\b.*\?\s*$",
     re.IGNORECASE,
 )
 CALL_TO_ACTION_RE = re.compile(

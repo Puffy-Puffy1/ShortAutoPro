@@ -47,12 +47,13 @@ class IntelligenceLayerTests(unittest.TestCase):
         script = (
             "Os esquiadores acamparam nas montanhas durante o inverno. "
             "O que realmente aconteceu naquela noite gelada? "
+            "O que você acha que aconteceu? "
             "Comente sua teoria e inscreva-se."
         )
         result = intel.claim_lock(script, intel.claim_engine(source))
         self.assertEqual(result["coverage"], 100.0)
         self.assertEqual(result["factual_sentence_count"], 1)
-        self.assertEqual(result["editorial_prompt_count"], 2)
+        self.assertEqual(result["editorial_prompt_count"], 3)
         self.assertEqual(result["unsupported"], [])
         self.assertTrue(all(row["coverage_exempt"] for row in result["sentences"][1:]))
 
