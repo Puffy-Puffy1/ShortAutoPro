@@ -49,6 +49,7 @@ on:
       - "tests_sim/test_media_must_verifier.py"
       - "tests_sim/test_shortauto_brain_integration.py"
       - "tests_sim/test_shortauto_brain_evidence_map.py"
+      - "tests_sim/test_first_video_validation_contract.py"
   workflow_dispatch:
     inputs:
       topic:
@@ -145,6 +146,9 @@ jobs:
       - name: Verify narration-only factual evidence
         run: python -m unittest tests_sim.test_shortauto_brain_evidence_map -v
 
+      - name: Verify post-gate MP4 validation contract
+        run: python -m unittest tests_sim.test_first_video_validation_contract -v
+
       - name: Run FIRST_VIDEO
         id: run-first-video
         env:
@@ -189,6 +193,7 @@ jobs:
           python main.py run
 
       - name: Validate generated MP4 with FFprobe
+        if: always() && steps.run-first-video.outputs.short_id != ''
         env:
           SHORT_ID: ${{ steps.run-first-video.outputs.short_id }}
         run: |
