@@ -407,3 +407,12 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - `media_must_verifier.py` reconhece metadados explícitos de pasta Manila, pasta de arquivo e pasta de documentos. Papéis soltos ou a própria consulta não servem de evidência.
 - `tests_sim/test_media_must_verifier.py` cobre buscas contextuais, equivalentes explícitos e rejeição de falsos positivos. A verificação visual MUST/AVOID permanece obrigatória.
 - A cabeça atual ainda precisa passar na prova FIRST_VIDEO com novo MP4 e FFprobe; a falha citada é da revisão anterior a esta correção.
+
+
+## 43. Busca contextual para navio à deriva — 24/10/2026
+
+- A execução FIRST_VIDEO `40055009078` falhou na cena 01: consulta `abandoned vintage sailing ship drifting in vast ocean`, MUST `ship`; 50 candidatos do Wikimedia e 20 de fallback foram encontrados, mas nenhum dos cinco candidatos analisados visualmente comprovou a presença de navio. O MP4 desta execução não foi gerado.
+- Causa: aliases genéricos (`vessel`, `boat`, `watercraft`) consumiam o limite de oito variantes antes de buscas catalográficas mais específicas.
+- `media_provider_router_v2.py` agora prioriza, para cenas históricas/abandonadas de navio com contexto de mar/oceano, consultas como `abandoned sailing ship at sea`, `old sailing vessel at sea` e `ghost ship in the ocean`.
+- Foi adicionado teste de regressão para as variantes e o limite de oito consultas.
+- A validação MUST/AVOID e a verificação visual continuam estritas; o teste e uma nova execução FIRST_VIDEO com MP4 validado por FFprobe ainda são necessários para comprovar o resultado.
