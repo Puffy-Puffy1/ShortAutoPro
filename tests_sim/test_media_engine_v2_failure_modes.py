@@ -88,7 +88,7 @@ class MediaEngineV2FailureTests(unittest.TestCase):
                 "descricao": "ship on the ocean",
             }
             with patch.object(
-                media_engine_v2.PROVIDER, "search", side_effect=[[candidate], [candidate]]
+                media_engine_v2.PROVIDER, "search", side_effect=[[candidate], [candidate], [], [], []]
             ) as search, patch.object(
                 media_engine_v2.PROVIDER, "prepare", return_value=[]
             ), patch(
@@ -127,7 +127,7 @@ class MediaEngineV2FailureTests(unittest.TestCase):
                 },
             }
             with patch.object(
-                media_engine_v2.PROVIDER, "search", side_effect=[[candidate], [candidate]]
+                media_engine_v2.PROVIDER, "search", side_effect=[[candidate], [candidate], [], [], []]
             ), patch.object(
                 media_engine_v2.PROVIDER, "prepare", return_value=[candidate]
             ), patch(
@@ -156,7 +156,7 @@ class MediaEngineV2FailureTests(unittest.TestCase):
             with patch.object(
                 media_engine_v2.PROVIDER,
                 "search",
-                side_effect=[[candidate], [candidate]],
+                side_effect=[[candidate], [candidate], [], [], []],
             ), patch.object(
                 media_engine_v2.PROVIDER,
                 "prepare",
@@ -177,7 +177,7 @@ class MediaEngineV2FailureTests(unittest.TestCase):
             with patch.object(
                 media_engine_v2.PROVIDER,
                 "search",
-                side_effect=[[candidate], [candidate]],
+                side_effect=[[candidate], [candidate], [], [], []],
             ), patch.object(
                 media_engine_v2.PROVIDER,
                 "prepare",
@@ -269,7 +269,7 @@ class MediaEngineV2FailureTests(unittest.TestCase):
             }
 
             with patch.object(
-                media_engine_v2.PROVIDER, "search", side_effect=[candidates, candidates]
+                media_engine_v2.PROVIDER, "search", side_effect=[candidates, candidates, [], [], []]
             ), patch.object(
                 media_engine_v2.PROVIDER, "prepare", return_value=[]
             ), patch(
@@ -375,7 +375,7 @@ class MediaEngineV2FailureTests(unittest.TestCase):
                 }
 
             with patch.object(
-                media_engine_v2.PROVIDER, "search", side_effect=[[candidate], [candidate]]
+                media_engine_v2.PROVIDER, "search", side_effect=[[candidate], [candidate], [], [], []]
             ), patch.object(
                 media_engine_v2.PROVIDER, "prepare", return_value=[]
             ), patch(
@@ -449,7 +449,7 @@ class MediaEngineV2FailureTests(unittest.TestCase):
                 }
 
             with patch.object(
-                media_engine_v2.PROVIDER, "search", side_effect=[[candidate], [candidate]]
+                media_engine_v2.PROVIDER, "search", side_effect=[[candidate], [candidate], [], [], []]
             ), patch.object(
                 media_engine_v2.PROVIDER, "prepare", return_value=[]
             ), patch(
@@ -526,7 +526,7 @@ class MediaEngineV2FailureTests(unittest.TestCase):
                 },
             }
             with patch.object(
-                media_engine_v2.PROVIDER, "search", side_effect=[[candidate], [candidate]]
+                media_engine_v2.PROVIDER, "search", side_effect=[[candidate], [candidate], [], [], []]
             ), patch.object(
                 media_engine_v2.PROVIDER, "prepare", return_value=[candidate]
             ), patch.object(
@@ -610,6 +610,9 @@ class MediaEngineV2FailureTests(unittest.TestCase):
                 side_effect=[
                     [strict_candidate, fallback_candidate],
                     [strict_candidate, fallback_candidate],
+                    [],
+                    [],
+                    [],
                 ],
             ), patch.object(
                 media_engine_v2.PROVIDER, "prepare", return_value=[strict_candidate]
@@ -662,7 +665,7 @@ class MediaEngineV2FailureTests(unittest.TestCase):
             }
             with patch.object(
                 media_engine_v2.PROVIDER, "search",
-                side_effect=[[icon_candidate], [icon_candidate]],
+                side_effect=[[icon_candidate], [icon_candidate], [], [], []],
             ), patch.object(
                 media_engine_v2.PROVIDER, "prepare", return_value=[icon_candidate]
             ), patch.object(
