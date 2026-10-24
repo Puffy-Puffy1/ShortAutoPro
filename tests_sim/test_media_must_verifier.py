@@ -288,3 +288,15 @@ class MediaMustVerifierPencilTests(unittest.TestCase):
         variants = _query_variants("plotting course on aeronautical navigation map", ["map", "pencil"])
         self.assertLessEqual(len(variants), 8)
         self.assertTrue(any("pencil" in item.casefold() for item in variants), variants)
+
+
+class MediaMustVerifierAviationNightSearchTests(unittest.TestCase):
+    def test_airplane_ocean_night_scene_gets_contextual_catalog_variants(self):
+        variants = _query_variants(
+            "small airplane flying over dark ocean at night",
+            ["airplane", "ocean", "night sky"],
+        )
+        self.assertLessEqual(len(variants), 8)
+        self.assertEqual(variants[0], "small airplane flying over dark ocean at night")
+        self.assertIn("airplane over ocean at night", variants)
+        self.assertIn("aircraft over sea at night", variants)
