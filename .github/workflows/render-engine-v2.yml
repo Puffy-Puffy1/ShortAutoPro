@@ -15,6 +15,7 @@ on:
       - "wikimedia_source.py"
       - "main.py"
       - ".github/workflows/render-engine-v2.yml"
+      - ".github/actions/setup-ffmpeg/action.yml"
   workflow_dispatch:
 
 permissions:
@@ -22,7 +23,7 @@ permissions:
 
 jobs:
   contract:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -33,7 +34,7 @@ jobs:
         run: python -m unittest tests_sim.test_render_engine_v2_contract tests_sim.test_media_stage_recovery_budget tests_sim.test_visual_query_expansion tests_sim.test_wikimedia_search_deadline
 
   remotion-smoke:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     needs: contract
     steps:
@@ -46,8 +47,8 @@ jobs:
           node-version: "20"
           cache: "npm"
           cache-dependency-path: "render_v2/package.json"
-      - name: Install FFmpeg
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Set up FFmpeg and FFprobe
+        uses: ./.github/actions/setup-ffmpeg
       - name: Install Remotion dependencies
         working-directory: render_v2
         run: npm install --no-audit --no-fund

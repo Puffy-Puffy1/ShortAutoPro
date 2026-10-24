@@ -22,6 +22,7 @@ class RenderEngineV2FfmpegBackendTests(unittest.TestCase):
             (base / "audios").mkdir(parents=True)
             (base / "videos").mkdir(parents=True)
             (base / "manifests").mkdir(parents=True)
+            (base / "roteiros" / f"used_topic_{sid}.txt").write_text("FFmpeg renderer integration fixture", encoding="utf-8")
 
             for i in range(1, 4):
                 subprocess.run(

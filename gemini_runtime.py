@@ -9,6 +9,7 @@ choose fail-open/fallback behavior without duplicating transport logic.
 
 from __future__ import annotations
 
+import base64
 import os
 import time
 from typing import Iterable
@@ -112,6 +113,8 @@ def generate_text(
     component: str = "Gemini",
     models: Iterable[str] | None = None,
     api_key: str | None = None,
+    image_data: bytes | None = None,
+    image_mime_type: str = "image/jpeg",
 ) -> str:
     key = str(api_key or os.getenv("GEMINI_API_KEY", "")).strip()
     if not key:
@@ -132,8 +135,24 @@ def generate_text(
     if response_mime_type:
         generation_config["responseMimeType"] = str(response_mime_type)
 
+    parts = [{"text": str(prompt)}]
+    if image_data is not None:
+        if not isinstance(image_data, (bytes, bytearray)) or not image_data:
+            raise GeminiInvalidResponse("invalid_inline_image")
+        if len(image_data) > 6 * 1024 * 1024:
+            raise GeminiInvalidResponse("inline_image_too_large")
+        mime_type = str(image_mime_type or "").strip().lower()
+        if mime_type not in {"image/jpeg", "image/png", "image/webp"}:
+            raise GeminiInvalidResponse("unsupported_inline_image_mime")
+        parts.append({
+            "inline_data": {
+                "mime_type": mime_type,
+                "data": base64.b64encode(bytes(image_data)).decode("ascii"),
+            }
+        })
+
     payload = {
-        "contents": [{"parts": [{"text": str(prompt)}]}],
+        "contents": [{"parts": parts}],
         "generationConfig": generation_config,
     }
     headers = {

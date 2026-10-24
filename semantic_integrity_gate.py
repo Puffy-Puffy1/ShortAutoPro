@@ -113,8 +113,23 @@ def parse_wiki_title(source):
     return match.group(1).strip() if match else ""
 
 
+def _canonical_number(token):
+    """Normalize decimal separators and common grouped-thousands formats."""
+    value = str(token or "").strip()
+    if not value:
+        return ""
+
+    # Portuguese commonly writes 4.500 while English source material writes
+    # 4,500. Treat repeated groups of three digits as a thousands separator,
+    # but preserve actual decimals such as 19,06.
+    if re.fullmatch(r"\d{1,3}(?:[.,]\d{3})+", value):
+        return re.sub(r"[.,]", "", value)
+    return value.replace(",", ".")
+
+
 def numeric_tokens(text):
-    return set(re.findall(r"\b\d+(?:[.,]\d+)?\b", str(text)))
+    raw_tokens = re.findall(r"\b\d+(?:[.,]\d+)*\b", str(text))
+    return {_canonical_number(token) for token in raw_tokens if token}
 
 
 script = read_text(SCRIPT)

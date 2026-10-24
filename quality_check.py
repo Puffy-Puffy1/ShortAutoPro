@@ -23,7 +23,7 @@ SUPERVISOR = BASE / "roteiros" / f"supervisor_{SHORT_ID}.json"
 VIDEO = BASE / "videos" / f"short_v6_{SHORT_ID}.mp4"
 MEDIA_DIR = BASE / "imagens" / f"short_{SHORT_ID}"
 SCENE_MAP = BASE / "roteiros" / f"scene_map_{SHORT_ID}.json"
-MEDIA_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".mp4"}
+MEDIA_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".webm", ".mkv"}
 VALID_SUPERVISOR = {"EXCELLENT", "PASS", "WARNING"}
 
 
@@ -178,7 +178,7 @@ def evaluate(video_path, media_dir, scene_map_path, supervisor_path, expected, p
 
     numbers = []
     for path in media:
-        match = re.fullmatch(r"scene_(\d+)", path.stem, flags=re.IGNORECASE)
+        match = re.fullmatch(r"scene_(\d+)(?:_[A-Za-z0-9-]+)?", path.stem, flags=re.IGNORECASE)
         if match:
             numbers.append(int(match.group(1)))
         else:

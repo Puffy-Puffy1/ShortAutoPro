@@ -6,6 +6,16 @@ on:
     branches: [main]
     paths:
       - "media_engine_v2.py"
+      - "media_visual_verifier.py"
+      - "gemini_runtime.py"
+      - "tests_sim/test_media_visual_verifier.py"
+      - "tests_sim/test_gemini_runtime_unification.py"
+      - "media_provider_v2.py"
+      - "media_provider_router_v2.py"
+      - "scene_must_policy.py"
+      - "media_validator_v2.py"
+      - "media_must_verifier.py"
+      - "scene_must_policy.py"
       - "render_plan_v2.py"
       - "render_engine_v2.py"
       - "main.py"
@@ -13,6 +23,7 @@ on:
       - "tests_sim/**"
       - "docs/MEDIA_ENGINE_V2_MIGRATION_AUDIT.md"
       - ".github/workflows/media-engine-v2-migration.yml"
+      - ".github/actions/setup-ffmpeg/action.yml"
   push:
     branches:
       - "feature/retire-stage6-media-engine-v2"
@@ -33,7 +44,7 @@ permissions:
 
 jobs:
   migration-contract:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -41,13 +52,14 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install deterministic test dependencies
-        run: |
-          python -m pip install --disable-pip-version-check --quiet requests
+        run: python -m pip install --disable-pip-version-check --quiet requests
+      - name: Set up FFmpeg and FFprobe
+        uses: ./.github/actions/setup-ffmpeg
       - name: Python compile
-        run: python -m compileall -q media_engine_v2.py media_provider_v2.py media_provider_router_v2.py media_validator_v2.py render_plan_v2.py render_engine_v2.py tests tests_sim
+        run: python -m compileall -q scene_director.py scene_must_policy.py media_engine_v2.py media_visual_verifier.py gemini_runtime.py media_provider_v2.py media_provider_router_v2.py media_validator_v2.py render_plan_v2.py render_engine_v2.py tests tests_sim
       - name: Media Engine V2 unit and failure tests
         run: |
-          python -m unittest -v             tests_sim.test_media_engine_v2_contract             tests_sim.test_media_engine_v2_failure_modes             tests_sim.test_media_provider_v2             tests_sim.test_media_engine_v2_integration             tests_sim.test_render_plan_v2
+          python -m unittest -v             tests_sim.test_media_engine_v2_contract             tests_sim.test_media_engine_v2_failure_modes             tests_sim.test_media_visual_verifier             tests_sim.test_gemini_runtime_unification             tests_sim.test_media_provider_v2             tests_sim.test_media_engine_v2_integration             tests_sim.test_render_plan_v2             tests_sim.test_media_external_resilience tests_sim.test_scene_must_policy
       - name: Independent Media Acquisition V2 tests
         run: python -m unittest -v tests.test_media_acquisition_v2
       - name: Architecture boundary audit

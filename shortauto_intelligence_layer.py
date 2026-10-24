@@ -30,6 +30,20 @@ SCRIPT_HISTORY = STATE / f"script_history_{CHANNEL}.json"
 FAILURE_KB = STATE / "failure_knowledge_base.json"
 WORD_RE = re.compile(r"[A-Za-zÀ-ÿ0-9'-]+", re.UNICODE)
 YEAR_RE = re.compile(r"\b(?:18|19|20)\d{2}\b")
+SOURCE_HEADING_RE = re.compile(r"^(?:={2,}\s*[^=]+?\s*={2,}|#{1,6}\s+\S.*)$")
+EDITORIAL_QUESTION_RE = re.compile(
+    r"^\s*(?:o que realmente aconteceu|o que aconteceu|o que você acha que|você acha que|qual é sua teoria|qual teoria|será que|what really happened|what happened)\b.*\?\s*$",
+    re.IGNORECASE,
+)
+CALL_TO_ACTION_RE = re.compile(
+    r"^\s*(?:comente|comenta|inscreva[- ]se|curta|compartilhe|siga|deixe\s+(?:seu\s+)?coment[aá]rio|subscribe|comment below|like and subscribe|follow)\b",
+    re.IGNORECASE,
+)
+CLAIM_SINGLE_SUPPORT_THRESHOLD = 0.38
+CLAIM_MULTI_SUPPORT_THRESHOLD = 0.60
+CLAIM_MULTI_MIN_OVERLAP = 0.15
+CLAIM_MULTI_MAX_SENTENCES = 3
+
 CAP_RE = re.compile(r"\b[A-ZÀ-Ý][A-Za-zÀ-ÿ'-]+(?:\s+[A-ZÀ-Ý][A-Za-zÀ-ÿ'-]+){0,3}\b")
 STOP = {
     "a","o","as","os","um","uma","de","da","do","das","dos","e","em","no","na",
@@ -137,15 +151,27 @@ def script_source(sid: str) -> tuple[str, str]:
     return read(R / f"short_{sid}.txt"), read(R / f"fonte_{sid}.txt")
 
 
+def _is_editorial_prompt(sentence: str) -> bool:
+    """Identify explicit rhetorical prompts/CTAs that do not assert factual claims."""
+    value = str(sentence or "").strip()
+    return bool(
+        EDITORIAL_QUESTION_RE.match(value)
+        or CALL_TO_ACTION_RE.match(value)
+    )
+
+
 def claim_engine(source: str) -> list[dict[str, Any]]:
     claims = []
-    for index, sent in enumerate(sentences(source), 1):
+    for sent in sentences(source):
+        sent = sent.strip()
+        if not sent or SOURCE_HEADING_RE.fullmatch(sent):
+            continue
         ts = tokens(sent)
         if len(ts) < 2:
             continue
         confidence = 1.0 if (YEAR_RE.search(sent) or len(ts) >= 5) else 0.85
         claims.append({
-            "claim_id": f"claim_{index:03d}",
+            "claim_id": f"claim_{len(claims) + 1:03d}",
             "text": sent,
             "confidence": confidence,
             "evidence_type": "source_sentence",
@@ -156,25 +182,84 @@ def claim_engine(source: str) -> list[dict[str, Any]]:
 
 def claim_lock(script: str, claims: list[dict[str, Any]]) -> dict[str, Any]:
     rows, unsupported = [], []
+    factual_rows = []
+
     for index, sent in enumerate(sentences(script), 1):
+        if _is_editorial_prompt(sent):
+            rows.append({
+                "script_sentence": index,
+                "text": sent,
+                "claim_type": "editorial_prompt",
+                "claim_id": None,
+                "support": 0.0,
+                "aggregate_support": 0.0,
+                "supporting_claim_ids": [],
+                "locked": True,
+                "coverage_exempt": True,
+            })
+            continue
+
+        sentence_tokens = tokens(sent)
         ranked = sorted(
-            ((overlap(sent, claim["text"]), claim) for claim in claims),
-            key=lambda item: item[0], reverse=True,
+            (
+                (overlap(sent, str(claim.get("text") or "")), claim)
+                for claim in claims
+                if not SOURCE_HEADING_RE.fullmatch(str(claim.get("text") or "").strip())
+            ),
+            key=lambda item: item[0],
+            reverse=True,
         )
         score, best = ranked[0] if ranked else (0.0, None)
-        locked = bool(best and score >= 0.38)
+
+        supporting = [
+            (candidate_score, claim)
+            for candidate_score, claim in ranked
+            if candidate_score >= CLAIM_MULTI_MIN_OVERLAP
+        ][:CLAIM_MULTI_MAX_SENTENCES]
+        evidence_tokens = set()
+        for _, claim in supporting:
+            evidence_tokens.update(tokens(claim.get("text", "")))
+        aggregate_support = (
+            len(sentence_tokens & evidence_tokens) / len(sentence_tokens)
+            if sentence_tokens else 0.0
+        )
+
+        single_claim_supported = bool(
+            best and score >= CLAIM_SINGLE_SUPPORT_THRESHOLD
+        )
+        multi_claim_supported = (
+            len(supporting) >= 2
+            and aggregate_support >= CLAIM_MULTI_SUPPORT_THRESHOLD
+        )
+        locked = single_claim_supported or multi_claim_supported
         row = {
             "script_sentence": index,
             "text": sent,
+            "claim_type": "factual",
             "claim_id": best.get("claim_id") if best else None,
             "support": round(score, 3),
+            "aggregate_support": round(aggregate_support, 3),
+            "supporting_claim_ids": [claim.get("claim_id") for _, claim in supporting],
             "locked": locked,
+            "coverage_exempt": False,
         }
         rows.append(row)
+        factual_rows.append(row)
         if not locked:
             unsupported.append(index)
-    coverage = 100.0 * (len(rows) - len(unsupported)) / max(1, len(rows))
-    return {"coverage": round(coverage, 1), "unsupported": unsupported, "sentences": rows}
+
+    coverage = (
+        100.0
+        if not factual_rows
+        else 100.0 * sum(1 for row in factual_rows if row["locked"]) / len(factual_rows)
+    )
+    return {
+        "coverage": round(coverage, 1),
+        "unsupported": unsupported,
+        "sentences": rows,
+        "factual_sentence_count": len(factual_rows),
+        "editorial_prompt_count": len(rows) - len(factual_rows),
+    }
 
 
 def story_architecture(script: str) -> dict[str, Any]:
@@ -264,17 +349,56 @@ def temporal_intelligence(script: str, scene_rows: list[dict[str, Any]]) -> dict
     }
 
 
+def _location_name_variant(left: str, right: str) -> bool:
+    """Treat a specific region and its full-name component as compatible labels."""
+    left = " ".join(str(left or "").casefold().split())
+    right = " ".join(str(right or "").casefold().split())
+    if not left or not right:
+        return False
+    if left == right:
+        return True
+
+    shorter, longer = sorted((left, right), key=len)
+    # A two-word place name can be a component of a more specific regional name
+    # (e.g. "Ural Mountains" in "Northern Ural Mountains"). A single generic
+    # word like "mountains" is not enough to infer that two places are the same.
+    if len(shorter.split()) < 2:
+        return False
+    return bool(re.search(rf"(?<!\w){re.escape(shorter)}(?!\w)", longer))
+
+
 def geographic_consistency(scene_rows: list[dict[str, Any]]) -> dict[str, Any]:
+    # A country and a location inside it are compatible, not contradictory.
+    location_parents = {"bass strait": {"australia"}}
     locations = [(i, str(x.get("location") or "").strip()) for i, x in enumerate(scene_rows, 1)]
     locations = [(i, loc) for i, loc in locations if loc]
     mismatches = []
     for index, loc in locations:
         query = str(scene_rows[index-1].get("query") or "").casefold()
-        other_locs = {x.casefold() for _, x in locations if x.casefold() != loc.casefold()}
-        wrong = [x for x in other_locs if x and x in query]
+        expected = loc.casefold()
+        other_locs = {
+            other.casefold()
+            for _, other in locations
+            if other.casefold() != expected
+            and other.casefold() not in location_parents.get(expected, set())
+            and expected not in location_parents.get(other.casefold(), set())
+            and not _location_name_variant(other.casefold(), expected)
+        }
+        wrong = [
+            other for other in other_locs
+            if other and re.search(rf"(?<!\w){re.escape(other)}(?!\w)", query)
+        ]
         if wrong:
-            mismatches.append({"scene": index, "expected": loc, "query_contains_other_location": wrong})
-    return {"locations": locations, "mismatches": mismatches, "status": "PASS" if not mismatches else "BLOCK"}
+            mismatches.append({
+                "scene": index,
+                "expected": loc,
+                "query_contains_other_location": sorted(wrong),
+            })
+    return {
+        "locations": locations,
+        "mismatches": mismatches,
+        "status": "PASS" if not mismatches else "BLOCK",
+    }
 
 
 def scene_purpose(scene_rows: list[dict[str, Any]]) -> dict[str, Any]:
@@ -369,13 +493,27 @@ def visual_system(scene_rows: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def semantic_visual_safety(scene_rows: list[dict[str, Any]]) -> dict[str, Any]:
+    def normalized_phrase(value: Any) -> str:
+        return " ".join(WORD_RE.findall(str(value or "").casefold()))
+
     violations = []
     for index, item in enumerate(scene_rows, 1):
-        spoken = tokens(segment(item))
-        query = tokens(item.get("query", ""))
-        must = tokens(" ".join(map(str, item.get("must_have", []) if isinstance(item.get("must_have"), list) else [])))
-        avoid = tokens(" ".join(map(str, item.get("avoid", []) if isinstance(item.get("avoid"), list) else [])))
-        introduced = sorted((query - spoken - must) & avoid)
+        spoken = f" {normalized_phrase(segment(item))} "
+        query = f" {normalized_phrase(item.get('query', ''))} "
+        must_values = item.get("must_have", []) if isinstance(item.get("must_have"), list) else []
+        must = f" {normalized_phrase(' '.join(map(str, must_values)))} "
+        avoid = item.get("avoid", []) if isinstance(item.get("avoid"), list) else []
+        introduced = []
+        for term in avoid:
+            phrase = normalized_phrase(term)
+            if (
+                phrase
+                and f" {phrase} " in query
+                and f" {phrase} " not in spoken
+                and f" {phrase} " not in must
+            ):
+                introduced.append(phrase)
+        introduced = sorted(set(introduced))
         if introduced:
             violations.append({"scene": index, "introduced_avoid_terms": introduced})
     return {"violations": violations, "status": "PASS" if not violations else "BLOCK"}
@@ -711,6 +849,12 @@ def pre_phase(sid: str) -> dict[str, Any]:
         "status":"PASS" if locked["coverage"]>=80 else "REVIEW",
     }
     atomic(REPORTS / f"pre_{sid}.json",payload)
+    unsupported = [
+        {"sentence": row["script_sentence"], "support": row["support"], "text": row["text"][:120]}
+        for row in locked["sentences"] if not row["locked"] and not row.get("coverage_exempt")
+    ]
+    if unsupported:
+        print("INTELLIGENCE_CLAIM_LOCK_UNSUPPORTED=" + json.dumps(unsupported, ensure_ascii=False))
     print(f"INTELLIGENCE_PRE={payload['status']} claims={len(claims)} coverage={locked['coverage']} story={story['score']}")
     return payload
 

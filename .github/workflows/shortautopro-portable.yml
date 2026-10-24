@@ -12,6 +12,7 @@ on:
       - "**.py"
       - "**.sh"
       - ".github/workflows/**"
+      - ".github/actions/setup-ffmpeg/action.yml"
       - ".gitignore"
   push:
     branches: [main]
@@ -30,7 +31,7 @@ concurrency:
 
 jobs:
   portable-validation:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 18
     env:
       PYTHONUTF8: "1"
@@ -45,13 +46,8 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install FFmpeg
-        shell: bash
-        run: |
-          set -euo pipefail
-          sudo apt-get update -qq
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ffmpeg
-          echo "PORTABLE_FFMPEG_INSTALL=PASS"
+      - name: Set up FFmpeg and FFprobe
+        uses: ./.github/actions/setup-ffmpeg
 
       - name: Environment Check
         shell: bash

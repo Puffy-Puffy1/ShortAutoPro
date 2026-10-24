@@ -1,10 +1,12 @@
+import json
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from media_provider_router_v2 import MediaProviderRouterV2
+from media_provider_router_v2 import MediaProviderRouterV2, _query_variants
 from media_validator_v2 import validate
+from media_must_verifier import verified_must
 import media_engine_v2
 import render_engine_v2
 
@@ -12,7 +14,121 @@ class FakeProvider:
     def __init__(self,name,candidates): self.name=name; self.candidates=candidates
     def search(self,query,must,avoid,**kwargs): return list(self.candidates)
 
+
+
+def write_cached_asset_sidecar(sidecar, asset, scene, short_id, scene_number):
+    """Create a cache fixture bound to the exact visual scene contract."""
+    record = {
+        "checksum_sha256": media_engine_v2.sha256(asset),
+        "query_relevance": {
+            "ok": True,
+            "matched_terms": ["test"],
+            "matched_count": 1,
+            "query_term_count": 1,
+            "required_terms": 1,
+            "ratio": 1.0,
+        },
+        "scene_contract_fingerprint": media_engine_v2._scene_contract_fingerprint(scene),
+        "must_total": len(scene.get("must_have") or []),
+        "validated": True,
+        "short_id": short_id,
+        "scene_number": scene_number,
+    }
+    sidecar.write_text(json.dumps(record), encoding="utf-8")
+
 class AcquisitionV2Tests(unittest.TestCase):
+    def test_canvas_tent_must_accepts_asset_metadata_for_tent(self):
+        result = verified_must(
+            {"title": "A damaged camping tent in a snowy field", "description": "snowfall"},
+            {"must_have": ["canvas tent", "snow"]},
+        )
+        self.assertEqual(result["hits"], 2)
+        self.assertEqual(result["missing"], [])
+
+    def test_train_must_accepts_asset_metadata_for_locomotive(self):
+        result = verified_must(
+            {"title": "Soviet steam locomotive in winter", "description": "railway transport"},
+            {"must_have": ["train"]},
+        )
+        self.assertEqual(result["hits"], 1)
+        self.assertEqual(result["missing"], [])
+
+    def test_topographic_map_retrieval_aliases_are_bounded_and_used(self):
+        variants = _query_variants(
+            "topographic map of Dyatlov Pass Kholat Syakhl Ural mountains",
+            ["topographic map"],
+        )
+        self.assertLessEqual(len(variants), 8)
+        self.assertIn("contour map", variants)
+        self.assertIn("relief map", variants)
+
+    def test_topographic_map_must_accepts_specific_map_metadata(self):
+        result = verified_must(
+            {"title": "Topographical contour map of the Ural Mountains"},
+            {"must_have": ["topographic map"]},
+        )
+        self.assertEqual(result["hits"], 1)
+        self.assertEqual(result["missing"], [])
+
+    def test_topographic_map_must_does_not_accept_search_query_as_evidence(self):
+        result = verified_must(
+            {"title": "Winter landscape of the Ural Mountains", "query": "topographic map"},
+            {"must_have": ["topographic map"]},
+        )
+        self.assertEqual(result["hits"], 0)
+        self.assertEqual(result["missing"], ["topographic map"])
+
+    def test_train_must_does_not_accept_search_query_as_evidence(self):
+        result = verified_must(
+            {"title": "Snowy mountain expedition", "query": "Soviet train in winter"},
+            {"must_have": ["train"]},
+        )
+        self.assertEqual(result["hits"], 0)
+        self.assertEqual(result["missing"], ["train"])
+
+    def test_vintage_ski_equipment_requires_both_era_and_object_evidence(self):
+        result = verified_must(
+            {"title": "Wooden skis from a vintage expedition"},
+            {"must_have": ["vintage", "ski equipment"]},
+        )
+        self.assertEqual(result["hits"], 2)
+        self.assertEqual(result["missing"], [])
+
+    def test_vintage_ski_equipment_rejects_query_only_and_modern_object_metadata(self):
+        result = verified_must(
+            {
+                "title": "Snow-covered mountain expedition",
+                "query": "vintage ski equipment and wooden skis",
+            },
+            {"must_have": ["vintage", "ski equipment"]},
+        )
+        self.assertEqual(result["hits"], 0)
+        self.assertEqual(result["missing"], ["vintage", "ski equipment"])
+
+    def test_manuscript_must_accepts_asset_metadata_alias(self):
+        result = verified_must(
+            {"title": "15th-century illuminated manuscript leaf"},
+            {"must_have": ["manuscript"]},
+        )
+        self.assertEqual(result["hits"], 1)
+        self.assertEqual(result["missing"], [])
+
+    def test_manuscript_must_does_not_accept_search_query_as_evidence(self):
+        result = verified_must(
+            {"title": "Old parchment page", "query": "medieval manuscript"},
+            {"must_have": ["manuscript"]},
+        )
+        self.assertEqual(result["hits"], 0)
+        self.assertEqual(result["missing"], ["manuscript"])
+
+    def test_canvas_tent_must_does_not_accept_search_query_as_evidence(self):
+        result = verified_must(
+            {"title": "A snowy landscape in the mountains", "query": "canvas tent in snow"},
+            {"must_have": ["canvas tent", "snow"]},
+        )
+        self.assertEqual(result["hits"], 1)
+        self.assertEqual(result["missing"], ["canvas tent"])
+
     def test_router_retries_bounded_query_when_provider_returns_empty(self):
         class QuerySensitiveProvider:
             name = "test"
@@ -98,8 +214,14 @@ class AcquisitionV2Tests(unittest.TestCase):
                 self.calls = []
             def search(self, *args, **kwargs):
                 return [
-                    {"fonte": "pexels", "id": "a", "tipo": "video", "must_hits": 1, "avoid_hits": 0},
-                    {"fonte": "pixabay", "id": "b", "tipo": "video", "must_hits": 1, "avoid_hits": 0},
+                    {
+                        "fonte": "pexels", "id": "a", "tipo": "video",
+                        "must_hits": 1, "avoid_hits": 0, "descricao": "test media candidate",
+                    },
+                    {
+                        "fonte": "pixabay", "id": "b", "tipo": "video",
+                        "must_hits": 1, "avoid_hits": 0, "descricao": "test media candidate",
+                    },
                 ]
             def prepare(self, candidates, total_must):
                 return candidates
@@ -110,7 +232,7 @@ class AcquisitionV2Tests(unittest.TestCase):
                 return True, "/tmp/verified-b.mp4", {"validated": True}
         fake = FakeEngineProvider()
         with patch.object(media_engine_v2, "PROVIDER", fake), \
-             patch.object(media_engine_v2, "validate_asset", return_value={"probe": {}, "sha256": "b"}), \
+             patch.object(media_engine_v2, "validate_asset", return_value={"probe": {"width": 1920, "height": 1080}, "sha256": "b"}), \
              patch.object(media_engine_v2, "_candidate_record", return_value={"asset_id": "b"}):
             result = media_engine_v2.acquire_scene(
                 "SID_B", 1, {"query": "test", "must_have": ["test"], "avoid": []}, Path("/tmp")
@@ -125,9 +247,12 @@ class AcquisitionV2Tests(unittest.TestCase):
             sidecar = media_dir / "scene_01.json"
             asset.write_bytes(b"x" * 2000)
             digest = media_engine_v2.sha256(asset)
-            sidecar.write_text(
-                __import__("json").dumps({"checksum_sha256": digest, "must_total": 1, "validated": True, "short_id": media_dir.name.removeprefix("short_"), "scene_number": 1}),
-                encoding="utf-8",
+            write_cached_asset_sidecar(
+                sidecar,
+                asset,
+                {"must_have": ["test"]},
+                media_dir.name.removeprefix("short_"),
+                1,
             )
             with patch.object(media_engine_v2, "ffprobe_asset", return_value={"width": 1080, "height": 1920}), \
                  patch.object(media_engine_v2, "validate_asset", return_value={"sha256": digest, "probe": {"width": 1080, "height": 1920}, "validated": True}):
@@ -175,9 +300,12 @@ class AcquisitionV2Tests(unittest.TestCase):
             asset = media_a / "scene_01.jpg"
             asset.write_bytes(b"x" * 2000)
             digest = media_engine_v2.sha256(asset)
-            (media_a / "scene_01.json").write_text(
-                __import__("json").dumps({"checksum_sha256": digest, "must_total": 1, "validated": True, "short_id": media_a.name.removeprefix("short_"), "scene_number": 1}),
-                encoding="utf-8",
+            write_cached_asset_sidecar(
+                media_a / "scene_01.json",
+                asset,
+                {"must_have": ["x"]},
+                media_a.name.removeprefix("short_"),
+                1,
             )
             with patch.object(media_engine_v2, "ffprobe_asset", return_value={"width": 1080, "height": 1920}), \
                  patch.object(media_engine_v2, "validate_asset", return_value={"sha256": digest, "probe": {"width": 1080, "height": 1920}, "validated": True}):
@@ -214,9 +342,12 @@ class AcquisitionV2Tests(unittest.TestCase):
             asset = base / "imagens" / f"short_{sid}" / "scene_01.jpg"
             asset.write_bytes(b"x" * 2000)
             digest = media_engine_v2.sha256(asset)
-            (asset.parent / "scene_01.json").write_text(
-                __import__("json").dumps({"checksum_sha256": digest, "must_total": 1, "validated": True, "short_id": sid, "scene_number": 1}),
-                encoding="utf-8",
+            write_cached_asset_sidecar(
+                asset.parent / "scene_01.json",
+                asset,
+                {"query": "test", "must_have": ["test"]},
+                sid,
+                1,
             )
             with patch.object(media_engine_v2, "ffprobe_asset", return_value={"width": 1080, "height": 1920}), \
                  patch.object(media_engine_v2, "validate_asset", return_value={"sha256": digest, "probe": {"width": 1080, "height": 1920}, "validated": True}), \
@@ -241,7 +372,7 @@ class AcquisitionV2Tests(unittest.TestCase):
             asset.write_bytes(b"x" * 2000)
             digest = media_engine_v2.sha256(asset)
             (asset.parent / "scene_01.json").write_text(
-                __import__("json").dumps({"checksum_sha256": digest, "must_total": 0, "validated": True, "short_id": sid, "scene_number": 1}),
+                __import__("json").dumps({"checksum_sha256": digest, "query_relevance": {"ok": True, "matched_terms": ["test"], "matched_count": 1, "query_term_count": 1, "required_terms": 1, "ratio": 1.0}, "must_total": 0, "validated": True, "short_id": sid, "scene_number": 1}),
                 encoding="utf-8",
             )
             with patch.object(media_engine_v2, "ffprobe_asset", return_value={"width": 1080, "height": 1920}), \

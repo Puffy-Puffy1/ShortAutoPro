@@ -57,12 +57,79 @@ def atomic(path: Path, payload: Any) -> None:
                 pass
 
 
+def _provider_from_asset(path: Path, score_row: dict[str, Any]) -> str:
+    """Prefer structured provenance, then recover known provider from asset filename."""
+    provider = str(score_row.get("provider", "") or "").strip()
+    if provider:
+        return provider
+    stem = path.stem.casefold()
+    for suffix, name in (
+        ("_wikimedia_commons", "Wikimedia Commons"),
+        ("_wikimedia", "Wikimedia"),
+        ("_pexels", "Pexels"),
+        ("_pixabay", "Pixabay"),
+        ("_coverr", "Coverr"),
+    ):
+        if stem.endswith(suffix):
+            return name
+    return ""
+
+
 def load(path: Path) -> dict[str, Any]:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
         return data if isinstance(data, dict) else {}
     except Exception:
         return {}
+
+
+def scene_durations(expected: int | None = None) -> list[float]:
+    """Read scene timing from the runtime sidecar or the renderer's frozen timeline."""
+    if expected is None:
+        expected = env_int("SHORT_QTD_CENAS", 12, 6, 20)
+
+    def positive(values: Any) -> list[float]:
+        if not isinstance(values, list):
+            return []
+        parsed: list[float] = []
+        for raw in values:
+            try:
+                value = float(raw)
+            except (TypeError, ValueError):
+                continue
+            if value > 0:
+                parsed.append(value)
+        return parsed
+
+    runtime = load(RUNTIME)
+    durations = positive(runtime.get("durations"))
+    if len(durations) == expected:
+        return durations
+
+    # The canonical renderer freezes its actual scene durations in timeline.json.
+    # Use that immutable timeline when the legacy runtime sidecar is absent.
+    job_root = BASE / "render_jobs" / SID
+    try:
+        timelines = sorted(
+            job_root.glob("render_*/timeline.json"),
+            key=lambda path: path.parent.name,
+            reverse=True,
+        )
+    except OSError:
+        timelines = []
+    for timeline_path in timelines:
+        payload = load(timeline_path)
+        scenes = payload.get("scenes", [])
+        if not isinstance(scenes, list):
+            continue
+        frozen = positive([
+            scene.get("duration")
+            for scene in scenes
+            if isinstance(scene, dict)
+        ])
+        if len(frozen) == expected:
+            return frozen
+    return durations
 
 
 def probe(path: Path) -> dict[str, Any]:
@@ -314,21 +381,8 @@ def analyze_rendered_content(
     diversity: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Verify opening and per-scene pixels in the rendered timeline itself."""
-    runtime = load(RUNTIME)
-    raw_durations = (
-        runtime.get("durations", [])
-        if isinstance(runtime.get("durations"), list)
-        else []
-    )
     expected = env_int("SHORT_QTD_CENAS", 12, 6, 20)
-    durations: list[float] = []
-    for raw in raw_durations:
-        try:
-            value = float(raw)
-        except (TypeError, ValueError):
-            value = 0.0
-        if value > 0:
-            durations.append(value)
+    durations = scene_durations(expected)
 
     if not path.is_file():
         return {"available": False, "reason": "video_missing"}
@@ -394,17 +448,8 @@ def analyze_rendered_content(
 
 
 def analyze_scene_diversity(path: Path) -> dict[str, Any]:
-    runtime = load(RUNTIME)
-    raw_durations = runtime.get("durations", []) if isinstance(runtime.get("durations"), list) else []
-    durations: list[float] = []
-    for value in raw_durations:
-        try:
-            number = float(value)
-        except (TypeError, ValueError):
-            number = 0.0
-        if number > 0:
-            durations.append(number)
     expected = env_int("SHORT_QTD_CENAS", 12, 6, 20)
+    durations = scene_durations(expected)
     if len(durations) != expected or not path.is_file():
         return {
             "available": False,
@@ -540,7 +585,7 @@ def main() -> int:
             path
             for path in files
             if re.fullmatch(
-                r"scene_\d{2}\.(?:jpg|jpeg|png|webp|mp4|mov|webm)",
+                r"scene_\d{2}(?:_[^.]+)?\.(?:jpg|jpeg|png|webp|mp4|mov|webm)",
                 path.name,
                 re.I,
             )
@@ -568,7 +613,7 @@ def main() -> int:
                 and isinstance(score_rows[scene_no - 1], dict)
                 else {}
             )
-            provider = str(score_row.get("provider", "") or "")
+            provider = _provider_from_asset(path, score_row)
 
             item = {
                 "scene": scene_no,
@@ -718,6 +763,10 @@ def main() -> int:
         f"| issues={len(issues)} warnings={len(warnings)} "
         "| video_scan=SINGLE_PASS"
     )
+    if issues:
+        print("VISUAL_QA_ISSUES=" + json.dumps(issues, ensure_ascii=False, separators=(",", ":")))
+    if warnings:
+        print("VISUAL_QA_WARNINGS=" + json.dumps(warnings, ensure_ascii=False, separators=(",", ":")))
     return 0 if status != "BLOCK" else 1
 
 

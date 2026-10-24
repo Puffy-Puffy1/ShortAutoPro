@@ -52,11 +52,11 @@ class V2ReliabilityHardeningTests(unittest.TestCase):
             }
 
             def fake_download(_candidate, _number, _sid):
-                return True, str(asset), {"sha256": "fixture", "probe": {"width": 100, "height": 100}}
+                return True, str(asset), {"sha256": "fixture", "probe": {"width": 1920, "height": 1080}}
 
             with patch.object(media_engine_v2.PROVIDER, "search", side_effect=[ [candidate], [candidate] ]),                  patch.object(media_engine_v2.PROVIDER, "prepare", return_value=[]),                  patch.object(media_engine_v2.PROVIDER, "download", side_effect=fake_download),                  patch.object(media_engine_v2, "validate_asset", return_value={
                      "sha256": "fixture",
-                     "probe": {"width": 100, "height": 100},
+                     "probe": {"width": 1920, "height": 1080},
                      "validated": True,
                  }):
                 result = media_engine_v2.acquire_scene(

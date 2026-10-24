@@ -34,6 +34,26 @@ def file_sha(p:Path)->str:
    for chunk in iter(lambda:f.read(1024*1024),b""):h.update(chunk)
   return h.hexdigest()
  except OSError:return ""
+def brain_enforcement_issues(enforced: bool, status: str, budget_status: str, decision: str) -> list[str]:
+ """Return release blockers from the Brain only when its enforcement is enabled."""
+ if not enforced:
+  return []
+ issues=[]
+ if status!="PASS":issues.append("shortauto_brain_error")
+ if budget_status.upper()=="BLOCK":issues.append("shortauto_brain_quality_budget_block")
+ if decision.upper()=="BLOCK":issues.append("shortauto_brain_autonomy_block")
+ elif decision.upper() in {"HUMAN_APPROVAL_REQUIRED","HUMAN_REVIEW_REQUIRED"}:
+  issues.append("shortauto_brain_approval_required")
+ return issues
+
+
+def brain_repair_actions(decision: str) -> list[str]:
+    """Explain human approval requirements without changing the release decision."""
+    if decision.upper() in {"HUMAN_APPROVAL_REQUIRED", "HUMAN_REVIEW_REQUIRED"}:
+        return ["obtain_shortauto_brain_human_approval"]
+    return []
+
+
 def brain_snapshot()->dict[str,Any]:
  try:
   import shortauto_brain as brain
@@ -87,9 +107,12 @@ def main()->int:
  components={"script_score":script,"media_score":clamp(media_score),"visual_score":visual,"audio_score":audio_score,"subtitle_score":subtitle,"retention_score":ret,"technical_score":technical}
  weights={"script_score":0.14,"media_score":0.16,"visual_score":0.18,"audio_score":0.12,"subtitle_score":0.10,"retention_score":0.15,"technical_score":0.15};score=round(sum(components[k]*weights[k] for k in weights),1)
  brain=brain_snapshot();brain_enforce=os.getenv("SAP_BRAIN_ENFORCE","0")=="1";brain_quality=brain.get("quality",{}) if isinstance(brain.get("quality"),dict) else {};brain_budget=brain_quality.get("quality_budget",{}) if isinstance(brain_quality.get("quality_budget"),dict) else {};intelligence=load(I/f"final_{SID}.json");intelligence_enforce=os.getenv("SAP_INTELLIGENCE_ENFORCE","0")=="1";intelligence_qa=intelligence.get("explainable_qa",{}) if isinstance(intelligence.get("explainable_qa"),dict) else {};intelligence_conf=intelligence.get("confidence_automation",{}) if isinstance(intelligence.get("confidence_automation"),dict) else {}
- if brain_enforce and brain.get("status")!="PASS":critical.append("shortauto_brain_error")
- if brain_enforce and str(brain_budget.get("status","")).upper()=="BLOCK":critical.append("shortauto_brain_quality_budget_block")
- if brain_enforce and str(brain_quality.get("decision","")).upper()=="BLOCK":critical.append("shortauto_brain_autonomy_block")
+ critical.extend(brain_enforcement_issues(
+  brain_enforce,
+  str(brain.get("status","")),
+  str(brain_budget.get("status","")),
+  str(brain_quality.get("decision","")),
+ ))
  if intelligence_enforce and not intelligence:critical.append("intelligence_report_missing")
  if intelligence_enforce and str(intelligence_conf.get("decision","")).upper()=="BLOCK":critical.append("intelligence_confidence_block")
  if critical:decision="BLOCK"
@@ -104,6 +127,7 @@ def main()->int:
  if components["audio_score"]<90:actions.append("remaster_audio")
  if components["subtitle_score"]<85:actions.append("repair_caption_layout")
  if str(brain_budget.get("status","")).upper()=="BLOCK":actions.append("review_shortauto_brain_quality_budget")
+ actions.extend(brain_repair_actions(str(brain_quality.get("decision",""))))
  if str(intelligence_conf.get("decision","")).upper()=="REPAIR":actions.append("review_intelligence_explainable_qa")
  input_identity={"production_manifest_sha256":file_sha(PRODUCTION_MANIFEST),"final_quality_sha256":file_sha(FINAL_QUALITY)}
  if not input_identity["production_manifest_sha256"]:critical.append("production_manifest_identity_missing")

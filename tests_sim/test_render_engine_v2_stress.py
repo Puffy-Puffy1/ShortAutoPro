@@ -27,6 +27,7 @@ class RenderEngineV2ConsecutiveTests(unittest.TestCase):
                     media = base / "imagens" / f"short_{sid}"; media.mkdir(parents=True)
                     scenes = [{"scene": i, "segment": f"scene {i}", "words": 4} for i in range(1, 4)]
                     plan = [{"scene": i, "pace_multiplier": 1.0, "zoom_start": 1.0, "zoom_end": 1.02, "pan": "center"} for i in range(1, 4)]
+                    (base/"roteiros"/f"used_topic_{sid}.txt").write_text(f"Stress isolation fixture {sid}", encoding="utf-8")
                     (base/"roteiros"/f"scene_map_{sid}.json").write_text(json.dumps({"scenes": scenes}), encoding="utf-8")
                     (base/"roteiros"/f"pro_edit_plan_{sid}.json").write_text(json.dumps({"scenes": plan}), encoding="utf-8")
                     for i in range(1, 4):

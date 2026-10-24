@@ -5,8 +5,10 @@ Providers are isolated adapters. No provider imports midia.py.
 """
 from __future__ import annotations
 
+import math
 import os
 import re
+import time
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote
@@ -21,10 +23,121 @@ from media_validator_v2 import validate
 
 TIMEOUT = float(os.getenv("SAP_MEDIA_API_TIMEOUT", "8") or 8)
 DOWNLOAD_TIMEOUT = float(os.getenv("SAP_MEDIA_DOWNLOAD_READ_TIMEOUT", "15") or 15)
+WIKIMEDIA_MIN_INTERVAL = max(1.0, float(os.getenv("SAP_WIKIMEDIA_MIN_INTERVAL", "1.5") or 1.5))
+_WIKIMEDIA_LAST_REQUEST = 0.0
+_WIKIMEDIA_CACHE: dict[str, list[dict[str, Any]]] = {}
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", Path.home() / "ShortAutoPro")).resolve()
+
+def _normalize_image_extension(path: Path) -> Path:
+    """Match the stored image suffix to its actual file signature.
+
+    Wikimedia file URLs may return PNG/WebP bytes even when the API candidate
+    was classified as a generic image. Keeping those bytes under .jpg causes a
+    false CONTENT_SIGNATURE_MISMATCH and rejects otherwise valid media. Unknown
+    signatures are left unchanged so the validator still rejects HTML/error pages.
+    """
+    try:
+        with path.open("rb") as stream:
+            head = stream.read(16)
+    except OSError:
+        return path
+    actual = None
+    if head.startswith(b"\xff\xd8\xff"):
+        actual = ".jpg"
+    elif head.startswith(b"\x89PNG\r\n\x1a\n"):
+        actual = ".png"
+    elif head.startswith(b"RIFF") and head[8:12] == b"WEBP":
+        actual = ".webp"
+    if actual is None or path.suffix.lower() == actual:
+        return path
+    target = path.with_suffix(actual)
+    if target.exists():
+        target.unlink()
+    path.replace(target)
+    return target
 
 def _tokens(value: str) -> set[str]:
     return set(re.findall(r"[a-z0-9]+", str(value or "").casefold()))
+
+
+_QUERY_STOPWORDS = {
+    "a", "an", "the", "of", "in", "on", "at", "by", "for", "from",
+    "and", "or", "to", "with", "after", "before", "during", "near",
+    "over", "under", "above", "below", "around", "about", "into", "onto",
+    "through", "is", "are", "was", "were", "be", "been", "being", "it",
+    "its", "this", "that", "these", "those", "as", "via", "old", "scene",
+    "photo", "picture", "image", "view", "close", "up",
+}
+_QUERY_TOKEN_ALIASES = {
+    "airplanes": "airplane", "mountains": "mountain", "hikers": "hiker",
+    "bills": "bill", "dollars": "dollar", "passengers": "passenger",
+    "stairs": "stair", "letters": "letter", "documents": "document",
+    "files": "file", "investigators": "investigator",
+    "manuscrito": "manuscript", "manuscritos": "manuscript",
+    "manuscrita": "manuscript", "manuscritas": "manuscript",
+    "investigations": "investigation", "airliners": "airliner",
+    "aircrafts": "aircraft", "pages": "page", "forests": "forest",
+    # Normalize common catalog word forms for the metadata relevance check.
+    "skis": "ski", "skiing": "ski", "skiers": "ski", "poles": "pole",
+    "snowy": "snow", "snowing": "snow", "snowfall": "snow",
+    "woodland": "forest", "woodlands": "forest", "woods": "forest",
+    "forested": "forest", "taiga": "forest",
+}
+_SKI_SEARCH_CONTEXT = re.compile(r"\b(?:ski|skis|skiing|skier|skiers|ski equipment|wooden skis)\b", re.IGNORECASE)
+
+
+def _meaningful_query_tokens(value: str) -> set[str]:
+    result = set()
+    for token in _tokens(value):
+        if token in _QUERY_STOPWORDS or len(token) < 3:
+            continue
+        result.add(_QUERY_TOKEN_ALIASES.get(token, token))
+    return result
+
+
+def _candidate_relevance_text(candidate: dict[str, Any]) -> str:
+    # Categories are useful for MUST evidence but too broad to prove shot relevance.
+    primary = [
+        candidate.get(key)
+        for key in ("title", "object_name", "image_description", "description", "alt", "caption", "name")
+        if str(candidate.get(key) or "").strip()
+    ]
+    text = " ".join(str(value) for value in primary) if primary else str(candidate.get("descricao") or "")
+    # Wikimedia titles have a non-visual "File:" namespace prefix. Also keep
+    # the publication title "case book" from matching the visual concept
+    # "case files" as two independent context terms.
+    text = re.sub(r"\bFile:\s*", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\bcase[\s-]+book\b", "casebook", text, flags=re.IGNORECASE)
+    # "classified ad/advertising" means newspaper advertising, not classified
+    # government documents. Normalize that polysemy before relevance scoring.
+    text = re.sub(
+        r"\bclassified\s+(?:ads?|advertising)\b",
+        "advertisement",
+        text,
+        flags=re.IGNORECASE,
+    )
+    return text
+
+
+def query_relevance(query: str, candidate: dict[str, Any]) -> dict[str, Any]:
+    """Compare meaningful query terms with asset metadata, excluding query echo/categories."""
+    query_terms = _meaningful_query_tokens(query)
+    asset_terms = _meaningful_query_tokens(_candidate_relevance_text(candidate))
+    matched = sorted(query_terms & asset_terms)
+    # Short scene prompts often contain several contextual words but describe
+    # one clear subject. One metadata overlap is enough for these prompts;
+    # longer queries still need two independent overlaps. MUST/AVOID stays separate.
+    required = 1 if 0 < len(query_terms) <= 4 else 2
+    ratio = len(matched) / len(query_terms) if query_terms else 0.0
+    return {
+        "ok": bool(query_terms) and len(matched) >= required,
+        "matched_terms": matched,
+        "matched_count": len(matched),
+        "query_term_count": len(query_terms),
+        "required_terms": required,
+        "ratio": round(ratio, 3),
+    }
+
 
 def _score(query: str, description: str, must: list[str], avoid: list[str]) -> tuple[float,int,int]:
     q = _tokens(query)
@@ -146,30 +259,122 @@ class CoverrProvider(Provider):
         except Exception as exc: note_exception(self.name,exc)
         return out
 
+def _wikimedia_image_url(info: dict[str, Any]) -> str:
+    """Prefer a sufficiently large thumbnail, falling back to the original when needed."""
+    thumbnail = str(info.get("thumburl") or "").strip()
+    original = str(info.get("url") or "").strip()
+    thumb_width = int(info.get("thumbwidth") or 0)
+    thumb_height = int(info.get("thumbheight") or 0)
+    original_width = int(info.get("width") or 0)
+    original_height = int(info.get("height") or 0)
+    min_pixels = 1280 * 720
+
+    if thumbnail and thumb_width * thumb_height >= min_pixels:
+        return thumbnail
+    if original and original_width * original_height >= min_pixels:
+        return original
+    return thumbnail or original
+
+
 class WikimediaProvider(Provider):
     name="wikimedia"
     def search(self, query, must, avoid):
-        allowed,_,_=provider_gate(self.name)
-        if not allowed: return []
+        allowed, gate_reason, gate_remaining = provider_gate(self.name)
+        if not allowed:
+            # A circuit-open return is not the same as a genuine empty search.
+            # Log only the health reason and duration, never request secrets.
+            print(
+                f"SAP_MEDIA_PROVIDER_GATE provider={self.name} allowed=false "
+                f"reason={str(gate_reason or 'OPEN')} "
+                f"remaining_seconds={max(0, int(float(gate_remaining or 0)))}"
+            )
+            return []
         out=[]
         try:
+            # Commons file titles alone are often generic ("File:...jpg").
+            # Fetch the file's own structured description and categories so the
+            # verifier can evaluate actual asset metadata rather than search text.
             params={"action":"query","generator":"search","gsrsearch":query,
-                    "gsrnamespace":6,"gsrlimit":20,"prop":"imageinfo",
-                    "iiprop":"url|mime|size","iiurlwidth":1400,"format":"json"}
-            r=requests.get("https://commons.wikimedia.org/w/api.php",params=params,timeout=TIMEOUT)
-            note_response(self.name,r)
-            if not r.ok: return []
+                    "gsrnamespace":6,"gsrlimit":20,
+                    "prop":"imageinfo|categories",
+                    "iiprop":"url|mime|size|extmetadata","iiurlwidth":1920,
+                    "cllimit":"max","format":"json"}
+            global _WIKIMEDIA_LAST_REQUEST
+            cache_key = str(query).strip().casefold()
+            cached = _WIKIMEDIA_CACHE.get(cache_key)
+            if cached is not None:
+                return [dict(item) for item in cached]
+            # Wikimedia Commons applies shared-IP rate limits. Query expansion can
+            # otherwise issue several requests per scene in a burst. Serialize and
+            # pace requests, then honor Retry-After for temporary 429 responses.
+            for attempt in range(3):
+                wait_for = WIKIMEDIA_MIN_INTERVAL - (time.monotonic() - _WIKIMEDIA_LAST_REQUEST)
+                if wait_for > 0:
+                    time.sleep(wait_for)
+                r=requests.get(
+                    "https://commons.wikimedia.org/w/api.php",
+                    params=params,
+                    headers={"User-Agent": "ShortAutoPro/2.3 (educational-video-automation; media retrieval; contact: cinepulsar.contato@gmail.com)"},
+                    timeout=TIMEOUT,
+                )
+                _WIKIMEDIA_LAST_REQUEST = time.monotonic()
+                event = note_response(self.name,r)
+                if r.status_code == 429 and attempt < 2:
+                    retry_after = r.headers.get("Retry-After", "")
+                    try:
+                        delay = min(20.0, max(2.0, float(retry_after)))
+                    except (TypeError, ValueError):
+                        delay = 3.0 * (attempt + 1)
+                    print(f"SAP_MEDIA_PROVIDER_RETRY provider=wikimedia status=429 delay={delay:.1f}s attempt={attempt + 1}")
+                    time.sleep(delay)
+                    continue
+                if not r.ok:
+                    note_provider_event(self.name, event, status=r.status_code, detail="Wikimedia Commons search HTTP failure")
+                    print(f"SAP_MEDIA_PROVIDER_FAILURE provider=wikimedia status={r.status_code}")
+                    return []
+                break
             pages=(r.json().get("query") or {}).get("pages") or {}
             for item in pages.values():
                 info=(item.get("imageinfo") or [{}])[0]
-                url=info.get("thumburl") or info.get("url")
+                url=_wikimedia_image_url(info)
                 mime=str(info.get("mime") or "")
                 if not url or not mime.startswith("image/"): continue
-                desc=str(item.get("title") or "")
-                out.append(_candidate(self.name,"image",item.get("pageid"),url,desc,query,must,avoid,
-                                      license="Wikimedia Commons"))
+                title=str(item.get("title") or "")
+                ext=info.get("extmetadata") or {}
+                def metadata_value(key):
+                    value=ext.get(key) or {}
+                    raw=value.get("value","") if isinstance(value,dict) else value
+                    # Commons descriptions may contain HTML markup. Keep plain
+                    # descriptive text only; never mix in the search query.
+                    raw=re.sub(r"<[^>]*>", " ", str(raw or ""))
+                    return re.sub(r"\s+", " ", raw).strip()
+                categories=[
+                    str(category.get("title") or "").replace("Category:", "")
+                    for category in (item.get("categories") or [])
+                    if isinstance(category,dict) and category.get("title")
+                ]
+                description_parts=[
+                    title,
+                    metadata_value("ObjectName"),
+                    metadata_value("ImageDescription"),
+                    " ".join(categories),
+                ]
+                desc=" ".join(part for part in description_parts if part)
+                out.append(_candidate(
+                    self.name,"image",item.get("pageid"),url,desc,query,must,avoid,
+                    title=title,
+                    object_name=metadata_value("ObjectName"),
+                    image_description=metadata_value("ImageDescription"),
+                    tags=categories,
+                    license="Wikimedia Commons",
+                ))
+            _WIKIMEDIA_CACHE[cache_key] = [dict(item) for item in out]
             note_provider_event(self.name,"SUCCESS",item_count=len(out))
-        except Exception as exc: note_exception(self.name,exc)
+        except Exception as exc:
+            note_exception(self.name, exc)
+            # Keep live provider failures diagnosable without exposing URLs,
+            # request parameters, credentials, or upstream response bodies.
+            print(f"SAP_MEDIA_PROVIDER_FAILURE provider={self.name} error={type(exc).__name__}", flush=True)
         return out
 
 class LocalLibraryProvider(Provider):
@@ -182,73 +387,238 @@ class LocalLibraryProvider(Provider):
             return []
 
 def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
-    """Return bounded, deterministic fallbacks for providers that return no hits.
+    """Build a small, deterministic set of retrieval fallbacks.
 
-    The fallback only changes the provider search query. It never relaxes MUST
-    or AVOID verification; MediaProviderV2.prepare() remains the semantic gate.
-    This prevents a single overly-specific/empty provider query from becoming
-    an immediate scene-level providers_empty failure.
+    Query expansion only changes provider search terms. MUST and AVOID checks
+    remain strict and are enforced separately before an asset can be accepted.
     """
     raw = " ".join(str(query or "").split()).strip()
     if not raw:
         return []
-    variants = [raw]
-    must_terms = [str(item).strip() for item in (must or []) if str(item).strip()]
-    if must_terms:
-        combined = " ".join(must_terms)
-        if combined and combined.casefold() not in {v.casefold() for v in variants}:
-            variants.append(combined)
-        for term in must_terms:
-            if term.casefold() not in {v.casefold() for v in variants}:
-                variants.append(term)
-    # Explicit MUST anchors are part of retrieval recovery. They do not relax
-    # acceptance; they give providers a chance to return assets whose metadata
-    # proves the required visual concept even when the editorial query is noisy.
-    must_terms = [str(item).strip() for item in (must or []) if str(item).strip()]
-    if must_terms:
-        combined = " ".join(must_terms)
-        if combined and combined.casefold() not in {v.casefold() for v in variants}:
-            variants.append(combined)
-        for term in must_terms:
-            if term.casefold() not in {v.casefold() for v in variants}:
-                variants.append(term)
 
-    # Retrieval aliases are query expansion only. Acceptance remains fail-closed
-    # because media_must_verifier independently proves the explicit MUST from
-    # the returned asset evidence.
-    retrieval_aliases = {
-        "security sensor": ("motion sensor", "alarm sensor", "door sensor"),
-    }
-    for term in must_terms:
-        for alias in retrieval_aliases.get(term.casefold(), ()):
-            if alias.casefold() not in {v.casefold() for v in variants}:
-                variants.append(alias)
-
-    # Strip punctuation while preserving the original word order.
+    must_terms = [str(item).strip() for item in (must or []) if str(item).strip()]
     normalized = re.sub(r"[^A-Za-z0-9À-ÿ]+", " ", raw).strip()
-    if normalized and normalized.casefold() not in {v.casefold() for v in variants}:
-        variants.append(normalized)
     words = normalized.split()
-    # Provider APIs can fail on long natural-language queries. Try the most
-    # informative bounded prefixes, then a compact two-term query.
-    if len(words) > 4:
-        variants.append(" ".join(words[:4]))
-    if len(words) > 2:
-        variants.append(" ".join(words[:2]))
-    # Deduplicate case-insensitively and cap network amplification.
-    out = []
-    seen = set()
-    for item in variants:
-        key = item.casefold()
-        if key and key not in seen:
-            seen.add(key)
-            out.append(item)
-    max_variants = 8 if any(
-        str(item).strip().casefold() == "security sensor"
-        for item in (must or [])
-    ) else 4
-    return out[:max_variants]
+    aliases = {
+        "security sensor": ("motion sensor", "alarm sensor", "door sensor"),
+        "ship": ("vessel", "boat", "watercraft"),
+        "boat": ("ship", "vessel", "watercraft"),
+        "vessel": ("ship", "boat", "watercraft"),
+        "runway": ("airstrip", "airfield runway", "military airfield runway", "runway at sunset", "air force runway"),
+        "code": ("cipher", "cryptogram", "encrypted message", "ancient code manuscript", "handwritten cipher document"),
+        "paper": ("handwritten paper", "cipher on paper", "cryptography notes"),
+        "folder": ("file folder", "manila folder", "case file folder", "archive folder", "document folder"),
+        "ocean": ("sea", "open water"),
+        "sea": ("ocean", "open water"),
+        "car": ("automobile", "motor vehicle", "road vehicle", "cars"),
+        "automobile": ("car", "motor vehicle", "road vehicle"),
+        "vehicle": ("car", "automobile", "motor vehicle", "road vehicle"),
+        "canvas tent": ("tent", "camping tent", "canvas shelter", "tent in snow"),
+        "tent": ("canvas tent", "camping tent", "tent in snow", "snow tent"),
+        "snow": ("snow-covered", "snowfall", "snowy landscape", "winter camping"),
+        "darkness": ("nighttime", "dark", "darkness", "at night", "low-light", "night"),
+        "forest": ("woodland", "woodlands", "woods", "pine forest", "coniferous forest", "taiga"),
+        "train": ("railway train", "locomotive", "rail transport", "passenger train"),
+        "torn tent": ("ripped tent", "damaged tent", "torn canvas tent"),
+        "topographic map": ("topographical map", "contour map", "relief map", "elevation map"),
+        "microphone": ("communication microphone", "aviation microphone", "pilot microphone", "radio microphone", "aircraft microphone"),
+        "quill pen": ("feather quill", "writing quill", "quill and ink", "feather pen"),
+        "pencil": ("graphite pencil", "drawing pencil", "wooden pencil", "mechanical pencil", "pencil on map"),
+    }
 
+    candidates = [raw]
+    if normalized and normalized.casefold() != raw.casefold():
+        candidates.append(normalized)
+
+    # Keep the combined editorial anchors early for multi-anchor scenes.
+    if must_terms:
+        candidates.append(" ".join(must_terms))
+
+    # Historical/abandoned ship scenes are often indexed as "ghost ship",
+    # "sailing vessel", or "old sailing ship" rather than by the full editorial
+    # sentence. Add these contextual searches before generic aliases so the
+    # bounded query budget does not discard them. MUST/AVOID verification stays strict.
+    must_set = {term.casefold() for term in must_terms}
+    if "ship" in must_set and re.search(
+        r"\b(?:ocean|sea|sailing|vintage|abandoned|drifting|ghost)\b",
+        raw,
+        re.IGNORECASE,
+    ):
+        candidates.extend((
+            "abandoned sailing ship at sea",
+            "old sailing vessel at sea",
+            "ghost ship in the ocean",
+            "historic sailing ship ocean",
+        ))
+
+    # Expand aliases in context before falling back to single-word searches.
+    # This helps catalogs that index alternate labels but preserves the scene.
+    for term in must_terms:
+        term_aliases = aliases.get(term.casefold(), ())
+        if not term_aliases:
+            continue
+
+        pattern = re.compile(rf"\b{re.escape(term)}\b", re.IGNORECASE)
+        if pattern.search(raw):
+            # Keep one context-preserving variant; standalone aliases below
+            # retain coverage without crowding out other required anchors.
+            candidates.append(pattern.sub(term_aliases[0], raw, count=1))
+            continue
+
+        # If the scene already uses an equivalent phrase, preserve context
+        # while trying each catalog label. The explicit MUST remains unchanged.
+        synonym = next(
+            (
+                alias
+                for alias in term_aliases
+                if re.search(rf"\b{re.escape(alias)}\b", raw, re.IGNORECASE)
+            ),
+            None,
+        )
+        if synonym:
+            synonym_pattern = re.compile(rf"\b{re.escape(synonym)}\b", re.IGNORECASE)
+            candidates.append(synonym_pattern.sub(term_aliases[0], raw, count=1))
+        # When the MUST is absent from the original query, keep its
+        # aliases for the dedicated fallback list below. This reserves room
+        # for every explicit MUST anchor in the bounded query set.
+
+    # Multi-anchor aviation scenes are commonly catalogued with "aircraft"
+    # or "plane", and the night setting may be indexed separately. These
+    # variants improve discovery only; strict MUST/AVOID verification is unchanged.
+    must_set = {term.casefold() for term in must_terms}
+    if {"airplane", "ocean", "night sky"} <= must_set:
+        candidates.extend((
+            "airplane over ocean at night",
+            "aircraft over sea at night",
+            "plane flying over ocean at night",
+        ))
+
+    # Historical code scenes need both the visible researcher and the cipher
+    # in the same frame. These variants improve discovery; MUST verification
+    # still independently checks that a person and code are actually visible.
+    must_set = {term.casefold() for term in must_terms}
+    if {"person", "code"} <= must_set and re.search(
+        r"\b(?:code|cipher|cryptogram|cryptographer|encrypted)\b",
+        raw,
+        re.IGNORECASE,
+    ):
+        candidates.extend((
+            "person studying an ancient code manuscript",
+            "cryptographer examining a handwritten cipher document",
+            "person decoding an old cryptogram",
+        ))
+
+    # Cryptography scenes often have catalog metadata for the paper but omit
+    # the context word. Search for a cipher on paper without weakening the
+    # independent query-relevance or visual MUST checks.
+    if "paper" in must_set and re.search(
+        r"\b(?:cryptographer|cipher|cryptogram|secret symbols|encoded|code)\b",
+        raw,
+        re.IGNORECASE,
+    ):
+        candidates.extend((
+            "cryptographer examining handwritten cipher notes",
+            "handwritten cipher symbols on paper",
+        ))
+
+    # Archived mystery scenes may be catalogued as case files or Manila folders.
+    # These search terms improve retrieval; folder visibility and scene relevance
+    # remain independently verified from the returned asset.
+    if "folder" in must_set and re.search(
+        r"\b(?:case file|archive|archival|mystery|evidence board)\b",
+        raw,
+        re.IGNORECASE,
+    ):
+        candidates.extend((
+            "unsolved mystery case file folder in archive room",
+            "manila folder for an unsolved case file",
+            "case file folder on an archive desk",
+        ))
+
+    # Pilot archives often title the person separately from cockpit/radio
+    # equipment. These searches improve discovery only; query relevance and
+    # independent MUST verification still decide whether an asset is valid.
+    if (
+        "pilot" in {term.casefold() for term in must_terms}
+        and re.search(r"\b(?:cockpit|headset|radio)\b", raw, re.IGNORECASE)
+    ):
+        candidates.extend((
+            "pilot in cockpit headset",
+            "aircraft cockpit pilot",
+            "pilot radio headset",
+        ))
+
+    # Winter railway photos are often catalogued as locomotives, with snow
+    # treated as a separate tag. These searches improve discovery only.
+    must_set = {term.casefold() for term in must_terms}
+    if {"train", "snow"} <= must_set:
+        candidates.extend((
+            "train in snow",
+            "steam locomotive in snow",
+        ))
+
+    # Old Russian winter towns are often indexed by village/houses rather than
+    # "town". House wording may be a soft preference, so it can live in query
+    # text while only town and snow remain hard requirements.
+    must_set = {term.casefold() for term in must_terms}
+    wooden_house_context = bool(
+        re.search(r"\bwooden houses?\b", raw, re.IGNORECASE)
+    )
+    if {"town", "snow"} <= must_set and (
+        {"town", "snow", "wooden houses"} <= must_set or wooden_house_context
+    ):
+        candidates.extend((
+            "old Russian town with wooden houses in snow",
+            "Sverdlovsk winter village wooden houses",
+        ))
+
+    # Preserve each explicit anchor as a standalone retrieval option.
+    candidates.extend(must_terms)
+
+    # Ski catalogs may index snow separately from the skiers/equipment.
+    # Use the query or explicit MUSTs to detect that context, but never relax
+    # the independent metadata requirement for snow.
+    ski_context = _SKI_SEARCH_CONTEXT.search(raw) or any(
+        _SKI_SEARCH_CONTEXT.search(term) for term in must_terms
+    )
+    if "snow" in {term.casefold() for term in must_terms} and ski_context:
+        other_ski_musts = [
+            term for term in must_terms if term.casefold() != "snow"
+        ]
+        if other_ski_musts:
+            candidates.append(" ".join([raw, *other_ski_musts]))
+            candidates.append("wooden skis in snow")
+        else:
+            candidates.extend((
+                "wooden skis in snow",
+                "abandoned skis in snow",
+                "ski equipment in deep snow",
+            ))
+
+    # Include bounded alias fallbacks for catalogs using alternate labels.
+    for term in must_terms:
+        candidates.extend(aliases.get(term.casefold(), ()))
+
+    if len(words) > 4:
+        candidates.append(" ".join(words[:4]))
+    if len(words) > 2:
+        candidates.append(" ".join(words[:2]))
+    if len(must_terms) == 1:
+        candidates.append(must_terms[0])
+
+    # Deduplicate once, preserving priority and limiting provider requests.
+    result = []
+    seen = set()
+    max_variants = 8 if any(term.casefold() in aliases for term in must_terms) else 4
+    for candidate in candidates:
+        item = " ".join(str(candidate or "").split()).strip()
+        key = item.casefold()
+        if item and key not in seen:
+            seen.add(key)
+            result.append(item)
+            if len(result) == max_variants:
+                break
+    return result
 
 class MediaProviderRouterV2:
     def __init__(self, providers=None):
@@ -272,6 +642,16 @@ class MediaProviderRouterV2:
                     found = []
                 if found:
                     provider_candidates.extend(found)
+                    # Stop expanding once this provider has a safe result set
+                    # with explicit metadata hits for every MUST term. This
+                    # reduces repeated calls to rate-limited public providers.
+                    if any(
+                        query_relevance(query, item)["ok"]
+                        and (not must or int(item.get("must_hits", 0) or 0) >= len(must))
+                        and int(item.get("avoid_hits", 0) or 0) == 0
+                        for item in found
+                    ):
+                        break
             candidates.extend(provider_candidates)
 
         # The same provider asset can be returned by multiple retrieval
@@ -286,8 +666,10 @@ class MediaProviderRouterV2:
             )
             unique.setdefault(key, candidate)
         candidates = list(unique.values())
+        for candidate in candidates:
+            candidate["query_relevance"] = query_relevance(query, candidate)
 
-        # Deterministic ordering: evidence/MUST first, then score, then provider/id.
+        # Deterministic ordering: relevant metadata first, then MUST evidence and score.
         # AVOID is never relaxed here; prepare() still enforces the MUST contract.
         candidates = [
             c for c in candidates
@@ -295,6 +677,9 @@ class MediaProviderRouterV2:
         ]
         candidates.sort(
             key=lambda c: (
+                bool((c.get("query_relevance") or {}).get("ok")),
+                int((c.get("query_relevance") or {}).get("matched_count", 0) or 0),
+                float((c.get("query_relevance") or {}).get("ratio", 0) or 0),
                 int(c.get("must_hits", 0) or 0),
                 float(c.get("score", 0) or 0),
                 str(c.get("fonte", "")),
@@ -302,6 +687,41 @@ class MediaProviderRouterV2:
             ),
             reverse=True,
         )
+        # Live runs need enough acquisition telemetry to distinguish empty
+        # providers from candidates rejected by strict semantic verification.
+        # Do not print URLs, API credentials, or full provider metadata.
+        if os.getenv("FIRST_VIDEO_LIVE") == "1":
+            provider_counts = {}
+            for candidate in candidates:
+                name = str(candidate.get("fonte") or candidate.get("source") or "?")
+                provider_counts[name] = provider_counts.get(name, 0) + 1
+            summary = ",".join(
+                f"{name}:{count}" for name, count in sorted(provider_counts.items())
+            ) or "-"
+            max_metadata_hits = max(
+                (int(candidate.get("must_hits", 0) or 0) for candidate in candidates),
+                default=0,
+            )
+            # Log a bounded, normalized query so failed live runs can be
+            # traced to scene/query generation without dumping provider payloads.
+            safe_query = re.sub(r"\s+", " ", str(query or "")).strip()[:180]
+            safe_must = ",".join(
+                re.sub(r"\s+", " ", str(term or "")).strip()[:48]
+                for term in (must or []) if str(term or "").strip()
+            )[:180] or "-"
+            safe_variants = " || ".join(
+                re.sub(r"\s+", " ", str(variant or "")).strip()[:64]
+                for variant in variants
+            )[:220] or "-"
+            print(
+                "SAP_MEDIA_SEARCH "
+                f"query={safe_query!r} must={safe_must!r} "
+                f"query_chars={len(str(query))} variants={len(variants)} "
+                f"variant_samples={safe_variants!r} "
+                f"candidates={len(candidates)} providers={summary} "
+                f"max_metadata_must_hits={max_metadata_hits}",
+                flush=True,
+            )
         return candidates
     def download(self, candidate: dict[str,Any], scene_number: int, short_id: str) -> tuple[bool,str,dict[str,Any]]:
         provider=str(candidate.get("fonte") or candidate.get("source") or "unknown")
@@ -325,31 +745,113 @@ class MediaProviderRouterV2:
         dest = outdir / f"scene_{int(scene_number):02d}_{provider}{ext}"
         try:
             dest.unlink(missing_ok=True)
-            with requests.get(url,stream=True,timeout=DOWNLOAD_TIMEOUT) as r:
-                if not r.ok:
-                    note_response(provider,r)
-                    mark_asset_bad(url,provider=provider,asset_id=candidate.get("id"),status=r.status_code)
+            # Wikimedia Commons requires an identifiable User-Agent on file
+            # downloads too; setting it only on API search does not carry over.
+            # Keep provider-specific identity while giving every external host a
+            # stable fallback User-Agent.
+            headers = {
+                "User-Agent": (
+                    "ShortAutoPro/2.3 (educational-video-automation; media retrieval; "
+                    "contact: cinepulsar.contato@gmail.com)"
+                    if provider.casefold() == "wikimedia"
+                    else "ShortAutoPro/2.3 (media retrieval; educational-video-automation)"
+                ),
+                "Accept": "image/*,video/*;q=0.9,*/*;q=0.8",
+            }
+            # Retry transient transport failures before quarantining an otherwise
+            # semantically verified asset. A single timeout/5xx/429 must not
+            # permanently poison a URL that may work on the next attempt.
+            last_status = None
+            for attempt in range(3):
+                try:
+                    with requests.get(url,headers=headers,stream=True,timeout=DOWNLOAD_TIMEOUT) as r:
+                        last_status = r.status_code
+                        if not r.ok:
+                            note_response(provider,r)
+                            if r.status_code == 429 or 500 <= r.status_code <= 599:
+                                if attempt < 2:
+                                    retry_after = r.headers.get("Retry-After", "")
+                                    try:
+                                        delay = min(8.0, max(1.0, float(retry_after)))
+                                    except (TypeError, ValueError):
+                                        delay = float(attempt + 1)
+                                    print(f"SAP_MEDIA_DOWNLOAD_RETRY provider={provider} status={r.status_code} attempt={attempt + 1} delay={delay:.1f}s")
+                                    time.sleep(delay)
+                                    continue
+                            mark_asset_bad(url,provider=provider,asset_id=candidate.get("id"),status=r.status_code)
+                            dest.unlink(missing_ok=True)
+                            print(f"SAP_MEDIA_DOWNLOAD_FAILURE provider={provider} status={r.status_code} class=HTTP")
+                            return False,"",{"error_class":"DOWNLOAD_FAILED","status":r.status_code}
+                        with dest.open("wb") as fh:
+                            for chunk in r.iter_content(1024*1024):
+                                if chunk:
+                                    fh.write(chunk)
+                    break
+                except requests.Timeout as exc:
+                    note_exception(provider,exc)
                     dest.unlink(missing_ok=True)
-                    return False,"",{"error_class":"DOWNLOAD_FAILED","status":r.status_code}
-                with dest.open("wb") as fh:
-                    for chunk in r.iter_content(1024*1024):
-                        if chunk:
-                            fh.write(chunk)
+                    if attempt < 2:
+                        delay = float(attempt + 1)
+                        print(f"SAP_MEDIA_DOWNLOAD_RETRY provider={provider} class=TIMEOUT attempt={attempt + 1} delay={delay:.1f}s")
+                        time.sleep(delay)
+                        continue
+                    mark_asset_bad(url,provider=provider,asset_id=candidate.get("id"),reason="TIMEOUT")
+                    print(f"SAP_MEDIA_DOWNLOAD_FAILURE provider={provider} class=TIMEOUT attempts=3")
+                    return False,"",{"error_class":"PROVIDER_TIMEOUT"}
+                except requests.RequestException as exc:
+                    note_exception(provider,exc)
+                    dest.unlink(missing_ok=True)
+                    if attempt < 2:
+                        delay = float(attempt + 1)
+                        print(f"SAP_MEDIA_DOWNLOAD_RETRY provider={provider} class={type(exc).__name__} attempt={attempt + 1} delay={delay:.1f}s")
+                        time.sleep(delay)
+                        continue
+                    mark_asset_bad(url,provider=provider,asset_id=candidate.get("id"),reason="REQUEST_ERROR")
+                    print(f"SAP_MEDIA_DOWNLOAD_FAILURE provider={provider} class={type(exc).__name__} attempts=3")
+                    return False,"",{"error_class":"DOWNLOAD_FAILED"}
+            if ext == ".jpg":
+                dest = _normalize_image_extension(dest)
             result=validate(dest)
             candidate["asset_id"]=candidate.get("id")
             candidate["provenance"]=dict(candidate.get("provenance") or {})
             candidate["provenance"]["provider"]=provider
             return True,str(dest),result
-        except requests.Timeout as exc:
-            note_exception(provider,exc); mark_asset_bad(url,provider=provider,asset_id=candidate.get("id"),reason="TIMEOUT")
-            dest.unlink(missing_ok=True)
-            return False,"",{"error_class":"PROVIDER_TIMEOUT"}
-        except requests.RequestException as exc:
-            note_exception(provider,exc); mark_asset_bad(url,provider=provider,asset_id=candidate.get("id"),reason="REQUEST_ERROR")
-            dest.unlink(missing_ok=True)
-            return False,"",{"error_class":"DOWNLOAD_FAILED"}
         except Exception as exc:
-            note_exception(provider,exc); mark_asset_bad(url,provider=provider,asset_id=candidate.get("id"),reason="CORRUPT")
+            # A local media-validation rejection is an asset-quality event,
+            # not proof that the provider is unhealthy. Counting ValueError as
+            # provider failure can open the circuit after several bad candidates
+            # and suppress unrelated queries/scenes. Only transport/unexpected
+            # failures contribute to provider-health resilience state.
+            if not isinstance(exc, ValueError):
+                note_exception(provider, exc)
+            # Keep diagnostics actionable without printing signed URLs, headers,
+            # tokens, or provider response bodies.
+            # Validation exceptions use stable, non-sensitive reason codes
+            # (e.g. MEDIA_TOO_SMALL, CONTENT_SIGNATURE_MISMATCH). Expose only
+            # those codes: never echo exception text, paths, URLs, or response data.
+            reason_code = "UNEXPECTED"
+            if isinstance(exc, ValueError):
+                candidate_reason = str(exc).strip().upper()
+                if re.fullmatch(r"[A-Z][A-Z0-9_]{0,63}", candidate_reason):
+                    reason_code = candidate_reason
+            print(
+                f"SAP_MEDIA_DOWNLOAD_FAILURE provider={provider} "
+                f"class={type(exc).__name__} reason={reason_code} "
+                f"stage=DOWNLOAD_OR_VALIDATE",
+                flush=True,
+            )
+            quarantine_reason = {
+                "MEDIA_TOO_SMALL": "TOO_SMALL",
+                "CONTENT_SIGNATURE_MISMATCH": "CONTENT_TYPE",
+                "UNSUPPORTED_EXTENSION": "CONTENT_TYPE",
+                "PROBE_FAIL": "PROBE_FAIL",
+                "PROBE_INVALID_JSON": "PROBE_FAIL",
+                "NO_STREAM": "PROBE_FAIL",
+                "NO_VIDEO_STREAM": "PROBE_FAIL",
+                "INVALID_DIMENSIONS": "CORRUPT",
+                "INVALID_DURATION": "CORRUPT",
+            }.get(reason_code, "CORRUPT")
+            mark_asset_bad(url,provider=provider,asset_id=candidate.get("id"),reason=quarantine_reason)
             try: dest.unlink()
             except OSError: pass
             return False,"",{"error_class":"VALIDATION_FAILED"}

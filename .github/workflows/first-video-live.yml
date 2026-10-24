@@ -1,10 +1,64 @@
 name: ShortAutoPro FIRST_VIDEO Live Proof
 
 on:
+  push:
+    branches:
+      - fix/first-video-canonical-entrypoint-20261014
+    paths:
+      - ".github/workflows/first-video-live.yml"
+      - ".github/actions/setup-ffmpeg/action.yml"
+      - "main.py"
+      - "roteiro.py"
+      - "script_claim_traceability.py"
+      - "audio.py"
+      - "audio_finalizer.py"
+      - "tests_sim/test_audio_finalizer.py"
+      - "tests_sim/test_audio_base.py"
+      - "scene_lossless_repair.py"
+      - "scene_director.py"
+      - "scene_must_policy.py"
+      - "semantic_integrity_gate.py"
+      - "media_engine_v2.py"
+      - "media_visual_verifier.py"
+      - "gemini_runtime.py"
+      - "tests_sim/test_media_visual_verifier.py"
+      - "tests_sim/test_gemini_runtime_unification.py"
+      - "tests_sim/test_media_engine_v2_failure_modes.py"
+      - "tests_sim/test_scene_must_policy.py"
+      - "tests_sim/test_media_engine_v2_contract.py"
+      - "media_must_verifier.py"
+      - "media_provider_router_v2.py"
+      - "profile_runtime.py"
+      - "config/channel_profiles.json"
+      - "preflight_check.sh"
+      - "health_check.sh"
+      - "visual_pipeline_bridge_v42.py"
+      - "visual_selection_engine_v4.py"
+      - "visual_qa.py"
+      - "tests_sim/test_rendered_visual_diversity.py"
+      - "tests_sim/test_media_provider_v2.py"
+      - "production_manifest.py"
+      - "render_engine_v2.py"
+      - "tests/test_media_acquisition_v2.py"
+      - "tests_sim/test_render_engine_v2_contract.py"
+      - "tests_sim/test_render_engine_v2_manifest_e2e.py"
+      - "release_gate.py"
+      - "shortauto_brain.py"
+      - "shortauto_intelligence_layer.py"
+      - "tests_sim/test_shortauto_intelligence_layer.py"
+      - "tests_sim/test_script_claim_traceability.py"
+      - "tests_sim/test_media_must_verifier.py"
+      - "tests_sim/test_shortauto_brain_integration.py"
+      - "tests_sim/test_shortauto_brain_evidence_map.py"
+      - "tests_sim/test_pipeline_gates.py"
+      - "docs/ARCHITECTURE_CONSOLIDATION_HISTORY.md"
+      - "tests_sim/test_first_video_validation_contract.py"
+      - "first_video_run_contract.py"
+      - "tests_sim/test_first_video_run_contract.py"
   workflow_dispatch:
     inputs:
       topic:
-        description: "Topic for the real 2-scene proof"
+        description: "Theme for the first real Short (for example: dark fantasy, mysteries, science)"
         required: true
         type: string
       short_id:
@@ -12,12 +66,17 @@ on:
         required: false
         type: string
 
+concurrency:
+  group: shortautopro-first-video-${{ github.ref }}
+  # Preserve an active E2E proof run when another commit arrives.
+  cancel-in-progress: false
+
 permissions:
   contents: read
 
 jobs:
   first-video-live:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
       PYTHONUTF8: "1"
@@ -26,24 +85,22 @@ jobs:
       FIRST_VIDEO_LIVE: "1"
     steps:
       - name: Checkout selected branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
       - name: Set up Node for Remotion
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "20"
           cache: "npm"
           cache-dependency-path: "render_v2/package.json"
 
-      - name: Install FFmpeg
-        run: |
-          sudo apt-get update -qq
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ffmpeg
+      - name: Set up FFmpeg and FFprobe
+        uses: ./.github/actions/setup-ffmpeg
 
       - name: Install Remotion dependencies
         working-directory: render_v2
@@ -57,7 +114,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          pip install --upgrade piper-tts
+          # The repository currently has no requirements.txt; install the
+          # shared HTTP client explicitly so Wikipedia and Gemini can import.
+          pip install --upgrade piper-tts requests
 
       - name: Install Piper voice model
         run: |
@@ -87,28 +146,76 @@ jobs:
           if [ -z "$PEXELS_API_KEY" ]; then echo "Pexels unavailable; continuing to configured fallback providers."; fi
           if [ -z "$PIXABAY_API_KEY" ]; then echo "Pixabay unavailable; continuing to configured fallback providers."; fi
 
+      - name: Verify source-traceable script fallback
+        run: python -m unittest tests_sim.test_script_claim_traceability -v
+
+      - name: Verify narration-only factual evidence
+        run: python -m unittest tests_sim.test_shortauto_brain_evidence_map -v
+
+      - name: Verify post-gate MP4 validation contract
+        run: python -m unittest tests_sim.test_first_video_validation_contract -v
+
+      - name: Verify generated-video vs release-approval contract
+        run: python -m unittest tests_sim.test_first_video_run_contract -v
+
       - name: Run FIRST_VIDEO
+        id: run-first-video
         env:
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          TOPIC: ${{ inputs.topic }}
+          SAP_BRAIN_ENFORCE: "1"
+          TOPIC: ${{ inputs.topic || 'mistérios históricos e casos inexplicáveis' }}
           SHORT_ID: ${{ inputs.short_id }}
           WHISPER_CLI: ${{ runner.temp }}/whisper.cpp/build/bin/whisper-cli
           WHISPER_MODEL: ${{ runner.temp }}/whisper.cpp/models/ggml-base.bin
+        shell: bash
         run: |
           set -euo pipefail
-          if [ -n "$SHORT_ID" ]; then
-            python first_video.py --topic "$TOPIC" --short-id "$SHORT_ID" --allow-live
-          else
-            python first_video.py --topic "$TOPIC" --allow-live
+
+          # main.py is the repository's canonical production entrypoint.
+          # config.sh is machine-local and intentionally not committed; an empty
+          # runner-local shim lets the workflow rely on injected Actions env vars.
+          if [ ! -f config.sh ]; then
+            echo '# Ephemeral GitHub Actions config shim; secrets are injected via env.' > config.sh
           fi
 
+          # Give each workflow attempt a fresh, isolated production ID.
+          RUN_SHORT_ID="${SHORT_ID:-gha_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}}"
+          export SHORT_ID="$RUN_SHORT_ID"
+          echo "short_id=$RUN_SHORT_ID" >> "$GITHUB_OUTPUT"
+
+          PROFILE_EXPORTS="$(python profile_runtime.py --profile default --shell)"
+          eval "$PROFILE_EXPORTS"
+          # Pin TTS to the exact model downloaded and checked by this workflow.
+          # This avoids runtime voice-name lookup differences across Piper CLI versions.
+          PIPER_MODEL_PATH="$GITHUB_WORKSPACE/piper/voice/pt_BR-faber-medium.onnx"
+          test -s "$PIPER_MODEL_PATH"
+          export PIPER_MODEL="$PIPER_MODEL_PATH"
+          export SHORT_TEMA="$TOPIC"
+          export SHORTAUTOPRO_BASE="$GITHUB_WORKSPACE"
+          export FIRST_VIDEO_LIVE=1
+
+          echo "FIRST_VIDEO_ENTRYPOINT=main.py"
+          echo "FIRST_VIDEO_PROFILE=$SAP_CHANNEL_PROFILE"
+          echo "FIRST_VIDEO_THEME=$SHORT_TEMA"
+          # A publish approval block is not a render failure. Capture the canonical
+          # pipeline status, then accept only the exact human-approval-only block
+          # when this run has a non-empty MP4 and a matching release report.
+          set +e
+          python main.py run
+          run_status=$?
+          set -e
+          python first_video_run_contract.py --short-id "$RUN_SHORT_ID" --exit-code "$run_status"
+
       - name: Validate generated MP4 with FFprobe
+        if: always() && steps.run-first-video.outputs.short_id != ''
+        env:
+          SHORT_ID: ${{ steps.run-first-video.outputs.short_id }}
         run: |
           set -euo pipefail
-          latest="$(find videos -maxdepth 1 -type f -name 'short_v6_*.mp4' -printf '%T@ %p\n' | sort -nr | head -n1 | cut -d' ' -f2-)"
-          test -n "$latest"
+          latest="videos/short_v6_${SHORT_ID}.mp4"
+          test -f "$latest" || { echo "::error::Current run did not create $latest"; exit 1; }
           test -s "$latest"
           ffprobe -v error -show_entries format=duration:stream=codec_type,codec_name,width,height,avg_frame_rate -of json "$latest" > first_video_ffprobe.json
           python - <<'PY'
@@ -131,10 +238,20 @@ jobs:
           name: first-video-live-evidence
           path: |
             videos/short_v6_*.mp4
+            videos/short_*.ass
             reports/first_video/*.json
+            reports/intelligence/*.json
             reports/media/*.json
+            reports/evolution/visual_qa_*.json
             manifests/scene_map_*.json
             manifests/media_*.json
+            manifests/*_release.json
+            manifests/*_quality.json
+            manifests/*_render_identity.json
+            roteiros/scene_map_*.json
+            roteiros/short_*.txt
+            roteiros/speech_*.txt
+            roteiros/speech_*.json
             roteiros/pro_edit_plan_*.json
             first_video_ffprobe.json
           if-no-files-found: warn

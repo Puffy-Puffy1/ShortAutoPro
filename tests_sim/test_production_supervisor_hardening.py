@@ -99,6 +99,22 @@ class ProductionSupervisorHardeningTests(unittest.TestCase):
             )
             self.assertIn("scene_map_numbering_invalid", report["critical"])
 
+    def test_provider_suffixed_media_names_are_recognized(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            prepare(base)
+            media = base / "imagens" / "short_case"
+            for path in list(media.glob("scene_*.jpg")):
+                path.rename(path.with_name(f"{path.stem}_wikimedia{path.suffix}"))
+            self.run_case(base)
+            report = json.loads(
+                (base / "roteiros" / "supervisor_case.json").read_text(encoding="utf-8")
+            )
+            self.assertFalse(
+                any(item.startswith("media_name_invalid:") for item in report["critical"]),
+                report["critical"],
+            )
+
     def test_duplicate_media_scene_blocks(self):
         with tempfile.TemporaryDirectory() as tmp:
             base = Path(tmp)

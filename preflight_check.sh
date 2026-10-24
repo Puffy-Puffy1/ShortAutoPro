@@ -204,9 +204,10 @@ else
     # Import-only checks: módulos sem efeitos de produção na importação.
     if (
         cd "$BASE" &&
-        python - <<'PY' >/dev/null 2>&1
+        python - <<'PY'
 import importlib
-for name in (
+import traceback
+modules = (
     "script_fallback",
     "media_emergency_fallback",
     "subtitle_alignment",
@@ -235,13 +236,19 @@ for name in (
     "production_recovery",
     "production_watchdog",
     "production_health",
-):
-    importlib.import_module(name)
+)
+for name in modules:
+    try:
+        importlib.import_module(name)
+    except Exception:
+        print(f"IMPORT_FAILURE_MODULE={name}")
+        traceback.print_exc()
+        raise
 PY
     ); then
         ok "imports runtime críticos 3.0.3"
     else
-        erro "dependência/import runtime crítico 3.0.3 quebrado"
+        erro "dependência/import runtime crítico 3.0.3 quebrado (veja IMPORT_FAILURE_MODULE acima)"
     fi
     
     

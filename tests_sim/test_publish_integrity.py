@@ -84,6 +84,36 @@ class PublishIntegrityTests(unittest.TestCase):
         self.assertEqual(result["status"], "BLOCK")
         self.assertIn("unsupported_numbers=371", result["critical"])
 
+    def test_written_and_numeric_thousands_are_equivalent(self):
+        self.assertEqual(numeric_tokens("duzentos mil dólares"), numeric_tokens("200 mil dólares"))
+        self.assertEqual(numeric_tokens("duzentos e cinquenta mil reais"), numeric_tokens("250 mil reais"))
+
+    def test_equivalent_written_quantity_passes_publish_integrity(self):
+        title = "Como D. B. Cooper sumiu com 200 mil dólares?"
+        description = (
+            "Em 1971, D. B. Cooper recebeu 200 mil dólares de resgate ao sequestrar "
+            "um Boeing 727. O destino dele continua desconhecido. Qual é sua teoria?"
+        )
+        text = (
+            "TÍTULO:\n" + title + "\n\nDESCRIÇÃO:\n" + description
+            + "\n\nHASHTAGS:\n#Shorts #DBCooper #Aviação #Mistério #HistóriaReal\n"
+        )
+        payload = {
+            "chosen_title": title,
+            "description": description,
+            "hashtags": ["#Shorts", "#DBCooper", "#Aviação", "#Mistério", "#HistóriaReal"],
+            "publish_score": 90,
+        }
+        script = "Em 1971, D. B. Cooper recebeu duzentos mil dólares de resgate e sequestrou um Boeing 727."
+        source = "A fonte descreve o resgate de duzentos mil dólares no caso D. B. Cooper."
+        result = audit(text, payload, script, source, "D. B. Cooper")
+        self.assertEqual(result["status"], "PASS", result["critical"])
+        self.assertEqual(result["new_numbers"], [])
+
+    def test_different_written_quantity_remains_blocked(self):
+        self.assertEqual(numeric_tokens("duzentos mil dólares"), {"200000"})
+        self.assertEqual(numeric_tokens("300 mil dólares"), {"300000"})
+
     def test_exact_decade_anchor_authorizes_common_shorthand(self):
         tokens = numeric_tokens("O caso começou na década de 1960 e continuou até 1974.")
         self.assertIn("1960", tokens)

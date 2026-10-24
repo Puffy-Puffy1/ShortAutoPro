@@ -7,6 +7,8 @@ import sys
 import time
 from datetime import date
 
+from scene_must_policy import normalize_visual_musts
+
 from gemini_runtime import generate_text
 
 BASE = os.path.abspath(
@@ -138,8 +140,18 @@ Divida o roteiro em EXATAMENTE {QTD_CENAS} segmentos semânticos consecutivos.
 Para cada cena gere:
 - segment: trecho correspondente do roteiro em português;
 - query: busca visual em inglês, 4 a 9 palavras;
-- must_have: 1 a 3 termos concretos essenciais;
+- must_have: 1 a 2 âncoras visuais concretas e simples, somente quando realmente essenciais;
 - avoid: 0 a 5 termos que indicam mídia inadequada.
+
+REGRAS DE RECUPERAÇÃO DE MÍDIA:
+- prefira substantivos visíveis e pesquisáveis, como "paper", "document", "tent", "person", "car" ou "mountain";
+- evite MUSTs compostos ou relacionais como "trousers pocket", "aged paper" e "dark fabric" quando um substantivo visual simples representar a cena;
+- não transforme cor, material, época, posição, estado emocional ou relação espacial em MUST separado, salvo se for o fato visual central da cena;
+- query pode descrever a composição completa, mas MUST deve servir como âncora verificável nos metadados reais de uma imagem;
+- se não houver objeto concreto essencial, use must_have vazio em vez de inventar uma exigência difícil de comprovar;
+- NÃO use qualificadores como cor, luminosidade, época ou tipo técnico como parte obrigatória de um MUST; prefira o objeto verificável: "aircraft" em vez de "single engine aircraft", "horizon" em vez de "dark horizon";
+- a política determinística pode normalizar apenas qualificadores visuais não essenciais conhecidos; a mídia continua obrigada a comprovar cada âncora resultante nos metadados reais;
+- nunca relaxe um MUST na etapa de validação só para aceitar uma imagem sem evidência.
 
 REGRAS:
 - preserve a ordem original;
@@ -312,7 +324,11 @@ soma_pesos = 0
 for numero, item in enumerate(scenes, start=1):
     trecho = str(item.get("segment", "")).strip()
     busca = str(item.get("query", "")).strip().lstrip("[").rstrip("]").strip()
-    must_have = clean_list(item.get("must_have", []), 3)
+    must_raw = clean_list(item.get("must_have", []), 3)
+    must_have, must_normalizations = normalize_visual_musts(must_raw)
+    if must_normalizations:
+        recovery_actions.extend({"action": "normalize_visual_must", "scene": numero, **event} for event in must_normalizations)
+        print(f"SCENE_MUST_NORMALIZED scene={numero} count={len(must_normalizations)}")
     avoid = clean_list(item.get("avoid", []), 5)
 
     if not trecho:

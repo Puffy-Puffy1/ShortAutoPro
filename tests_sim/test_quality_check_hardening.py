@@ -76,6 +76,15 @@ class QualityCheckHardeningTests(unittest.TestCase):
         self.assertEqual(result["width"], 1080)
         self.assertEqual(result["height"], 1920)
 
+    def test_provider_suffixed_scene_assets_are_counted(self):
+        for path in list(self.media.glob("scene_*")):
+            suffix = path.suffix
+            number = path.stem.split("_")[1]
+            path.rename(self.media / f"scene_{number}_wikimedia{suffix}")
+        result = self.evaluate()
+        self.assertEqual(result["errors"], [], result["errors"])
+        self.assertEqual(result["media_count"], 6)
+
     def test_missing_supervisor_blocks(self):
         self.supervisor.unlink()
         result = self.evaluate()

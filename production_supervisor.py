@@ -21,7 +21,7 @@ QTD_CENAS = max(6, min(QTD_CENAS, 20))
 
 ROTEIROS = BASE / "roteiros"
 MEDIA_DIR = BASE / "imagens" / f"short_{SHORT_ID}"
-MEDIA_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".mp4"}
+MEDIA_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".webm", ".mkv"}
 
 PATHS = {
     "topic_real": ROTEIROS / f"used_topic_{SHORT_ID}.txt",
@@ -135,7 +135,7 @@ def media_inventory():
     for path in sorted(MEDIA_DIR.glob("scene_*")):
         if not path.is_file() or path.suffix.lower() not in MEDIA_EXTENSIONS:
             continue
-        match = re.fullmatch(r"scene_(\d+)", path.stem, flags=re.IGNORECASE)
+        match = re.fullmatch(r"scene_(\d+)(?:_[A-Za-z0-9-]+)?", path.stem, flags=re.IGNORECASE)
         if not match:
             errors.append(f"media_name_invalid:{path.name}")
             continue
@@ -288,7 +288,7 @@ def evaluate(topic, script, source_text, scene_map, motion):
     elif len(media) == QTD_CENAS:
         strengths.append(f"physical_media_{QTD_CENAS}")
 
-    videos = sum(1 for path in media if path.suffix.lower() == ".mp4")
+    videos = sum(1 for path in media if path.suffix.lower() in {".mp4", ".mov", ".webm", ".mkv"})
     photos = len(media) - videos
     if videos >= 3:
         strengths.append(f"video_mix_{videos}")

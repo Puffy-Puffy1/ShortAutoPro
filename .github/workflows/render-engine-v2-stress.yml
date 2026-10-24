@@ -8,6 +8,7 @@ on:
       - "tests_sim/test_render_engine_v2_ffmpeg.py"
       - "tests_sim/test_render_engine_v2_stress.py"
       - "main.py"
+      - ".github/actions/setup-ffmpeg/action.yml"
       - "batch_runtime.py"
   workflow_dispatch:
 
@@ -16,7 +17,7 @@ permissions:
 
 jobs:
   consecutive-qualification:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -28,8 +29,8 @@ jobs:
           node-version: "20"
           cache: "npm"
           cache-dependency-path: "render_v2/package.json"
-      - name: Install FFmpeg
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Set up FFmpeg and FFprobe
+        uses: ./.github/actions/setup-ffmpeg
       - name: Install Remotion dependencies
         working-directory: render_v2
         run: npm install --no-audit --no-fund
