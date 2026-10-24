@@ -10,8 +10,14 @@ class MediaEngineV2FailureTests(unittest.TestCase):
             media = Path(td) / "media"
             media.mkdir()
             destination = media / "scene_01.jpg"
-            candidate_low = {"fonte": "Mock", "id": "low", "tipo": "imagem", "must_hits": 1}
-            candidate_good = {"fonte": "Mock", "id": "good", "tipo": "imagem", "must_hits": 1}
+            candidate_low = {
+                "fonte": "Mock", "id": "low", "tipo": "imagem", "must_hits": 1,
+                "descricao": "ship at sea",
+            }
+            candidate_good = {
+                "fonte": "Mock", "id": "good", "tipo": "imagem", "must_hits": 1,
+                "descricao": "ship at sea",
+            }
             def download(candidate, number, sid):
                 destination.write_bytes(b"asset-bytes-" + candidate["id"].encode())
                 return True, str(destination), {}
@@ -47,7 +53,7 @@ class MediaEngineV2FailureTests(unittest.TestCase):
     def test_download_failure_is_not_success(self):
         with tempfile.TemporaryDirectory() as td:
             base=Path(td); media=base/"imagens"/"short_X"; media.mkdir(parents=True)
-            candidate={"fonte":"Mock","id":"1","tipo":"imagem","must_hits":1}
+            candidate={"fonte":"Mock","id":"1","tipo":"imagem","must_hits":1,"descricao":"ship on the ocean"}
             with patch.object(media_engine_v2.PROVIDER, "search", return_value=[candidate]),                  patch.object(media_engine_v2.PROVIDER, "prepare", return_value=[candidate]),                  patch.object(media_engine_v2.PROVIDER, "download", return_value=(False, str(media/"scene_01.jpg"), {"error_class":"DOWNLOAD_FAILED"})),                  patch.object(media_engine_v2, "_local_library_asset", return_value=None):
                 with self.assertRaisesRegex(RuntimeError, "MEDIA_DOWNLOAD_FAILED"):
                     media_engine_v2.acquire_scene("X",1,{"query":"ship","must_have":["ship"]},media)

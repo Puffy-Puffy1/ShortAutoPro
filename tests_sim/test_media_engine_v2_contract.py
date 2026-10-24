@@ -140,6 +140,29 @@ class MediaEngineContractTests(unittest.TestCase):
                 scenes = media_engine_v2.load_scene_map(sid)
             self.assertEqual(scenes[0]["must_have"], ["page"])
 
+    def test_load_scene_map_adds_person_anchor_from_narration(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            sid = "TEST_BODY_SUBJECT"
+            scripts = base / "roteiros"
+            scripts.mkdir(parents=True)
+            scene_map = scripts / f"scene_map_{sid}.json"
+            scene_map.write_text(
+                json.dumps({
+                    "scenes": [{
+                        "scene_id": "01",
+                        "query": "coastal Australian beach shore landscape ocean view 1940s",
+                        "segment": "O corpo foi achado na praia de Somerton.",
+                        "must_have": ["ocean", "shoreline"],
+                        "avoid": [],
+                    }]
+                }),
+                encoding="utf-8",
+            )
+            with patch.object(media_engine_v2, "BASE", base):
+                scenes = media_engine_v2.load_scene_map(sid)
+            self.assertEqual(scenes[0]["must_have"], ["ocean", "shoreline", "person"])
+
     def test_load_scene_map_normalizes_pilot_to_microphone_for_equipment_query(self):
         with tempfile.TemporaryDirectory() as td:
             base = Path(td)
