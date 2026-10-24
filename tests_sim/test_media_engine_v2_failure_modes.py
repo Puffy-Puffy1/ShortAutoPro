@@ -903,6 +903,15 @@ class MediaEngineV2FailureTests(unittest.TestCase):
         )
 
 
+    def test_targeted_visual_search_composes_object_and_setting_anchors(self):
+        queries = media_engine_v2._targeted_visual_search_queries(
+            "vintage passenger train traveling through snow",
+            ["train", "snow", "tracks"],
+        )
+        self.assertLessEqual(len(queries), 3)
+        self.assertIn("snowy train tracks vintage passenger traveling", queries)
+        self.assertIn("train in snow tracks vintage passenger traveling", queries)
+
     def test_targeted_visual_search_queries_missing_must_with_context(self):
         queries = media_engine_v2._targeted_visual_search_queries(
             "plotting course on aeronautical navigation map",

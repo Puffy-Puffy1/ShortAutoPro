@@ -629,8 +629,8 @@ def _visual_fallback_candidates(
     ranked = sorted(
         unique.values(),
         key=lambda candidate: (
-            int(candidate.get("_sap_primary_must_match", 0) or 0),
             int(candidate.get("_sap_metadata_must_hits", 0) or 0),
+            int(candidate.get("_sap_primary_must_match", 0) or 0),
             int((candidate.get("query_relevance") or {}).get("matched_count", 0) or 0),
             float(candidate.get("score", 0) or 0),
         ),
@@ -681,6 +681,52 @@ def _targeted_visual_search_queries(
             searches.append(targeted)
         if len(searches) >= max_searches:
             break
+
+    # If every MUST word is already in the broad query, generate alternate
+    # combined phrasing for object + setting. This is especially useful for
+    # scenes such as a train actually traveling through snow, not a train photo
+    # and a separate snow photo. These queries only improve discovery.
+    setting_terms = {
+        "snow", "snowy", "snowfall", "winter", "ice", "icy", "ocean", "sea",
+        "water", "river", "lake", "beach", "shore", "desert", "sand",
+        "mountain", "mountains", "forest", "woodland", "rain", "storm",
+        "underwater", "tracks", "railway", "road", "street",
+    }
+    must_text = [re.sub(r"\s+", " ", str(item or "")).strip() for item in must]
+    has_setting_anchor = any(
+        token in setting_terms
+        for item in must_text
+        for token in re.findall(r"[a-z0-9]+", item.casefold())
+    )
+    if len(must_text) >= 2 and has_setting_anchor and len(searches) < max_searches:
+        snow_related = any(
+            token in {"snow", "snowy", "snowfall", "winter", "ice", "icy"}
+            for item in must_text
+            for token in re.findall(r"[a-z0-9]+", item.casefold())
+        )
+        if snow_related:
+            non_snow_musts = [
+                item for item in must_text
+                if not re.search(r"\b(?:snow|snowy|snowfall|winter|ice|icy)\b", item, re.IGNORECASE)
+            ]
+            variants = [
+                " ".join(["snowy", *non_snow_musts, *context]).strip(),
+                " ".join([must_text[0], "in", *must_text[1:], *context]).strip(),
+                " ".join([*must_text[1:], must_text[0], *context]).strip(),
+            ]
+        else:
+            variants = [
+                " ".join([*must_text, *context]).strip(),
+                " ".join([must_text[0], "with", *must_text[1:], *context]).strip(),
+                " ".join([*must_text[1:], must_text[0], *context]).strip(),
+            ]
+        for targeted in variants:
+            key = targeted.casefold()
+            if targeted and key not in seen:
+                seen.add(key)
+                searches.append(targeted)
+            if len(searches) >= max_searches:
+                break
 
     # A broad scene query may already contain "map" but still return unrelated
     # catalog images. Try common archival catalog phrasing without relaxing the
@@ -866,6 +912,19 @@ def acquire_scene(
             limit=MAX_VISUAL_FALLBACK_CANDIDATES,
         )
 
+        def has_complete_must_metadata(pool: list[dict[str, Any]]) -> bool:
+            return bool(must) and any(
+                int(item.get("_sap_metadata_must_hits", 0) or 0) >= len(must)
+                for item in pool
+                if isinstance(item, dict)
+            )
+
+        def needs_targeted_retrieval(pool: list[dict[str, Any]]) -> bool:
+            return (
+                len(pool) < MAX_VISUAL_FALLBACK_CANDIDATES
+                or (bool(must) and not has_complete_must_metadata([*pool, *strict]))
+            )
+
         # Prefer scene-director alternatives before generating more query variants.
         # These are retrieval hints only; pixel verification remains the acceptance gate.
         raw_alternates = scene.get("alt_queries") or []
@@ -876,17 +935,14 @@ def acquire_scene(
 
         seen_alternates = {re.sub(r"\s+", " ", query).strip().casefold()}
         alternate_searches = 0
-        if len(visual_pool) < MAX_VISUAL_FALLBACK_CANDIDATES:
+        if needs_targeted_retrieval(visual_pool):
             for raw_alternate in raw_alternates:
                 alternate_query = re.sub(r"\s+", " ", str(raw_alternate or "")).strip()
                 alternate_key = alternate_query.casefold()
                 if not alternate_query or alternate_key in seen_alternates:
                     continue
                 seen_alternates.add(alternate_key)
-                if (
-                    alternate_searches >= 3
-                    or len(visual_pool) >= MAX_VISUAL_FALLBACK_CANDIDATES
-                ):
+                if alternate_searches >= 3 or not needs_targeted_retrieval(visual_pool):
                     break
                 alternate_searches += 1
                 try:
@@ -931,7 +987,7 @@ def acquire_scene(
         # images that show every MUST. Search missing MUST terms with a few
         # contextual anchors, then let the same pixel-level verifier decide.
         # Discovery is bounded; acceptance criteria are unchanged.
-        if len(visual_pool) < MAX_VISUAL_FALLBACK_CANDIDATES:
+        if needs_targeted_retrieval(visual_pool):
             for targeted_query in _targeted_visual_search_queries(query, must):
                 try:
                     targeted_candidates = PROVIDER.search(
@@ -948,14 +1004,23 @@ def acquire_scene(
                     )
                     continue
                 if targeted_candidates:
-                    visual_source.extend(targeted_candidates)
+                    # Score each result against the query that found it, then
+                    # rank it together with the original scene candidates.
+                    visual_source.extend(
+                        {
+                            **candidate,
+                            "_sap_relevance_query": targeted_query,
+                        }
+                        for candidate in targeted_candidates
+                        if isinstance(candidate, dict)
+                    )
                     visual_pool = _visual_fallback_candidates(
                         query,
                         visual_source,
                         must=must,
                         limit=MAX_VISUAL_FALLBACK_CANDIDATES,
                     )
-                if len(visual_pool) >= MAX_VISUAL_FALLBACK_CANDIDATES:
+                if not needs_targeted_retrieval(visual_pool):
                     break
         # Metadata matches only choose candidates; they do not establish that the
         # pixels depict this exact scene. Start with the ranked visual pool, then
