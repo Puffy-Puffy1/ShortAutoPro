@@ -376,8 +376,27 @@ class AcquisitionV2Tests(unittest.TestCase):
                 __import__("json").dumps({"checksum_sha256": digest, "query_relevance": {"ok": True, "matched_terms": ["test"], "matched_count": 1, "query_term_count": 1, "required_terms": 1, "ratio": 1.0}, "must_total": 0, "validated": True, "short_id": sid, "scene_number": 1}),
                 encoding="utf-8",
             )
+            candidate = {
+                "fonte": "Mock",
+                "id": "manifest-asset",
+                "tipo": "imagem",
+                "url": "https://example.test/manifest.jpg",
+                "descricao": "test image",
+                "must_hits": 0,
+                "avoid_hits": 0,
+                "score": 10,
+                "query_relevance": {
+                    "ok": True,
+                    "matched_terms": ["test"],
+                    "matched_count": 1,
+                    "query_term_count": 1,
+                },
+            }
             with patch.object(media_engine_v2, "ffprobe_asset", return_value={"width": 1080, "height": 1920}), \
                  patch.object(media_engine_v2, "validate_asset", return_value={"sha256": digest, "probe": {"width": 1080, "height": 1920}, "validated": True}), \
+                 patch.object(media_engine_v2.PROVIDER, "search", return_value=[candidate]), \
+                 patch.object(media_engine_v2.PROVIDER, "prepare", return_value=[candidate]), \
+                 patch.object(media_engine_v2.PROVIDER, "download", return_value=(True, str(asset), {})), \
                  patch.object(media_engine_v2, "_verify_scene_pixels", return_value={"status": "PASS", "must": [], "avoid": []}):
                 manifest = media_engine_v2.build_manifest(sid)
             self.assertEqual(manifest["schema_version"], "media-manifest-v2")
