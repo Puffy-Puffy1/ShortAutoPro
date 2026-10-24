@@ -314,3 +314,11 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - `media_must_verifier.py` reconhece apenas descrições explícitas de lápis e equivalentes diretos. Uma caneta genérica ou a própria consulta não serve como evidência.
 - `tests_sim/test_media_must_verifier.py` adiciona regressões para metadados positivos, rejeição de falsos positivos e expansão de consulta.
 - A verificação visual e os critérios MUST/AVOID não foram reduzidos. O novo FIRST_VIDEO precisa confirmar se a busca encontra um candidato válido e gerar/validar um MP4 real.
+
+
+## 38. Busca contextual para cenas de aviação noturna — 24/10/2026
+
+- A execução FIRST_VIDEO `40048525749` passou pelas verificações de código e script, mas parou na cena 01: a busca retornou candidatos de Wikimedia, porém os três candidatos enviados à verificação visual não mostravam simultaneamente avião, oceano e céu noturno. Nenhum MP4 foi criado nesta execução.
+- `media_provider_router_v2.py` agora tenta consultas de catálogo mais naturais para essa combinação: avião sobre oceano à noite, aeronave sobre mar à noite e avião voando sobre oceano à noite.
+- `tests_sim/test_media_must_verifier.py` cobre as variantes contextuais e o limite de oito buscas.
+- Mudança restrita à descoberta de mídia. A verificação visual MUST/AVOID e os requisitos de saída continuam intactos; a correção só será considerada comprovada após testes e nova execução FIRST_VIDEO com MP4 validado por FFprobe.
