@@ -929,11 +929,15 @@ class MediaEngineV2FailureTests(unittest.TestCase):
             avoid=["alphabet english"],
         )
         self.assertLessEqual(len(queries), 3)
-        self.assertIn("text symbols aged parchment paper", queries)
+        self.assertTrue(queries)
         self.assertTrue(any(
             any(term in query.casefold() for term in ("unreadable", "cryptic", "unknown writing system"))
             for query in queries
         ), queries)
+        self.assertTrue(
+            any("unreadable" in query.casefold() or "cryptic" in query.casefold() for query in queries[:2]),
+            queries,
+        )
 
     def test_targeted_visual_search_queries_missing_must_with_context(self):
         queries = media_engine_v2._targeted_visual_search_queries(

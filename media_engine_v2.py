@@ -871,13 +871,16 @@ def _targeted_visual_search_queries(
             "cryptic symbols on antique manuscript page",
             "unknown writing system parchment close-up",
         ]
-        for targeted in variants:
-            key = targeted.casefold()
-            if targeted and key not in seen:
-                seen.add(key)
-                searches.append(targeted)
-            if len(searches) >= max_searches:
+        # These variants encode the critical visual distinction and must come
+        # before generic "text" searches when English lettering is forbidden.
+        prioritized = []
+        for targeted in [*variants, *searches]:
+            key = str(targeted or "").casefold()
+            if key and key not in {item.casefold() for item in prioritized}:
+                prioritized.append(str(targeted))
+            if len(prioritized) >= max_searches:
                 break
+        searches = prioritized
 
     return searches
 
@@ -1122,41 +1125,45 @@ def acquire_scene(
         # images that show every MUST. Search missing MUST terms with a few
         # contextual anchors, then let the same pixel-level verifier decide.
         # Discovery is bounded; acceptance criteria are unchanged.
-        if needs_targeted_retrieval(visual_pool):
-            for targeted_query in _targeted_visual_search_queries(query, must, avoid=avoid):
-                try:
-                    targeted_candidates = PROVIDER.search(
-                        targeted_query,
-                        [],
-                        avoid,
-                        segmento=segment,
-                        visual_mode=visual_mode,
-                    )
-                except Exception as exc:
-                    print(
-                        f"MEDIA_TARGETED_SEARCH=ERROR scene={number:02d} "
-                        f"error={type(exc).__name__}"
-                    )
-                    continue
-                if targeted_candidates:
-                    # Score each result against the query that found it, then
-                    # rank it together with the original scene candidates.
-                    visual_source.extend(
-                        {
-                            **candidate,
-                            "_sap_relevance_query": targeted_query,
-                        }
-                        for candidate in targeted_candidates
-                        if isinstance(candidate, dict)
-                    )
-                    visual_pool = _visual_fallback_candidates(
-                        query,
-                        visual_source,
-                        must=must,
-                        limit=MAX_VISUAL_FALLBACK_CANDIDATES,
-                    )
-                if not needs_targeted_retrieval(visual_pool):
-                    break
+        targeted_queries = _targeted_visual_search_queries(query, must, avoid=avoid)
+        for targeted_index, targeted_query in enumerate(targeted_queries):
+            # Always try the best targeted query once: full metadata MUST coverage
+            # still cannot prove that the pixels depict the intended composition.
+            if targeted_index > 0 and not needs_targeted_retrieval(visual_pool):
+                break
+            try:
+                targeted_candidates = PROVIDER.search(
+                    targeted_query,
+                    [],
+                    avoid,
+                    segmento=segment,
+                    visual_mode=visual_mode,
+                )
+            except Exception as exc:
+                print(
+                    f"MEDIA_TARGETED_SEARCH=ERROR scene={number:02d} "
+                    f"error={type(exc).__name__}"
+                )
+                continue
+            if targeted_candidates:
+                # Score each result against the query that found it, then
+                # rank it together with the original scene candidates.
+                visual_source.extend(
+                    {
+                        **candidate,
+                        "_sap_relevance_query": targeted_query,
+                    }
+                    for candidate in targeted_candidates
+                    if isinstance(candidate, dict)
+                )
+                visual_pool = _visual_fallback_candidates(
+                    query,
+                    visual_source,
+                    must=must,
+                    limit=MAX_VISUAL_FALLBACK_CANDIDATES,
+                )
+            if targeted_index > 0 and not needs_targeted_retrieval(visual_pool):
+                break
         # Metadata matches only choose candidates; they do not establish that the
         # pixels depict this exact scene. Start with the ranked visual pool, then
         # keep a bounded set of strict candidates as a rescue if relevance scoring
