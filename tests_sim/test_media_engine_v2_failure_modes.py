@@ -644,4 +644,51 @@ class MediaEngineV2FailureTests(unittest.TestCase):
             self.assertEqual(result["visual_verification"]["status"], "PASS")
             self.assertEqual(result["metadata_must_hits"], 1)
 
+
+    def test_icon_library_artwork_is_rejected_for_documentary_photo_scene(self):
+        with tempfile.TemporaryDirectory() as td:
+            media = Path(td) / "media"
+            media.mkdir()
+            icon_candidate = {
+                "fonte": "Wikimedia",
+                "id": "pinhead-icon",
+                "tipo": "image",
+                "url": "https://example.test/person-walking.svg.png",
+                "title": "Person walking in shelter Pinhead icon",
+                "descricao": "Plain black vector icon depicting a person walking",
+                "must_hits": 1,
+                "avoid_hits": 0,
+                "score": 100,
+            }
+            with patch.object(
+                media_engine_v2.PROVIDER, "search",
+                side_effect=[[icon_candidate], [icon_candidate]],
+            ), patch.object(
+                media_engine_v2.PROVIDER, "prepare", return_value=[icon_candidate]
+            ), patch.object(
+                media_engine_v2, "_local_library_asset", return_value=None
+            ), patch.object(
+                media_engine_v2.PROVIDER, "download"
+            ) as download:
+                with self.assertRaisesRegex(RuntimeError, "MEDIA_INCOMPLETE"):
+                    media_engine_v2.acquire_scene(
+                        "X", 7,
+                        {
+                            "query": "person walking through an old mountain shelter",
+                            "must_have": ["person walking"],
+                            "avoid": [],
+                        },
+                        media,
+                    )
+            download.assert_not_called()
+
+    def test_icon_assets_are_allowed_when_the_scene_explicitly_requests_icons(self):
+        candidate = {
+            "title": "Simple black icon of a walking person",
+            "descricao": "Vector pictogram",
+        }
+        self.assertFalse(
+            media_engine_v2._is_non_photographic_asset(candidate, "minimal walking person icon")
+        )
+
 if __name__=="__main__": unittest.main()
