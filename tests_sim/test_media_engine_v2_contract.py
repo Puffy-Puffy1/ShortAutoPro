@@ -500,6 +500,8 @@ class MediaEngineContractTests(unittest.TestCase):
                 "avoid_hits": 0,
                 "must_hits": 0,
                 "score": 95,
+                "title": "Vintage 1970s air traffic control room interior",
+                "descricao": "Vintage 1970s air traffic control room interior",
             },
             {
                 "fonte": "Wikimedia",
@@ -509,6 +511,8 @@ class MediaEngineContractTests(unittest.TestCase):
                 "avoid_hits": 0,
                 "must_hits": 1,
                 "score": 40,
+                "title": "Air traffic control radar screen in vintage control room",
+                "descricao": "Air traffic control radar screen in vintage control room",
             },
         ]
 
@@ -520,6 +524,7 @@ class MediaEngineContractTests(unittest.TestCase):
             selected = media_engine_v2._visual_fallback_candidates(
                 "vintage 1970s air traffic control radar room interior",
                 candidates,
+                must=["radar screen"],
                 limit=2,
             )
 
