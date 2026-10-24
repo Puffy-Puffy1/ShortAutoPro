@@ -407,6 +407,7 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
         "runway": ("airstrip", "airfield runway", "military airfield runway", "runway at sunset", "air force runway"),
         "code": ("cipher", "cryptogram", "encrypted message", "ancient code manuscript", "handwritten cipher document"),
         "paper": ("handwritten paper", "cipher on paper", "cryptography notes"),
+        "folder": ("file folder", "manila folder", "case file folder", "archive folder", "document folder"),
         "ocean": ("sea", "open water"),
         "sea": ("ocean", "open water"),
         "car": ("automobile", "motor vehicle", "road vehicle", "cars"),
@@ -501,6 +502,20 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
         candidates.extend((
             "cryptographer examining handwritten cipher notes",
             "handwritten cipher symbols on paper",
+        ))
+
+    # Archived mystery scenes may be catalogued as case files or Manila folders.
+    # These search terms improve retrieval; folder visibility and scene relevance
+    # remain independently verified from the returned asset.
+    if "folder" in must_set and re.search(
+        r"\b(?:case file|archive|archival|mystery|evidence board)\b",
+        raw,
+        re.IGNORECASE,
+    ):
+        candidates.extend((
+            "unsolved mystery case file folder in archive room",
+            "manila folder for an unsolved case file",
+            "case file folder on an archive desk",
         ))
 
     # Pilot archives often title the person separately from cockpit/radio
