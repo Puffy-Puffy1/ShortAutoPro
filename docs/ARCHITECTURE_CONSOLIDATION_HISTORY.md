@@ -416,3 +416,13 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - `media_provider_router_v2.py` agora prioriza, para cenas históricas/abandonadas de navio com contexto de mar/oceano, consultas como `abandoned sailing ship at sea`, `old sailing vessel at sea` e `ghost ship in the ocean`.
 - Foi adicionado teste de regressão para as variantes e o limite de oito consultas.
 - A validação MUST/AVOID e a verificação visual continuam estritas; o teste e uma nova execução FIRST_VIDEO com MP4 validado por FFprobe ainda são necessários para comprovar o resultado.
+
+
+## 43. Fallback visual após falha de download — 24/10/2026
+
+- A execução FIRST_VIDEO `40114741110` chegou à cena 11, mas a única mídia aprovada pela verificação de metadados falhou na validação de assinatura do arquivo; a cena parou com `MEDIA_DOWNLOAD_FAILED`. O vídeo dessa execução não foi criado.
+- A causa estrutural era que a verificação visual alternativa só entrava quando nenhum candidato passava pela verificação de metadados. Se o candidato aprovado falhasse no download/validação, outras imagens relevantes não podiam entrar no fallback visual.
+- `media_engine_v2.py` agora enfileira um conjunto pequeno e limitado de candidatas adicionais atrás das candidatas estritas. A ordem mantém a preferência por evidência de metadados; cada alternativa só pode ser aceita depois de validação do arquivo e aprovação visual de todos os MUSTs e AVOIDs.
+- Candidatas já presentes na lista estrita são deduplicadas para não repetir downloads. O limite de fallback continua controlado por `MAX_VISUAL_FALLBACK_CANDIDATES`.
+- Foi adicionado teste de regressão simulando falha de download da candidata estrita e sucesso de uma alternativa após verificação pixel a pixel.
+- A mudança não relaxa os requisitos visuais. A aprovação final depende dos testes CI, de uma execução FIRST_VIDEO concluída e de MP4 da execução atual validado pelo FFprobe.
