@@ -247,6 +247,59 @@ class MediaEngineContractTests(unittest.TestCase):
                 scenes = media_engine_v2.load_scene_map(sid)
             self.assertEqual(scenes[0]["must_have"], ["pilot"])
 
+    def test_vintage_scene_downgrades_only_vague_modern_style_avoid(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            scripts = base / "roteiros"
+            scripts.mkdir(parents=True)
+            sid = "TEST_VINTAGE_STYLE_AVOID"
+            scene_map = scripts / f"scene_map_{sid}.json"
+            scene_map.write_text(json.dumps({
+                "scenes": [{
+                    "scene_id": "01",
+                    "query": "vintage ski group in snow covered mountains",
+                    "segment": "a vintage ski group in snow",
+                    "must_have": ["ski"],
+                    "avoid": ["modern", "smartphone"],
+                }]
+            }), encoding="utf-8")
+
+            with patch.object(media_engine_v2, "BASE", base):
+                scenes = media_engine_v2.load_scene_map(sid)
+
+            self.assertEqual(scenes[0]["avoid"], ["smartphone"])
+            self.assertIn(
+                "period-appropriate historical appearance",
+                scenes[0]["preferred_visuals"],
+            )
+            self.assertEqual(scenes[0]["must_have"], ["ski"])
+
+    def test_modern_style_avoid_remains_hard_without_historical_context(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            scripts = base / "roteiros"
+            scripts.mkdir(parents=True)
+            sid = "TEST_MODERN_STYLE_AVOID"
+            scene_map = scripts / f"scene_map_{sid}.json"
+            scene_map.write_text(json.dumps({
+                "scenes": [{
+                    "scene_id": "01",
+                    "query": "modern smartphone product photo on desk",
+                    "segment": "a modern smartphone on a desk",
+                    "must_have": ["smartphone"],
+                    "avoid": ["modern", "smartphone case"],
+                }]
+            }), encoding="utf-8")
+
+            with patch.object(media_engine_v2, "BASE", base):
+                scenes = media_engine_v2.load_scene_map(sid)
+
+            self.assertEqual(scenes[0]["avoid"], ["modern", "smartphone case"])
+            self.assertNotIn(
+                "period-appropriate historical appearance",
+                scenes[0].get("preferred_visuals", []),
+            )
+
     def test_load_scene_map_keeps_only_core_ski_scene_musts(self):
         with tempfile.TemporaryDirectory() as td:
             base = Path(td)

@@ -282,6 +282,55 @@ def load_scene_map(short_id: str) -> list[dict[str, Any]]:
             if preference and key not in seen_preferences:
                 seen_preferences.add(key)
                 preferred_visuals.append(preference)
+        # A vague style-only AVOID (for example "modern") is difficult to
+        # prove absent from pixels. In a historical/vintage scene, treat it as
+        # a preference and keep concrete forbidden objects (for example phones)
+        # as hard AVOID requirements. The scene-intent verifier still checks the
+        # overall period/composition; no global confidence threshold is lowered.
+        period_context = bool(re.search(
+            r"\\b(?:vintage|historic|historical|archival|antique|period[- ]appropriate|"
+            r"old[- ]fashioned|(?:18|19|20)\\d{2}s?)\\b",
+            scene_context,
+            re.IGNORECASE,
+        ))
+        raw_avoid = scene.get("avoid") or []
+        if isinstance(raw_avoid, str):
+            raw_avoid = [raw_avoid]
+        if not isinstance(raw_avoid, (list, tuple, set)):
+            raw_avoid = []
+        normalized_avoid = []
+        moved_style_avoids = []
+        for raw_avoid_item in raw_avoid:
+            avoid_item = str(raw_avoid_item or "").strip()
+            key = avoid_item.casefold()
+            if period_context and key in {"modern", "contemporary"}:
+                moved_style_avoids.append(avoid_item)
+                continue
+            if avoid_item:
+                normalized_avoid.append(avoid_item)
+        if moved_style_avoids:
+            style_preference = "period-appropriate historical appearance"
+            if style_preference.casefold() not in {
+                str(value).strip().casefold() for value in preferred_visuals
+            }:
+                preferred_visuals.append(style_preference)
+            scene["preferred_visuals"] = preferred_visuals
+            scene["avoid"] = normalized_avoid
+            print(
+                "SCENE_AVOID_NORMALIZED="
+                + json.dumps(
+                    {
+                        "scene": scene_id,
+                        "moved_to_preference": moved_style_avoids,
+                        "kept_hard_avoids": normalized_avoid,
+                    },
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                )
+            )
+        elif raw_avoid:
+            scene["avoid"] = normalized_avoid
+
         if preferred_visuals:
             scene["preferred_visuals"] = preferred_visuals
 
