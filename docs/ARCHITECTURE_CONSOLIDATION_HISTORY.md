@@ -398,3 +398,12 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - `media_provider_router_v2.py` agora inclui variantes contextuais para papel manuscrito, cifra em papel e anotações de criptografia, preservando a consulta original e o limite de oito variantes.
 - `tests_sim/test_media_must_verifier.py` cobre as consultas contextuais e garante que metadados contendo apenas `paper` não passam pelo filtro de relevância. Os requisitos MUST/AVOID e a verificação visual não foram enfraquecidos.
 - A cabeça atual precisa completar FIRST_VIDEO, produzir um MP4 novo e passar no FFprobe antes de mesclar a PR.
+
+
+## 48. Recuperação contextual de pastas de arquivo — 24/10/2026
+
+- A execução FIRST_VIDEO `40054298298` passou pelo gate semântico e pelas primeiras cenas, mas falhou na cena 08: a busca retornou 25 candidatos para uma cena de arquivo de mistérios, porém as cinco imagens verificadas não mostravam uma pasta visível.
+- `media_provider_router_v2.py` agora busca variantes de pasta de arquivo e pasta de caso policial, preservando contexto de mistério/arquivo e o limite de oito variantes.
+- `media_must_verifier.py` reconhece metadados explícitos de pasta Manila, pasta de arquivo e pasta de documentos. Papéis soltos ou a própria consulta não servem de evidência.
+- `tests_sim/test_media_must_verifier.py` cobre buscas contextuais, equivalentes explícitos e rejeição de falsos positivos. A verificação visual MUST/AVOID permanece obrigatória.
+- A cabeça atual ainda precisa passar na prova FIRST_VIDEO com novo MP4 e FFprobe; a falha citada é da revisão anterior a esta correção.
