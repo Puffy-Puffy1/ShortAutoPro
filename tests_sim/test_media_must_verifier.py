@@ -273,3 +273,18 @@ class MediaMustVerifierSkiSnowSearchTests(unittest.TestCase):
         )
 
 
+
+
+class MediaMustVerifierPencilTests(unittest.TestCase):
+    def test_pencil_accepts_explicit_pencil_metadata(self):
+        for evidence in ("graphite pencil on a map", "wooden pencil beside a chart", "mechanical pencil on paper"):
+            self.assertTrue(requirement_matches("pencil", {"description": evidence}), evidence)
+
+    def test_pencil_rejects_generic_pen_and_query_only_evidence(self):
+        self.assertFalse(requirement_matches("pencil", {"description": "fountain pen on a map"}))
+        self.assertFalse(requirement_matches("pencil", {"title": "navigation map", "query": "map pencil"}))
+
+    def test_pencil_query_variants_include_specific_catalog_terms(self):
+        variants = _query_variants("plotting course on aeronautical navigation map", ["map", "pencil"])
+        self.assertLessEqual(len(variants), 8)
+        self.assertTrue(any("pencil" in item.casefold() for item in variants), variants)
