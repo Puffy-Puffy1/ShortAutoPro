@@ -69,11 +69,11 @@ def _relaxed_relevance_acceptable(
 
 
 _NON_PHOTOGRAPHIC_METADATA = re.compile(
-    r"\b(?:icons?|logos?|pictograms?|clipart|glyphs?|pinhead|svg)\\b",
+    r"\b(?:icons?|logos?|pictograms?|clipart|glyphs?|pinhead|svg)\b",
     re.IGNORECASE,
 )
 _NON_PHOTOGRAPHIC_QUERY = re.compile(
-    r"\b(?:icons?|logos?|pictograms?|clipart|glyphs?|vector\s+graphics?)\\b",
+    r"\b(?:icons?|logos?|pictograms?|clipart|glyphs?|vector\s+graphics?)\b",
     re.IGNORECASE,
 )
 
