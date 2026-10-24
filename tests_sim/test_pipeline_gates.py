@@ -88,20 +88,29 @@ class SemanticGateTests(unittest.TestCase):
             roteiros = base / "roteiros"
             roteiros.mkdir(parents=True)
 
-            words = make_words(104) + ["4.500"]
+            words = make_words(104) + ["4.500", "1.400", "1.000", "19:06"]
             (roteiros / "short_gate_test.txt").write_text(
                 " ".join(words), encoding="utf-8"
             )
             (roteiros / "fonte_gate_test.txt").write_text(
-                "O registro oficial informa 4,500 pés.", encoding="utf-8"
+                "O registro oficial informa 4,500 pés, 1,400 metros e 1,000 pés às 19:06.",
+                encoding="utf-8",
             )
 
             scenes = []
             for i in range(6):
                 segment_words = words[i * 18:(i + 1) * 18]
                 segment = " ".join(segment_words)
+                # The scene director often turns grouped values into space-separated
+                # groups; this must retain the same numeric meaning as the source.
+                segment = (
+                    segment.replace("4.500", "4 500")
+                    .replace("1.400", "1 400")
+                    .replace("1.000", "1 000")
+                    .replace("19:06", "19 06")
+                )
                 if i == 0 and unsupported_number:
-                    segment += " 7.000"
+                    segment += " 7 000"
                 scenes.append({
                     "scene": i + 1,
                     "segment": segment,

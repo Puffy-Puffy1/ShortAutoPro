@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Semantic integrity gate for ShortAutoPro 3.0.2.
+"""Semantic integrity gate for ShortAutoPro 3.0.3.
 
 The gate verifies that scene narration preserves the script and does not add
 unsupported factual content. Descriptive repetition/expansion is diagnostic,
@@ -119,16 +119,23 @@ def _canonical_number(token):
     if not value:
         return ""
 
-    # Portuguese commonly writes 4.500 while English source material writes
-    # 4,500. Treat repeated groups of three digits as a thousands separator,
-    # but preserve actual decimals such as 19,06.
-    if re.fullmatch(r"\d{1,3}(?:[.,]\d{3})+", value):
-        return re.sub(r"[.,]", "", value)
+    # Thousands can arrive as 4,500 (English), 4.500 (Portuguese), or
+    # 4 500 after scene segmentation/tokenization. Only groups of exactly
+    # three digits are joined; values such as 19,06 or the time 19:06 remain
+    # separate decimal/time tokens.
+    if re.fullmatch(r"\d{1,3}(?:[., \t\u00a0]\d{3})+", value):
+        return re.sub(r"[., \t\u00a0]", "", value)
     return value.replace(",", ".")
 
 
 def numeric_tokens(text):
-    raw_tokens = re.findall(r"\b\d+(?:[.,]\d+)*\b", str(text))
+    value = str(text or "")
+    grouped_spaces = r"\d{1,3}(?:[ \t\u00a0]\d{3})+"
+    grouped_punctuation = r"\d+(?:[.,]\d+)*"
+    raw_tokens = re.findall(
+        rf"\b(?:{grouped_spaces}|{grouped_punctuation})\b",
+        value,
+    )
     return {_canonical_number(token) for token in raw_tokens if token}
 
 
@@ -315,7 +322,7 @@ for i in range(1, len(scenes)):
 status = "BLOCK" if critical else "PASS"
 report = {
     "short_id": SHORT_ID,
-    "version": "5.3.0",
+    "version": "5.3.1",
     "status": status,
     "topic": topic,
     "wiki_title": wiki_title,
@@ -338,7 +345,7 @@ atomic_json(REPORT, report)
 
 print()
 print("================================")
-print("SEMANTIC INTEGRITY GATE 5.3.0")
+print("SEMANTIC INTEGRITY GATE 5.3.1")
 print("================================")
 print()
 print(f"Roteiro: {len(script_words)} palavras")
