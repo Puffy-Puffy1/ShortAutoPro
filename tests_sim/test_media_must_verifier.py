@@ -384,3 +384,25 @@ class MediaMustVerifierPersonAndCodeSearchTests(unittest.TestCase):
         self.assertFalse(
             requirement_matches("code", {"description": "a researcher in a library"})
         )
+
+
+class MediaMustVerifierCipherOnPaperSearchTests(unittest.TestCase):
+    def test_cipher_scene_search_preserves_paper_context_with_bounded_variants(self):
+        query = "cryptographer analyzing secret symbols on paper"
+        variants = _query_variants(query, ["paper"])
+        self.assertLessEqual(len(variants), 8)
+        self.assertEqual(variants[0], query)
+        self.assertIn(
+            "cryptographer analyzing secret symbols on handwritten paper",
+            variants,
+        )
+        self.assertIn("cryptographer examining handwritten cipher notes", variants)
+        self.assertIn("handwritten cipher symbols on paper", variants)
+        self.assertIn("cipher on paper", variants)
+
+    def test_paper_only_metadata_still_fails_contextual_relevance(self):
+        result = query_relevance(
+            "cryptographer analyzing secret symbols on paper",
+            {"title": "paper"},
+        )
+        self.assertFalse(result["ok"], result)
