@@ -77,19 +77,32 @@ class MediaVisualVerifierTests(unittest.TestCase):
 
     @patch("media_visual_verifier.generate_text")
     def test_scene_intent_is_checked_as_composition_not_a_literal_object(self, generate):
-        payload = json.loads(self._payload())
-        payload["scene_match"] = {
-            "matches": True,
-            "confidence": 0.97,
-            "evidence": "A torn tent is centered in a snowy mountain landscape.",
+        payload = {
+            "must": [{
+                "anchor": "manuscript",
+                "visible": True,
+                "confidence": 0.98,
+                "evidence": "A handwritten manuscript page fills the frame.",
+            }],
+            "avoid": [{
+                "anchor": "digital screen",
+                "visible": False,
+                "confidence": 0.97,
+                "evidence": "No screen or digital display is visible.",
+            }],
+            "scene_match": {
+                "matches": True,
+                "confidence": 0.97,
+                "evidence": "The central subject is a historic manuscript page with literary writing.",
+            },
         }
         generate.return_value = json.dumps(payload)
         intent = "historic poetry manuscript page Edgar Allan Poe"
         with tempfile.TemporaryDirectory() as directory:
             result = verify_image_requirements(
                 self._image(directory),
-                ["torn tent", "snow"],
-                ["people"],
+                ["manuscript"],
+                ["digital screen"],
                 scene_intent=intent,
             )
         self.assertEqual(result["status"], "PASS")
