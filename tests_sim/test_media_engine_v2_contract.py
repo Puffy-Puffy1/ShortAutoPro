@@ -247,7 +247,7 @@ class MediaEngineContractTests(unittest.TestCase):
                 scenes = media_engine_v2.load_scene_map(sid)
             self.assertEqual(scenes[0]["must_have"], ["pilot"])
 
-    def test_load_scene_map_uses_musts_to_normalize_ski_winter_gear(self):
+    def test_load_scene_map_keeps_only_core_ski_scene_musts(self):
         with tempfile.TemporaryDirectory() as td:
             base = Path(td)
             sid = "TEST_SOVIET_SKIERS"
@@ -269,7 +269,7 @@ class MediaEngineContractTests(unittest.TestCase):
                 scenes = media_engine_v2.load_scene_map(sid)
             self.assertEqual(
                 scenes[0]["must_have"],
-                ["skiers", "snow", "ski equipment"],
+                ["skiers", "snow"],
             )
 
     def test_scene_contract_fingerprint_is_stable_and_tracks_visual_requirements(self):

@@ -215,7 +215,7 @@ class SceneMustPolicyTests(unittest.TestCase):
             self.assertEqual(anchors, ["pilot"], query)
             self.assertEqual(events, [], query)
 
-    def test_winter_gear_collapses_to_ski_equipment_when_skiers_are_required(self):
+    def test_winter_gear_becomes_preference_when_skiers_and_snow_are_required(self):
         anchors, events = normalize_visual_musts(
             ["skiers", "snow", "winter gear"],
             context=(
@@ -223,13 +223,13 @@ class SceneMustPolicyTests(unittest.TestCase):
                 "skiers snow winter gear"
             ),
         )
-        self.assertEqual(anchors, ["skiers", "snow", "ski equipment"])
+        self.assertEqual(anchors, ["skiers", "snow"])
         self.assertEqual(
             events,
             [{
                 "from": "winter gear",
-                "to": "ski equipment",
-                "reason": "CONTEXTUAL_SKI_EQUIPMENT_ANCHOR",
+                "to": "preferred:winter gear",
+                "reason": "UNSUPPORTED_VISUAL_DETAIL_PREFERENCE",
             }],
         )
 
