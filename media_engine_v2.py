@@ -624,13 +624,33 @@ def acquire_scene(
 
     visual_fallback_candidates: list[dict[str, Any]] = []
     visual_rejections: list[str] = []
-    if not strict and must:
-        visual_fallback_candidates = _visual_fallback_candidates(
+    if must:
+        # Keep a bounded pixel-verified fallback behind strict metadata matches.
+        # A strict candidate can still fail at download/format validation; in
+        # that case, continue with another real image and require pixel-level
+        # MUST/AVOID verification before accepting it.
+        visual_pool = _visual_fallback_candidates(
             query,
             [*candidates, *relaxed],
             must=must,
             limit=MAX_VISUAL_FALLBACK_CANDIDATES,
         )
+        strict_keys = {
+            (
+                str(item.get("fonte") or item.get("source") or ""),
+                str(item.get("id") or ""),
+                str(item.get("url") or ""),
+            )
+            for item in strict
+        }
+        visual_fallback_candidates = [
+            item for item in visual_pool
+            if (
+                str(item.get("fonte") or item.get("source") or ""),
+                str(item.get("id") or ""),
+                str(item.get("url") or ""),
+            ) not in strict_keys
+        ]
         for candidate in visual_fallback_candidates:
             candidate["_sap_must_total"] = len(must)
             candidate["_sap_short_id"] = short_id
@@ -642,12 +662,13 @@ def acquire_scene(
                 "pixel-level verification required; metadata hits remain separately recorded"
             )
         if visual_fallback_candidates:
-            verification_mode = "gemini_visual_must"
             print(
-                f"MEDIA_VISUAL_FALLBACK=START scene={number:02d} "
+                f"MEDIA_VISUAL_FALLBACK=QUEUED scene={number:02d} "
                 f"candidates={len(visual_fallback_candidates)}"
             )
-        strict = visual_fallback_candidates
+            strict.extend(visual_fallback_candidates)
+        if not verification_mode and visual_fallback_candidates:
+            verification_mode = "gemini_visual_must"
 
     failures = []
     used_asset_hashes = used_asset_hashes or set()
