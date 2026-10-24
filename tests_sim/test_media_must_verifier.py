@@ -353,3 +353,34 @@ class MediaMustVerifierRunwaySearchTests(unittest.TestCase):
         self.assertIn("empty military air base airstrip sunset", variants)
         self.assertIn("military airfield runway", variants)
         self.assertIn("runway at sunset", variants)
+
+
+class MediaMustVerifierPersonAndCodeSearchTests(unittest.TestCase):
+    def test_cryptographer_scene_search_keeps_person_and_code_context(self):
+        variants = _query_variants(
+            "cryptographer studying ancient mysterious code document",
+            ["person", "code"],
+        )
+        self.assertLessEqual(len(variants), 8)
+        self.assertEqual(
+            variants[0],
+            "cryptographer studying ancient mysterious code document",
+        )
+        self.assertIn(
+            "cryptographer studying ancient mysterious cipher document",
+            variants,
+        )
+        self.assertIn("person studying an ancient code manuscript", variants)
+        self.assertIn(
+            "cryptographer examining a handwritten cipher document",
+            variants,
+        )
+        self.assertIn("person decoding an old cryptogram", variants)
+
+    def test_contextual_search_does_not_weaken_person_or_code_evidence(self):
+        self.assertFalse(
+            requirement_matches("person", {"description": "an ancient code manuscript"})
+        )
+        self.assertFalse(
+            requirement_matches("code", {"description": "a researcher in a library"})
+        )
