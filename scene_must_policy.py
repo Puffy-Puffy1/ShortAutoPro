@@ -119,7 +119,7 @@ def normalize_visual_musts(
         # Paper texture is an editorial style, not a separate visible object.
         # In a map scene keep it as a preference while still requiring the map
         # itself to pass pixel verification.
-        if key == "vintage paper texture" and re.search(r"\\bmap\\b", item_context, re.IGNORECASE):
+        if key == "vintage paper texture" and re.search(r"\bmap\b", item_context, re.IGNORECASE):
             events.append({
                 "from": original,
                 "to": f"preferred:{original}",

@@ -542,7 +542,7 @@ def _targeted_visual_search_queries(
     seen = set()
     max_searches = max(1, min(int(limit), 3))
     for item in must:
-        term = re.sub(r"\\s+", " ", str(item or "")).strip()
+        term = re.sub(r"\s+", " ", str(item or "")).strip()
         term_tokens = set(re.findall(r"[a-z0-9]+", term.casefold()))
         if not term or term_tokens <= query_token_set:
             continue
@@ -560,7 +560,7 @@ def _targeted_visual_search_queries(
     if (
         len(must) == 1
         and str(must[0]).strip().casefold() == "map"
-        and re.search(r"\\bmap\\b", str(query or ""), re.IGNORECASE)
+        and re.search(r"\bmap\b", str(query or ""), re.IGNORECASE)
     ):
         for phrase in ("antique map", "historical map", "old map"):
             targeted = " ".join([phrase, *context]).strip()
