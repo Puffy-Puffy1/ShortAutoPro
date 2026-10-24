@@ -290,6 +290,22 @@ class MediaMustVerifierPencilTests(unittest.TestCase):
         self.assertTrue(any("pencil" in item.casefold() for item in variants), variants)
 
 
+class MediaMustVerifierHistoricShipSearchTests(unittest.TestCase):
+    def test_abandoned_ship_scene_prioritizes_contextual_catalog_searches(self):
+        variants = _query_variants(
+            "abandoned vintage sailing ship drifting in vast ocean",
+            ["ship"],
+        )
+        self.assertLessEqual(len(variants), 8)
+        self.assertEqual(
+            variants[0],
+            "abandoned vintage sailing ship drifting in vast ocean",
+        )
+        self.assertIn("abandoned sailing ship at sea", variants)
+        self.assertIn("old sailing vessel at sea", variants)
+        self.assertIn("ghost ship in the ocean", variants)
+
+
 class MediaMustVerifierAviationNightSearchTests(unittest.TestCase):
     def test_airplane_ocean_night_scene_gets_contextual_catalog_variants(self):
         variants = _query_variants(
