@@ -51,6 +51,7 @@ on:
       - "tests_sim/test_shortauto_brain_integration.py"
       - "tests_sim/test_shortauto_brain_evidence_map.py"
       - "tests_sim/test_pipeline_gates.py"
+      - "docs/ARCHITECTURE_CONSOLIDATION_HISTORY.md"
       - "tests_sim/test_first_video_validation_contract.py"
       - "first_video_run_contract.py"
       - "tests_sim/test_first_video_run_contract.py"
