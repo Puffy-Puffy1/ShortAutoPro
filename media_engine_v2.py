@@ -875,9 +875,42 @@ def acquire_scene(
                 if len(visual_pool) >= MAX_VISUAL_FALLBACK_CANDIDATES:
                     break
         # Metadata matches only choose candidates; they do not establish that the
-        # pixels depict this exact scene. Every accepted external asset must pass
-        # the same bounded pixel check, including candidates from the strict path.
-        visual_fallback_candidates = visual_pool[:MAX_VISUAL_FALLBACK_CANDIDATES]
+        # pixels depict this exact scene. Start with the ranked visual pool, then
+        # keep up to five strict candidates as a bounded rescue if relevance scoring
+        # filtered everything out. The pixel verifier remains the final authority.
+        visual_fallback_candidates = []
+        seen_visual_keys: set[tuple[str, str, str]] = set()
+        image_types = {"image", "imagem", "foto", "photo", "photograph", "fotografia", "picture"}
+        image_extensions = {".jpg", ".jpeg", ".png", ".webp"}
+        for item in [*visual_pool, *strict]:
+            if not isinstance(item, dict) or _is_non_photographic_asset(item, query):
+                continue
+            kind = str(item.get("tipo") or item.get("asset_type") or "").strip().casefold()
+            url = str(item.get("url") or "")
+            extension = Path(url.split("?", 1)[0]).suffix.casefold()
+            if kind.startswith("video") or kind in {"vídeo", "movie", "clip"}:
+                continue
+            if kind and kind not in image_types:
+                continue
+            if not kind and extension not in image_extensions:
+                continue
+            try:
+                if int(item.get("avoid_hits", 0) or 0) > 0:
+                    continue
+            except (TypeError, ValueError):
+                continue
+            key = (
+                str(item.get("fonte") or item.get("source") or ""),
+                str(item.get("id") or ""),
+                url,
+            )
+            if key in seen_visual_keys:
+                continue
+            seen_visual_keys.add(key)
+            visual_fallback_candidates.append(item)
+            if len(visual_fallback_candidates) >= MAX_VISUAL_FALLBACK_CANDIDATES:
+                break
+
         for candidate in visual_fallback_candidates:
             candidate["_sap_must_total"] = len(must)
             candidate["_sap_short_id"] = short_id
@@ -889,7 +922,7 @@ def acquire_scene(
                 "pixel-level MUST/AVOID and full scene-intent verification required"
             )
         strict = visual_fallback_candidates
-        verification_mode = "gemini_visual_must" if strict else "" 
+        verification_mode = "gemini_visual_must" if strict else ""
         if visual_fallback_candidates:
             print(
                 f"MEDIA_VISUAL_VERIFY=QUEUED scene={number:02d} "
@@ -1003,9 +1036,9 @@ def acquire_scene(
         except Exception as exc:
             failures.append(f"{candidate.get('fonte','?')}:{type(exc).__name__}")
 
-    # If all bounded pixel checks failed, these assets are still unverified and
-    # must not leave the gate in a partially accepted state.
-    if visual_fallback_candidates:
+    # Clear candidates only when pixel verification actually rejected them.
+    # Download/probe errors must retain their specific failure classification.
+    if visual_fallback_candidates and visual_rejections:
         strict = []
 
     # Local Library is an explicit provider in the Router. Keep this secondary

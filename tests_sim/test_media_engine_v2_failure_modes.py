@@ -31,6 +31,7 @@ class MediaEngineV2FailureTests(unittest.TestCase):
                  patch.object(media_engine_v2.PROVIDER, "prepare", return_value=[candidate_low, candidate_good]), \
                  patch.object(media_engine_v2.PROVIDER, "download", side_effect=download), \
                  patch.object(media_engine_v2, "validate_asset", side_effect=validate), \
+                 patch("media_visual_verifier.verify_image_requirements", return_value={"status": "PASS"}), \
                  patch.object(media_engine_v2, "_local_library_asset", return_value=None):
                 result = media_engine_v2.acquire_scene(
                     "X", 1, {"query": "ship", "must_have": ["ship"]}, media
@@ -103,6 +104,9 @@ class MediaEngineV2FailureTests(unittest.TestCase):
                 return_value={"sha256": media_engine_v2.sha256(destination), "probe": {"width": 1920, "height": 1080}},
             ), patch.object(
                 media_engine_v2, "_local_library_asset", return_value=None
+            ), patch(
+                "media_visual_verifier.verify_image_requirements",
+                return_value={"status": "PASS", "must": [], "avoid": []},
             ):
                 result = media_engine_v2.acquire_scene(
                     "X", 1, {"query": "long query", "must_have": ["ship"]}, media
@@ -110,7 +114,7 @@ class MediaEngineV2FailureTests(unittest.TestCase):
             self.assertEqual(search.call_args_list[1].args[0], "long query ship")
             self.assertEqual(result["must_hits"], 1)
             self.assertEqual(result["must_total"], 1)
-            self.assertEqual(result["verification_mode"], "strict_evidence_query_relaxed")
+            self.assertEqual(result["verification_mode"], "gemini_visual_must")
 
     def test_relaxed_query_does_not_accept_irrelevant_asset_even_if_must_matches(self):
         with tempfile.TemporaryDirectory() as td:
