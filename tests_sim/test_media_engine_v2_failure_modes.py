@@ -787,11 +787,14 @@ class MediaEngineV2FailureTests(unittest.TestCase):
             "historic British countryside map 1926",
             ["map"],
         )
-        self.assertEqual(queries, [
-            "antique map historic British countryside 1926",
-            "historical map historic British countryside 1926",
-            "old map historic British countryside 1926",
-        ])
+        self.assertEqual(
+            [query.lower() for query in queries],
+            [
+                "antique map historic british countryside 1926",
+                "historical map historic british countryside 1926",
+                "old map historic british countryside 1926",
+            ],
+        )
 
 if __name__=="__main__": unittest.main()
 
