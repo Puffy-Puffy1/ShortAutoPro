@@ -60,17 +60,17 @@ _DOCUMENT_TEXT_CONTEXT = re.compile(
 
 
 _BODY_VISUAL_CONTEXT = re.compile(
-    r"\\b(?:dead person|dead body|human body|body (?:was )?(?:found|lying)|"
-    r"corpse|victim|homem morto|mulher morta|corpo (?:foi achado|foi encontrado|encontrado))\\b",
+    r"\b(?:dead person|dead body|human body|body (?:was )?(?:found|lying)|"
+    r"corpse|victim|homem morto|mulher morta|corpo (?:foi achado|foi encontrado|encontrado))\b",
     re.IGNORECASE,
 )
 _CLOTHING_LABEL_CONTEXT = re.compile(
-    r"(?:\\b(?:clothing|garment|trouser|pants|shirt|fabric)\\b.{0,60}\\b(?:label|labels|tag|tags)\\b"
-    r"|\\b(?:label|labels|tag|tags)\\b.{0,60}\\b(?:clothing|garment|trouser|pants|shirt|fabric)\\b)",
+    r"(?:\b(?:clothing|garment|trouser|pants|shirt|fabric)\b.{0,60}\b(?:label|labels|tag|tags)\b"
+    r"|\b(?:label|labels|tag|tags)\b.{0,60}\b(?:clothing|garment|trouser|pants|shirt|fabric)\b)",
     re.IGNORECASE,
 )
 _ENCRYPTED_CODE_CONTEXT = re.compile(
-    r"\\b(?:code|cipher|cryptogram|encrypted|encryption|encoded message|secret handwriting)\\b",
+    r"\b(?:code|cipher|cryptogram|encrypted|encryption|encoded message|secret handwriting)\b",
     re.IGNORECASE,
 )
 
