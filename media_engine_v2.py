@@ -729,8 +729,9 @@ def _targeted_visual_search_queries(
     query: str,
     must: list[str],
     limit: int = 3,
+    avoid: list[str] | None = None,
 ) -> list[str]:
-    """Build a few contextual searches for MUST terms missing from a broad search."""
+    """Build bounded contextual searches that account for MUST/AVOID intent."""
     query_tokens = re.findall(r"[a-z0-9]+", str(query or "").casefold())
     query_token_set = set(query_tokens)
     must_tokens = {
@@ -850,6 +851,33 @@ def _targeted_visual_search_queries(
                     searches.append(targeted)
                 if len(searches) >= max_searches:
                     break
+
+    # When a scene asks for unusual/unknown writing and explicitly excludes
+    # English alphabet lettering, broaden retrieval toward manuscript/script
+    # vocabulary. These are search hints only; the unchanged pixel gate still
+    # has to prove the text is visible and the excluded alphabet is absent.
+    avoid_text = " ".join(str(item or "") for item in (avoid or [])).casefold()
+    text_context = " ".join([str(query or ""), *[str(item or "") for item in must]]).casefold()
+    non_english_script = (
+        "alphabet" in avoid_text
+        and "english" in avoid_text
+        and any(term in text_context for term in (
+            "text", "handwriting", "symbols", "script", "manuscript", "writing", "glyphs"
+        ))
+    )
+    if non_english_script:
+        variants = [
+            "unreadable handwritten script on aged parchment",
+            "cryptic symbols on antique manuscript page",
+            "unknown writing system parchment close-up",
+        ]
+        for targeted in variants:
+            key = targeted.casefold()
+            if targeted and key not in seen:
+                seen.add(key)
+                searches.append(targeted)
+            if len(searches) >= max_searches:
+                break
 
     return searches
 
@@ -1095,7 +1123,7 @@ def acquire_scene(
         # contextual anchors, then let the same pixel-level verifier decide.
         # Discovery is bounded; acceptance criteria are unchanged.
         if needs_targeted_retrieval(visual_pool):
-            for targeted_query in _targeted_visual_search_queries(query, must):
+            for targeted_query in _targeted_visual_search_queries(query, must, avoid=avoid):
                 try:
                     targeted_candidates = PROVIDER.search(
                         targeted_query,

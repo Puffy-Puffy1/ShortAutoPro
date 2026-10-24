@@ -922,6 +922,19 @@ class MediaEngineV2FailureTests(unittest.TestCase):
         self.assertTrue(any("tower" in query and "prison" in query and "interior" in query for query in queries))
         self.assertTrue(all(query.casefold() != "dark medieval stone prison tower interior" for query in queries))
 
+    def test_targeted_visual_search_searches_unknown_script_when_english_alphabet_is_avoided(self):
+        queries = media_engine_v2._targeted_visual_search_queries(
+            "strange handwriting symbols on aged parchment paper",
+            ["text"],
+            avoid=["alphabet english"],
+        )
+        self.assertLessEqual(len(queries), 3)
+        self.assertIn("text symbols aged parchment paper", queries)
+        self.assertTrue(any(
+            any(term in query.casefold() for term in ("unreadable", "cryptic", "unknown writing system"))
+            for query in queries
+        ), queries)
+
     def test_targeted_visual_search_queries_missing_must_with_context(self):
         queries = media_engine_v2._targeted_visual_search_queries(
             "plotting course on aeronautical navigation map",
