@@ -494,6 +494,16 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
             "steam locomotive in snow",
         ))
 
+    # Old Russian winter towns are frequently indexed by the houses/village,
+    # not the broad word "town". Search combinations only for the explicit
+    # three-anchor contract; the pixel verifier still decides acceptance.
+    must_set = {term.casefold() for term in must_terms}
+    if {"town", "snow", "wooden houses"} <= must_set:
+        candidates.extend((
+            "old Russian town with wooden houses in snow",
+            "Sverdlovsk winter village wooden houses",
+        ))
+
     # Preserve each explicit anchor as a standalone retrieval option.
     candidates.extend(must_terms)
 

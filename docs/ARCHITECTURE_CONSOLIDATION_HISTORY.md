@@ -351,3 +351,11 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - A versão do Media Engine foi elevada para `2.0.9` e incluída na impressão digital do contrato da cena. Isso invalida mídia em cache selecionada por política anterior e força a nova aquisição/verificação.
 - Testes adicionados para prioridade de objeto principal, consultas train/snow, impressão digital de política e fixtures de aquisição com evidência explícita.
 - A nova execução FIRST_VIDEO, a inspeção das mídias selecionadas e o FFprobe ainda precisam passar antes de declarar esta revisão concluída. Nenhum gate de MUST/AVOID foi reduzido.
+
+
+## 42. Recuperação para cidade russa no inverno — 24/10/2026
+
+- A execução FIRST_VIDEO `40052318151` passou pela cena 02, verificando visualmente o trem e a neve. A cena 03 então parou: a busca do Wikimedia retornou 100 resultados, mas os cinco candidatos verificados não mostravam simultaneamente cidade, neve e casas de madeira.
+- O roteador adiciona duas buscas específicas quando esses três MUSTs estão presentes: `old Russian town with wooden houses in snow` e `Sverdlovsk winter village wooden houses`. O limite geral de variantes permanece em oito.
+- Os candidatos continuam sujeitos à verificação independente de MUSTs/AVOID e, no fallback, ao verificador de pixels. A expansão só melhora a descoberta e não transforma uma imagem genérica em imagem aprovada.
+- O teste `test_russian_winter_town_query_gets_two_contextual_searches` protege as variantes contra regressão. A confirmação depende de uma nova execução FIRST_VIDEO com conteúdo e FFprobe aprovados.

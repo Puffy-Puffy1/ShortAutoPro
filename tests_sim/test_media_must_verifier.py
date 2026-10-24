@@ -312,3 +312,19 @@ class MediaMustVerifierTrainSnowSearchTests(unittest.TestCase):
         self.assertLessEqual(len(variants), 8)
         self.assertIn("train in snow", variants)
         self.assertIn("steam locomotive in snow", variants)
+
+
+
+class MediaMustVerifierRussianWinterTownSearchTests(unittest.TestCase):
+    def test_russian_winter_town_query_gets_two_contextual_searches(self):
+        variants = _query_variants(
+            "old russian town in sverdlovsk oblast winter aerial view",
+            ["town", "snow", "wooden houses"],
+        )
+        self.assertLessEqual(len(variants), 8)
+        self.assertEqual(
+            variants[0],
+            "old russian town in sverdlovsk oblast winter aerial view",
+        )
+        self.assertIn("old Russian town with wooden houses in snow", variants)
+        self.assertIn("Sverdlovsk winter village wooden houses", variants)
