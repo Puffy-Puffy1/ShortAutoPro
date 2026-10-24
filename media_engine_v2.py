@@ -511,6 +511,50 @@ def _visual_fallback_candidates(
     return ranked[:max(1, min(int(limit), MAX_VISUAL_FALLBACK_CANDIDATES))]
 
 
+
+_VISUAL_QUERY_STOPWORDS = {
+    "a", "an", "the", "of", "in", "on", "at", "by", "for", "from",
+    "and", "or", "to", "with", "after", "before", "during", "near",
+    "over", "under", "above", "below", "around", "about", "into",
+    "through", "is", "are", "was", "were", "be", "been", "being",
+}
+
+
+def _targeted_visual_search_queries(
+    query: str,
+    must: list[str],
+    limit: int = 3,
+) -> list[str]:
+    """Build a few contextual searches for MUST terms missing from a broad search."""
+    query_tokens = re.findall(r"[a-z0-9]+", str(query or "").casefold())
+    query_token_set = set(query_tokens)
+    must_tokens = {
+        token
+        for item in must
+        for token in re.findall(r"[a-z0-9]+", str(item or "").casefold())
+    }
+    context = [
+        token for token in query_tokens
+        if token not in _VISUAL_QUERY_STOPWORDS and token not in must_tokens
+    ][-4:]
+
+    searches = []
+    seen = set()
+    for item in must:
+        term = re.sub(r"\s+", " ", str(item or "")).strip()
+        term_tokens = set(re.findall(r"[a-z0-9]+", term.casefold()))
+        if not term or term_tokens <= query_token_set:
+            continue
+        targeted = " ".join([term, *context]).strip()
+        key = targeted.casefold()
+        if targeted and key not in seen:
+            seen.add(key)
+            searches.append(targeted)
+        if len(searches) >= max(1, min(int(limit), 3)):
+            break
+    return searches
+
+
 def acquire_scene(
     short_id: str,
     number: int,
@@ -667,12 +711,44 @@ def acquire_scene(
         # A strict candidate can still fail at download/format validation; in
         # that case, continue with another real image and require pixel-level
         # MUST/AVOID verification before accepting it.
+        visual_source = [*candidates, *relaxed]
         visual_pool = _visual_fallback_candidates(
             query,
-            [*candidates, *relaxed],
+            visual_source,
             must=must,
             limit=MAX_VISUAL_FALLBACK_CANDIDATES,
         )
+
+        # Broad provider searches can return many catalog matches but almost no
+        # images that show every MUST. Search missing MUST terms with a few
+        # contextual anchors, then let the same pixel-level verifier decide.
+        # Discovery is bounded; acceptance criteria are unchanged.
+        if len(visual_pool) < MAX_VISUAL_FALLBACK_CANDIDATES:
+            for targeted_query in _targeted_visual_search_queries(query, must):
+                try:
+                    targeted_candidates = PROVIDER.search(
+                        targeted_query,
+                        [],
+                        avoid,
+                        segmento=segment,
+                        visual_mode=visual_mode,
+                    )
+                except Exception as exc:
+                    print(
+                        f"MEDIA_TARGETED_SEARCH=ERROR scene={number:02d} "
+                        f"error={type(exc).__name__}"
+                    )
+                    continue
+                if targeted_candidates:
+                    visual_source.extend(targeted_candidates)
+                    visual_pool = _visual_fallback_candidates(
+                        query,
+                        visual_source,
+                        must=must,
+                        limit=MAX_VISUAL_FALLBACK_CANDIDATES,
+                    )
+                if len(visual_pool) >= MAX_VISUAL_FALLBACK_CANDIDATES:
+                    break
         strict_keys = {
             (
                 str(item.get("fonte") or item.get("source") or ""),

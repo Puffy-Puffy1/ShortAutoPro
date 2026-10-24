@@ -691,4 +691,92 @@ class MediaEngineV2FailureTests(unittest.TestCase):
             media_engine_v2._is_non_photographic_asset(candidate, "minimal walking person icon")
         )
 
+
+    def test_targeted_visual_search_queries_missing_must_with_context(self):
+        queries = media_engine_v2._targeted_visual_search_queries(
+            "plotting course on aeronautical navigation map",
+            ["map", "pencil"],
+        )
+        self.assertEqual(
+            queries,
+            ["pencil plotting course aeronautical navigation"],
+        )
+
+    def test_targeted_visual_search_recovers_asset_only_after_pixel_verification(self):
+        with tempfile.TemporaryDirectory() as td:
+            media = Path(td) / "media"
+            media.mkdir()
+            destination = media / "scene_06_wikimedia.jpg"
+            candidate = {
+                "fonte": "Wikimedia",
+                "id": "targeted-map-pencil",
+                "tipo": "image",
+                "url": "https://example.test/aeronautical-map-pencil.jpg",
+                "title": "Aeronautical navigation chart with pencil",
+                "descricao": "Aeronautical navigation chart with pencil",
+                "must_hits": 0,
+                "avoid_hits": 0,
+                "score": 50,
+            }
+
+            def download(item, _number, _sid):
+                destination.write_bytes(item["id"].encode("utf-8"))
+                return True, str(destination), {}
+
+            passed = {
+                "status": "PASS",
+                "method": "gemini_image_pixels",
+                "must": [
+                    {"anchor": "map", "visible": True, "confidence": 0.97},
+                    {"anchor": "pencil", "visible": True, "confidence": 0.96},
+                ],
+                "avoid": [],
+            }
+
+            with patch.object(
+                media_engine_v2.PROVIDER, "search", side_effect=[[], [], [candidate]]
+            ) as search, patch.object(
+                media_engine_v2.PROVIDER, "prepare", return_value=[]
+            ), patch(
+                "media_provider_router_v2.query_relevance",
+                return_value={
+                    "ok": True,
+                    "matched_terms": ["aeronautical", "navigation", "map", "pencil"],
+                    "matched_count": 4,
+                },
+            ), patch(
+                "media_must_verifier.verified_must",
+                return_value={"hits": 0, "total": 2, "matched": [], "missing": ["map", "pencil"]},
+            ), patch.object(
+                media_engine_v2.PROVIDER, "download", side_effect=download
+            ), patch.object(
+                media_engine_v2, "validate_asset",
+                side_effect=lambda path: {
+                    "sha256": media_engine_v2.sha256(Path(path)),
+                    "probe": {"width": 1920, "height": 1080},
+                },
+            ), patch.object(
+                media_engine_v2, "_local_library_asset", return_value=None
+            ), patch(
+                "media_visual_verifier.verify_image_requirements", return_value=passed
+            ):
+                result = media_engine_v2.acquire_scene(
+                    "X",
+                    6,
+                    {
+                        "query": "plotting course on aeronautical navigation map",
+                        "must_have": ["map", "pencil"],
+                        "avoid": ["tablet", "neon light"],
+                    },
+                    media,
+                )
+
+            self.assertEqual(
+                search.call_args_list[2].args[0],
+                "pencil plotting course aeronautical navigation",
+            )
+            self.assertEqual(result["asset_id"], "targeted-map-pencil")
+            self.assertEqual(result["verification_mode"], "gemini_visual_must")
+            self.assertEqual(result["visual_verification"]["status"], "PASS")
+
 if __name__=="__main__": unittest.main()
