@@ -494,17 +494,23 @@ class MediaEngineV2FailureTests(unittest.TestCase):
                     "probe": {"width": 1920, "height": 1080},
                 }
 
-            def verify(_path, must, avoid):
-                self.assertEqual(must, ["ocean", query])
+            def verify(_path, must, avoid, *, scene_intent=""):
+                self.assertEqual(must, ["ocean"])
                 self.assertEqual(avoid, ["ship", "boat"])
+                self.assertEqual(scene_intent, query)
                 return {
                     "status": "BLOCK",
-                    "reason": "must_visibility_failed",
+                    "reason": "scene_intent_mismatch",
                     "must": [
                         {"anchor": "ocean", "visible": True, "confidence": 0.98, "evidence": "ocean visible"},
-                        {"anchor": query, "visible": False, "confidence": 0.98, "evidence": "dolphins underwater, no empty horizon"},
                     ],
                     "avoid": [],
+                    "scene_match": {
+                        "intent": query,
+                        "matches": False,
+                        "confidence": 0.98,
+                        "evidence": "dolphins underwater, no empty horizon",
+                    },
                 }
 
             with patch.object(

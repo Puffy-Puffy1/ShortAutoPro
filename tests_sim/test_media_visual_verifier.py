@@ -76,6 +76,85 @@ class MediaVisualVerifierTests(unittest.TestCase):
         self.assertEqual(result["reason"], "avoid_visibility_failed")
 
     @patch("media_visual_verifier.generate_text")
+    def test_scene_intent_is_checked_as_composition_not_a_literal_object(self, generate):
+        payload = json.loads(self._payload())
+        payload["scene_match"] = {
+            "matches": True,
+            "confidence": 0.97,
+            "evidence": "A torn tent is centered in a snowy mountain landscape.",
+        }
+        generate.return_value = json.dumps(payload)
+        intent = "historic poetry manuscript page Edgar Allan Poe"
+        with tempfile.TemporaryDirectory() as directory:
+            result = verify_image_requirements(
+                self._image(directory),
+                ["torn tent", "snow"],
+                ["people"],
+                scene_intent=intent,
+            )
+        self.assertEqual(result["status"], "PASS")
+        self.assertEqual(result["scene_match"]["intent"], intent)
+        self.assertTrue(result["scene_match"]["matches"])
+        prompt = generate.call_args.args[0]
+        self.assertIn("high-level semantic match", prompt)
+        self.assertIn(intent, prompt)
+
+    @patch("media_visual_verifier.generate_text")
+    def test_blocks_scene_mismatch_even_when_must_objects_are_visible(self, generate):
+        payload = json.loads(self._payload())
+        payload["scene_match"] = {
+            "matches": False,
+            "confidence": 0.98,
+            "evidence": "Dolphins are underwater; there is no empty horizon.",
+        }
+        generate.return_value = json.dumps(payload)
+        with tempfile.TemporaryDirectory() as directory:
+            result = verify_image_requirements(
+                self._image(directory),
+                ["torn tent", "snow"],
+                ["people"],
+                scene_intent="empty ocean horizon aerial view",
+            )
+        self.assertEqual(result["status"], "BLOCK")
+        self.assertEqual(result["reason"], "scene_intent_mismatch")
+        self.assertFalse(result["scene_match"]["matches"])
+
+    @patch("media_visual_verifier.generate_text")
+    def test_scene_intent_requires_a_valid_scene_match_response(self, generate):
+        generate.return_value = self._payload()
+        with tempfile.TemporaryDirectory() as directory:
+            result = verify_image_requirements(
+                self._image(directory),
+                ["torn tent", "snow"],
+                ["people"],
+                scene_intent="historic manuscript page",
+            )
+        self.assertEqual(result["status"], "BLOCK")
+        self.assertEqual(result["reason"], "invalid_scene_match_schema")
+
+    @patch("media_visual_verifier.generate_text")
+    def test_scene_intent_can_be_verified_when_explicit_musts_are_empty(self, generate):
+        payload = json.loads(self._payload())
+        payload["must"] = []
+        payload["avoid"] = []
+        payload["scene_match"] = {
+            "matches": True,
+            "confidence": 0.96,
+            "evidence": "A historic manuscript page fills the frame.",
+        }
+        generate.return_value = json.dumps(payload)
+        with tempfile.TemporaryDirectory() as directory:
+            result = verify_image_requirements(
+                self._image(directory),
+                [],
+                [],
+                scene_intent="historic manuscript page",
+            )
+        self.assertEqual(result["status"], "PASS")
+        self.assertEqual(result["must"], [])
+        self.assertTrue(result["scene_match"]["matches"])
+
+    @patch("media_visual_verifier.generate_text")
     def test_blocks_uncertain_confidence_and_malformed_responses(self, generate):
         with tempfile.TemporaryDirectory() as directory:
             image = self._image(directory)

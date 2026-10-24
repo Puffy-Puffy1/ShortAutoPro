@@ -383,19 +383,6 @@ def _candidate_record(candidate: dict[str, Any], path: Path, probe: dict[str, An
     }
 
 
-def _visual_requirements(must: list[str], scene_intent: str) -> list[str]:
-    """Keep explicit MUSTs and require the downloaded image to depict the target scene."""
-    requirements: list[str] = []
-    seen: set[str] = set()
-    for raw in [*must, scene_intent]:
-        value = re.sub(r"\s+", " ", str(raw or "")).strip()
-        key = value.casefold()
-        if value and key not in seen:
-            seen.add(key)
-            requirements.append(value)
-    return requirements
-
-
 def _verify_scene_pixels(
     path: str | Path,
     must: list[str],
@@ -414,9 +401,14 @@ def _verify_scene_pixels(
         or kind in {"vídeo", "movie", "clip"}
         or asset_path.suffix.casefold() in {".mp4", ".mov", ".webm", ".mkv"}
     )
-    requirements = _visual_requirements(must, scene_intent)
+    requirements = [str(value).strip() for value in must if str(value).strip()]
     if not is_video:
-        return verify_image_requirements(asset_path, requirements, avoid)
+        return verify_image_requirements(
+            asset_path,
+            requirements,
+            avoid,
+            scene_intent=scene_intent,
+        )
 
     # Video clips remain supported, but metadata alone cannot prove their scene.
     # Extract one midpoint frame into a temporary directory and verify those pixels.
@@ -471,7 +463,12 @@ def _verify_scene_pixels(
                 "reason": "video_frame_extraction_failed",
             }
 
-        result = verify_image_requirements(frame_path, requirements, avoid)
+        result = verify_image_requirements(
+            frame_path,
+            requirements,
+            avoid,
+            scene_intent=scene_intent,
+        )
         return {
             **result,
             "video_sample": {

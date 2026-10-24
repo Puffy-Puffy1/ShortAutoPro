@@ -8,6 +8,7 @@ queries, filenames, or catalog descriptions as visual evidence.
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 from typing import Any
 
@@ -122,15 +123,59 @@ def _validated_rows(
 
     return checked, errors[0] if errors else ""
 
+
+def _validated_scene_match(
+    payload: dict[str, Any],
+    expected_intent: str,
+) -> tuple[dict[str, Any] | None, str]:
+    """Validate the high-level scene composition separately from object MUSTs."""
+    if not expected_intent:
+        return None, ""
+
+    row = payload.get("scene_match")
+    if not isinstance(row, dict):
+        return None, "invalid_scene_match_schema"
+
+    matches = row.get("matches")
+    confidence = row.get("confidence")
+    evidence = str(row.get("evidence") or "").strip()
+    if type(matches) is not bool:
+        return None, "scene_intent_match_uncertain"
+    if isinstance(confidence, bool) or not isinstance(confidence, (int, float)):
+        return None, "scene_intent_confidence_invalid"
+
+    confidence_value = float(confidence)
+    if not math.isfinite(confidence_value) or not 0.0 <= confidence_value <= 1.0:
+        return None, "scene_intent_confidence_invalid"
+
+    checked = {
+        "intent": expected_intent[:320],
+        "matches": matches,
+        "confidence": round(confidence_value, 3),
+        "evidence": evidence[:320],
+    }
+    if confidence_value < MIN_CONFIDENCE:
+        return checked, "scene_intent_confidence_below_threshold"
+    if not evidence:
+        return checked, "scene_intent_evidence_missing"
+    if not matches:
+        return checked, "scene_intent_mismatch"
+    return checked, ""
+
+
+
 def verify_image_requirements(
     path: str | Path,
     must: list[str],
     avoid: list[str],
+    *,
+    scene_intent: str = "",
 ) -> dict[str, Any]:
-    """Verify explicit visual requirements from pixels; uncertain responses block."""
+    """Verify visible objects and high-level scene intent independently."""
     requirements = [str(item).strip() for item in must if str(item).strip()]
     forbidden = [str(item).strip() for item in avoid if str(item).strip()]
-    if not requirements:
+    intent = str(scene_intent or "").strip()
+    if not requirements and not intent:
         return _blocked("must_requirements_empty")
 
     image = _read_image(Path(path))
@@ -138,30 +183,48 @@ def verify_image_requirements(
         return _blocked("image_missing_invalid_or_too_large")
     image_data, mime_type = image
 
-    # Do not pass topic, search query, filename, or provider metadata. The model
-    # receives only the actual image and the exact visible-object constraints.
-    prompt = (
-        "You are a strict visual evidence checker for a video production pipeline. "
-        "Judge only pixels in the attached image. Do not infer from the topic, "
-        "filename, search query, provider, historical context, or metadata. "
-        "For every MUST anchor, visible=true only if the requested object or scene "
-        "element is clearly visible. For every AVOID anchor, visible=true means "
-        "the forbidden element appears anywhere in the image. Return each requested "
-        "anchor exactly once, without adding or renaming anchors. If uncertain, use "
-        "confidence below 0.90. Evidence must describe an observable visual cue; "
-        "for an absent AVOID element, briefly state what is not visible. Return only "
-        "valid JSON with this exact shape: "
+    # The model receives only the actual image and grounded visual requirements.
+    # Scene intent is a composition check, not a literal phrase that must appear
+    # in the pixels or a separate list of every word in the query.
+    schema = (
         '{"must":[{"anchor":"...","visible":true,"confidence":0.95,"evidence":"..."}],'
-        '"avoid":[{"anchor":"...","visible":false,"confidence":0.95,"evidence":"..."}]}. '
-        "Requested constraints: "
-        + json.dumps({"must": requirements, "avoid": forbidden}, ensure_ascii=False)
+        '"avoid":[{"anchor":"...","visible":false,"confidence":0.95,"evidence":"..."}]'
     )
+    if intent:
+        schema += ',"scene_match":{"matches":true,"confidence":0.95,"evidence":"..." }'
+    schema += "}"
+
+    instructions = (
+        "You are a strict visual evidence checker for a video production pipeline. "
+        "Judge only pixels in the attached image. Do not infer from filenames, provider "
+        "metadata, search results, or unstated historical knowledge. For each MUST "
+        "anchor, visible=true only when that object is clearly visible. For each AVOID "
+        "anchor, visible=true means the forbidden element appears anywhere. Return each "
+        "requested anchor exactly once. Evidence must describe an observable visual cue. "
+        "Use confidence below 0.90 when uncertain. "
+    )
+    if intent:
+        instructions += (
+            "Also compare the image's overall subject, setting, and visible composition "
+            "with the provided scene intent. This is a high-level semantic match, not a "
+            "literal text match: do not require every adjective or proper name to be "
+            "physically visible unless it names a central depicted object. Set matches=true "
+            "only when the image genuinely depicts the described kind of scene. For example, "
+            "underwater dolphins do not match an empty ocean horizon, even though both involve "
+            "the ocean. Cite visual evidence in the scene_match field. "
+        )
+
+    constraints = {"must": requirements, "avoid": forbidden}
+    if intent:
+        constraints["scene_intent"] = intent
+    prompt = instructions + "Return only valid JSON with this exact shape: " + schema + ". "
+    prompt += "Requested constraints: " + json.dumps(constraints, ensure_ascii=False)
 
     try:
         raw = generate_text(
             prompt,
             temperature=0.0,
-            max_output_tokens=900,
+            max_output_tokens=1100,
             response_mime_type="application/json",
             component="Media Visual Verifier",
             image_data=image_data,
@@ -176,12 +239,14 @@ def verify_image_requirements(
 
     must_rows, must_error = _validated_rows(payload, "must", requirements, True)
     avoid_rows, avoid_error = _validated_rows(payload, "avoid", forbidden, False)
+    scene_match, scene_error = _validated_scene_match(payload, intent)
     if must_error:
         return _blocked(
             must_error,
             mime_type,
             must=must_rows or [],
             avoid=avoid_rows or [],
+            scene_match=scene_match,
         )
     if avoid_error:
         return _blocked(
@@ -189,16 +254,28 @@ def verify_image_requirements(
             mime_type,
             must=must_rows or [],
             avoid=avoid_rows or [],
+            scene_match=scene_match,
+        )
+    if scene_error:
+        return _blocked(
+            scene_error,
+            mime_type,
+            must=must_rows or [],
+            avoid=avoid_rows or [],
+            scene_match=scene_match,
         )
 
-    return {
+    result = {
         "status": "PASS",
         "method": "gemini_image_pixels",
         "mime_type": mime_type,
         "confidence_threshold": MIN_CONFIDENCE,
-        "must": must_rows,
+        "must": must_rows or [],
         "avoid": avoid_rows or [],
     }
+    if scene_match is not None:
+        result["scene_match"] = scene_match
+    return result
 
 
 __all__ = ["verify_image_requirements", "MAX_IMAGE_BYTES", "MIN_CONFIDENCE"]
