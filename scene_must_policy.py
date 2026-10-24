@@ -116,6 +116,24 @@ def normalize_visual_musts(
         manuscript_context = bool(_MANUSCRIPT_CONTEXT.search(item_context))
         key = original.casefold()
 
+        # In a ski-expedition scene, the people and snowy setting are the
+        # defining anchors. Backpacks and equipment details stay preferences
+        # so one stock image is not required to prove four separate objects.
+        ski_core_is_present = (
+            bool(re.search(r"\\b(?:skier|skiers)\\b", " ".join(other_values), re.IGNORECASE))
+            and bool(_SNOW_CONTEXT.search(item_context))
+        )
+        if (
+            ski_core_is_present
+            and key in {"backpack", "backpacks", "winter gear", "ski equipment", "skis"}
+        ):
+            events.append({
+                "from": original,
+                "to": f"preferred:{original}",
+                "reason": "UNSUPPORTED_VISUAL_DETAIL_PREFERENCE",
+            })
+            continue
+
         # Paper texture is an editorial style, not a separate visible object.
         # In a map scene keep it as a preference while still requiring the map
         # itself to pass pixel verification.

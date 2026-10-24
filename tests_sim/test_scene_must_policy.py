@@ -375,6 +375,32 @@ class SceneMustPolicyTests(unittest.TestCase):
         self.assertEqual(anchors, ["town", "snow", "wooden houses"])
         self.assertEqual(events, [])
 
+    def test_ski_scene_keeps_people_and_snow_as_musts(self):
+        anchors, events = normalize_visual_musts(
+            ["skiers", "snow", "backpacks", "winter gear"],
+            context="group of vintage skiers on snowy mountain expedition",
+        )
+        self.assertEqual(anchors, ["skiers", "snow"])
+        self.assertEqual(
+            [(event["from"], event["to"]) for event in events],
+            [
+                ("backpacks", "preferred:backpacks"),
+                ("winter gear", "preferred:winter gear"),
+            ],
+        )
+        self.assertTrue(all(
+            event["reason"] == "UNSUPPORTED_VISUAL_DETAIL_PREFERENCE"
+            for event in events
+        ))
+
+    def test_ski_equipment_can_remain_required_without_people_and_snow_context(self):
+        anchors, events = normalize_visual_musts(
+            ["ski equipment"],
+            context="close-up of ski equipment in a shop",
+        )
+        self.assertEqual(anchors, ["ski equipment"])
+        self.assertEqual(events, [])
+
     def test_vintage_paper_texture_becomes_preference_for_map_scenes(self):
         anchors, events = normalize_visual_musts(
             ["map", "vintage paper texture"],
