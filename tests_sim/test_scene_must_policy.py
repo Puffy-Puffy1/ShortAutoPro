@@ -375,10 +375,6 @@ class SceneMustPolicyTests(unittest.TestCase):
         self.assertEqual(anchors, ["town", "snow", "wooden houses"])
         self.assertEqual(events, [])
 
-
-if __name__ == "__main__":
-    unittest.main()
-
     def test_vintage_paper_texture_becomes_preference_for_map_scenes(self):
         anchors, events = normalize_visual_musts(
             ["map", "vintage paper texture"],
@@ -398,3 +394,10 @@ if __name__ == "__main__":
         )
         self.assertEqual(anchors, ["vintage paper texture"])
         self.assertEqual(events, [])
+
+if __name__ == "__main__":
+    unittest.main()
+
+
+
+

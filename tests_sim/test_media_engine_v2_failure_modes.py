@@ -782,8 +782,6 @@ class MediaEngineV2FailureTests(unittest.TestCase):
             self.assertEqual(result["verification_mode"], "gemini_visual_must")
             self.assertEqual(result["visual_verification"]["status"], "PASS")
 
-if __name__=="__main__": unittest.main()
-
     def test_targeted_map_search_uses_archival_catalog_synonyms(self):
         queries = media_engine_v2._targeted_visual_search_queries(
             "historic British countryside map 1926",
@@ -794,3 +792,7 @@ if __name__=="__main__": unittest.main()
             "historical map historic British countryside 1926",
             "old map historic British countryside 1926",
         ])
+
+if __name__=="__main__": unittest.main()
+
+
