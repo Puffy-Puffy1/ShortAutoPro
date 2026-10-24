@@ -331,3 +331,13 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - Foi adicionado `first_video_run_contract.py`: só classifica o resultado como prova de geração válida se existir MP4 não vazio, o relatório corresponder ao mesmo `short_id` e o único bloqueio for a exigência explícita de aprovação humana. Falta de MP4, relatório ausente, código inesperado ou qualquer bloqueio adicional continuam falhando.
 - O workflow mantém a validação FFprobe separada e inclui os relatórios de release/qualidade no artefato de evidências. O código não altera a decisão do release gate, não aprova publicação e não usa `continue-on-error`.
 - `tests_sim/test_first_video_run_contract.py` cobre o caminho de aprovação humana e os casos negativos para MP4 ausente/vazio, identidade divergente, bloqueios adicionais e decisão de release conflitante.
+
+
+## 40. Verificação independente de MUSTs e reforço dos objetos centrais — 24/10/2026
+
+- A inspeção do MP4 `gha_40050143538_1` confirmou que renderização e FFprobe funcionavam, mas algumas imagens ilustrativas eram genéricas: uma pintura de areia foi aceita para uma narração sobre corpo encontrado na praia, e uma carta genérica para uma cena sobre código criptografado.
+- Causa principal no caminho estrito: `MediaProviderV2.prepare()` aceitava `must_hits` calculado pelo provedor e `media_engine_v2.acquire_scene()` não revalidava de forma independente cada MUST antes do download.
+- Correção: todo candidato estrito agora passa por `media_must_verifier.verified_must()` usando os metadados do próprio recurso. `must_hits` do provedor é apenas uma pista; qualquer MUST ausente rejeita o candidato e mantém a busca/fallback de verificação visual.
+- A normalização reforça objetos explícitos na narração/consulta: pessoa em cenas sobre corpo morto/encontrado, etiqueta em roupas com etiqueta removida e código em cenas criptografadas. O contexto considera consulta e segmento narrado.
+- Testes de regressão verificam que um `must_hits` falso nunca chega ao download, que objetos principais são acrescentados quando indicados e que uma paisagem de praia genérica não ganha um requisito de pessoa sem contexto.
+- Nenhum gate de qualidade ou aprovação foi reduzido. É necessária nova execução FIRST_VIDEO, análise da mídia selecionada e aprovação FFprobe; gerar um MP4 técnico não basta para aprovar o conteúdo.

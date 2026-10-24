@@ -59,6 +59,22 @@ _DOCUMENT_TEXT_CONTEXT = re.compile(
 )
 
 
+_BODY_VISUAL_CONTEXT = re.compile(
+    r"\\b(?:dead person|dead body|human body|body (?:was )?(?:found|lying)|"
+    r"corpse|victim|homem morto|mulher morta|corpo (?:foi achado|foi encontrado|encontrado))\\b",
+    re.IGNORECASE,
+)
+_CLOTHING_LABEL_CONTEXT = re.compile(
+    r"(?:\\b(?:clothing|garment|trouser|pants|shirt|fabric)\\b.{0,60}\\b(?:label|labels|tag|tags)\\b"
+    r"|\\b(?:label|labels|tag|tags)\\b.{0,60}\\b(?:clothing|garment|trouser|pants|shirt|fabric)\\b)",
+    re.IGNORECASE,
+)
+_ENCRYPTED_CODE_CONTEXT = re.compile(
+    r"\\b(?:code|cipher|cryptogram|encrypted|encryption|encoded message|secret handwriting)\\b",
+    re.IGNORECASE,
+)
+
+
 def normalize_visual_musts(
     value: Any,
     context: str = "",
@@ -160,5 +176,28 @@ def normalize_visual_musts(
         if anchor_key not in seen:
             seen.add(anchor_key)
             normalized.append(anchor)
+
+    # Require scene-defining details that are explicit in the prompt/narration
+    # but often missing from generic MUST lists. These are hard requirements.
+    body_subjects = {"person", "people", "man", "woman", "body", "dead body", "human body", "corpse", "victim", "dead person"}
+    if _BODY_VISUAL_CONTEXT.search(str(context or "")) and not any(
+        anchor.casefold() in body_subjects for anchor in normalized
+    ):
+        normalized.append("person")
+        events.append({"from": "scene context", "to": "person", "reason": "CONTEXTUAL_VISIBLE_PERSON_ANCHOR"})
+
+    label_anchors = {"label", "labels", "tag", "tags", "clothing label"}
+    if _CLOTHING_LABEL_CONTEXT.search(str(context or "")) and not any(
+        anchor.casefold() in label_anchors for anchor in normalized
+    ):
+        normalized.append("label")
+        events.append({"from": "scene context", "to": "label", "reason": "CONTEXTUAL_CLOTHING_LABEL_ANCHOR"})
+
+    code_anchors = {"code", "cipher", "cryptogram", "encoded message"}
+    if _ENCRYPTED_CODE_CONTEXT.search(str(context or "")) and not any(
+        anchor.casefold() in code_anchors for anchor in normalized
+    ):
+        normalized.append("code")
+        events.append({"from": "scene context", "to": "code", "reason": "CONTEXTUAL_ENCRYPTED_CODE_ANCHOR"})
 
     return normalized, events

@@ -472,4 +472,43 @@ class MediaEngineV2FailureTests(unittest.TestCase):
                     )
             self.assertFalse(destination.exists())
 
+    def test_strict_provider_must_hits_are_reverified_against_asset_metadata(self):
+        with tempfile.TemporaryDirectory() as td:
+            media = Path(td) / "media"
+            media.mkdir()
+            candidate = {
+                "fonte": "Wikimedia",
+                "id": "forged-must-hits",
+                "tipo": "image",
+                "url": "https://example.test/documents.jpg",
+                "title": "Old paper documents on a table",
+                "descricao": "Archival documents and paper pages",
+                "must_hits": 1,
+                "avoid_hits": 0,
+                "score": 100,
+                "query_relevance": {
+                    "ok": True, "matched_terms": ["ship", "ocean"],
+                    "matched_count": 2, "query_term_count": 4,
+                    "required_terms": 1, "ratio": 0.5,
+                },
+            }
+            with patch.object(
+                media_engine_v2.PROVIDER, "search", side_effect=[[candidate], [candidate]]
+            ), patch.object(
+                media_engine_v2.PROVIDER, "prepare", return_value=[candidate]
+            ), patch.object(
+                media_engine_v2, "_visual_fallback_candidates", return_value=[]
+            ), patch.object(
+                media_engine_v2, "_local_library_asset", return_value=None
+            ), patch.object(
+                media_engine_v2.PROVIDER, "download"
+            ) as download:
+                with self.assertRaisesRegex(RuntimeError, "MEDIA_INCOMPLETE"):
+                    media_engine_v2.acquire_scene(
+                        "X", 1,
+                        {"query": "historic ship crossing open ocean", "must_have": ["ship"]},
+                        media,
+                    )
+            download.assert_not_called()
+
 if __name__=="__main__": unittest.main()

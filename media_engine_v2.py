@@ -224,10 +224,12 @@ def load_scene_map(short_id: str) -> list[dict[str, Any]]:
         if scene_id in seen_ids:
             raise RuntimeError(f"MEDIA_INPUT_INVALID:scene_{index:02d}:duplicate_scene_id")
         scene_query = str(scene.get("query") or scene.get("busca") or scene.get("segment") or "").strip()
+        scene_segment = str(scene.get("segment") or "").strip()
+        scene_context = " ".join(part for part in (scene_query, scene_segment) if part)
         raw_musts = scene.get("must_have") or []
         musts, events = normalize_visual_musts(
             raw_musts,
-            context=scene_query,
+            context=scene_context,
         )
         scene["must_have"] = musts
         if events:
@@ -463,13 +465,44 @@ def acquire_scene(
         candidate["_sap_short_id"] = short_id
         candidate["_sap_scene_number"] = number
         candidate["_sap_scene_contract_fingerprint"] = contract_fingerprint
-    strict = [
-        candidate for candidate in PROVIDER.prepare(candidates, len(must))
-        if not isinstance(candidate.get("query_relevance"), dict)
-        or candidate["query_relevance"].get("ok") is True
-    ]
-    for candidate in strict:
+    strict: list[dict[str, Any]] = []
+    strict_metadata_rejections: list[str] = []
+    prepared_candidates = PROVIDER.prepare(candidates, len(must))
+    verifier = None
+    if must and prepared_candidates:
+        from media_must_verifier import verified_must
+        verifier = verified_must
+
+    for raw_candidate in prepared_candidates:
+        if not isinstance(raw_candidate, dict):
+            continue
+        relevance = raw_candidate.get("query_relevance")
+        if isinstance(relevance, dict) and relevance.get("ok") is not True:
+            continue
+        candidate = dict(raw_candidate)
+        if must:
+            # Provider must_hits is a ranking hint, never independent proof.
+            evidence = verifier(candidate, {"must_have": must}) if verifier else {
+                "hits": 0, "missing": list(must)
+            }
+            hits = int(evidence.get("hits", 0) or 0)
+            if hits != len(must):
+                missing = evidence.get("missing", must)
+                strict_metadata_rejections.append(
+                    f"{candidate.get('fonte', candidate.get('source', '?'))}:"
+                    f"{candidate.get('id', '?')}:"
+                    f"{hits}/{len(must)}:missing={','.join(map(str, missing))}"
+                )
+                continue
+            candidate["_sap_provider_must_hits"] = int(candidate.get("must_hits", 0) or 0)
+            candidate["_sap_metadata_must_hits"] = hits
+            candidate["must_hits"] = hits
+            candidate["_sap_must_total"] = len(must)
+            candidate["verification_mode"] = "strict_must"
+            candidate["verification_note"] = "provider_must_hits_reverified_against_asset_metadata"
         candidate["_sap_scene_contract_fingerprint"] = contract_fingerprint
+        strict.append(candidate)
+
     verification_mode = "strict_must" if strict else ""
 
     # If the editorial query was too restrictive, a second retrieval may use
@@ -687,9 +720,12 @@ def acquire_scene(
             f"candidates={len(candidates)};"
             f"strict={len(strict)};"
             f"providers={','.join(providers) or '-'};"
+            f"strict_metadata_rejected={len(strict_metadata_rejections)};"
             f"relaxed={len(relaxed)};"
             f"verified_relaxed={len(verified_relaxed) if must else 0}"
         )
+        if strict_metadata_rejections:
+            diagnostic += ";strict_metadata_evidence=" + "|".join(strict_metadata_rejections[:5])
         diagnostic += (
             f";query_relevance_rejected={query_relevance_rejected};"
             f"relaxed_query_relevance_rejected={relaxed_query_relevance_rejected}"

@@ -315,5 +315,45 @@ class SceneMustPolicyTests(unittest.TestCase):
         self.assertEqual(events[0]["from"], "dark horizon")
 
 
+    def test_dead_body_scene_adds_a_visible_person_anchor(self):
+        anchors, events = normalize_visual_musts(
+            ["beach", "sand", "ocean"],
+            context="dead person body lying on empty beach sand 1948",
+        )
+        self.assertEqual(anchors, ["beach", "sand", "ocean", "person"])
+        self.assertEqual(events[-1]["reason"], "CONTEXTUAL_VISIBLE_PERSON_ANCHOR")
+
+    def test_found_body_scene_adds_person_when_query_context_includes_narration(self):
+        anchors, events = normalize_visual_musts(
+            ["ocean", "shoreline"],
+            context="coastal Australian beach shore landscape ocean view; the body was found on the shore",
+        )
+        self.assertEqual(anchors, ["ocean", "shoreline", "person"])
+        self.assertEqual(events[-1]["reason"], "CONTEXTUAL_VISIBLE_PERSON_ANCHOR")
+
+    def test_removed_clothing_label_becomes_an_explicit_visual_anchor(self):
+        anchors, events = normalize_visual_musts(
+            ["clothing", "fabric"],
+            context="clothing fabric label removed vintage trousers closeup",
+        )
+        self.assertEqual(anchors, ["clothing", "fabric", "label"])
+        self.assertEqual(events[-1]["reason"], "CONTEXTUAL_CLOTHING_LABEL_ANCHOR")
+
+    def test_encrypted_text_adds_a_code_anchor(self):
+        anchors, events = normalize_visual_musts(
+            ["paper", "handwriting"],
+            context="mysterious handwritten code on old paper; encrypted text on a rare book cover",
+        )
+        self.assertEqual(anchors, ["paper", "handwriting", "code"])
+        self.assertEqual(events[-1]["reason"], "CONTEXTUAL_ENCRYPTED_CODE_ANCHOR")
+
+    def test_generic_beach_does_not_invent_a_human_subject(self):
+        anchors, events = normalize_visual_musts(
+            ["ocean", "shoreline"],
+            context="coastal Australian beach shore landscape ocean view 1940s",
+        )
+        self.assertEqual(anchors, ["ocean", "shoreline"])
+        self.assertEqual(events, [])
+
 if __name__ == "__main__":
     unittest.main()
