@@ -322,7 +322,7 @@ class Pipeline:
                         if stream_value:
                             lines = str(stream_value).splitlines()
                             print(f"SAP_STAGE_DIAGNOSTIC stage={file} stream={stream_name} lines={len(lines)}")
-                            print("\\n".join(lines[-80:]))
+                            print("\n".join(lines[-80:]))
             except subprocess.TimeoutExpired as exc:
                 elapsed = time.monotonic() - start
                 self.checkpoint(file, "fail", title, elapsed)
