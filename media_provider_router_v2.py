@@ -434,6 +434,23 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
     if must_terms:
         candidates.append(" ".join(must_terms))
 
+    # Historical/abandoned ship scenes are often indexed as "ghost ship",
+    # "sailing vessel", or "old sailing ship" rather than by the full editorial
+    # sentence. Add these contextual searches before generic aliases so the
+    # bounded query budget does not discard them. MUST/AVOID verification stays strict.
+    must_set = {term.casefold() for term in must_terms}
+    if "ship" in must_set and re.search(
+        r"\b(?:ocean|sea|sailing|vintage|abandoned|drifting|ghost)\b",
+        raw,
+        re.IGNORECASE,
+    ):
+        candidates.extend((
+            "abandoned sailing ship at sea",
+            "old sailing vessel at sea",
+            "ghost ship in the ocean",
+            "historic sailing ship ocean",
+        ))
+
     # Expand aliases in context before falling back to single-word searches.
     # This helps catalogs that index alternate labels but preserves the scene.
     for term in must_terms:
