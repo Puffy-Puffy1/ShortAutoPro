@@ -912,6 +912,16 @@ class MediaEngineV2FailureTests(unittest.TestCase):
         self.assertIn("snowy train tracks vintage passenger traveling", queries)
         self.assertIn("train in snow tracks vintage passenger traveling", queries)
 
+    def test_targeted_visual_search_rephrases_single_must_when_already_in_query(self):
+        queries = media_engine_v2._targeted_visual_search_queries(
+            "dark medieval stone prison tower interior",
+            ["tower"],
+        )
+        self.assertLessEqual(len(queries), 3)
+        self.assertTrue(queries)
+        self.assertTrue(any("tower" in query and "prison" in query and "interior" in query for query in queries))
+        self.assertTrue(all(query.casefold() != "dark medieval stone prison tower interior" for query in queries))
+
     def test_targeted_visual_search_queries_missing_must_with_context(self):
         queries = media_engine_v2._targeted_visual_search_queries(
             "plotting course on aeronautical navigation map",

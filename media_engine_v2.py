@@ -794,6 +794,35 @@ def _targeted_visual_search_queries(
             if len(searches) >= max_searches:
                 break
 
+    # If the only MUST is already in a very specific query, but its candidates
+    # fail pixel/scene verification, offer a few reordered phrasings using the
+    # same scene concepts. This is discovery only; no candidate bypasses pixels.
+    is_map_special_case = (
+        len(must_text) == 1
+        and must_text[0].casefold() == "map"
+        and re.search(r"\bmap\b", str(query or ""), re.IGNORECASE)
+    )
+    if not searches and must_text and not is_map_special_case:
+        object_phrase = " ".join(must_text)
+        context_terms = [
+            token for token in query_tokens
+            if token not in _VISUAL_QUERY_STOPWORDS and token not in must_tokens
+        ]
+        if context_terms:
+            context_tail = context_terms[-3:]
+            variants = [
+                " ".join([*context_tail, object_phrase]).strip(),
+                " ".join([object_phrase, *context_tail]).strip(),
+                " ".join([context_terms[0], object_phrase, *context_terms[1:]]).strip(),
+            ]
+            for targeted in variants:
+                key = targeted.casefold()
+                if targeted and key not in seen:
+                    seen.add(key)
+                    searches.append(targeted)
+                if len(searches) >= max_searches:
+                    break
+
     return searches
 
 
