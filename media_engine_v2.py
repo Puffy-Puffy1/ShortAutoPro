@@ -23,7 +23,7 @@ from typing import Any
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", Path.home() / "ShortAutoPro")).resolve()
 MEDIA_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".webm", ".mkv"}
-ENGINE_VERSION = "2.0.10"
+ENGINE_VERSION = "2.0.11"
 MIN_VISUAL_PIXELS = 320 * 180
 MAX_VISUAL_FALLBACK_CANDIDATES = 5
 
@@ -66,6 +66,30 @@ def _relaxed_relevance_acceptable(
         and str(term).casefold() not in weak_context_terms
     ]
     return bool(contextual_matches)
+
+
+_NON_PHOTOGRAPHIC_METADATA = re.compile(
+    r"\\b(?:icons?|logos?|pictograms?|clipart|glyphs?|pinhead|svg)\\b",
+    re.IGNORECASE,
+)
+_NON_PHOTOGRAPHIC_QUERY = re.compile(
+    r"\\b(?:icons?|logos?|pictograms?|clipart|glyphs?|vector\\s+graphics?)\\b",
+    re.IGNORECASE,
+)
+
+
+def _is_non_photographic_asset(candidate: dict[str, Any], query: str) -> bool:
+    """Reject icon-library artwork for ordinary documentary/photo scene requests."""
+    if _NON_PHOTOGRAPHIC_QUERY.search(str(query or "")):
+        return False
+    metadata = " ".join(
+        str(candidate.get(key) or "")
+        for key in (
+            "title", "name", "descricao", "description", "image_description",
+            "image_title", "tags", "filename", "url",
+        )
+    )
+    return bool(_NON_PHOTOGRAPHIC_METADATA.search(metadata))
 
 
 def _asset_name_is_forbidden(path: Path) -> bool:
@@ -417,6 +441,8 @@ def _visual_fallback_candidates(
     for candidate in candidates:
         if not isinstance(candidate, dict):
             continue
+        if _is_non_photographic_asset(candidate, query):
+            continue
         kind = str(candidate.get("tipo") or candidate.get("asset_type") or "").strip().casefold()
         if kind.startswith("video") or kind in {"vídeo", "movie", "clip"}:
             continue
@@ -537,6 +563,12 @@ def acquire_scene(
         if isinstance(relevance, dict) and relevance.get("ok") is not True:
             continue
         candidate = dict(raw_candidate)
+        if _is_non_photographic_asset(candidate, query):
+            strict_metadata_rejections.append(
+                f"{candidate.get('fonte', candidate.get('source', '?'))}:"
+                f"{candidate.get('id', '?')}:non_photographic_icon_asset"
+            )
+            continue
         if must:
             # Provider must_hits is a ranking hint, never independent proof.
             evidence = verifier(candidate, {"must_have": must}) if verifier else {
@@ -591,6 +623,12 @@ def acquire_scene(
 
         if verifier is not None:
             for candidate in relaxed:
+                if _is_non_photographic_asset(candidate, query):
+                    relaxed_evidence_diagnostics.append(
+                        f"{candidate.get('fonte', candidate.get('source', '?'))}:"
+                        f"{candidate.get('id', '?')}:non_photographic_icon_asset"
+                    )
+                    continue
                 # Verify the explicit MUST first. A fallback candidate with
                 # complete semantic proof may pass on one contextual query
                 # anchor; the primary search still uses the normal threshold.
