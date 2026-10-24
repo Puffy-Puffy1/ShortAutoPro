@@ -478,6 +478,33 @@ class MediaEngineV2FailureTests(unittest.TestCase):
                     )
             self.assertFalse(destination.exists())
 
+    def test_visual_fallback_prioritizes_primary_must_over_background_only_hits(self):
+        candidates = [
+            {
+                "fonte": "Wikimedia", "id": "snow-background", "tipo": "image",
+                "url": "https://example.test/snow.jpg",
+                "title": "Vintage snow-covered mountain winter landscape with drifting snow",
+                "descricao": "Vintage snow-covered mountain winter landscape with drifting snow",
+                "must_hits": 1, "avoid_hits": 0, "score": 100,
+            },
+            {
+                "fonte": "Wikimedia", "id": "train-in-winter", "tipo": "image",
+                "url": "https://example.test/train.jpg",
+                "title": "A vintage train crossing a winter landscape",
+                "descricao": "A vintage train crossing a winter landscape",
+                "must_hits": 1, "avoid_hits": 0, "score": 50,
+            },
+        ]
+        selected = media_engine_v2._visual_fallback_candidates(
+            "vintage train traveling through snow winter landscape",
+            candidates,
+            must=["train", "snow"],
+            limit=5,
+        )
+        self.assertTrue(selected, "the test candidates should be eligible for pixel verification")
+        self.assertEqual(selected[0]["id"], "train-in-winter")
+        self.assertLessEqual(len(selected), 5)
+
     def test_strict_provider_must_hits_are_reverified_against_asset_metadata(self):
         with tempfile.TemporaryDirectory() as td:
             media = Path(td) / "media"

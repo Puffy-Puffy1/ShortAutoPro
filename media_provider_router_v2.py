@@ -485,6 +485,15 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
             "pilot radio headset",
         ))
 
+    # Winter railway photos are often catalogued as locomotives, with snow
+    # treated as a separate tag. These searches improve discovery only.
+    must_set = {term.casefold() for term in must_terms}
+    if {"train", "snow"} <= must_set:
+        candidates.extend((
+            "train in snow",
+            "steam locomotive in snow",
+        ))
+
     # Preserve each explicit anchor as a standalone retrieval option.
     candidates.extend(must_terms)
 

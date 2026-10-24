@@ -300,3 +300,15 @@ class MediaMustVerifierAviationNightSearchTests(unittest.TestCase):
         self.assertEqual(variants[0], "small airplane flying over dark ocean at night")
         self.assertIn("airplane over ocean at night", variants)
         self.assertIn("aircraft over sea at night", variants)
+
+
+
+class MediaMustVerifierTrainSnowSearchTests(unittest.TestCase):
+    def test_train_and_snow_query_expansion_preserves_contextual_fallbacks(self):
+        variants = _query_variants(
+            "vintage train traveling through snow winter landscape",
+            ["train", "snow"],
+        )
+        self.assertLessEqual(len(variants), 8)
+        self.assertIn("train in snow", variants)
+        self.assertIn("steam locomotive in snow", variants)

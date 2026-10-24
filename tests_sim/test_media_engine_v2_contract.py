@@ -257,6 +257,19 @@ class MediaEngineContractTests(unittest.TestCase):
             media_engine_v2._scene_contract_fingerprint(changed),
         )
 
+    def test_scene_contract_fingerprint_tracks_verification_policy_version(self):
+        scene = {
+            "query": "ship in snow",
+            "segment": "A train crosses snowy terrain",
+            "visual_mode": "object",
+            "must_have": ["train", "snow"],
+            "avoid": [],
+        }
+        original = media_engine_v2._scene_contract_fingerprint(scene)
+        with patch.object(media_engine_v2, "ENGINE_VERSION", "policy-next"):
+            changed = media_engine_v2._scene_contract_fingerprint(scene)
+        self.assertNotEqual(original, changed)
+
     def test_cached_asset_is_rejected_when_scene_contract_changes(self):
         with tempfile.TemporaryDirectory() as td:
             media_dir = Path(td) / "short_TEST_CACHE"

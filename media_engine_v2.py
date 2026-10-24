@@ -23,8 +23,9 @@ from typing import Any
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", Path.home() / "ShortAutoPro")).resolve()
 MEDIA_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".webm", ".mkv"}
-ENGINE_VERSION = "2.0.8"
+ENGINE_VERSION = "2.0.9"
 MIN_VISUAL_PIXELS = 320 * 180
+MAX_VISUAL_FALLBACK_CANDIDATES = 5
 
 
 def _resolution_issue(probe: dict[str, Any]) -> str | None:
@@ -101,6 +102,8 @@ def _scene_contract_fingerprint(scene: dict[str, Any]) -> str:
     segment = str(scene.get("segment") or "")
     visual_mode = str(scene.get("visual_mode") or scene.get("modo_visual") or "")
     payload = {
+        # Versioned identity invalidates media cached under older verification policy.
+        "engine_version": ENGINE_VERSION,
         "query": re.sub(r"\s+", " ", query).strip().casefold(),
         "segment": re.sub(r"\s+", " ", segment).strip().casefold(),
         "visual_mode": re.sub(r"\s+", " ", visual_mode).strip().casefold(),
@@ -415,7 +418,24 @@ def _visual_fallback_candidates(
         # Copy only eligible candidates: a rejected result must not be mutated
         # and affect a later retry or a different acquisition attempt.
         candidate = dict(relevance_candidate)
-        candidate["_sap_metadata_must_hits"] = int(candidate.get("must_hits", 0) or 0)
+        # Use asset metadata, not provider scores, to rank which candidates receive
+        # the bounded pixel-level verification. This ranking never accepts media.
+        try:
+            from media_must_verifier import verified_must
+            evidence = verified_must(candidate, {"must_have": must or []})
+        except Exception:
+            evidence = {"hits": 0, "matched": []}
+        matched_musts = {
+            str(item).strip().casefold()
+            for item in evidence.get("matched", [])
+            if str(item).strip()
+        }
+        primary_must = str((must or [""])[0]).strip().casefold()
+        candidate["_sap_metadata_must_hits"] = int(evidence.get("hits", 0) or 0)
+        candidate["_sap_verified_must_matches"] = sorted(matched_musts)
+        candidate["_sap_primary_must_match"] = int(
+            bool(primary_must) and primary_must in matched_musts
+        )
         key = (
             str(candidate.get("fonte") or candidate.get("source") or ""),
             str(candidate.get("id") or ""),
@@ -429,13 +449,14 @@ def _visual_fallback_candidates(
     ranked = sorted(
         unique.values(),
         key=lambda candidate: (
+            int(candidate.get("_sap_primary_must_match", 0) or 0),
             int(candidate.get("_sap_metadata_must_hits", 0) or 0),
             int((candidate.get("query_relevance") or {}).get("matched_count", 0) or 0),
             float(candidate.get("score", 0) or 0),
         ),
         reverse=True,
     )
-    return ranked[:max(1, min(int(limit), 3))]
+    return ranked[:max(1, min(int(limit), MAX_VISUAL_FALLBACK_CANDIDATES))]
 
 
 def acquire_scene(
@@ -572,7 +593,7 @@ def acquire_scene(
             query,
             [*candidates, *relaxed],
             must=must,
-            limit=3,
+            limit=MAX_VISUAL_FALLBACK_CANDIDATES,
         )
         for candidate in visual_fallback_candidates:
             candidate["_sap_must_total"] = len(must)

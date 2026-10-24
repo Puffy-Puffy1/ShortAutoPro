@@ -341,3 +341,13 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - A normalização reforça objetos explícitos na narração/consulta: pessoa em cenas sobre corpo morto/encontrado, etiqueta em roupas com etiqueta removida e código em cenas criptografadas. O contexto considera consulta e segmento narrado.
 - Testes de regressão verificam que um `must_hits` falso nunca chega ao download, que objetos principais são acrescentados quando indicados e que uma paisagem de praia genérica não ganha um requisito de pessoa sem contexto.
 - Nenhum gate de qualidade ou aprovação foi reduzido. É necessária nova execução FIRST_VIDEO, análise da mídia selecionada e aprovação FFprobe; gerar um MP4 técnico não basta para aprovar o conteúdo.
+
+
+## 41. Recuperação de trens no inverno e invalidação de cache — 24/10/2026
+
+- A execução FIRST_VIDEO `40051616301` parou na cena 03 (`train + snow`): 21 candidatos foram encontrados, mas só dois chegaram à verificação por pixels; ambos mostravam neve sem o trem.
+- O roteador agora adiciona consultas de catálogo direcionadas (`train in snow` e `steam locomotive in snow`), sem alterar os requisitos visuais.
+- O fallback visual prioriza candidatos que comprovam o MUST principal nos próprios metadados e pode verificar até cinco imagens, sempre exigindo aprovação pixel a pixel antes de aceitar mídia. A seleção continua limitada e reproduzível.
+- A versão do Media Engine foi elevada para `2.0.9` e incluída na impressão digital do contrato da cena. Isso invalida mídia em cache selecionada por política anterior e força a nova aquisição/verificação.
+- Testes adicionados para prioridade de objeto principal, consultas train/snow, impressão digital de política e fixtures de aquisição com evidência explícita.
+- A nova execução FIRST_VIDEO, a inspeção das mídias selecionadas e o FFprobe ainda precisam passar antes de declarar esta revisão concluída. Nenhum gate de MUST/AVOID foi reduzido.

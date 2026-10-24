@@ -214,8 +214,14 @@ class AcquisitionV2Tests(unittest.TestCase):
                 self.calls = []
             def search(self, *args, **kwargs):
                 return [
-                    {"fonte": "pexels", "id": "a", "tipo": "video", "must_hits": 1, "avoid_hits": 0},
-                    {"fonte": "pixabay", "id": "b", "tipo": "video", "must_hits": 1, "avoid_hits": 0},
+                    {
+                        "fonte": "pexels", "id": "a", "tipo": "video",
+                        "must_hits": 1, "avoid_hits": 0, "descricao": "test media candidate",
+                    },
+                    {
+                        "fonte": "pixabay", "id": "b", "tipo": "video",
+                        "must_hits": 1, "avoid_hits": 0, "descricao": "test media candidate",
+                    },
                 ]
             def prepare(self, candidates, total_must):
                 return candidates
