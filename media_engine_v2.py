@@ -288,8 +288,8 @@ def load_scene_map(short_id: str) -> list[dict[str, Any]]:
         # as hard AVOID requirements. The scene-intent verifier still checks the
         # overall period/composition; no global confidence threshold is lowered.
         period_context = bool(re.search(
-            r"\\b(?:vintage|historic|historical|archival|antique|period[- ]appropriate|"
-            r"old[- ]fashioned|(?:18|19|20)\\d{2}s?)\\b",
+            r"\b(?:vintage|historic|historical|archival|antique|period[- ]appropriate|"
+            r"old[- ]fashioned|(?:18|19|20)\d{2}s?)\b",
             scene_context,
             re.IGNORECASE,
         ))
