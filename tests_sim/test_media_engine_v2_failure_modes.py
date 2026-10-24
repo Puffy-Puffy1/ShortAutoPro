@@ -544,4 +544,104 @@ class MediaEngineV2FailureTests(unittest.TestCase):
                     )
             download.assert_not_called()
 
+
+    def test_download_failure_uses_pixel_verified_fallback_before_blocking_scene(self):
+        with tempfile.TemporaryDirectory() as td:
+            media = Path(td) / "media"
+            media.mkdir()
+            destination = media / "scene_01_wikimedia.jpg"
+            strict_candidate = {
+                "fonte": "Wikimedia",
+                "id": "strict-bad-download",
+                "tipo": "image",
+                "url": "https://example.test/strict.jpg",
+                "title": "Torn tent in snow beneath snowy mountains",
+                "descricao": "Torn tent in snow beneath snowy mountains",
+                "must_hits": 2,
+                "avoid_hits": 0,
+                "score": 95,
+            }
+            fallback_candidate = {
+                "fonte": "Wikimedia",
+                "id": "visual-fallback-valid",
+                "tipo": "image",
+                "url": "https://example.test/fallback.jpg",
+                "title": "Torn canvas tent in a mountain landscape",
+                "image_description": "A torn canvas tent in a mountain landscape",
+                "descricao": "Torn canvas tent in a mountain landscape",
+                "must_hits": 1,
+                "avoid_hits": 0,
+                "score": 80,
+            }
+
+            def evidence(candidate, _policy):
+                if candidate["id"] == "strict-bad-download":
+                    return {"hits": 2, "total": 2, "matched": ["torn tent", "snow"], "missing": []}
+                return {"hits": 1, "total": 2, "matched": ["torn tent"], "missing": ["snow"]}
+
+            def download(candidate, _number, _sid):
+                if candidate["id"] == "strict-bad-download":
+                    return False, "", {"error_class": "VALIDATION_FAILED"}
+                destination.write_bytes(b"pixel-verified-fallback")
+                return True, str(destination), {}
+
+            def validate(path):
+                path = Path(path)
+                return {
+                    "sha256": media_engine_v2.sha256(path),
+                    "probe": {"width": 1920, "height": 1080},
+                }
+
+            passed = {
+                "status": "PASS",
+                "method": "gemini_image_pixels",
+                "must": [
+                    {"anchor": "torn tent", "visible": True, "confidence": 0.97, "evidence": "torn tent is visible"},
+                    {"anchor": "snow", "visible": True, "confidence": 0.96, "evidence": "snow is visible"},
+                ],
+                "avoid": [
+                    {"anchor": "people", "visible": False, "confidence": 0.97, "evidence": "no people visible"}
+                ],
+            }
+
+            with patch.object(
+                media_engine_v2.PROVIDER,
+                "search",
+                side_effect=[
+                    [strict_candidate, fallback_candidate],
+                    [strict_candidate, fallback_candidate],
+                ],
+            ), patch.object(
+                media_engine_v2.PROVIDER, "prepare", return_value=[strict_candidate]
+            ), patch(
+                "media_must_verifier.verified_must", side_effect=evidence
+            ), patch.object(
+                media_engine_v2.PROVIDER, "download", side_effect=download
+            ) as download_mock, patch.object(
+                media_engine_v2, "validate_asset", side_effect=validate
+            ), patch.object(
+                media_engine_v2, "_local_library_asset", return_value=None
+            ), patch(
+                "media_visual_verifier.verify_image_requirements", return_value=passed
+            ):
+                result = media_engine_v2.acquire_scene(
+                    "X",
+                    1,
+                    {
+                        "query": "torn vintage canvas tent fabric in snowy mountain landscape",
+                        "must_have": ["torn tent", "snow"],
+                        "avoid": ["people"],
+                    },
+                    media,
+                )
+
+            self.assertEqual(
+                [call.args[0]["id"] for call in download_mock.call_args_list],
+                ["strict-bad-download", "visual-fallback-valid"],
+            )
+            self.assertEqual(result["asset_id"], "visual-fallback-valid")
+            self.assertEqual(result["verification_mode"], "gemini_visual_must")
+            self.assertEqual(result["visual_verification"]["status"], "PASS")
+            self.assertEqual(result["metadata_must_hits"], 1)
+
 if __name__=="__main__": unittest.main()
