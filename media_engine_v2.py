@@ -25,7 +25,7 @@ BASE = Path(os.getenv("SHORTAUTOPRO_BASE", Path.home() / "ShortAutoPro")).resolv
 MEDIA_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".webm", ".mkv"}
 ENGINE_VERSION = "2.0.13"
 MIN_VISUAL_PIXELS = 320 * 180
-MAX_VISUAL_FALLBACK_CANDIDATES = 5
+MAX_VISUAL_FALLBACK_CANDIDATES = 8
 
 
 def _resolution_issue(probe: dict[str, Any]) -> str | None:
@@ -1131,7 +1131,7 @@ def acquire_scene(
                     break
         # Metadata matches only choose candidates; they do not establish that the
         # pixels depict this exact scene. Start with the ranked visual pool, then
-        # keep up to five strict candidates as a bounded rescue if relevance scoring
+        # keep a bounded set of strict candidates as a rescue if relevance scoring
         # filtered everything out. The pixel verifier remains the final authority.
         visual_fallback_candidates = []
         seen_visual_keys: set[tuple[str, str, str]] = set()

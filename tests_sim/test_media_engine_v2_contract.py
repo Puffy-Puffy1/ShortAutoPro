@@ -683,6 +683,38 @@ class MediaEngineContractTests(unittest.TestCase):
         self.assertIn("alternate-town-a", selected_ids)
         self.assertIn("alternate-town-b", selected_ids)
 
+    def test_visual_fallback_budget_is_bounded_at_eight_candidates(self):
+        candidates = []
+        for i in range(10):
+            item = {
+                "fonte": "Wikimedia",
+                "id": f"candidate-{i}",
+                "tipo": "image",
+                "url": f"https://example.test/candidate-{i}.jpg",
+                "avoid_hits": 0,
+                "must_hits": 1,
+                "score": 100 - i,
+                "title": "Snowy provincial town street with old building",
+                "descricao": "Snowy provincial town street with old building",
+            }
+            if i >= 4:
+                item["_sap_relevance_query"] = f"alternate query {i % 3}"
+            candidates.append(item)
+
+        with patch(
+            "media_provider_router_v2.query_relevance",
+            return_value={"ok": True, "matched_count": 3},
+        ):
+            selected = media_engine_v2._visual_fallback_candidates(
+                "snowy provincial town street with old building",
+                candidates,
+                must=["building"],
+                limit=10,
+            )
+
+        self.assertEqual(len(selected), 8)
+        self.assertLessEqual(len(selected), media_engine_v2.MAX_VISUAL_FALLBACK_CANDIDATES)
+
     def test_relaxed_fallback_requires_context_beyond_verified_must(self):
         accept = media_engine_v2._relaxed_relevance_acceptable
         self.assertTrue(
