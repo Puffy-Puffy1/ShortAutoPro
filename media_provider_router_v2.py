@@ -406,6 +406,7 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
         "vessel": ("ship", "boat", "watercraft"),
         "runway": ("airstrip", "airfield runway", "military airfield runway", "runway at sunset", "air force runway"),
         "code": ("cipher", "cryptogram", "encrypted message", "ancient code manuscript", "handwritten cipher document"),
+        "paper": ("handwritten paper", "cipher on paper", "cryptography notes"),
         "ocean": ("sea", "open water"),
         "sea": ("ocean", "open water"),
         "car": ("automobile", "motor vehicle", "road vehicle", "cars"),
@@ -487,6 +488,19 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
             "person studying an ancient code manuscript",
             "cryptographer examining a handwritten cipher document",
             "person decoding an old cryptogram",
+        ))
+
+    # Cryptography scenes often have catalog metadata for the paper but omit
+    # the context word. Search for a cipher on paper without weakening the
+    # independent query-relevance or visual MUST checks.
+    if "paper" in must_set and re.search(
+        r"\b(?:cryptographer|cipher|cryptogram|secret symbols|encoded|code)\b",
+        raw,
+        re.IGNORECASE,
+    ):
+        candidates.extend((
+            "cryptographer examining handwritten cipher notes",
+            "handwritten cipher symbols on paper",
         ))
 
     # Pilot archives often title the person separately from cockpit/radio
