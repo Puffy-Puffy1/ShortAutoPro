@@ -113,6 +113,44 @@ class MediaVisualVerifierTests(unittest.TestCase):
         self.assertIn(intent, prompt)
 
     @patch("media_visual_verifier.generate_text")
+    def test_generic_winter_town_can_match_specific_location_intent(self, generate):
+        payload = {
+            "must": [
+                {"anchor": anchor, "visible": True, "confidence": 0.97, "evidence": evidence}
+                for anchor, evidence in [
+                    ("building", "Old low-rise buildings line the street."),
+                    ("snow", "Snow is visibly covering the roadside."),
+                    ("street", "A street runs between the buildings."),
+                ]
+            ],
+            "avoid": [{
+                "anchor": "modern skyscrapers",
+                "visible": False,
+                "confidence": 0.97,
+                "evidence": "No tall glass skyline or high-rise buildings are visible.",
+            }],
+            "scene_match": {
+                "matches": True,
+                "confidence": 0.95,
+                "evidence": "The image depicts a snow-covered low-rise town street with older buildings.",
+            },
+        }
+        generate.return_value = json.dumps(payload)
+        intent = "russian provincial town winter snow streets old buildings"
+        with tempfile.TemporaryDirectory() as directory:
+            result = verify_image_requirements(
+                self._image(directory),
+                ["building", "snow", "street"],
+                ["modern skyscrapers"],
+                scene_intent=intent,
+            )
+        self.assertEqual(result["status"], "PASS")
+        prompt = generate.call_args.args[0]
+        self.assertIn("cannot be authenticated from pixels alone", prompt)
+        self.assertIn("Mark matches=false only for a clear conflict", prompt)
+        self.assertTrue(result["scene_match"]["matches"])
+
+    @patch("media_visual_verifier.generate_text")
     def test_blocks_scene_mismatch_even_when_must_objects_are_visible(self, generate):
         payload = json.loads(self._payload())
         payload["scene_match"] = {

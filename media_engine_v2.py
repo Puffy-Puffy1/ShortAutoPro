@@ -23,7 +23,7 @@ from typing import Any
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", Path.home() / "ShortAutoPro")).resolve()
 MEDIA_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".webm", ".mkv"}
-ENGINE_VERSION = "2.0.12"
+ENGINE_VERSION = "2.0.13"
 MIN_VISUAL_PIXELS = 320 * 180
 MAX_VISUAL_FALLBACK_CANDIDATES = 5
 
@@ -685,7 +685,35 @@ def _visual_fallback_candidates(
         ),
         reverse=True,
     )
-    return ranked[:max(1, min(int(limit), MAX_VISUAL_FALLBACK_CANDIDATES))]
+    max_items = max(1, min(int(limit), MAX_VISUAL_FALLBACK_CANDIDATES))
+    # Query provenance matters: otherwise several near-duplicate results from
+    # the primary search can crowd out every alternative phrasing. Pick the best
+    # result from each query first, then fill remaining slots by rank.
+    selected: list[dict[str, Any]] = []
+    remaining = ranked
+    while remaining and len(selected) < max_items:
+        seen_queries: set[str] = set()
+        next_remaining: list[dict[str, Any]] = []
+        added = 0
+        for index, candidate in enumerate(remaining):
+            source_query = re.sub(
+                r"\s+",
+                " ",
+                str(candidate.get("_sap_relevance_query") or query),
+            ).strip().casefold() or query.casefold()
+            if source_query in seen_queries:
+                next_remaining.append(candidate)
+                continue
+            seen_queries.add(source_query)
+            selected.append(candidate)
+            added += 1
+            if len(selected) >= max_items:
+                next_remaining.extend(remaining[index + 1:])
+                break
+        if not added:
+            break
+        remaining = next_remaining
+    return selected
 
 
 
@@ -1013,53 +1041,54 @@ def acquire_scene(
 
         seen_alternates = {re.sub(r"\s+", " ", query).strip().casefold()}
         alternate_searches = 0
-        if needs_targeted_retrieval(visual_pool):
-            for raw_alternate in raw_alternates:
-                alternate_query = re.sub(r"\s+", " ", str(raw_alternate or "")).strip()
-                alternate_key = alternate_query.casefold()
-                if not alternate_query or alternate_key in seen_alternates:
-                    continue
-                seen_alternates.add(alternate_key)
-                if alternate_searches >= 3 or not needs_targeted_retrieval(visual_pool):
-                    break
-                alternate_searches += 1
-                try:
-                    alternate_candidates = PROVIDER.search(
-                        alternate_query,
-                        [],
-                        avoid,
-                        segmento=segment,
-                        visual_mode=visual_mode,
-                    )
-                except Exception as exc:
-                    print(
-                        f"MEDIA_ALT_QUERY_SEARCH=ERROR scene={number:02d} "
-                        f"error={type(exc).__name__}"
-                    )
-                    continue
-                if not alternate_candidates:
-                    continue
-
-                # Relevance must use the query that found each image, not the
-                # primary query that already failed to retrieve a suitable asset.
-                visual_source.extend(
-                    {
-                        **candidate,
-                        "_sap_relevance_query": alternate_query,
-                    }
-                    for candidate in alternate_candidates
-                    if isinstance(candidate, dict)
+        # Always sample a small number of alternate phrasings. Metadata may
+        # cover every MUST while the pixels still show the wrong composition.
+        for raw_alternate in raw_alternates:
+            alternate_query = re.sub(r"\s+", " ", str(raw_alternate or "")).strip()
+            alternate_key = alternate_query.casefold()
+            if not alternate_query or alternate_key in seen_alternates:
+                continue
+            seen_alternates.add(alternate_key)
+            if alternate_searches >= 2:
+                break
+            alternate_searches += 1
+            try:
+                alternate_candidates = PROVIDER.search(
+                    alternate_query,
+                    [],
+                    avoid,
+                    segmento=segment,
+                    visual_mode=visual_mode,
                 )
-                visual_pool = _visual_fallback_candidates(
-                    query,
-                    visual_source,
-                    must=must,
-                    limit=MAX_VISUAL_FALLBACK_CANDIDATES,
-                )
+            except Exception as exc:
                 print(
-                    f"MEDIA_ALT_QUERY_SEARCH=PASS scene={number:02d} "
-                    f"candidates={len(alternate_candidates)} pool={len(visual_pool)}"
+                    f"MEDIA_ALT_QUERY_SEARCH=ERROR scene={number:02d} "
+                    f"error={type(exc).__name__}"
                 )
+                continue
+            if not alternate_candidates:
+                continue
+
+            # Tag each result with the exact query that found it. The bounded
+            # selector uses this provenance to keep the pixel-check pool diverse.
+            visual_source.extend(
+                {
+                    **candidate,
+                    "_sap_relevance_query": alternate_query,
+                }
+                for candidate in alternate_candidates
+                if isinstance(candidate, dict)
+            )
+            visual_pool = _visual_fallback_candidates(
+                query,
+                visual_source,
+                must=must,
+                limit=MAX_VISUAL_FALLBACK_CANDIDATES,
+            )
+            print(
+                f"MEDIA_ALT_QUERY_SEARCH=PASS scene={number:02d} "
+                f"candidates={len(alternate_candidates)} pool={len(visual_pool)}"
+            )
 
         # Broad provider searches can return many catalog matches but almost no
         # images that show every MUST. Search missing MUST terms with a few

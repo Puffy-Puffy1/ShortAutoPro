@@ -205,13 +205,17 @@ def verify_image_requirements(
     )
     if intent:
         instructions += (
-            "Also compare the image's overall subject, setting, and visible composition "
-            "with the provided scene intent. This is a high-level semantic match, not a "
-            "literal text match: do not require every adjective or proper name to be "
-            "physically visible unless it names a central depicted object. Set matches=true "
-            "only when the image genuinely depicts the described kind of scene. For example, "
-            "underwater dolphins do not match an empty ocean horizon, even though both involve "
-            "the ocean. Cite visual evidence in the scene_match field. "
+            "Also compare the image's main visible subject, setting, and composition "
+            "with the scene intent. This is a high-level visual match, not a literal text "
+            "match. Country, named town/province, and exact decade are contextual hints that "
+            "usually cannot be authenticated from pixels alone; do not mark a mismatch solely "
+            "because that exact location or year cannot be proven visually. A snowy provincial "
+            "street with old buildings is compatible with a winter-town scene when no visible "
+            "detail contradicts it. Mark matches=false only for a clear conflict with the core "
+            "subject or setting, such as underwater dolphins for an empty ocean horizon, a "
+            "tropical beach for a snow-covered town, or a modern skyscraper skyline for a "
+            "low-rise historic village. Explicit MUST and AVOID anchors remain separately "
+            "strict. Cite observable visual evidence in scene_match. "
         )
 
     constraints = {"must": requirements, "avoid": forbidden}

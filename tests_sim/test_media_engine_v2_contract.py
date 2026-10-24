@@ -625,6 +625,64 @@ class MediaEngineContractTests(unittest.TestCase):
         self.assertEqual(selected[0]["_sap_metadata_must_hits"], 1)
         self.assertEqual(len(selected), 2)
 
+    def test_visual_fallback_keeps_candidates_from_alternative_queries(self):
+        candidates = [
+            {
+                "fonte": "Wikimedia",
+                "id": f"primary-{i}",
+                "tipo": "image",
+                "url": f"https://example.test/primary-{i}.jpg",
+                "avoid_hits": 0,
+                "must_hits": 1,
+                "score": 100 - i,
+                "title": "Snowy provincial town with old building and street",
+                "descricao": "Snowy provincial town with old building and street",
+            }
+            for i in range(4)
+        ]
+        candidates.extend([
+            {
+                "fonte": "Wikimedia",
+                "id": "alternate-town-a",
+                "tipo": "image",
+                "url": "https://example.test/alternate-a.jpg",
+                "avoid_hits": 0,
+                "must_hits": 1,
+                "score": 20,
+                "title": "Historic snowy provincial street with old buildings",
+                "descricao": "Historic snowy provincial street with old buildings",
+                "_sap_relevance_query": "historic snowy provincial street",
+            },
+            {
+                "fonte": "Wikimedia",
+                "id": "alternate-town-b",
+                "tipo": "image",
+                "url": "https://example.test/alternate-b.jpg",
+                "avoid_hits": 0,
+                "must_hits": 1,
+                "score": 10,
+                "title": "Old buildings on a snow-covered town street",
+                "descricao": "Old buildings on a snow-covered town street",
+                "_sap_relevance_query": "old buildings snow-covered town street",
+            },
+        ])
+
+        def fake_relevance(_query, _candidate):
+            return {"ok": True, "matched_count": 4}
+
+        with patch("media_provider_router_v2.query_relevance", side_effect=fake_relevance):
+            selected = media_engine_v2._visual_fallback_candidates(
+                "russian provincial town winter snow streets old buildings",
+                candidates,
+                must=["building"],
+                limit=5,
+            )
+
+        self.assertEqual(len(selected), 5)
+        selected_ids = {item["id"] for item in selected}
+        self.assertIn("alternate-town-a", selected_ids)
+        self.assertIn("alternate-town-b", selected_ids)
+
     def test_relaxed_fallback_requires_context_beyond_verified_must(self):
         accept = media_engine_v2._relaxed_relevance_acceptable
         self.assertTrue(
