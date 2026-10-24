@@ -50,6 +50,8 @@ on:
       - "tests_sim/test_shortauto_brain_integration.py"
       - "tests_sim/test_shortauto_brain_evidence_map.py"
       - "tests_sim/test_first_video_validation_contract.py"
+      - "first_video_run_contract.py"
+      - "tests_sim/test_first_video_run_contract.py"
   workflow_dispatch:
     inputs:
       topic:
@@ -149,6 +151,9 @@ jobs:
       - name: Verify post-gate MP4 validation contract
         run: python -m unittest tests_sim.test_first_video_validation_contract -v
 
+      - name: Verify generated-video vs release-approval contract
+        run: python -m unittest tests_sim.test_first_video_run_contract -v
+
       - name: Run FIRST_VIDEO
         id: run-first-video
         env:
@@ -190,7 +195,14 @@ jobs:
           echo "FIRST_VIDEO_ENTRYPOINT=main.py"
           echo "FIRST_VIDEO_PROFILE=$SAP_CHANNEL_PROFILE"
           echo "FIRST_VIDEO_THEME=$SHORT_TEMA"
+          # A publish approval block is not a render failure. Capture the canonical
+          # pipeline status, then accept only the exact human-approval-only block
+          # when this run has a non-empty MP4 and a matching release report.
+          set +e
           python main.py run
+          run_status=$?
+          set -e
+          python first_video_run_contract.py --short-id "$RUN_SHORT_ID" --exit-code "$run_status"
 
       - name: Validate generated MP4 with FFprobe
         if: always() && steps.run-first-video.outputs.short_id != ''
@@ -229,6 +241,9 @@ jobs:
             reports/evolution/visual_qa_*.json
             manifests/scene_map_*.json
             manifests/media_*.json
+            manifests/*_release.json
+            manifests/*_quality.json
+            manifests/*_render_identity.json
             roteiros/scene_map_*.json
             roteiros/short_*.txt
             roteiros/speech_*.txt

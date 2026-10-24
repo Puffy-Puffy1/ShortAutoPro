@@ -322,3 +322,12 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - `media_provider_router_v2.py` agora tenta consultas de catálogo mais naturais para essa combinação: avião sobre oceano à noite, aeronave sobre mar à noite e avião voando sobre oceano à noite.
 - `tests_sim/test_media_must_verifier.py` cobre as variantes contextuais e o limite de oito buscas.
 - Mudança restrita à descoberta de mídia. A verificação visual MUST/AVOID e os requisitos de saída continuam intactos; a correção só será considerada comprovada após testes e nova execução FIRST_VIDEO com MP4 validado por FFprobe.
+
+
+## 39. Separação entre prova de geração e autorização de publicação — 24/10/2026
+
+- A execução FIRST_VIDEO `40050143538` gerou `videos/short_v6_gha_40050143538_1.mp4`; o render retornou PASS, o Visual QA marcou 95/100 e a auditoria de mídia passou em 12/12 cenas. O FFprobe confirmou MP4 H.264/AAC, 1080×1920, 30 fps e duração positiva.
+- A etapa `main.py run` terminou com código 1 apenas porque `manifests/gha_40050143538_1_release.json` registrou `decision=BLOCK` e o único bloqueio crítico foi `shortauto_brain_approval_required` com decisão `HUMAN_APPROVAL_REQUIRED`. A geração tinha sido concluída; a autorização de publicação continuou bloqueada corretamente.
+- Foi adicionado `first_video_run_contract.py`: só classifica o resultado como prova de geração válida se existir MP4 não vazio, o relatório corresponder ao mesmo `short_id` e o único bloqueio for a exigência explícita de aprovação humana. Falta de MP4, relatório ausente, código inesperado ou qualquer bloqueio adicional continuam falhando.
+- O workflow mantém a validação FFprobe separada e inclui os relatórios de release/qualidade no artefato de evidências. O código não altera a decisão do release gate, não aprova publicação e não usa `continue-on-error`.
+- `tests_sim/test_first_video_run_contract.py` cobre o caminho de aprovação humana e os casos negativos para MP4 ausente/vazio, identidade divergente, bloqueios adicionais e decisão de release conflitante.
