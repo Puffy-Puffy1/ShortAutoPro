@@ -22,6 +22,11 @@ class FirstVideoValidationContractTests(unittest.TestCase):
         self.assertIn('codec_type")=="audio"', block)
         self.assertIn('codec_type")=="video"', block)
 
+    def test_first_video_run_is_not_cancelled_by_followup_commits(self):
+        content = WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("group: shortautopro-first-video-${{ github.ref }}", content)
+        self.assertIn("cancel-in-progress: false", content)
+
     def test_ffprobe_does_not_override_pipeline_failure(self):
         content = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("python main.py run", content)
