@@ -419,6 +419,7 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
         "topographic map": ("topographical map", "contour map", "relief map", "elevation map"),
         "microphone": ("communication microphone", "aviation microphone", "pilot microphone", "radio microphone", "aircraft microphone"),
         "quill pen": ("feather quill", "writing quill", "quill and ink", "feather pen"),
+        "pencil": ("graphite pencil", "drawing pencil", "wooden pencil", "mechanical pencil", "pencil on map"),
     }
 
     candidates = [raw]
