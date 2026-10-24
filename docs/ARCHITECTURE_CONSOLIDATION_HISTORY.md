@@ -390,3 +390,11 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - `media_provider_router_v2.py` agora expande esse caso para buscas com criptógrafo, manuscrito de código antigo, cifra manuscrita e pessoa decifrando um criptograma.
 - `tests_sim/test_media_must_verifier.py` verifica as variantes dentro do limite e confirma que metadados de código sem pessoa, ou de pessoa sem código, continuam insuficientes.
 - A prova final da cabeça atual precisa produzir um MP4 novo e passar no FFprobe antes de encerrar/mesclar a PR.
+
+
+## 47. Busca contextual para cifra escrita em papel — 24/10/2026
+
+- A execução FIRST_VIDEO `40053696602` passou pelo gate semântico e pelas primeiras cenas, mas parou na cena 05: a busca retornou um único recurso com metadados de `paper`, sem contexto suficiente para a cena de um criptógrafo analisando símbolos secretos.
+- `media_provider_router_v2.py` agora inclui variantes contextuais para papel manuscrito, cifra em papel e anotações de criptografia, preservando a consulta original e o limite de oito variantes.
+- `tests_sim/test_media_must_verifier.py` cobre as consultas contextuais e garante que metadados contendo apenas `paper` não passam pelo filtro de relevância. Os requisitos MUST/AVOID e a verificação visual não foram enfraquecidos.
+- A cabeça atual precisa completar FIRST_VIDEO, produzir um MP4 novo e passar no FFprobe antes de mesclar a PR.
