@@ -120,7 +120,7 @@ def normalize_visual_musts(
         # defining anchors. Backpacks and equipment details stay preferences
         # so one stock image is not required to prove four separate objects.
         ski_core_is_present = (
-            bool(re.search(r"\\b(?:skier|skiers)\\b", " ".join(other_values), re.IGNORECASE))
+            bool(re.search(r"\b(?:skier|skiers)\b", " ".join(other_values), re.IGNORECASE))
             and bool(_SNOW_CONTEXT.search(item_context))
         )
         if (
