@@ -368,3 +368,25 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - `media_engine_v2.load_scene_map()` faz a ponte entre os resultados da normalização e `preferred_visuals`. A busca acrescenta as preferências para ajudar a descoberta, sem usá-las como prova nem bloqueio.
 - A fingerprint inclui preferências e a versão do engine passa a `2.0.10`, invalidando o cache antigo. O roteador preserva consultas específicas para cidade russa nevada com casas de madeira quando a preferência estiver presente.
 - Testes cobrem a conversão condicional, o cenário em que as casas são explicitamente exigidas, a ponte ao carregar o mapa e a inclusão das preferências na fingerprint. As verificações visuais de MUST/AVOID seguem obrigatórias para candidatos de fallback.
+
+
+## 44. Normalização numérica e proteção da prova E2E — 24/10/2026
+
+- A execução FIRST_VIDEO `40052992267` bloqueou o gate semântico com `unsupported_numbers=4,500`: o roteiro em português usou `4.500`, enquanto a fonte usou `4,500` para o mesmo valor factual.
+- `semantic_integrity_gate.py` agora normaliza separadores comuns de milhares antes da comparação e mantém decimais reais normalizados sem remover separadores indiscriminadamente.
+- `tests_sim/test_pipeline_gates.py` cobre o falso bloqueio para `4.500/4,500` e confirma que um número realmente ausente, `7.000`, continua bloqueando. O isolamento dos testes também fixa `SHORTAUTOPRO_BASE` no diretório temporário para evitar ler arquivos do runner por engano.
+- O workflow FIRST_VIDEO inclui o gate semântico e o teste no filtro de caminhos. A concorrência preserva uma prova ativa quando novos commits chegam, evitando cancelamentos acidentais da execução completa.
+- A execução `40053389916` confirmou `SEMANTIC INTEGRITY: PASS` após essa correção; depois bloqueou uma cena de pessoa + código, levando à expansão contextual documentada na seção seguinte. Ainda é necessário validar um MP4 gerado pela cabeça final da PR.
+
+## 45. Busca contextual para pista de pouso militar — 24/10/2026
+
+- A execução FIRST_VIDEO `40053107823` encontrou 30 candidatos para a cena de base aérea, mas as cinco imagens verificadas não mostravam uma pista de pouso visível; nenhum MP4 foi criado.
+- `media_provider_router_v2.py` acrescentou variantes limitadas para `airstrip`, `airfield runway`, `military airfield runway`, `runway at sunset` e `air force runway`.
+- O teste `test_military_runway_query_gets_contextual_airfield_variants` protege a descoberta contextual e o limite de oito variantes. Os MUST/AVOID e a verificação visual continuam sem alteração.
+
+## 46. Busca contextual para pessoa examinando código criptografado — 24/10/2026
+
+- A execução FIRST_VIDEO `40053389916` passou pelo gate semântico, mas falhou na cena 02: a busca encontrou recursos ligados a códigos antigos, porém as imagens verificadas não mostravam uma pessoa e o código na mesma cena.
+- `media_provider_router_v2.py` agora expande esse caso para buscas com criptógrafo, manuscrito de código antigo, cifra manuscrita e pessoa decifrando um criptograma.
+- `tests_sim/test_media_must_verifier.py` verifica as variantes dentro do limite e confirma que metadados de código sem pessoa, ou de pessoa sem código, continuam insuficientes.
+- A prova final da cabeça atual precisa produzir um MP4 novo e passar no FFprobe antes de encerrar/mesclar a PR.
