@@ -456,6 +456,92 @@ class MediaEngineV2FailureTests(unittest.TestCase):
             self.assertEqual(result["visual_verification"]["status"], "PASS")
             visual_verify.assert_called_once()
 
+    def test_strict_metadata_candidate_must_match_full_scene_intent_in_pixels(self):
+        with tempfile.TemporaryDirectory() as td:
+            media = Path(td) / "media"
+            media.mkdir()
+            destination = media / "scene_02_wikimedia.jpg"
+            query = "empty ocean horizon aerial view"
+            candidate = {
+                "fonte": "Wikimedia",
+                "id": "dolphins-in-ocean",
+                "tipo": "image",
+                "url": "https://example.test/dolphins.jpg",
+                "title": "Pod of spinner dolphins swimming in the Indian ocean",
+                "descricao": "Dolphins swimming underwater in the ocean",
+                "must_hits": 1,
+                "avoid_hits": 0,
+                "score": 100,
+                "query_relevance": {
+                    "ok": True,
+                    "matched_terms": ["ocean", "view"],
+                    "matched_count": 2,
+                    "query_term_count": 5,
+                },
+            }
+
+            def download(_candidate, _number, _sid):
+                destination.write_bytes(b"test image bytes")
+                return True, str(destination), {}
+
+            def validate(path):
+                return {
+                    "sha256": media_engine_v2.sha256(Path(path)),
+                    "probe": {"width": 1920, "height": 1080},
+                }
+
+            def verify(_path, must, avoid):
+                self.assertEqual(must, ["ocean", query])
+                self.assertEqual(avoid, ["ship", "boat"])
+                return {
+                    "status": "BLOCK",
+                    "reason": "must_visibility_failed",
+                    "must": [
+                        {"anchor": "ocean", "visible": True, "confidence": 0.98, "evidence": "ocean visible"},
+                        {"anchor": query, "visible": False, "confidence": 0.98, "evidence": "dolphins underwater, no empty horizon"},
+                    ],
+                    "avoid": [],
+                }
+
+            with patch.object(
+                media_engine_v2.PROVIDER, "search", return_value=[candidate]
+            ), patch.object(
+                media_engine_v2.PROVIDER, "prepare", return_value=[candidate]
+            ), patch(
+                "media_must_verifier.verified_must",
+                return_value={"hits": 1, "total": 1, "matched": ["ocean"], "missing": []},
+            ), patch(
+                "media_provider_router_v2.query_relevance",
+                return_value={
+                    "ok": True,
+                    "matched_terms": ["ocean", "view"],
+                    "matched_count": 2,
+                    "query_term_count": 5,
+                },
+            ), patch.object(
+                media_engine_v2.PROVIDER, "download", side_effect=download
+            ), patch.object(
+                media_engine_v2, "validate_asset", side_effect=validate
+            ), patch.object(
+                media_engine_v2, "_local_library_asset", return_value=None
+            ), patch(
+                "media_visual_verifier.verify_image_requirements", side_effect=verify
+            ) as visual_verify:
+                with self.assertRaisesRegex(RuntimeError, "MEDIA_INCOMPLETE:scene_02:no_verified_asset"):
+                    media_engine_v2.acquire_scene(
+                        "X",
+                        2,
+                        {
+                            "query": query,
+                            "must_have": ["ocean"],
+                            "avoid": ["ship", "boat"],
+                        },
+                        media,
+                    )
+
+            visual_verify.assert_called_once()
+            self.assertFalse(destination.exists())
+
     def test_visual_fallback_accepts_only_after_pixel_verification_passes(self):
         with tempfile.TemporaryDirectory() as td:
             base = Path(td)

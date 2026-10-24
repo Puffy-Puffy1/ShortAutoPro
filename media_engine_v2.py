@@ -383,6 +383,19 @@ def _candidate_record(candidate: dict[str, Any], path: Path, probe: dict[str, An
     }
 
 
+def _visual_requirements(must: list[str], scene_intent: str) -> list[str]:
+    """Keep explicit MUSTs and require the downloaded image to depict the target scene."""
+    requirements: list[str] = []
+    seen: set[str] = set()
+    for raw in [*must, scene_intent]:
+        value = re.sub(r"\s+", " ", str(raw or "")).strip()
+        key = value.casefold()
+        if value and key not in seen:
+            seen.add(key)
+            requirements.append(value)
+    return requirements
+
+
 def _local_library_asset(
     query: str,
     must: list[str],
@@ -413,11 +426,42 @@ def _local_library_asset(
                 continue
         except RuntimeError:
             continue
+        try:
+            from media_must_verifier import verified_must
+            metadata_evidence = verified_must(candidate, {"must_have": must})
+        except Exception:
+            metadata_evidence = {"hits": 0, "matched": [], "missing": list(must)}
+        if must and int(metadata_evidence.get("hits", 0) or 0) != len(must):
+            continue
+
+        try:
+            from media_visual_verifier import verify_image_requirements
+            visual_result = verify_image_requirements(
+                path,
+                _visual_requirements(must, query),
+                avoid,
+            )
+        except Exception as exc:
+            visual_result = {
+                "status": "BLOCK",
+                "reason": f"visual_verifier_error:{type(exc).__name__}",
+            }
+        if visual_result.get("status") != "PASS":
+            continue
+
         record = dict(candidate)
         record["fonte"] = "LocalLibrary"
         record["_sap_must_total"] = len(must)
+        record["_sap_metadata_must_hits"] = int(metadata_evidence.get("hits", 0) or 0)
         record["must_hits"] = len(must)
-        return _candidate_record(record, path, probe)
+        asset_record = _candidate_record(record, path, probe)
+        asset_record["visual_verification"] = visual_result
+        asset_record["metadata_must_hits"] = int(metadata_evidence.get("hits", 0) or 0)
+        asset_record["verification_mode"] = "gemini_visual_must"
+        asset_record["verification_note"] = (
+            "local asset passed pixel-level MUST/AVOID and scene-intent verification"
+        )
+        return asset_record
     return None
 
 
@@ -434,7 +478,7 @@ def _visual_fallback_candidates(
     """
     from media_provider_router_v2 import query_relevance
 
-    image_types = {"image", "imagem", "photo", "photograph", "fotografia", "picture"}
+    image_types = {"image", "imagem", "foto", "photo", "photograph", "fotografia", "picture"}
     image_extensions = {".jpg", ".jpeg", ".png", ".webp"}
     unique: dict[tuple[str, str, str], dict[str, Any]] = {}
 
@@ -726,7 +770,7 @@ def acquire_scene(
 
     visual_fallback_candidates: list[dict[str, Any]] = []
     visual_rejections: list[str] = []
-    if must:
+    if query:
         # Keep a bounded pixel-verified fallback behind strict metadata matches.
         # A strict candidate can still fail at download/format validation; in
         # that case, continue with another real image and require pixel-level
@@ -830,22 +874,10 @@ def acquire_scene(
                     )
                 if len(visual_pool) >= MAX_VISUAL_FALLBACK_CANDIDATES:
                     break
-        strict_keys = {
-            (
-                str(item.get("fonte") or item.get("source") or ""),
-                str(item.get("id") or ""),
-                str(item.get("url") or ""),
-            )
-            for item in strict
-        }
-        visual_fallback_candidates = [
-            item for item in visual_pool
-            if (
-                str(item.get("fonte") or item.get("source") or ""),
-                str(item.get("id") or ""),
-                str(item.get("url") or ""),
-            ) not in strict_keys
-        ]
+        # Metadata matches only choose candidates; they do not establish that the
+        # pixels depict this exact scene. Every accepted external asset must pass
+        # the same bounded pixel check, including candidates from the strict path.
+        visual_fallback_candidates = visual_pool[:MAX_VISUAL_FALLBACK_CANDIDATES]
         for candidate in visual_fallback_candidates:
             candidate["_sap_must_total"] = len(must)
             candidate["_sap_short_id"] = short_id
@@ -854,16 +886,16 @@ def acquire_scene(
             candidate["_sap_visual_verification_required"] = True
             candidate["verification_mode"] = "gemini_visual_must"
             candidate["verification_note"] = (
-                "pixel-level verification required; metadata hits remain separately recorded"
+                "pixel-level MUST/AVOID and full scene-intent verification required"
             )
+        strict = visual_fallback_candidates
+        verification_mode = "gemini_visual_must" if strict else "" 
         if visual_fallback_candidates:
             print(
-                f"MEDIA_VISUAL_FALLBACK=QUEUED scene={number:02d} "
-                f"candidates={len(visual_fallback_candidates)}"
+                f"MEDIA_VISUAL_VERIFY=QUEUED scene={number:02d} "
+                f"candidates={len(visual_fallback_candidates)} "
+                f"explicit_must={len(must)} scene_intent=1"
             )
-            strict.extend(visual_fallback_candidates)
-        if not verification_mode and visual_fallback_candidates:
-            verification_mode = "gemini_visual_must"
 
     failures = []
     used_asset_hashes = used_asset_hashes or set()
@@ -894,7 +926,8 @@ def acquire_scene(
             if candidate.get("_sap_visual_verification_required"):
                 try:
                     from media_visual_verifier import verify_image_requirements
-                    visual_result = verify_image_requirements(path, must, avoid)
+                    visual_requirements = _visual_requirements(must, query)
+                    visual_result = verify_image_requirements(path, visual_requirements, avoid)
                 except Exception as exc:
                     visual_result = {
                         "status": "BLOCK",
@@ -941,8 +974,8 @@ def acquire_scene(
                     "pixel-level Gemini verification passed; metadata MUST hits preserved separately"
                 )
                 print(
-                    f"MEDIA_VISUAL_FALLBACK=PASS scene={number:02d} "
-                    f"must={len(must)} avoid={len(avoid)}"
+                    f"MEDIA_VISUAL_VERIFY=PASS scene={number:02d} "
+                    f"explicit_must={len(must)} scene_intent=PASS avoid={len(avoid)}"
                 )
 
             checksum = str(validation.get("sha256") or sha256(path))
