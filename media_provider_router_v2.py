@@ -404,6 +404,7 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
         "ship": ("vessel", "boat", "watercraft"),
         "boat": ("ship", "vessel", "watercraft"),
         "vessel": ("ship", "boat", "watercraft"),
+        "runway": ("airstrip", "airfield runway", "military airfield runway", "runway at sunset", "air force runway"),
         "ocean": ("sea", "open water"),
         "sea": ("ocean", "open water"),
         "car": ("automobile", "motor vehicle", "road vehicle", "cars"),
