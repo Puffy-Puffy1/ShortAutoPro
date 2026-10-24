@@ -405,6 +405,7 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
         "boat": ("ship", "vessel", "watercraft"),
         "vessel": ("ship", "boat", "watercraft"),
         "runway": ("airstrip", "airfield runway", "military airfield runway", "runway at sunset", "air force runway"),
+        "code": ("cipher", "cryptogram", "encrypted message", "ancient code manuscript", "handwritten cipher document"),
         "ocean": ("sea", "open water"),
         "sea": ("ocean", "open water"),
         "car": ("automobile", "motor vehicle", "road vehicle", "cars"),
@@ -471,6 +472,21 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
             "airplane over ocean at night",
             "aircraft over sea at night",
             "plane flying over ocean at night",
+        ))
+
+    # Historical code scenes need both the visible researcher and the cipher
+    # in the same frame. These variants improve discovery; MUST verification
+    # still independently checks that a person and code are actually visible.
+    must_set = {term.casefold() for term in must_terms}
+    if {"person", "code"} <= must_set and re.search(
+        r"\b(?:code|cipher|cryptogram|cryptographer|encrypted)\b",
+        raw,
+        re.IGNORECASE,
+    ):
+        candidates.extend((
+            "person studying an ancient code manuscript",
+            "cryptographer examining a handwritten cipher document",
+            "person decoding an old cryptogram",
         ))
 
     # Pilot archives often title the person separately from cockpit/radio
