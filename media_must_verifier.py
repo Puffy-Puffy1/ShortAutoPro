@@ -112,6 +112,12 @@ def _phrase_present(text: str, phrase: str) -> bool:
 
 
 STRICT_VISUAL_ALIASES = {
+    # A filing/case folder is a concrete document holder. Require explicit
+    # asset metadata; loose papers or the search query alone are insufficient.
+    "folder": (
+        "folder", "file folder", "manila folder", "case file folder",
+        "archive folder", "document folder", "filing folder", "paper folder",
+    ),
     # A tent is the core visible object; archival catalogs rarely record its fabric.
     # This is a narrow visual equivalence, not acceptance of the search query.
     "canvas tent": ("canvas tent", "canvas tents", "camping tent", "camping tents", "tent", "tents"),
