@@ -233,7 +233,8 @@ class AcquisitionV2Tests(unittest.TestCase):
         fake = FakeEngineProvider()
         with patch.object(media_engine_v2, "PROVIDER", fake), \
              patch.object(media_engine_v2, "validate_asset", return_value={"probe": {"width": 1920, "height": 1080}, "sha256": "b"}), \
-             patch.object(media_engine_v2, "_candidate_record", return_value={"asset_id": "b"}):
+             patch.object(media_engine_v2, "_candidate_record", return_value={"asset_id": "b"}), \
+             patch.object(media_engine_v2, "_verify_scene_pixels", return_value={"status": "PASS"}):
             result = media_engine_v2.acquire_scene(
                 "SID_B", 1, {"query": "test", "must_have": ["test"], "avoid": []}, Path("/tmp")
             )
@@ -376,7 +377,8 @@ class AcquisitionV2Tests(unittest.TestCase):
                 encoding="utf-8",
             )
             with patch.object(media_engine_v2, "ffprobe_asset", return_value={"width": 1080, "height": 1920}), \
-                 patch.object(media_engine_v2, "validate_asset", return_value={"sha256": digest, "probe": {"width": 1080, "height": 1920}, "validated": True}):
+                 patch.object(media_engine_v2, "validate_asset", return_value={"sha256": digest, "probe": {"width": 1080, "height": 1920}, "validated": True}), \
+                 patch.object(media_engine_v2, "_verify_scene_pixels", return_value={"status": "PASS", "must": [], "avoid": []}):
                 manifest = media_engine_v2.build_manifest(sid)
             self.assertEqual(manifest["schema_version"], "media-manifest-v2")
             self.assertEqual(manifest["short_id"], sid)

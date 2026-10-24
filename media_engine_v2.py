@@ -396,6 +396,91 @@ def _visual_requirements(must: list[str], scene_intent: str) -> list[str]:
     return requirements
 
 
+def _verify_scene_pixels(
+    path: str | Path,
+    must: list[str],
+    avoid: list[str],
+    scene_intent: str,
+    candidate: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Verify image pixels or a bounded midpoint frame from a video asset."""
+    from media_visual_verifier import verify_image_requirements
+
+    asset_path = Path(path)
+    candidate = candidate or {}
+    kind = str(candidate.get("tipo") or candidate.get("asset_type") or "").strip().casefold()
+    is_video = (
+        kind.startswith("video")
+        or kind in {"vídeo", "movie", "clip"}
+        or asset_path.suffix.casefold() in {".mp4", ".mov", ".webm", ".mkv"}
+    )
+    requirements = _visual_requirements(must, scene_intent)
+    if not is_video:
+        return verify_image_requirements(asset_path, requirements, avoid)
+
+    # Video clips remain supported, but metadata alone cannot prove their scene.
+    # Extract one midpoint frame into a temporary directory and verify those pixels.
+    with tempfile.TemporaryDirectory(prefix="sap-visual-frame-") as temp_dir:
+        frame_path = Path(temp_dir) / "scene-midpoint.jpg"
+        try:
+            duration_result = subprocess.run(
+                [
+                    "ffprobe", "-v", "error",
+                    "-show_entries", "format=duration",
+                    "-of", "default=noprint_wrappers=1:nokey=1",
+                    str(asset_path),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=15,
+            )
+            duration = float((duration_result.stdout or "").strip())
+            if duration_result.returncode != 0 or duration <= 0:
+                return {
+                    "status": "BLOCK",
+                    "method": "ffmpeg_video_frame",
+                    "reason": "video_duration_unavailable",
+                }
+            timestamp = max(0.0, duration / 2.0)
+            extraction = subprocess.run(
+                [
+                    "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+                    "-ss", f"{timestamp:.3f}",
+                    "-i", str(asset_path),
+                    "-frames:v", "1",
+                    "-vf", "scale=1280:-2",
+                    "-q:v", "3",
+                    str(frame_path),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=20,
+            )
+        except (OSError, subprocess.SubprocessError, ValueError):
+            return {
+                "status": "BLOCK",
+                "method": "ffmpeg_video_frame",
+                "reason": "video_frame_extraction_failed",
+            }
+        if extraction.returncode != 0 or not frame_path.is_file() or frame_path.stat().st_size <= 0:
+            return {
+                "status": "BLOCK",
+                "method": "ffmpeg_video_frame",
+                "reason": "video_frame_extraction_failed",
+            }
+
+        result = verify_image_requirements(frame_path, requirements, avoid)
+        return {
+            **result,
+            "video_sample": {
+                "method": "midpoint_frame",
+                "timestamp_seconds": round(timestamp, 3),
+            },
+        }
+
+
 def _local_library_asset(
     query: str,
     must: list[str],
@@ -435,11 +520,12 @@ def _local_library_asset(
             continue
 
         try:
-            from media_visual_verifier import verify_image_requirements
-            visual_result = verify_image_requirements(
+            visual_result = _verify_scene_pixels(
                 path,
-                _visual_requirements(must, query),
+                must,
                 avoid,
+                query,
+                candidate,
             )
         except Exception as exc:
             visual_result = {
@@ -888,12 +974,16 @@ def acquire_scene(
             kind = str(item.get("tipo") or item.get("asset_type") or "").strip().casefold()
             url = str(item.get("url") or "")
             extension = Path(url.split("?", 1)[0]).suffix.casefold()
-            if kind.startswith("video") or kind in {"vídeo", "movie", "clip"}:
-                continue
-            if kind and kind not in image_types:
-                continue
-            if not kind and extension not in image_extensions:
-                continue
+            is_video = (
+                kind.startswith("video")
+                or kind in {"vídeo", "movie", "clip"}
+                or extension in {".mp4", ".mov", ".webm", ".mkv"}
+            )
+            if not is_video:
+                if kind and kind not in image_types:
+                    continue
+                if not kind and extension not in image_extensions:
+                    continue
             try:
                 if int(item.get("avoid_hits", 0) or 0) > 0:
                     continue
@@ -958,9 +1048,13 @@ def acquire_scene(
 
             if candidate.get("_sap_visual_verification_required"):
                 try:
-                    from media_visual_verifier import verify_image_requirements
-                    visual_requirements = _visual_requirements(must, query)
-                    visual_result = verify_image_requirements(path, visual_requirements, avoid)
+                    visual_result = _verify_scene_pixels(
+                        path,
+                        must,
+                        avoid,
+                        query,
+                        candidate,
+                    )
                 except Exception as exc:
                     visual_result = {
                         "status": "BLOCK",
