@@ -426,3 +426,12 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - Candidatas já presentes na lista estrita são deduplicadas para não repetir downloads. O limite de fallback continua controlado por `MAX_VISUAL_FALLBACK_CANDIDATES`.
 - Foi adicionado teste de regressão simulando falha de download da candidata estrita e sucesso de uma alternativa após verificação pixel a pixel.
 - A mudança não relaxa os requisitos visuais. A aprovação final depende dos testes CI, de uma execução FIRST_VIDEO concluída e de MP4 da execução atual validado pelo FFprobe.
+
+
+## 43. Bloqueio de ícones de catálogo em cenas documentais — 24/10/2026
+
+- A execução FIRST_VIDEO `40114763731` gerou um MP4 tecnicamente válido, mas a QA visual bloqueou a saída: a cena 07 usou um ícone vetorial preto da biblioteca Pinhead como se fosse uma fotografia; isso produziu uma cena totalmente preta e contribuiu para 3,767 segundos de quadros pretos. FFprobe passou, mas o relatório de qualidade não.
+- `media_engine_v2.py` agora rejeita candidatos cuja própria metadata identifica iconografia/clipart em cenas documentais comuns, tanto na seleção estrita quanto na recuperação semântica e no fallback visual. Consultas que pedem explicitamente ícones continuam permitidas.
+- A versão do Media Engine foi elevada para `2.0.11`, invalidando mídia em cache sob a política anterior.
+- Foi adicionado teste de regressão garantindo que o ícone não chega ao download, além de teste para manter permitidas consultas explicitamente por ícones.
+- Nenhum gate visual foi reduzido. A nova execução precisa demonstrar cena 07 não vazia, ausência de quadros pretos bloqueantes e relatório de QA aprovado, além de FFprobe.
