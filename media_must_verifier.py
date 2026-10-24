@@ -261,6 +261,12 @@ STRICT_VISUAL_ALIASES = {
         "door sensor",
         "security alarm sensor",
     ),
+    # Pencil catalog terms are often indexed by construction or use; these remain
+    # explicit writing-tool labels, not generic pens or unrelated drawing tools.
+    "pencil": (
+        "pencil", "graphite pencil", "drawing pencil", "wooden pencil",
+        "mechanical pencil", "pencil on map", "pencil on a map",
+    ),
     "picture frame": (
         "picture frame",
         "photo frame",
