@@ -441,7 +441,8 @@ def _visual_fallback_candidates(
     for candidate in candidates:
         if not isinstance(candidate, dict):
             continue
-        if _is_non_photographic_asset(candidate, query):
+        search_query = str(candidate.get("_sap_relevance_query") or query).strip() or query
+        if _is_non_photographic_asset(candidate, search_query):
             continue
         kind = str(candidate.get("tipo") or candidate.get("asset_type") or "").strip().casefold()
         if kind.startswith("video") or kind in {"vídeo", "movie", "clip"}:
@@ -460,7 +461,7 @@ def _visual_fallback_candidates(
         except (TypeError, ValueError):
             continue
 
-        relevance = query_relevance(query, candidate)
+        relevance = query_relevance(search_query, candidate)
         relevance_candidate = {**candidate, "query_relevance": relevance}
         # A below-threshold relevance score may still be inspected when at least
         # one independent scene-context term matches outside the MUST anchors.
@@ -737,6 +738,67 @@ def acquire_scene(
             must=must,
             limit=MAX_VISUAL_FALLBACK_CANDIDATES,
         )
+
+        # Prefer scene-director alternatives before generating more query variants.
+        # These are retrieval hints only; pixel verification remains the acceptance gate.
+        raw_alternates = scene.get("alt_queries") or []
+        if isinstance(raw_alternates, str):
+            raw_alternates = [raw_alternates]
+        if not isinstance(raw_alternates, (list, tuple)):
+            raw_alternates = []
+
+        seen_alternates = {re.sub(r"\s+", " ", query).strip().casefold()}
+        alternate_searches = 0
+        if len(visual_pool) < MAX_VISUAL_FALLBACK_CANDIDATES:
+            for raw_alternate in raw_alternates:
+                alternate_query = re.sub(r"\s+", " ", str(raw_alternate or "")).strip()
+                alternate_key = alternate_query.casefold()
+                if not alternate_query or alternate_key in seen_alternates:
+                    continue
+                seen_alternates.add(alternate_key)
+                if (
+                    alternate_searches >= 3
+                    or len(visual_pool) >= MAX_VISUAL_FALLBACK_CANDIDATES
+                ):
+                    break
+                alternate_searches += 1
+                try:
+                    alternate_candidates = PROVIDER.search(
+                        alternate_query,
+                        [],
+                        avoid,
+                        segmento=segment,
+                        visual_mode=visual_mode,
+                    )
+                except Exception as exc:
+                    print(
+                        f"MEDIA_ALT_QUERY_SEARCH=ERROR scene={number:02d} "
+                        f"error={type(exc).__name__}"
+                    )
+                    continue
+                if not alternate_candidates:
+                    continue
+
+                # Relevance must use the query that found each image, not the
+                # primary query that already failed to retrieve a suitable asset.
+                visual_source.extend(
+                    {
+                        **candidate,
+                        "_sap_relevance_query": alternate_query,
+                    }
+                    for candidate in alternate_candidates
+                    if isinstance(candidate, dict)
+                )
+                visual_pool = _visual_fallback_candidates(
+                    query,
+                    visual_source,
+                    must=must,
+                    limit=MAX_VISUAL_FALLBACK_CANDIDATES,
+                )
+                print(
+                    f"MEDIA_ALT_QUERY_SEARCH=PASS scene={number:02d} "
+                    f"candidates={len(alternate_candidates)} pool={len(visual_pool)}"
+                )
 
         # Broad provider searches can return many catalog matches but almost no
         # images that show every MUST. Search missing MUST terms with a few

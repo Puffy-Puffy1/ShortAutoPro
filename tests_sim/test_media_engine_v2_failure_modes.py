@@ -344,6 +344,118 @@ class MediaEngineV2FailureTests(unittest.TestCase):
         )
         self.assertEqual(selected, [])
 
+    def test_scene_alternate_query_can_recover_a_relevant_pixel_verified_asset(self):
+        with tempfile.TemporaryDirectory() as td:
+            media = Path(td) / "media"
+            media.mkdir()
+            destination = media / "scene_07_wikimedia.jpg"
+            primary_query = "wrecked airplane fuselage abandoned in deep snow"
+            alternate_query = "isolated plane wreckage in winter landscape"
+            primary = {
+                "fonte": "Wikimedia",
+                "id": "primary-query-mismatch",
+                "tipo": "image",
+                "url": "https://example.test/unrelated.jpg",
+                "title": "Snowy mountain landscape",
+                "avoid_hits": 0,
+                "score": 50,
+            }
+            alternate = {
+                "fonte": "Wikimedia",
+                "id": "alternate-query-match",
+                "tipo": "image",
+                "url": "https://example.test/airplane-wreckage-snow.jpg",
+                "title": "Airplane wreckage in a snowy mountain landscape",
+                "avoid_hits": 0,
+                "score": 60,
+            }
+            observed_queries = []
+
+            def search(query, _must, _avoid, **_kwargs):
+                observed_queries.append(query)
+                if query == primary_query:
+                    return [primary]
+                if query == alternate_query:
+                    return [alternate]
+                return []
+
+            def relevance(query, _candidate):
+                if query == alternate_query:
+                    return {
+                        "ok": True,
+                        "matched_terms": ["plane", "wreckage", "winter", "landscape"],
+                        "matched_count": 4,
+                        "query_term_count": 4,
+                    }
+                return {
+                    "ok": False,
+                    "matched_terms": ["snow"],
+                    "matched_count": 1,
+                    "query_term_count": 6,
+                }
+
+            def download(candidate, _number, _sid):
+                destination.write_bytes(candidate["id"].encode("utf-8"))
+                return True, str(destination), {}
+
+            def validate(path):
+                path = Path(path)
+                return {
+                    "sha256": media_engine_v2.sha256(path),
+                    "probe": {"width": 1920, "height": 1080},
+                }
+
+            passed = {
+                "status": "PASS",
+                "method": "gemini_image_pixels",
+                "must": [
+                    {"anchor": "snow", "visible": True, "confidence": 0.97},
+                    {"anchor": "airplane wreckage", "visible": True, "confidence": 0.98},
+                ],
+                "avoid": [],
+            }
+
+            with patch.object(
+                media_engine_v2.PROVIDER, "search", side_effect=search
+            ), patch.object(
+                media_engine_v2.PROVIDER, "prepare", return_value=[]
+            ), patch(
+                "media_must_verifier.verified_must",
+                return_value={
+                    "hits": 0,
+                    "total": 2,
+                    "matched": [],
+                    "missing": ["snow", "airplane wreckage"],
+                },
+            ), patch.object(
+                media_engine_v2.PROVIDER, "download", side_effect=download
+            ), patch.object(
+                media_engine_v2, "validate_asset", side_effect=validate
+            ), patch.object(
+                media_engine_v2, "_local_library_asset", return_value=None
+            ), patch(
+                "media_provider_router_v2.query_relevance", side_effect=relevance
+            ), patch(
+                "media_visual_verifier.verify_image_requirements", return_value=passed
+            ) as visual_verify:
+                result = media_engine_v2.acquire_scene(
+                    "X",
+                    7,
+                    {
+                        "query": primary_query,
+                        "must_have": ["snow", "airplane wreckage"],
+                        "avoid": [],
+                        "alt_queries": [alternate_query],
+                    },
+                    media,
+                )
+
+            self.assertIn(alternate_query, observed_queries)
+            self.assertEqual(result["asset_id"], "alternate-query-match")
+            self.assertEqual(result["verification_mode"], "gemini_visual_must")
+            self.assertEqual(result["visual_verification"]["status"], "PASS")
+            visual_verify.assert_called_once()
+
     def test_visual_fallback_accepts_only_after_pixel_verification_passes(self):
         with tempfile.TemporaryDirectory() as td:
             base = Path(td)
