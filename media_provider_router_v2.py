@@ -461,6 +461,17 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
         # aliases for the dedicated fallback list below. This reserves room
         # for every explicit MUST anchor in the bounded query set.
 
+    # Multi-anchor aviation scenes are commonly catalogued with "aircraft"
+    # or "plane", and the night setting may be indexed separately. These
+    # variants improve discovery only; strict MUST/AVOID verification is unchanged.
+    must_set = {term.casefold() for term in must_terms}
+    if {"airplane", "ocean", "night sky"} <= must_set:
+        candidates.extend((
+            "airplane over ocean at night",
+            "aircraft over sea at night",
+            "plane flying over ocean at night",
+        ))
+
     # Pilot archives often title the person separately from cockpit/radio
     # equipment. These searches improve discovery only; query relevance and
     # independent MUST verification still decide whether an asset is valid.
