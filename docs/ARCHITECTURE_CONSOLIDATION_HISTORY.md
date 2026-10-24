@@ -305,3 +305,12 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - A execução de regressão da revisão `6df2ff4` mostrou que a âncora `vintage equipment` era reduzida a `vintage` apenas porque outro MUST dizia `skis`, mesmo quando a consulta só mencionava neve e montanhas.
 - Ajuste: a normalização de `vintage equipment` agora exige que a própria consulta contenha contexto explícito de esqui/época. Outros MUSTs continuam a contextualizar requisitos compatíveis, como `skiers` contextualizando `winter gear`, mas não substituem a evidência visual da época.
 - O teste `test_ski_equipment_requirements_remain_unchanged_without_context` cobre a regressão. A política continua a exigir verificação independente dos metadados do candidato.
+
+
+## 37. Recuperação de busca para lápis em mapas — 24/10/2026
+
+- A execução FIRST_VIDEO `40042645231` parou na cena 06: a busca encontrou 58 candidatos, mas nenhum passou pela evidência estrita de `map` e `pencil`; o único candidato visualmente analisado mostrava mapa, mas não lápis.
+- `media_provider_router_v2.py` agora inclui consultas de catálogo específicas para lápis (grafite, desenho, madeira, mecânico e lápis sobre mapa), mantendo o conjunto de variantes limitado.
+- `media_must_verifier.py` reconhece apenas descrições explícitas de lápis e equivalentes diretos. Uma caneta genérica ou a própria consulta não serve como evidência.
+- `tests_sim/test_media_must_verifier.py` adiciona regressões para metadados positivos, rejeição de falsos positivos e expansão de consulta.
+- A verificação visual e os critérios MUST/AVOID não foram reduzidos. O novo FIRST_VIDEO precisa confirmar se a busca encontra um candidato válido e gerar/validar um MP4 real.
