@@ -109,7 +109,7 @@ class MediaVisualVerifierTests(unittest.TestCase):
         self.assertEqual(result["scene_match"]["intent"], intent)
         self.assertTrue(result["scene_match"]["matches"])
         prompt = generate.call_args.args[0]
-        self.assertIn("high-level semantic match", prompt)
+        self.assertIn("high-level visual match", prompt)
         self.assertIn(intent, prompt)
 
     @patch("media_visual_verifier.generate_text")
