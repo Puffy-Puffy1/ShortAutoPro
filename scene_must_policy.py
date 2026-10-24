@@ -73,6 +73,10 @@ _ENCRYPTED_CODE_CONTEXT = re.compile(
     r"\b(?:code|cipher|cryptogram|encrypted|encryption|encoded message|secret handwriting)\b",
     re.IGNORECASE,
 )
+_WOODEN_HOUSE_CONTEXT = re.compile(
+    r"\bwooden houses?\b|\bcasa[s]? de madeira\b",
+    re.IGNORECASE,
+)
 
 
 def normalize_visual_musts(
@@ -108,8 +112,20 @@ def normalize_visual_musts(
             if other_index != index and str(other).strip()
         ]
         item_context = " ".join([str(context or "").strip(), *other_values]).strip()
+        source_context = str(context or "")
         manuscript_context = bool(_MANUSCRIPT_CONTEXT.search(item_context))
         key = original.casefold()
+
+        if (
+            key in {"wooden houses", "wooden house"}
+            and not _WOODEN_HOUSE_CONTEXT.search(source_context)
+        ):
+            events.append({
+                "from": original,
+                "to": f"preferred:{original}",
+                "reason": "UNSUPPORTED_VISUAL_DETAIL_PREFERENCE",
+            })
+            continue
         anchor = _NON_ATOMIC_VISUAL_MUSTS.get(key, original)
         reason = "NON_ATOMIC_VISUAL_QUALIFIER"
 

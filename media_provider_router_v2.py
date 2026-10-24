@@ -494,11 +494,16 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
             "steam locomotive in snow",
         ))
 
-    # Old Russian winter towns are frequently indexed by the houses/village,
-    # not the broad word "town". Search combinations only for the explicit
-    # three-anchor contract; the pixel verifier still decides acceptance.
+    # Old Russian winter towns are often indexed by village/houses rather than
+    # "town". House wording may be a soft preference, so it can live in query
+    # text while only town and snow remain hard requirements.
     must_set = {term.casefold() for term in must_terms}
-    if {"town", "snow", "wooden houses"} <= must_set:
+    wooden_house_context = bool(
+        re.search(r"\bwooden houses?\b", raw, re.IGNORECASE)
+    )
+    if {"town", "snow"} <= must_set and (
+        {"town", "snow", "wooden houses"} <= must_set or wooden_house_context
+    ):
         candidates.extend((
             "old Russian town with wooden houses in snow",
             "Sverdlovsk winter village wooden houses",

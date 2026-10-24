@@ -23,7 +23,7 @@ from typing import Any
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", Path.home() / "ShortAutoPro")).resolve()
 MEDIA_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".webm", ".mkv"}
-ENGINE_VERSION = "2.0.9"
+ENGINE_VERSION = "2.0.10"
 MIN_VISUAL_PIXELS = 320 * 180
 MAX_VISUAL_FALLBACK_CANDIDATES = 5
 
@@ -108,6 +108,7 @@ def _scene_contract_fingerprint(scene: dict[str, Any]) -> str:
         "segment": re.sub(r"\s+", " ", segment).strip().casefold(),
         "visual_mode": re.sub(r"\s+", " ", visual_mode).strip().casefold(),
         "must_have": _contract_values(scene.get("must_have") or []),
+        "preferred_visuals": _contract_values(scene.get("preferred_visuals") or []),
         "avoid": _contract_values(scene.get("avoid") or []),
     }
     return hashlib.sha256(_canonical_json(payload)).hexdigest()
@@ -235,6 +236,31 @@ def load_scene_map(short_id: str) -> list[dict[str, Any]]:
             context=scene_context,
         )
         scene["must_have"] = musts
+
+        # Details added by the visual director but absent from both query and
+        # narration remain useful search preferences, not hard blocking MUSTs.
+        extracted_preferences = [
+            str(event.get("from") or "").strip()
+            for event in events
+            if event.get("reason") == "UNSUPPORTED_VISUAL_DETAIL_PREFERENCE"
+            and str(event.get("from") or "").strip()
+        ]
+        raw_preferences = scene.get("preferred_visuals") or []
+        if isinstance(raw_preferences, str):
+            raw_preferences = [raw_preferences]
+        if not isinstance(raw_preferences, (list, tuple, set)):
+            raw_preferences = []
+        seen_preferences = set()
+        preferred_visuals = []
+        for raw_preference in [*raw_preferences, *extracted_preferences]:
+            preference = str(raw_preference or "").strip()
+            key = preference.casefold()
+            if preference and key not in seen_preferences:
+                seen_preferences.add(key)
+                preferred_visuals.append(preference)
+        if preferred_visuals:
+            scene["preferred_visuals"] = preferred_visuals
+
         if events:
             print(
                 "SCENE_MUST_NORMALIZED="
@@ -467,6 +493,16 @@ def acquire_scene(
     used_asset_hashes: set[str] | None = None,
 ) -> dict[str, Any]:
     query = str(scene.get("query") or scene.get("busca") or scene.get("segment") or "").strip()
+    raw_preferences = scene.get("preferred_visuals") or []
+    if isinstance(raw_preferences, str):
+        raw_preferences = [raw_preferences]
+    if isinstance(raw_preferences, (list, tuple, set)):
+        preferences = [str(value).strip() for value in raw_preferences if str(value).strip()]
+    else:
+        preferences = []
+    for preference in preferences:
+        if preference.casefold() not in query.casefold():
+            query = f"{query} {preference}".strip()
     must = [str(x).strip() for x in (scene.get("must_have") or []) if str(x).strip()]
     avoid = [str(x).strip() for x in (scene.get("avoid") or []) if str(x).strip()]
     visual_mode = str(scene.get("visual_mode") or scene.get("modo_visual") or "").strip()

@@ -355,5 +355,26 @@ class SceneMustPolicyTests(unittest.TestCase):
         self.assertEqual(anchors, ["ocean", "shoreline"])
         self.assertEqual(events, [])
 
+    def test_unsupported_wooden_house_detail_becomes_a_preference(self):
+        anchors, events = normalize_visual_musts(
+            ["town", "snow", "wooden houses"],
+            context=(
+                "old russian town in sverdlovsk oblast winter aerial view; "
+                "cidade ao centro da província de Oblast de Sverdlovsk"
+            ),
+        )
+        self.assertEqual(anchors, ["town", "snow"])
+        self.assertEqual(events[-1]["reason"], "UNSUPPORTED_VISUAL_DETAIL_PREFERENCE")
+        self.assertEqual(events[-1]["to"], "preferred:wooden houses")
+
+    def test_wooden_houses_remain_a_must_when_scene_text_names_them(self):
+        anchors, events = normalize_visual_musts(
+            ["town", "snow", "wooden houses"],
+            context="old Russian town with wooden houses in snow",
+        )
+        self.assertEqual(anchors, ["town", "snow", "wooden houses"])
+        self.assertEqual(events, [])
+
+
 if __name__ == "__main__":
     unittest.main()

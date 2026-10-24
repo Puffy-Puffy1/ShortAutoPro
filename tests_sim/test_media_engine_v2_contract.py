@@ -140,6 +140,46 @@ class MediaEngineContractTests(unittest.TestCase):
                 scenes = media_engine_v2.load_scene_map(sid)
             self.assertEqual(scenes[0]["must_have"], ["page"])
 
+    def test_load_scene_map_downgrades_unsupported_house_detail_to_preference(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            sid = "TEST_TOWN_PREFERENCE"
+            scripts = base / "roteiros"
+            scripts.mkdir(parents=True)
+            scene_map = scripts / f"scene_map_{sid}.json"
+            scene_map.write_text(
+                json.dumps({
+                    "scenes": [{
+                        "scene_id": "03",
+                        "query": "old russian town in sverdlovsk oblast winter aerial view",
+                        "segment": "cidade ao centro da província de Oblast de Sverdlovsk",
+                        "must_have": ["town", "snow", "wooden houses"],
+                        "avoid": [],
+                    }]
+                }),
+                encoding="utf-8",
+            )
+            with patch.object(media_engine_v2, "BASE", base):
+                scenes = media_engine_v2.load_scene_map(sid)
+            self.assertEqual(scenes[0]["must_have"], ["town", "snow"])
+            self.assertEqual(scenes[0]["preferred_visuals"], ["wooden houses"])
+
+    def test_scene_contract_fingerprint_tracks_preferred_visuals(self):
+        scene = {
+            "query": "old Russian town in winter",
+            "segment": "cidade antiga no inverno",
+            "visual_mode": "location",
+            "must_have": ["town", "snow"],
+            "preferred_visuals": ["wooden houses"],
+            "avoid": [],
+        }
+        baseline = media_engine_v2._scene_contract_fingerprint(scene)
+        changed = dict(scene, preferred_visuals=["historic buildings"])
+        self.assertNotEqual(
+            baseline,
+            media_engine_v2._scene_contract_fingerprint(changed),
+        )
+
     def test_load_scene_map_adds_person_anchor_from_narration(self):
         with tempfile.TemporaryDirectory() as td:
             base = Path(td)

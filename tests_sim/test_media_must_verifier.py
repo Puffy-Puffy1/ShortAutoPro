@@ -328,3 +328,15 @@ class MediaMustVerifierRussianWinterTownSearchTests(unittest.TestCase):
         )
         self.assertIn("old Russian town with wooden houses in snow", variants)
         self.assertIn("Sverdlovsk winter village wooden houses", variants)
+
+
+
+class MediaMustVerifierTownPreferenceSearchTests(unittest.TestCase):
+    def test_town_and_snow_search_expands_a_preferred_house_detail(self):
+        variants = _query_variants(
+            "old russian town in sverdlovsk oblast winter aerial view wooden houses",
+            ["town", "snow"],
+        )
+        self.assertLessEqual(len(variants), 8)
+        self.assertIn("old Russian town with wooden houses in snow", variants)
+        self.assertIn("Sverdlovsk winter village wooden houses", variants)

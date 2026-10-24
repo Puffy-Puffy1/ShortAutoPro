@@ -359,3 +359,12 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - O roteador adiciona duas buscas específicas quando esses três MUSTs estão presentes: `old Russian town with wooden houses in snow` e `Sverdlovsk winter village wooden houses`. O limite geral de variantes permanece em oito.
 - Os candidatos continuam sujeitos à verificação independente de MUSTs/AVOID e, no fallback, ao verificador de pixels. A expansão só melhora a descoberta e não transforma uma imagem genérica em imagem aprovada.
 - O teste `test_russian_winter_town_query_gets_two_contextual_searches` protege as variantes contra regressão. A confirmação depende de uma nova execução FIRST_VIDEO com conteúdo e FFprobe aprovados.
+
+
+## 43. Separação entre requisito obrigatório e preferência visual não narrada — 24/10/2026
+
+- A execução FIRST_VIDEO `40052318151` validou visualmente a cena 02, mas bloqueou a cena 03. O diretor adicionou `wooden houses` como MUST mesmo sem essa informação na consulta ou na narração; os cinco candidatos analisados não cumpriram a combinação artificial de três elementos.
+- Correção: `scene_must_policy.py` mantém `town` e `snow` como requisitos e converte `wooden houses` em `preferred_visuals` somente quando o detalhe não aparece no texto da cena. Se a consulta/narração mencionar casas de madeira, o detalhe continua obrigatório.
+- `media_engine_v2.load_scene_map()` faz a ponte entre os resultados da normalização e `preferred_visuals`. A busca acrescenta as preferências para ajudar a descoberta, sem usá-las como prova nem bloqueio.
+- A fingerprint inclui preferências e a versão do engine passa a `2.0.10`, invalidando o cache antigo. O roteador preserva consultas específicas para cidade russa nevada com casas de madeira quando a preferência estiver presente.
+- Testes cobrem a conversão condicional, o cenário em que as casas são explicitamente exigidas, a ponte ao carregar o mapa e a inclusão das preferências na fingerprint. As verificações visuais de MUST/AVOID seguem obrigatórias para candidatos de fallback.
