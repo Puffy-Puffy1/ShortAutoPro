@@ -406,3 +406,37 @@ class MediaMustVerifierCipherOnPaperSearchTests(unittest.TestCase):
             {"title": "paper"},
         )
         self.assertFalse(result["ok"], result)
+
+
+class MediaMustVerifierArchiveFolderSearchTests(unittest.TestCase):
+    def test_mystery_archive_scene_gets_contextual_folder_searches(self):
+        variants = _query_variants(
+            "unsolved mystery case file archive room",
+            ["folder"],
+        )
+        self.assertLessEqual(len(variants), 8)
+        self.assertEqual(variants[0], "unsolved mystery case file archive room")
+        self.assertIn(
+            "unsolved mystery case file folder in archive room",
+            variants,
+        )
+        self.assertIn("manila folder for an unsolved case file", variants)
+        self.assertIn("case file folder on an archive desk", variants)
+
+    def test_folder_requires_explicit_asset_metadata(self):
+        for evidence in (
+            "manila folder containing archived case documents",
+            "file folder on a detective's desk",
+            "archive folder with newspaper clippings",
+        ):
+            self.assertTrue(requirement_matches("folder", {"description": evidence}), evidence)
+
+        self.assertFalse(
+            requirement_matches("folder", {"description": "loose papers and newspaper clippings"})
+        )
+        self.assertFalse(
+            requirement_matches(
+                "folder",
+                {"title": "police archive", "query": "case file folder"},
+            )
+        )
