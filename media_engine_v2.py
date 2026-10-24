@@ -540,8 +540,9 @@ def _targeted_visual_search_queries(
 
     searches = []
     seen = set()
+    max_searches = max(1, min(int(limit), 3))
     for item in must:
-        term = re.sub(r"\s+", " ", str(item or "")).strip()
+        term = re.sub(r"\\s+", " ", str(item or "")).strip()
         term_tokens = set(re.findall(r"[a-z0-9]+", term.casefold()))
         if not term or term_tokens <= query_token_set:
             continue
@@ -550,8 +551,26 @@ def _targeted_visual_search_queries(
         if targeted and key not in seen:
             seen.add(key)
             searches.append(targeted)
-        if len(searches) >= max(1, min(int(limit), 3)):
+        if len(searches) >= max_searches:
             break
+
+    # A broad scene query may already contain "map" but still return unrelated
+    # catalog images. Try common archival catalog phrasing without relaxing the
+    # pixel-level acceptance criteria. Keep this narrow and bounded.
+    if (
+        len(must) == 1
+        and str(must[0]).strip().casefold() == "map"
+        and re.search(r"\\bmap\\b", str(query or ""), re.IGNORECASE)
+    ):
+        for phrase in ("antique map", "historical map", "old map"):
+            targeted = " ".join([phrase, *context]).strip()
+            key = targeted.casefold()
+            if targeted and key not in seen:
+                seen.add(key)
+                searches.append(targeted)
+            if len(searches) >= max_searches:
+                break
+
     return searches
 
 

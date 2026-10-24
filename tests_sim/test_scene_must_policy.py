@@ -378,3 +378,23 @@ class SceneMustPolicyTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+    def test_vintage_paper_texture_becomes_preference_for_map_scenes(self):
+        anchors, events = normalize_visual_musts(
+            ["map", "vintage paper texture"],
+            context="historic British countryside map 1926",
+        )
+        self.assertEqual(anchors, ["map"])
+        self.assertEqual(events, [{
+            "from": "vintage paper texture",
+            "to": "preferred:vintage paper texture",
+            "reason": "UNSUPPORTED_VISUAL_DETAIL_PREFERENCE",
+        }])
+
+    def test_vintage_paper_texture_remains_a_must_without_map_context(self):
+        anchors, events = normalize_visual_musts(
+            ["vintage paper texture"],
+            context="close-up of an old document",
+        )
+        self.assertEqual(anchors, ["vintage paper texture"])
+        self.assertEqual(events, [])
