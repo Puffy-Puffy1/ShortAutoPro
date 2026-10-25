@@ -465,6 +465,25 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
             "ghost ship in the ocean",
         ))
 
+    # Historical damaged-tent scenes are often catalogued by the visible
+    # tear or fabric damage, not by the editorial phrase "canvas tear".
+    # Keep the subject and damage together; visual MUST/AVOID checks stay strict.
+    if {"tent", "canvas tear"} <= must_set and re.search(
+        r"\b(?:tent|canvas)\b", raw, re.IGNORECASE
+    ):
+        damage_context = re.sub(
+            r"\b(?:canvas tear|torn canvas|ripped canvas)\b",
+            "torn tent canvas",
+            raw,
+            count=1,
+            flags=re.IGNORECASE,
+        )
+        candidates.extend((
+            damage_context,
+            "torn canvas tent in snowy mountains",
+            "ripped tent canvas in snowy mountains",
+        ))
+
     # Winter camping scenes are often indexed by the tent first, while
     # snow and darkness appear in separate catalog tags. Keep these searches
     # early in the bounded budget; MUST/AVOID visual checks remain authoritative.
