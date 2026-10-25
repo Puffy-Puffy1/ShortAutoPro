@@ -7,7 +7,7 @@ BRANCH="${SAP_BRIDGE_BRANCH:-termux-stable}"
 BRIDGE="$PROJECT_DIR/automation/termux_bridge.sh"
 STATE_DIR="${SAP_BRIDGE_STATE_DIR:-$HOME/.shortautopro_bridge}"
 CRON_TAG="# SHORTAUTOPRO_TERMUX_BRIDGE"
-CRON_LINE="*/15 * * * * bash \"$BRIDGE\" $CRON_TAG"
+CRON_LINE="*/15 * * * * SAP_PROJECT_DIR=\"$PROJECT_DIR\" SAP_BRIDGE_BRANCH=\"$BRANCH\" bash \"$BRIDGE\" $CRON_TAG"
 
 say() {
     printf '%s\n' "$*"
@@ -20,8 +20,16 @@ fail() {
 
 command -v git >/dev/null 2>&1 || fail "git nao encontrado"
 command -v bash >/dev/null 2>&1 || fail "bash nao encontrado"
-command -v flock >/dev/null 2>&1 || fail "flock nao encontrado (instale util-linux no Termux)"
-command -v crontab >/dev/null 2>&1 || fail "crontab nao encontrado (instale cronie no Termux)"
+command -v pkg >/dev/null 2>&1 || fail "pkg nao encontrado; use o Termux oficial"
+
+if ! command -v flock >/dev/null 2>&1 || ! command -v crontab >/dev/null 2>&1; then
+    say "[0/6] Instalando dependencias do agendador"
+    pkg install -y util-linux cronie || fail "nao foi possivel instalar util-linux/cronie"
+fi
+
+command -v flock >/dev/null 2>&1 || fail "flock continua indisponivel apos instalar util-linux"
+command -v crontab >/dev/null 2>&1 || fail "crontab continua indisponivel apos instalar cronie"
+command -v crond >/dev/null 2>&1 || fail "crond continua indisponivel apos instalar cronie"
 
 [ -d "$PROJECT_DIR/.git" ] || fail "repositorio nao encontrado em $PROJECT_DIR"
 
@@ -62,7 +70,17 @@ grep -vF "$CRON_TAG" "$CURRENT_CRON" >"$NEW_CRON" || true
 printf '%s\n' "$CRON_LINE" >>"$NEW_CRON"
 crontab "$NEW_CRON"
 
-say "[4/6] Garantindo que o cron esteja ativo"
+say "[4/6] Configurando inicio automatico do cron"
+BOOT_DIR="$HOME/.termux/boot"
+BOOT_SCRIPT="$BOOT_DIR/shortautopro-autosync.sh"
+mkdir -p "$BOOT_DIR"
+cat > "$BOOT_SCRIPT" <<'BOOT'
+#!/data/data/com.termux/files/usr/bin/bash
+termux-wake-lock >/dev/null 2>&1 || true
+pgrep -x crond >/dev/null 2>&1 || crond
+BOOT
+chmod +x "$BOOT_SCRIPT"
+
 if ! pgrep -x crond >/dev/null 2>&1; then
     crond || fail "nao foi possivel iniciar crond"
 fi
