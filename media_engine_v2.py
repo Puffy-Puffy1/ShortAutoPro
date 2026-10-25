@@ -951,6 +951,31 @@ def _targeted_visual_search_queries(
                 break
         searches = prioritized
 
+    # Storm-flight scenes are often indexed as weather or horizon photos.
+    # Keep aircraft, dark clouds and horizon in the search wording; the strict
+    # pixel verifier still decides whether a candidate is usable.
+    aviation_weather = query_terms | must_tokens
+    if (
+        {"airplane", "dark", "clouds", "horizon"} <= aviation_weather
+        and "daylight" in avoid_text
+    ):
+        weather_variants = [
+            "small airplane flying beneath dark storm clouds over distant horizon",
+            "propeller aircraft in flight under dark clouds above horizon",
+            "airplane silhouette against storm clouds and distant horizon",
+        ]
+        prioritized = []
+        seen_priority = set()
+        for targeted in [*weather_variants, *searches]:
+            normalized = re.sub(r"\\s+", " ", str(targeted or "")).strip()
+            key = normalized.casefold()
+            if normalized and key not in seen_priority:
+                prioritized.append(normalized)
+                seen_priority.add(key)
+            if len(prioritized) >= max_searches:
+                break
+        searches = prioritized
+
     # Light-aircraft scenes over open water are poorly indexed by broad
     # "airplane ocean" searches. Prefer precise catalog wording for night
     # flights when daylight and commercial airliners are explicitly excluded.
