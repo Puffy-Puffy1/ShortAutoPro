@@ -501,3 +501,11 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - Corrigida a expressão para limites de palavra reais e reforçada a busca de catálogo para navios antigos/solitários em mar aberto.
 - Testes de regressão cobrem a ativação das buscas de inverno, a ausência de correspondência dentro de palavras como `Australian` e as variantes de navio em mar aberto.
 - Nenhum MUST/AVOID ou gate visual foi relaxado. A confirmação ainda exige nova validação portátil e FIRST_VIDEO com MP4 próprio validado por FFprobe.
+
+
+## 43. Preservar consultas contextuais de pessoa em cenas de inverno — 25/10/2026
+
+- A validação portátil encontrou regressão em `test_lone_person_winter_scene_gets_contextual_searches_first`: consultas de pessoa sem alias explícito ficavam limitadas a quatro variantes e descartavam parte das buscas de contexto (trilha, caminhante e neve).
+- O roteador agora define aliases limitados para `person`, permitindo o orçamento de até oito variantes já usado por outras cenas com aliases. As consultas contextuais continuam antes dos fallbacks genéricos; os critérios visuais MUST/AVOID não foram alterados.
+- O FIRST_VIDEO da cabeça anterior falhou na cena 01 (`ship`): nenhum dos candidatos Wikimedia passou pela verificação visual; houve bloqueio por confiança de AVOID e visibilidade do MUST. A próxima execução após esta correção deve ser inspecionada antes de considerar a geração validada.
+- A PR permanece sem merge até a suíte portátil passar e existir um MP4 gerado nesta cabeça, validado por FFprobe.
