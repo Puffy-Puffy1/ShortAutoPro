@@ -26,6 +26,10 @@ MEDIA_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".webm", ".mkv"}
 ENGINE_VERSION = "2.0.13"
 MIN_VISUAL_PIXELS = 320 * 180
 MAX_VISUAL_FALLBACK_CANDIDATES = 8
+MAX_LOW_RELEVANCE_VISUAL_CANDIDATES = 4
+MAX_VISUAL_VERIFICATION_ATTEMPTS = (
+    MAX_VISUAL_FALLBACK_CANDIDATES + MAX_LOW_RELEVANCE_VISUAL_CANDIDATES
+)
 
 
 def _resolution_issue(probe: dict[str, Any]) -> str | None:
@@ -602,11 +606,14 @@ def _visual_fallback_candidates(
     candidates: list[dict[str, Any]],
     must: list[str] | None = None,
     limit: int = 2,
+    *,
+    allow_low_relevance: bool = False,
+    low_relevance_only: bool = False,
 ) -> list[dict[str, Any]]:
-    """Choose a tiny set of relevant real images for pixel-level verification.
+    """Choose a bounded image shortlist for pixel-level verification.
 
-    This is discovery only. No candidate is accepted until its downloaded pixels
-    pass media_visual_verifier and the existing media validator.
+    Catalog relevance ranks candidates but does not prove visual content. Optional
+    low-relevance rescue candidates still have to pass the same pixel verifier.
     """
     from media_provider_router_v2 import query_relevance
 
@@ -639,14 +646,16 @@ def _visual_fallback_candidates(
 
         relevance = query_relevance(search_query, candidate)
         relevance_candidate = {**candidate, "query_relevance": relevance}
-        # A below-threshold relevance score may still be inspected when at least
-        # one independent scene-context term matches outside the MUST anchors.
-        # Pixel verification remains the only path that can accept these assets.
-        if not _relaxed_relevance_acceptable(relevance_candidate, must or []):
+        relevance_ok = _relaxed_relevance_acceptable(relevance_candidate, must or [])
+        if low_relevance_only and relevance_ok:
             continue
-        # Copy only eligible candidates: a rejected result must not be mutated
-        # and affect a later retry or a different acquisition attempt.
+        if not relevance_ok and not allow_low_relevance:
+            continue
+        # Low-relevance rescue only enters the candidate shortlist. Its ranking
+        # is lower, and its downloaded pixels must still satisfy MUST, AVOID and
+        # scene intent before the asset can be accepted.
         candidate = dict(relevance_candidate)
+        candidate["_sap_relevance_fallback_only"] = not relevance_ok
         # Use asset metadata, not provider scores, to rank which candidates receive
         # the bounded pixel-level verification. This ranking never accepts media.
         try:
@@ -678,6 +687,7 @@ def _visual_fallback_candidates(
     ranked = sorted(
         unique.values(),
         key=lambda candidate: (
+            int(not candidate.get("_sap_relevance_fallback_only", False)),
             int(candidate.get("_sap_metadata_must_hits", 0) or 0),
             int(candidate.get("_sap_primary_must_match", 0) or 0),
             int((candidate.get("query_relevance") or {}).get("matched_count", 0) or 0),
@@ -1160,15 +1170,23 @@ def acquire_scene(
                     must=must,
                     limit=MAX_VISUAL_FALLBACK_CANDIDATES,
                 )
-        # Metadata matches only choose candidates; they do not establish that the
-        # pixels depict this exact scene. Start with the ranked visual pool, then
-        # keep a bounded set of strict candidates as a rescue if relevance scoring
-        # filtered everything out. The pixel verifier remains the final authority.
+        # Metadata matches and relevance scores rank candidates; they do not prove
+        # the image composition. Keep a small second cohort whose catalog text is
+        # weak but whose pixels may still prove the scene. This keeps the expensive
+        # visual gate bounded while avoiding a premature no-asset failure.
+        low_relevance_pool = _visual_fallback_candidates(
+            query,
+            visual_source,
+            must=must,
+            limit=MAX_LOW_RELEVANCE_VISUAL_CANDIDATES,
+            allow_low_relevance=True,
+            low_relevance_only=True,
+        )
         visual_fallback_candidates = []
         seen_visual_keys: set[tuple[str, str, str]] = set()
         image_types = {"image", "imagem", "foto", "photo", "photograph", "fotografia", "picture"}
         image_extensions = {".jpg", ".jpeg", ".png", ".webp"}
-        for item in [*visual_pool, *strict]:
+        for item in [*visual_pool, *low_relevance_pool, *strict]:
             if not isinstance(item, dict) or _is_non_photographic_asset(item, query):
                 continue
             kind = str(item.get("tipo") or item.get("asset_type") or "").strip().casefold()
@@ -1198,7 +1216,7 @@ def acquire_scene(
                 continue
             seen_visual_keys.add(key)
             visual_fallback_candidates.append(item)
-            if len(visual_fallback_candidates) >= MAX_VISUAL_FALLBACK_CANDIDATES:
+            if len(visual_fallback_candidates) >= MAX_VISUAL_VERIFICATION_ATTEMPTS:
                 break
 
         for candidate in visual_fallback_candidates:

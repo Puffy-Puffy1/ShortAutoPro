@@ -625,6 +625,48 @@ class MediaEngineContractTests(unittest.TestCase):
         self.assertEqual(selected[0]["_sap_metadata_must_hits"], 1)
         self.assertEqual(len(selected), 2)
 
+    def test_low_relevance_candidates_are_only_allowed_in_explicit_visual_rescue(self):
+        candidate = {
+            "fonte": "Wikimedia",
+            "id": "light-aircraft-weak-catalog",
+            "tipo": "image",
+            "url": "https://example.test/light-aircraft-water.jpg",
+            "title": "Light plane in flight",
+            "descricao": "Aircraft photographed in flight",
+            "must_hits": 1,
+            "avoid_hits": 0,
+            "score": 25,
+        }
+
+        with patch(
+            "media_provider_router_v2.query_relevance",
+            return_value={
+                "ok": False,
+                "matched_terms": ["aircraft"],
+                "matched_count": 1,
+                "query_term_count": 7,
+            },
+        ):
+            strict = media_engine_v2._visual_fallback_candidates(
+                "small propeller aircraft flying over ocean",
+                [candidate],
+                must=["aircraft"],
+                limit=4,
+            )
+            rescue = media_engine_v2._visual_fallback_candidates(
+                "small propeller aircraft flying over ocean",
+                [candidate],
+                must=["aircraft"],
+                limit=4,
+                allow_low_relevance=True,
+                low_relevance_only=True,
+            )
+
+        self.assertEqual(strict, [])
+        self.assertEqual(len(rescue), 1)
+        self.assertTrue(rescue[0]["_sap_relevance_fallback_only"])
+        self.assertFalse(rescue[0]["query_relevance"]["ok"])
+
     def test_visual_fallback_keeps_candidates_from_alternative_queries(self):
         candidates = [
             {
