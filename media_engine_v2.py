@@ -892,6 +892,42 @@ def _targeted_visual_search_queries(
                 break
         searches = prioritized
 
+    # Preserve model-specific details when a known light aircraft is requested.
+    # Generic "aircraft" searches often return jets or parked planes; these
+    # bounded variants target the actual Cessna/propeller scene without relaxing
+    # the visual gate. AVOID items such as modern jets remain hard constraints.
+    query_terms = set(query_tokens)
+    avoid_text = " ".join(str(item or "") for item in (avoid or [])).casefold()
+    if (
+        "cessna" in query_terms
+        and ({"aircraft", "plane", "airplane"} & (query_terms | must_tokens))
+        and any(term in avoid_text for term in ("modern jet", "commercial airliner", "jet"))
+    ):
+        model = " ".join(
+            token for token in query_tokens
+            if token in {"cessna", "182", "185", "172", "206"}
+        ) or "Cessna"
+        location = " ".join(
+            token for token in query_tokens
+            if token in {"bass", "strait", "ocean", "sea", "water", "coast"}
+        )
+        variants = [
+            " ".join([model, "single engine propeller aircraft in flight over", location]).strip(),
+            " ".join([model, "light propeller plane flying over ocean", location]).strip(),
+            " ".join(["single engine piston aircraft over", location, model]).strip(),
+        ]
+        prioritized = []
+        seen_priority = set()
+        for targeted in [*variants, *searches]:
+            normalized = re.sub(r"\s+", " ", str(targeted or "")).strip()
+            key = normalized.casefold()
+            if normalized and key not in seen_priority:
+                prioritized.append(normalized)
+                seen_priority.add(key)
+            if len(prioritized) >= max_searches:
+                break
+        searches = prioritized
+
     return searches
 
 

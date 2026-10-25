@@ -948,6 +948,21 @@ class MediaEngineV2FailureTests(unittest.TestCase):
         self.assertIn("snowy train tracks vintage passenger traveling", queries)
         self.assertIn("train in snow tracks vintage passenger traveling", queries)
 
+    def test_targeted_visual_search_preserves_cessna_propeller_and_ocean_intent(self):
+        queries = media_engine_v2._targeted_visual_search_queries(
+            "Cessna 182 airplane flying over Bass Strait ocean",
+            ["aircraft"],
+            avoid=["modern jet", "commercial airliner"],
+        )
+        self.assertLessEqual(len(queries), 3)
+        lowered = [query.casefold() for query in queries]
+        self.assertIn(
+            "cessna 182 single engine propeller aircraft in flight over bass strait ocean",
+            lowered,
+        )
+        self.assertTrue(any("propeller" in query and "cessna" in query for query in lowered))
+        self.assertTrue(any("ocean" in query or "water" in query for query in lowered))
+
     def test_targeted_visual_search_rephrases_single_must_when_already_in_query(self):
         queries = media_engine_v2._targeted_visual_search_queries(
             "dark medieval stone prison tower interior",
