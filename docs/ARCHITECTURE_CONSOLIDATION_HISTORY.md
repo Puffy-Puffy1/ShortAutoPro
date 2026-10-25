@@ -476,3 +476,11 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - `media_provider_router_v2.py` agora detecta contexto de cidade/vila russa de inverno na consulta mesmo quando o único MUST explícito é `snow`, priorizando buscas com cidade, vila, casas de madeira e rua antes dos aliases genéricos.
 - `tests_sim/test_media_must_verifier.py` cobre esse caso específico e mantém o limite de oito variantes.
 - Nenhum MUST/AVOID, aprovação visual ou gate de release foi relaxado. A nova execução FIRST_VIDEO precisa confirmar aquisição visual válida e MP4 próprio da execução validado por FFprobe.
+
+
+## 44. Consulta de inverno preservando contexto da cena — 25/10/2026
+
+- A execução FIRST_VIDEO `40217646172` falhou na cena 09: a consulta `secret military technology test in winter landscape` exigia neve, mas as variantes prioritárias eram termos genéricos (`snow`, `snowfall`, `winter camping`) que não preservavam o contexto militar/tecnológico.
+- `media_provider_router_v2.py` agora gera variantes contextuais como `secret military technology test in snowy landscape` e `secret military technology test in snow-covered landscape` antes dos aliases genéricos.
+- `tests_sim/test_media_must_verifier.py` verifica as variantes e o limite de oito consultas.
+- Isso altera apenas descoberta. A relevância da cena, MUST/AVOID e verificação visual continuam obrigatórios; a correção depende de nova execução FIRST_VIDEO e MP4 próprio validado pelo FFprobe.

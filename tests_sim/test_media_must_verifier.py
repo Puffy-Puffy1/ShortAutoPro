@@ -481,3 +481,18 @@ class MediaMustVerifierEmptyHistoricDeckSearchTests(unittest.TestCase):
         self.assertIn("empty wooden sailing ship deck rigging no people", variants)
         self.assertIn("historic wooden ship deck and rigging deserted", variants)
         self.assertIn("sailing ship deck rigging without crew", variants)
+
+
+class MediaMustVerifierWinterLandscapeSearchTests(unittest.TestCase):
+    def test_snow_must_preserves_winter_landscape_scene_context(self):
+        query = "secret military technology test in winter landscape"
+        variants = _query_variants(query, ["snow"])
+        self.assertLessEqual(len(variants), 8)
+        self.assertEqual(variants[0], query)
+        self.assertIn("secret military technology test in snowy landscape", variants)
+        self.assertIn("secret military technology test in snow-covered landscape", variants)
+
+    def test_contextual_snow_queries_do_not_remove_the_visual_must(self):
+        variants = _query_variants("secret military technology test in winter landscape", ["snow"])
+        self.assertTrue(any("landscape" in variant for variant in variants))
+        self.assertIn("snow", variants)

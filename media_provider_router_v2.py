@@ -495,6 +495,21 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
         # aliases for the dedicated fallback list below. This reserves room
         # for every explicit MUST anchor in the bounded query set.
 
+    # A scene can require snow while its editorial query says only "winter
+    # landscape". Preserve the subject/context when translating winter wording
+    # into catalog terms; generic snow aliases alone return irrelevant results.
+    if "snow" in must_set and not re.search(r"\bsnow\b", raw, re.IGNORECASE):
+        winter_landscape = re.compile(r"\bwinter\s+landscape\b", re.IGNORECASE)
+        if winter_landscape.search(raw):
+            candidates.extend((
+                winter_landscape.sub("snowy landscape", raw, count=1),
+                winter_landscape.sub("snow-covered landscape", raw, count=1),
+            ))
+        elif re.search(r"\b(?:winter|wintry)\b", raw, re.IGNORECASE):
+            candidates.append(
+                re.sub(r"\b(?:winter|wintry)\b", "snowy", raw, count=1, flags=re.IGNORECASE)
+            )
+
     # Multi-anchor aviation scenes are commonly catalogued with "aircraft"
     # or "plane", and the night setting may be indexed separately. These
     # variants improve discovery only; strict MUST/AVOID verification is unchanged.
