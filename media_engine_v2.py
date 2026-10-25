@@ -1049,19 +1049,6 @@ def acquire_scene(
             limit=MAX_VISUAL_FALLBACK_CANDIDATES,
         )
 
-        def has_complete_must_metadata(pool: list[dict[str, Any]]) -> bool:
-            return bool(must) and any(
-                int(item.get("_sap_metadata_must_hits", 0) or 0) >= len(must)
-                for item in pool
-                if isinstance(item, dict)
-            )
-
-        def needs_targeted_retrieval(pool: list[dict[str, Any]]) -> bool:
-            return (
-                len(pool) < MAX_VISUAL_FALLBACK_CANDIDATES
-                or (bool(must) and not has_complete_must_metadata([*pool, *strict]))
-            )
-
         # Prefer scene-director alternatives before generating more query variants.
         # These are retrieval hints only; pixel verification remains the acceptance gate.
         raw_alternates = scene.get("alt_queries") or []
@@ -1125,12 +1112,23 @@ def acquire_scene(
         # images that show every MUST. Search missing MUST terms with a few
         # contextual anchors, then let the same pixel-level verifier decide.
         # Discovery is bounded; acceptance criteria are unchanged.
+        # Metadata cannot tell us whether the image actually matches the
+        # composition. Try up to two distinct targeted variants even when the
+        # first pool has complete MUST metadata; skip any query already used by
+        # the main or scene-director search to avoid wasting provider calls.
         targeted_queries = _targeted_visual_search_queries(query, must, avoid=avoid)
-        for targeted_index, targeted_query in enumerate(targeted_queries):
-            # Always try the best targeted query once: full metadata MUST coverage
-            # still cannot prove that the pixels depict the intended composition.
-            if targeted_index > 0 and not needs_targeted_retrieval(visual_pool):
+        distinct_targeted_queries = []
+        for raw_targeted_query in targeted_queries:
+            targeted_query = re.sub(r"\s+", " ", str(raw_targeted_query or "")).strip()
+            targeted_key = targeted_query.casefold()
+            if not targeted_query or targeted_key in seen_alternates:
+                continue
+            seen_alternates.add(targeted_key)
+            distinct_targeted_queries.append(targeted_query)
+            if len(distinct_targeted_queries) >= 2:
                 break
+
+        for targeted_query in distinct_targeted_queries:
             try:
                 targeted_candidates = PROVIDER.search(
                     targeted_query,
@@ -1162,8 +1160,6 @@ def acquire_scene(
                     must=must,
                     limit=MAX_VISUAL_FALLBACK_CANDIDATES,
                 )
-            if targeted_index > 0 and not needs_targeted_retrieval(visual_pool):
-                break
         # Metadata matches only choose candidates; they do not establish that the
         # pixels depict this exact scene. Start with the ranked visual pool, then
         # keep a bounded set of strict candidates as a rescue if relevance scoring

@@ -949,6 +949,85 @@ class MediaEngineV2FailureTests(unittest.TestCase):
             ["pencil plotting course aeronautical navigation"],
         )
 
+    def test_complete_metadata_does_not_skip_distinct_targeted_visual_searches(self):
+        with tempfile.TemporaryDirectory() as td:
+            media = Path(td) / "media"
+            media.mkdir()
+            destination = media / "scene_03_wikimedia.jpg"
+            candidate = {
+                "fonte": "Wikimedia",
+                "id": "aircraft-over-water",
+                "tipo": "image",
+                "url": "https://example.test/aircraft-over-water.jpg",
+                "title": "Small propeller aircraft in flight",
+                "descricao": "Small propeller aircraft in flight",
+                "must_hits": 1,
+                "avoid_hits": 0,
+                "score": 90,
+            }
+
+            queries = [
+                [candidate],  # original scene query
+                [],            # first scene-director alternate
+                [],            # second scene-director alternate
+                [],            # first unique targeted variant
+                [],            # second unique targeted variant
+            ]
+
+            def download(_candidate, _number, _sid):
+                destination.write_bytes(b"mock image data")
+                return True, str(destination), {}
+
+            with patch.object(
+                media_engine_v2.PROVIDER, "search", side_effect=queries
+            ) as search, patch.object(
+                media_engine_v2.PROVIDER, "prepare", return_value=[candidate]
+            ), patch(
+                "media_must_verifier.verified_must",
+                return_value={"hits": 1, "total": 1, "matched": ["aircraft"], "missing": []},
+            ), patch(
+                "media_provider_router_v2.query_relevance",
+                return_value={
+                    "ok": True,
+                    "matched_terms": ["aircraft", "propeller", "ocean"],
+                    "matched_count": 3,
+                    "query_term_count": 5,
+                },
+            ), patch.object(
+                media_engine_v2.PROVIDER, "download", side_effect=download
+            ), patch.object(
+                media_engine_v2, "validate_asset",
+                side_effect=lambda path: {
+                    "sha256": media_engine_v2.sha256(Path(path)),
+                    "probe": {"width": 1920, "height": 1080},
+                },
+            ), patch.object(
+                media_engine_v2, "_local_library_asset", return_value=None
+            ), patch(
+                "media_visual_verifier.verify_image_requirements",
+                return_value={"status": "BLOCK", "reason": "scene_intent_mismatch"},
+            ):
+                with self.assertRaisesRegex(RuntimeError, "MEDIA_INCOMPLETE:scene_03:no_verified_asset"):
+                    media_engine_v2.acquire_scene(
+                        "X",
+                        3,
+                        {
+                            "query": "small propeller aircraft flying over ocean",
+                            "must_have": ["aircraft"],
+                            "avoid": ["commercial airliner", "jet"],
+                            "alt_queries": [
+                                "propeller flying ocean aircraft",
+                                "small propeller plane over sea",
+                            ],
+                        },
+                        media,
+                    )
+
+            search_queries = [call.args[0] for call in search.call_args_list]
+            self.assertEqual(len(search_queries), 5)
+            self.assertIn("aircraft propeller flying ocean", search_queries)
+            self.assertIn("small aircraft propeller flying ocean", search_queries)
+
     def test_targeted_visual_search_recovers_asset_only_after_pixel_verification(self):
         with tempfile.TemporaryDirectory() as td:
             media = Path(td) / "media"
