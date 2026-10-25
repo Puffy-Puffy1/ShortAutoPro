@@ -1066,6 +1066,34 @@ def _targeted_visual_search_queries(
                 break
         searches = prioritized
 
+    # Backpack scenes in winter are often indexed as hiking/trekking
+    # photographs rather than by the full editorial sentence. Prioritize
+    # context-preserving catalog searches; pixel MUST/AVOID and scene-intent
+    # verification remain the only acceptance gate.
+    backpack_context = query_terms | must_tokens
+    backpack_scene = (
+        bool({"backpack", "backpacks"} & backpack_context)
+        and bool({"hiker", "hikers", "hiking", "backpacking", "trekking"} & backpack_context)
+        and bool({"snow", "snowy", "snowfall", "winter", "wilderness", "mountain", "mountains"} & backpack_context)
+    )
+    if backpack_scene:
+        backpack_variants = [
+            "hikers walking with backpacks through snowy wilderness",
+            "backpacking hikers trekking through snow covered wilderness",
+            "winter hiking expedition with backpacks in snowy mountains",
+        ]
+        prioritized = []
+        seen_priority = set()
+        for targeted in [*backpack_variants, *searches]:
+            normalized = re.sub(r"\\s+", " ", str(targeted or "")).strip()
+            key = normalized.casefold()
+            if normalized and key not in seen_priority:
+                prioritized.append(normalized)
+                seen_priority.add(key)
+            if len(prioritized) >= max_searches:
+                break
+        searches = prioritized
+
     # Prefer archival steam-railway language when a snowy historical train
     # scene excludes high-speed trains. Search terms only improve discovery;
     # candidates still pass the existing pixel MUST/AVOID gate.
