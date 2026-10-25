@@ -39,7 +39,7 @@ class TermuxBridgeDeployTests(unittest.TestCase):
 
     def test_installer_uses_tagged_15_minute_schedule(self):
         self.assertIn('CRON_TAG="# SHORTAUTOPRO_TERMUX_BRIDGE"', self.installer)
-        self.assertIn('CRON_LINE="*/15 * * * * bash ', self.installer)
+        self.assertIn('CRON_LINE="*/15 * * * * SAP_PROJECT_DIR=', self.installer)
 
     def test_installer_refuses_dirty_tracked_worktree(self):
         self.assertIn("ha alteracoes locais rastreadas", self.installer)
