@@ -306,6 +306,18 @@ class MediaMustVerifierHistoricShipSearchTests(unittest.TestCase):
         self.assertIn("ghost ship in the ocean", variants)
 
 
+class MediaMustVerifierWinterTentSearchTests(unittest.TestCase):
+    def test_tent_snow_night_scene_gets_contextual_catalog_variants(self):
+        variants = _query_variants(
+            "isolated tent in deep snow during a dark night",
+            ["tent", "snow", "dark night"],
+        )
+        self.assertLessEqual(len(variants), 8)
+        self.assertEqual(variants[0], "isolated tent in deep snow during a dark night")
+        self.assertIn("camping tent in snow at night", variants)
+        self.assertIn("isolated tent in snowy dark wilderness", variants)
+
+
 class MediaMustVerifierAviationNightSearchTests(unittest.TestCase):
     def test_airplane_ocean_night_scene_gets_contextual_catalog_variants(self):
         variants = _query_variants(
