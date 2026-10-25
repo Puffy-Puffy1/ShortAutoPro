@@ -525,3 +525,11 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - O roteador agora inclui consultas contextuais de catálogo para `torn canvas tent in snowy mountains` e `ripped tent canvas in snowy mountains`, mantendo o assunto e o dano juntos e dentro do orçamento de oito variantes.
 - Teste de regressão cobre a expansão e o limite. Nenhum requisito visual ou gate de qualidade foi reduzido.
 - A execução FIRST_VIDEO deve ser repetida; a PR só pode ser considerada pronta após gerar MP4 nesta cabeça, validar H.264/AAC, 1080×1920 e 30 fps via FFprobe e aprovar as verificações restantes.
+
+
+## 46. Verificação de navio por composição observável — 25/10/2026
+
+- A execução FIRST_VIDEO `40225260665` falhou na cena 01. O verificador visual confirmou que algumas imagens continham um navio, mas recusou a composição completa com `scene_intent_mismatch`; o intent textual incluía afirmações narrativas como `abandoned` e `drifting`, que uma fotografia estática nem sempre permite provar.
+- `media_engine_v2.py` agora normaliza apenas esse caso para a composição visual observável `sailing ship on open ocean`. O MUST `ship`, os AVOID `modern ship` e `airplane`, e os outros critérios continuam sendo verificados separadamente nos pixels.
+- Foram adicionados testes de regressão para a normalização específica de navio e para garantir que outras cenas mantenham o intent original.
+- Esta alteração não comprova ainda a geração de vídeo. A nova execução FIRST_VIDEO precisa passar pela verificação visual e produzir MP4 válido, aprovado pelo FFprobe, antes de considerar a PR pronta.
