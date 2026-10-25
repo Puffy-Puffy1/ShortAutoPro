@@ -219,6 +219,22 @@ class MediaVisualVerifierTests(unittest.TestCase):
         self.assertEqual(malformed["status"], "BLOCK")
         self.assertEqual(malformed["reason"], "visual_model_invalid_json")
 
+    @patch("media_visual_verifier.generate_text")
+    def test_retries_temporary_model_unavailability_without_relaxing_visual_gate(self, generate):
+        class GeminiTemporaryUnavailable(Exception):
+            pass
+
+        generate.side_effect = [
+            GeminiTemporaryUnavailable("temporary service outage"),
+            self._payload(),
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            result = verify_image_requirements(
+                self._image(directory), ["torn tent", "snow"], ["people"]
+            )
+        self.assertEqual(result["status"], "PASS")
+        self.assertEqual(generate.call_count, 2)
+
     @patch("media_visual_verifier.generate_text", side_effect=RuntimeError("API unavailable"))
     def test_api_failure_blocks_instead_of_failing_open(self, _generate):
         with tempfile.TemporaryDirectory() as directory:
