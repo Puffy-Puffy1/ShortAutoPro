@@ -138,13 +138,17 @@ def normalize_visual_musts(
         # the visible anchor. Whether the writing is specifically typewritten
         # is a fine detail that is unreliable to prove from stock-image metadata
         # and can over-constrain otherwise valid document photographs.
+        has_document_anchor = any(
+            str(other).strip().casefold() in {
+                "document", "documents", "report", "reports", "paper", "papers",
+                "paper documents", "paper document",
+            }
+            for other in other_values
+        )
         if (
             key in {"typewritten text", "typed text", "typewritten writing"}
-            and _DOCUMENT_TEXT_CONTEXT.search(item_context)
-            and any(
-                str(other).strip().casefold() in {"document", "documents", "report", "reports", "paper", "papers"}
-                for other in other_values
-            )
+            and _DOCUMENT_TEXT_CONTEXT.search(source_context)
+            and has_document_anchor
         ):
             events.append({
                 "from": original,
