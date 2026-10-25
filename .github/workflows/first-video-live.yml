@@ -68,8 +68,8 @@ on:
 
 concurrency:
   group: shortautopro-first-video-${{ github.ref }}
-  # Preserve an active E2E proof run when another commit arrives.
-  cancel-in-progress: false
+  # A proof must match the current branch head; replace obsolete in-progress runs.
+  cancel-in-progress: true
 
 permissions:
   contents: read
