@@ -496,3 +496,14 @@ class MediaMustVerifierWinterLandscapeSearchTests(unittest.TestCase):
         variants = _query_variants("secret military technology test in winter landscape", ["snow"])
         self.assertTrue(any("landscape" in variant for variant in variants))
         self.assertIn("snow", variants)
+
+
+class MediaMustVerifierLoneWinterHikerSearchTests(unittest.TestCase):
+    def test_lone_person_winter_scene_gets_contextual_searches_first(self):
+        query = "hiker walking back alone snowy trail winter"
+        variants = _query_variants(query, ["person"])
+        self.assertLessEqual(len(variants), 8)
+        self.assertEqual(variants[0], query)
+        self.assertIn("single hiker walking alone in snowy wilderness", variants)
+        self.assertIn("lone person walking on a snow-covered trail", variants)
+        self.assertIn("solitary hiker from behind in winter forest", variants)
