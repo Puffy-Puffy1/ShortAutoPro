@@ -484,3 +484,11 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - `media_provider_router_v2.py` agora gera variantes contextuais como `secret military technology test in snowy landscape` e `secret military technology test in snow-covered landscape` antes dos aliases genéricos.
 - `tests_sim/test_media_must_verifier.py` verifica as variantes e o limite de oito consultas.
 - Isso altera apenas descoberta. A relevância da cena, MUST/AVOID e verificação visual continuam obrigatórios; a correção depende de nova execução FIRST_VIDEO e MP4 próprio validado pelo FFprobe.
+
+
+## 45. Busca contextual para pessoa isolada em trilha de inverno — 25/10/2026
+
+- A execução FIRST_VIDEO `40219008853` falhou na cena 08: a consulta era `hiker walking back alone snowy trail winter`, com MUST `person` e AVOID `crowd`/`city`. Oito candidatas foram bloqueadas pela verificação visual porque mostravam multidão/cidade, ou não mostravam a pessoa com clareza.
+- `media_provider_router_v2.py` agora prioriza consultas de catálogo que preservam pessoa isolada, trilha e contexto de inverno: `single hiker walking alone in snowy wilderness`, `lone person walking on a snow-covered trail` e `solitary hiker from behind in winter forest`.
+- `tests_sim/test_media_must_verifier.py` cobre as três variantes e o orçamento limitado de buscas.
+- Nenhum requisito MUST/AVOID ou limiar visual foi relaxado. A correção só estará comprovada após a nova execução FIRST_VIDEO gerar MP4 e o FFprobe validar a saída.
