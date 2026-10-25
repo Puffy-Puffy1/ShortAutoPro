@@ -6,6 +6,7 @@ import main
 import production_recovery
 import resume_short_runtime
 import retention_engine
+import release_gate
 
 
 class RetentionReviewContractTests(unittest.TestCase):
@@ -111,6 +112,24 @@ class RetentionReviewContractTests(unittest.TestCase):
             )
             with mock.patch.object(resume_short_runtime, "BASE", base):
                 self.assertFalse(resume_short_runtime.consolidation_plan_ok(sid))
+
+
+    def test_missing_retention_report_does_not_claim_pacing_defect(self):
+        self.assertEqual(
+            release_gate.retention_repair_actions({}, 75.0),
+            ["retention_analysis_unavailable"],
+        )
+
+    def test_low_retention_score_requests_pacing_repair_only_with_report(self):
+        report = {"retention_score": 74.0, "status": "REVIEW"}
+        self.assertEqual(
+            release_gate.retention_repair_actions(report, 74.0),
+            ["repair_pacing"],
+        )
+
+    def test_healthy_retention_report_needs_no_pacing_repair(self):
+        report = {"retention_score": 88.0, "status": "PASS"}
+        self.assertEqual(release_gate.retention_repair_actions(report, 88.0), [])
 
 
 

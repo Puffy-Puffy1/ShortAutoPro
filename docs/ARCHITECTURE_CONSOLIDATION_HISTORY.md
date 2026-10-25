@@ -533,3 +533,11 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - `media_engine_v2.py` agora normaliza apenas esse caso para a composição visual observável `sailing ship on open ocean`. O MUST `ship`, os AVOID `modern ship` e `airplane`, e os outros critérios continuam sendo verificados separadamente nos pixels.
 - Foram adicionados testes de regressão para a normalização específica de navio e para garantir que outras cenas mantenham o intent original.
 - Esta alteração não comprova ainda a geração de vídeo. A nova execução FIRST_VIDEO precisa passar pela verificação visual e produzir MP4 válido, aprovado pelo FFprobe, antes de considerar a PR pronta.
+
+
+## 47. Retention sem relatório: não inventar defeito de ritmo — 25/10/2026
+
+- A execução FIRST_VIDEO `40226211438` gerou MP4 válido, mas o relatório do Release Gate usou o valor padrão de retenção (75) porque `roteiros/retention_<short_id>.json` não estava disponível. Isso criou a ação `repair_pacing` sem evidência de que o ritmo estivesse ruim.
+- `release_gate.py` agora distingue relatório ausente de uma pontuação real abaixo de 80: sinaliza `retention_analysis_unavailable` e registra `retention_report_available=false`, sem declarar um defeito de ritmo não medido.
+- Quando existe relatório com pontuação abaixo de 80, a ação `repair_pacing` continua ativa. A aprovação humana em modo SAFE permanece obrigatória; nenhum gate foi afrouxado.
+- Testes adicionados para relatório ausente, pontuação baixa medida e relatório saudável. A validação CI desta nova branch ainda precisa passar.
