@@ -967,7 +967,7 @@ def _targeted_visual_search_queries(
         prioritized = []
         seen_priority = set()
         for targeted in [*weather_variants, *searches]:
-            normalized = re.sub(r"\\s+", " ", str(targeted or "")).strip()
+            normalized = re.sub(r"\s+", " ", str(targeted or "")).strip()
             key = normalized.casefold()
             if normalized and key not in seen_priority:
                 prioritized.append(normalized)
