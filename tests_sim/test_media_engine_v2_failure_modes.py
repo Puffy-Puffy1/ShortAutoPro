@@ -1223,6 +1223,27 @@ class MediaEngineV2FailureTests(unittest.TestCase):
             ],
         )
 
+    def test_targeted_visual_search_recovers_airplane_under_dark_clouds(self):
+        queries = media_engine_v2._targeted_visual_search_queries(
+            "small airplane under dark clouds near the horizon",
+            ["airplane", "dark clouds", "horizon"],
+            avoid=["daylight", "modern commercial jet"],
+        )
+        self.assertEqual(len(queries), 3)
+        lowered = [query.casefold() for query in queries]
+        self.assertIn(
+            "small airplane flying beneath dark storm clouds over distant horizon",
+            lowered,
+        )
+        self.assertIn(
+            "propeller aircraft in flight under dark clouds above horizon",
+            lowered,
+        )
+        self.assertIn(
+            "airplane silhouette against storm clouds and distant horizon",
+            lowered,
+        )
+
     def test_targeted_visual_search_recovers_light_aircraft_over_ocean_at_night(self):
         queries = media_engine_v2._targeted_visual_search_queries(
             "single engine propeller airplane flying over dark ocean at night",
