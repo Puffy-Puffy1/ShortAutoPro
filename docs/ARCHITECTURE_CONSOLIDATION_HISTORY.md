@@ -460,3 +460,11 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - `media_visual_verifier.py` repete até duas vezes adicionais apenas erros de serviço/transporte classificados como temporários. Erros permanentes continuam bloqueando; MUST/AVOID, confiança mínima e correspondência de cena não foram relaxados.
 - Testes de regressão adicionados para as consultas meteorológicas e recuperação de indisponibilidade temporária do verificador.
 - Critério de conclusão permanece: nova execução FIRST_VIDEO na cabeça atual deve produzir seu próprio MP4 e passar FFprobe; testes unitários/contratuais, sozinhos, não comprovam geração real. PR #150 permanece aberta e `main` não foi mesclada.
+
+
+## 45. Busca contextual para mochilas em trilha nevada — 25/10/2026
+
+- A execução FIRST_VIDEO `40212804652` avançou até a cena 07, mas bloqueou a mídia: 59 candidatos do Wikimedia foram encontrados; os oito enviados à verificação visual falharam na composição da cena (trilha nevada com caminhantes e mochilas). O MP4 dessa execução não foi criado.
+- `media_engine_v2.py` agora prioriza três consultas de catálogo para caminhantes com mochilas em ambiente nevado, incluindo trilha na natureza e expedição de inverno.
+- `tests_sim/test_media_engine_v2_failure_modes.py` cobre as duas consultas prioritárias e o limite de três buscas.
+- A mudança só altera descoberta de candidatos. A verificação por pixels de MUST/AVOID e a correspondência de cena permanecem obrigatórias; a conclusão depende de nova execução FIRST_VIDEO com MP4 da própria execução aprovado pelo FFprobe.
