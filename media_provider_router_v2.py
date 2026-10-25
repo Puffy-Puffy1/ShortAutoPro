@@ -461,8 +461,20 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
         candidates.extend((
             "old sailing ship alone on open ocean",
             "abandoned sailing ship at sea",
-            "historic merchant vessel alone at sea",
-            "old sailing vessel in open water",
+            "old sailing vessel at sea",
+            "ghost ship in the ocean",
+        ))
+
+    # Winter camping scenes are often indexed by the tent first, while
+    # snow and darkness appear in separate catalog tags. Keep these searches
+    # early in the bounded budget; MUST/AVOID visual checks remain authoritative.
+    if {"tent", "snow"} <= must_set and (
+        "dark night" in must_set or "darkness" in must_set or "night" in must_set
+    ):
+        candidates.extend((
+            "camping tent in snow at night",
+            "isolated tent in snowy dark wilderness",
+            "winter camping tent during snowfall at night",
         ))
 
     # Lone-person winter/trail scenes are often indexed as "hiker" or
