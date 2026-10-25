@@ -434,6 +434,19 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
     if must_terms:
         candidates.append(" ".join(must_terms))
 
+    # Empty historic ship-deck scenes are often catalogued as deck/rigging
+    # photographs rather than as "abandoned ship". Keep the no-people intent
+    # in retrieval wording; visual AVOID checks remain authoritative.
+    if {"wooden deck", "rigging"} <= must_set and re.search(
+        r"\b(?:ship|sailing|vessel|deck|rigging)\b", raw, re.IGNORECASE
+    ):
+        candidates.extend((
+            "empty wooden sailing ship deck rigging no people",
+            "historic wooden ship deck and rigging deserted",
+            "sailing ship deck rigging without crew",
+            "wooden sailing vessel rigging empty deck",
+        ))
+
     # Historical/abandoned ship scenes are often indexed as "ghost ship",
     # "sailing vessel", or "old sailing ship" rather than by the full editorial
     # sentence. Add these contextual searches before generic aliases so the
@@ -609,7 +622,13 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
     # Deduplicate once, preserving priority and limiting provider requests.
     result = []
     seen = set()
-    max_variants = 8 if any(term.casefold() in aliases for term in must_terms) else 4
+    contextual_search = (
+        {"wooden deck", "rigging"} <= {term.casefold() for term in must_terms}
+        and re.search(r"\b(?:ship|sailing|vessel|deck|rigging)\b", raw, re.IGNORECASE)
+    )
+    max_variants = 8 if contextual_search or any(
+        term.casefold() in aliases for term in must_terms
+    ) else 4
     for candidate in candidates:
         item = " ".join(str(candidate or "").split()).strip()
         key = item.casefold()
