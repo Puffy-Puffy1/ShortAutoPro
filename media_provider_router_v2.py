@@ -453,25 +453,25 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
     # bounded query budget does not discard them. MUST/AVOID verification stays strict.
     must_set = {term.casefold() for term in must_terms}
     if "ship" in must_set and re.search(
-        r"\b(?:ocean|sea|sailing|vintage|abandoned|drifting|ghost)\b",
+        r"\b(?:ocean|sea|sailing|vintage|abandoned|drifting|ghost|alone|open water)\b",
         raw,
         re.IGNORECASE,
     ):
         candidates.extend((
+            "old sailing ship alone on open ocean",
             "abandoned sailing ship at sea",
-            "old sailing vessel at sea",
-            "ghost ship in the ocean",
-            "historic sailing ship ocean",
+            "historic merchant vessel alone at sea",
+            "old sailing vessel in open water",
         ))
 
     # Lone-person winter/trail scenes are often indexed as "hiker" or
     # "solitary hiker". Keep the wilderness context in early variants so the
     # bounded search budget does not spend its slots on generic "person" results.
     if "person" in must_set and re.search(
-        r"\\b(?:hiker|hiking|trail|alone|solitary|wilderness|back)\\b",
+        r"\b(?:hiker|hiking|trail|alone|solitary|wilderness|back)\b",
         raw,
         re.IGNORECASE,
-    ) and re.search(r"\\b(?:snow|snowy|winter|wintry)\\b", raw, re.IGNORECASE):
+    ) and re.search(r"\b(?:snow|snowy|winter|wintry)\b", raw, re.IGNORECASE):
         candidates.extend((
             "single hiker walking alone in snowy wilderness",
             "lone person walking on a snow-covered trail",
