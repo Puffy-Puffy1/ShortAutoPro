@@ -948,6 +948,16 @@ class MediaEngineV2FailureTests(unittest.TestCase):
         self.assertIn("snowy train tracks vintage passenger traveling", queries)
         self.assertIn("train in snow tracks vintage passenger traveling", queries)
 
+    def test_targeted_visual_search_prioritizes_fog_over_dark_water(self):
+        queries = media_engine_v2._targeted_visual_search_queries(
+            "thick fog and dark water over ocean at night",
+            ["thick fog", "dark water"],
+        )
+        self.assertLessEqual(len(queries), 3)
+        lowered = [query.casefold() for query in queries]
+        self.assertTrue(any("fog" in query and "water" in query for query in lowered))
+        self.assertTrue(any("misty dark ocean" in query or "dense fog over open water" in query for query in lowered))
+
     def test_targeted_visual_search_preserves_cessna_propeller_and_ocean_intent(self):
         queries = media_engine_v2._targeted_visual_search_queries(
             "Cessna 182 airplane flying over Bass Strait ocean",

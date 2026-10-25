@@ -800,7 +800,22 @@ def _targeted_visual_search_queries(
             for item in must_text
             for token in re.findall(r"[a-z0-9]+", item.casefold())
         )
-        if snow_related:
+        fog_related = any(
+            token in {"fog", "foggy", "mist", "misty", "haze", "hazy"}
+            for item in must_text
+            for token in re.findall(r"[a-z0-9]+", item.casefold())
+        ) and any(
+            token in {"water", "ocean", "sea", "lake", "river"}
+            for item in must_text
+            for token in re.findall(r"[a-z0-9]+", item.casefold())
+        )
+        if fog_related:
+            variants = [
+                "thick fog over dark water " + " ".join(context),
+                "misty dark ocean surface " + " ".join(context),
+                "dense fog over open water " + " ".join(context),
+            ]
+        elif snow_related:
             non_snow_musts = [
                 item for item in must_text
                 if not re.search(r"\b(?:snow|snowy|snowfall|winter|ice|icy)\b", item, re.IGNORECASE)
