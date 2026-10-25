@@ -241,6 +241,26 @@ class SceneMustPolicyTests(unittest.TestCase):
         self.assertEqual(anchors, ["winter gear"])
         self.assertEqual(events, [])
 
+    def test_typewritten_text_becomes_preference_when_document_is_required(self):
+        anchors, events = normalize_visual_musts(
+            ["paper documents", "typewritten text"],
+            context="official 1978 aviation investigation report papers on wooden desk",
+        )
+        self.assertEqual(anchors, ["paper documents"])
+        self.assertEqual(events, [{
+            "from": "typewritten text",
+            "to": "preferred:typewritten text",
+            "reason": "UNSUPPORTED_VISUAL_DETAIL_PREFERENCE",
+        }])
+
+    def test_typewritten_text_remains_required_without_document_context(self):
+        anchors, events = normalize_visual_musts(
+            ["typewritten text"],
+            context="close-up of typewritten text on a blank page",
+        )
+        self.assertEqual(anchors, ["typewritten text"])
+        self.assertEqual(events, [])
+
     def test_generic_text_collapses_with_document_only_in_archive_context(self):
         anchors, events = normalize_visual_musts(
             ["document", "text"],

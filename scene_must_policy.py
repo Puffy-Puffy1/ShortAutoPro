@@ -134,6 +134,25 @@ def normalize_visual_musts(
             })
             continue
 
+        # In archival/report scenes, the existence of paper documents is
+        # the visible anchor. Whether the writing is specifically typewritten
+        # is a fine detail that is unreliable to prove from stock-image metadata
+        # and can over-constrain otherwise valid document photographs.
+        if (
+            key in {"typewritten text", "typed text", "typewritten writing"}
+            and _DOCUMENT_TEXT_CONTEXT.search(item_context)
+            and any(
+                re.search(r"\\b(?:document|documents|report|reports|paper|papers)\\b", other, re.IGNORECASE)
+                for other in other_values
+            )
+        ):
+            events.append({
+                "from": original,
+                "to": f"preferred:{original}",
+                "reason": "UNSUPPORTED_VISUAL_DETAIL_PREFERENCE",
+            })
+            continue
+
         # Paper texture is an editorial style, not a separate visible object.
         # In a map scene keep it as a preference while still requiring the map
         # itself to pass pixel verification.
