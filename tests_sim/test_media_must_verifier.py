@@ -535,3 +535,13 @@ class MediaMustVerifierOpenOceanShipSearchTests(unittest.TestCase):
         self.assertEqual(variants[0], query)
         self.assertIn("old sailing ship alone on open ocean", variants)
         self.assertIn("abandoned sailing ship at sea", variants)
+
+
+class MediaMustVerifierDamagedTentSearchTests(unittest.TestCase):
+    def test_canvas_tear_scene_gets_contextual_catalog_variants(self):
+        query = "vintage black and white photo of a torn tent in snowy mountains"
+        variants = _query_variants(query, ["tent", "canvas tear"])
+        self.assertLessEqual(len(variants), 8)
+        self.assertEqual(variants[0], query)
+        self.assertIn("torn canvas tent in snowy mountains", variants)
+        self.assertIn("ripped tent canvas in snowy mountains", variants)
