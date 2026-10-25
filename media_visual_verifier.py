@@ -233,6 +233,7 @@ def verify_image_requirements(
             component="Media Visual Verifier",
             image_data=image_data,
             image_mime_type=mime_type,
+            attempts_per_model=1,
         )
     except Exception as exc:
         return _blocked(f"visual_model_unavailable:{type(exc).__name__}", mime_type)

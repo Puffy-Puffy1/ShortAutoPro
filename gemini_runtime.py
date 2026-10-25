@@ -115,13 +115,18 @@ def generate_text(
     api_key: str | None = None,
     image_data: bytes | None = None,
     image_mime_type: str = "image/jpeg",
+    attempts_per_model: int | None = None,
 ) -> str:
     key = str(api_key or os.getenv("GEMINI_API_KEY", "")).strip()
     if not key:
         raise GeminiTemporaryUnavailable("GEMINI_API_KEY ausente")
 
     timeout = env_float("SAP_GEMINI_TIMEOUT", 28.0, 8.0, 60.0)
-    attempts = env_int("SAP_GEMINI_ATTEMPTS_PER_MODEL", 2, 1, 3)
+    attempts = (
+        env_int("SAP_GEMINI_ATTEMPTS_PER_MODEL", 2, 1, 3)
+        if attempts_per_model is None
+        else max(1, min(int(attempts_per_model), 3))
+    )
 
     chain = list(models) if models is not None else _model_chain()
     chain = [str(x).strip() for x in chain if str(x).strip()]

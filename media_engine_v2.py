@@ -23,13 +23,13 @@ from typing import Any
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", Path.home() / "ShortAutoPro")).resolve()
 MEDIA_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".webm", ".mkv"}
-ENGINE_VERSION = "2.0.14"
+ENGINE_VERSION = "2.0.15"
 MIN_VISUAL_PIXELS = 320 * 180
 MAX_VISUAL_FALLBACK_CANDIDATES = 8
 MAX_LOW_RELEVANCE_VISUAL_CANDIDATES = 4
-MAX_VISUAL_VERIFICATION_ATTEMPTS = (
-    MAX_VISUAL_FALLBACK_CANDIDATES + MAX_LOW_RELEVANCE_VISUAL_CANDIDATES
-)
+# Keep the expensive pixel-verification budget bounded per scene.
+# Low-relevance candidates remain available as rescue options inside this cap.
+MAX_VISUAL_VERIFICATION_ATTEMPTS = MAX_VISUAL_FALLBACK_CANDIDATES
 
 
 def _resolution_issue(probe: dict[str, Any]) -> str | None:
@@ -956,6 +956,40 @@ def _targeted_visual_search_queries(
         prioritized = []
         seen_priority = set()
         for targeted in [*ski_variants, *searches]:
+            normalized = re.sub(r"\s+", " ", str(targeted or "")).strip()
+            key = normalized.casefold()
+            if normalized and key not in seen_priority:
+                prioritized.append(normalized)
+                seen_priority.add(key)
+            if len(prioritized) >= max_searches:
+                break
+        searches = prioritized
+
+    # Hands operating cockpit controls need close-up queries: broad aviation
+    # results often show a pilot's face or unrelated panels. Search wording is
+    # only a retrieval hint; the pixel MUST/AVOID and scene-intent checks still
+    # decide whether an asset can be accepted.
+    visual_terms = query_terms | must_tokens
+    avoid_terms = [str(item or "").casefold() for item in (avoid or [])]
+    excludes_identity = any(
+        "face" in item or "pilot identity" in item
+        for item in avoid_terms
+    )
+    hand_control_scene = (
+        "hand" in visual_terms
+        and bool({"button", "switch"} & visual_terms)
+        and bool({"aircraft", "cockpit", "panel", "control"} & visual_terms)
+        and excludes_identity
+    )
+    if hand_control_scene:
+        control_variants = [
+            "close-up hand pressing a button on an aircraft cockpit control panel",
+            "aircraft cockpit control switch close-up hand operating panel",
+            "close-up anonymous hand operating aircraft communication switch with no face visible",
+        ]
+        prioritized = []
+        seen_priority = set()
+        for targeted in [*control_variants, *searches]:
             normalized = re.sub(r"\s+", " ", str(targeted or "")).strip()
             key = normalized.casefold()
             if normalized and key not in seen_priority:

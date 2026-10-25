@@ -48,6 +48,7 @@ class MediaVisualVerifierTests(unittest.TestCase):
         self.assertEqual([row["anchor"] for row in result["must"]], ["torn tent", "snow"])
         self.assertEqual(result["avoid"][0]["visible"], False)
         self.assertEqual(generate.call_args.kwargs["image_mime_type"], "image/jpeg")
+        self.assertEqual(generate.call_args.kwargs["attempts_per_model"], 1)
         self.assertEqual(generate.call_args.kwargs["image_data"][:3], b"\xff\xd8\xff")
 
     @patch("media_visual_verifier.generate_text")

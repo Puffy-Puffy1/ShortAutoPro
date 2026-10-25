@@ -1005,6 +1005,23 @@ class MediaEngineV2FailureTests(unittest.TestCase):
         self.assertTrue(any("ski expedition" in query for query in lowered))
         self.assertTrue(any("photograph" in query for query in lowered))
 
+    def test_targeted_visual_search_prioritizes_anonymous_aircraft_control_closeups(self):
+        queries = media_engine_v2._targeted_visual_search_queries(
+            "pilot hand reaching to press button on aircraft control panel",
+            ["hand", "control switch"],
+            avoid=["animation", "face", "pilot identity"],
+        )
+        self.assertEqual(len(queries), 3)
+        self.assertEqual(
+            queries[0],
+            "close-up hand pressing a button on an aircraft cockpit control panel",
+        )
+        self.assertIn("control switch", queries[1])
+        self.assertIn("no face visible", queries[2])
+
+    def test_visual_verification_attempt_budget_is_bounded_at_eight(self):
+        self.assertEqual(media_engine_v2.MAX_VISUAL_VERIFICATION_ATTEMPTS, 8)
+
     def test_targeted_visual_search_queries_missing_must_with_context(self):
         queries = media_engine_v2._targeted_visual_search_queries(
             "plotting course on aeronautical navigation map",
