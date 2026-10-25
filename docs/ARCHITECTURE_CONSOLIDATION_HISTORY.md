@@ -492,3 +492,12 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - `media_provider_router_v2.py` agora prioriza consultas de catálogo que preservam pessoa isolada, trilha e contexto de inverno: `single hiker walking alone in snowy wilderness`, `lone person walking on a snow-covered trail` e `solitary hiker from behind in winter forest`.
 - `tests_sim/test_media_must_verifier.py` cobre as três variantes e o orçamento limitado de buscas.
 - Nenhum requisito MUST/AVOID ou limiar visual foi relaxado. A correção só estará comprovada após a nova execução FIRST_VIDEO gerar MP4 e o FFprobe validar a saída.
+
+
+## 46. Correção de regex contextual e busca de navio em mar aberto — 25/10/2026
+
+- A execução FIRST_VIDEO `40220702364` falhou na cena 01: as imagens de navio encontradas foram bloqueadas corretamente por AVOID de navio de cruzeiro moderno, incompatibilidade de intenção ou falta de visibilidade clara do navio. O MP4 não foi produzido.
+- A validação portátil também encontrou regressão: a expressão regular de contexto para pessoa isolada no inverno continha `\\\\b` em raw strings, procurando barra literal em vez de limite de palavra; por isso as buscas contextuais não eram ativadas.
+- Corrigida a expressão para limites de palavra reais e reforçada a busca de catálogo para navios antigos/solitários em mar aberto.
+- Testes de regressão cobrem a ativação das buscas de inverno, a ausência de correspondência dentro de palavras como `Australian` e as variantes de navio em mar aberto.
+- Nenhum MUST/AVOID ou gate visual foi relaxado. A confirmação ainda exige nova validação portátil e FIRST_VIDEO com MP4 próprio validado por FFprobe.
