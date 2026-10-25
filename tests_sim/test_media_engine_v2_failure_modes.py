@@ -990,6 +990,21 @@ class MediaEngineV2FailureTests(unittest.TestCase):
             queries,
         )
 
+    def test_targeted_visual_search_prioritizes_historical_ski_photographs(self):
+        queries = media_engine_v2._targeted_visual_search_queries(
+            "group of soviet hikers in winter gear walking through snowy mountain landscape",
+            ["skiers", "snow"],
+            avoid=["cartoon", "illustration", "text", "modern gear"],
+        )
+        lowered = [query.casefold() for query in queries]
+        self.assertLessEqual(len(queries), 3)
+        self.assertIn(
+            "archival black and white photograph of soviet skiers in snowy mountains",
+            lowered,
+        )
+        self.assertTrue(any("ski expedition" in query for query in lowered))
+        self.assertTrue(any("photograph" in query for query in lowered))
+
     def test_targeted_visual_search_queries_missing_must_with_context(self):
         queries = media_engine_v2._targeted_visual_search_queries(
             "plotting course on aeronautical navigation map",

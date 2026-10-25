@@ -23,7 +23,7 @@ from typing import Any
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", Path.home() / "ShortAutoPro")).resolve()
 MEDIA_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".webm", ".mkv"}
-ENGINE_VERSION = "2.0.13"
+ENGINE_VERSION = "2.0.14"
 MIN_VISUAL_PIXELS = 320 * 180
 MAX_VISUAL_FALLBACK_CANDIDATES = 8
 MAX_LOW_RELEVANCE_VISUAL_CANDIDATES = 4
@@ -293,7 +293,7 @@ def load_scene_map(short_id: str) -> list[dict[str, Any]]:
         # overall period/composition; no global confidence threshold is lowered.
         period_context = bool(re.search(
             r"\b(?:vintage|historic|historical|archival|antique|period[- ]appropriate|"
-            r"old[- ]fashioned|(?:18|19|20)\d{2}s?)\b",
+            r"old[- ]fashioned|soviet(?: union)?|ussr|dyatlov|(?:18|19|20)\d{2}s?)\b",
             scene_context,
             re.IGNORECASE,
         ))
@@ -307,7 +307,15 @@ def load_scene_map(short_id: str) -> list[dict[str, Any]]:
         for raw_avoid_item in raw_avoid:
             avoid_item = str(raw_avoid_item or "").strip()
             key = avoid_item.casefold()
-            if period_context and key in {"modern", "contemporary"}:
+            if period_context and key in {
+                "modern",
+                "contemporary",
+                "modern gear",
+                "modern equipment",
+                "modern clothing",
+                "contemporary gear",
+                "contemporary equipment",
+            }:
                 moved_style_avoids.append(avoid_item)
                 continue
             if avoid_item:
@@ -919,6 +927,35 @@ def _targeted_visual_search_queries(
         prioritized = []
         seen_priority = set()
         for targeted in [*variants, *searches]:
+            normalized = re.sub(r"\s+", " ", str(targeted or "")).strip()
+            key = normalized.casefold()
+            if normalized and key not in seen_priority:
+                prioritized.append(normalized)
+                seen_priority.add(key)
+            if len(prioritized) >= max_searches:
+                break
+        searches = prioritized
+
+    # A historical skiing scene may be mislabeled as generic "hikers" by the
+    # scene director. Search directly for photographic ski-expedition wording;
+    # every candidate still has to pass the same pixel MUST/AVOID verifier.
+    ski_context = query_terms | must_tokens
+    historical_terms = {"soviet", "ussr", "dyatlov", "historic", "historical", "vintage", "archival", "1950s", "1959"}
+    ski_terms = {"ski", "skier", "skiers", "skiing", "skis"}
+    snow_terms = {"snow", "snowy", "snowfall", "winter", "ice", "icy"}
+    if (
+        ski_context & historical_terms
+        and ski_context & ski_terms
+        and ski_context & snow_terms
+    ):
+        ski_variants = [
+            "archival black and white photograph of Soviet skiers in snowy mountains",
+            "historical Soviet ski expedition group walking through deep snow",
+            "documentary photograph of skiers on a Soviet winter expedition",
+        ]
+        prioritized = []
+        seen_priority = set()
+        for targeted in [*ski_variants, *searches]:
             normalized = re.sub(r"\s+", " ", str(targeted or "")).strip()
             key = normalized.casefold()
             if normalized and key not in seen_priority:
