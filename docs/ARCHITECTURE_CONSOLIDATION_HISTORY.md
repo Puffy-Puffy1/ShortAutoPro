@@ -435,3 +435,11 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - A versão do Media Engine foi elevada para `2.0.11`, invalidando mídia em cache sob a política anterior.
 - Foi adicionado teste de regressão garantindo que o ícone não chega ao download, além de teste para manter permitidas consultas explicitamente por ícones.
 - Nenhum gate visual foi reduzido. A nova execução precisa demonstrar cena 07 não vazia, ausência de quadros pretos bloqueantes e relatório de QA aprovado, além de FFprobe.
+
+
+## 44. Busca direcionada para avião leve sobre oceano à noite — 25/10/2026
+
+- A execução FIRST_VIDEO `40210351782` falhou na cena 02. A busca principal encontrou 26 candidatos e o fallback visual verificou oito; as imagens aprovadas pelo catálogo não mostravam o oceano junto com o avião. O MP4 da execução não foi criado e o FFprobe corretamente bloqueou a etapa seguinte.
+- `media_engine_v2.py` agora prioriza três formulações de catálogo para cenas que exigem avião + oceano à noite e excluem luz do dia/aviões comerciais: avião a hélice sobre oceano aberto à noite, avião leve sobre mar escuro e avião monomotor em voo acima do oceano.
+- O teste de regressão `test_targeted_visual_search_recovers_light_aircraft_over_ocean_at_night` verifica as três variantes. O limite de buscas continua em três e as regras visuais MUST/AVOID não foram reduzidas.
+- A correção só é considerada comprovada depois de uma nova execução FIRST_VIDEO produzir o MP4 da própria execução e o FFprobe confirmar vídeo H.264 1080x1920 a 30 fps, áudio AAC e duração positiva. A PR #150 permanece aberta; nenhuma alteração foi mesclada em `main`.
