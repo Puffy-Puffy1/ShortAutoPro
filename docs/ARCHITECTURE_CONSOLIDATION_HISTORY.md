@@ -451,3 +451,12 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - `media_provider_router_v2.py` agora inclui quatro consultas específicas para convés de navio histórico vazio, cordame e ausência de tripulação; o orçamento de busca sobe para até oito variantes apenas para esse contexto.
 - `tests_sim/test_media_must_verifier.py` verifica as consultas e o limite. Os requisitos MUST/AVOID e a verificação visual permanecem rigorosos; não se aceitam imagens com pessoas para contornar a falha.
 - A PR precisa de uma nova execução FIRST_VIDEO que gere MP4 e passe no FFprobe antes de ser considerada pronta para fechamento.
+
+
+## 44. Busca para voo sob nuvens escuras e retry de falha temporária — 25/10/2026
+
+- A execução FIRST_VIDEO `40212235247` falhou na cena 01. Os candidatos do Wikimedia não comprovavam simultaneamente avião, nuvens escuras e horizonte; o verificador visual também encontrou uma indisponibilidade temporária do Gemini. O MP4 desta execução não foi criado e o FFprobe corretamente falhou.
+- `media_engine_v2.py` agora prioriza três consultas específicas para avião sob nuvens escuras com horizonte quando luz do dia é proibida. Elas só afetam descoberta e não aprovam a imagem automaticamente.
+- `media_visual_verifier.py` repete até duas vezes adicionais apenas erros de serviço/transporte classificados como temporários. Erros permanentes continuam bloqueando; MUST/AVOID, confiança mínima e correspondência de cena não foram relaxados.
+- Testes de regressão adicionados para as consultas meteorológicas e recuperação de indisponibilidade temporária do verificador.
+- Critério de conclusão permanece: nova execução FIRST_VIDEO na cabeça atual deve produzir seu próprio MP4 e passar FFprobe; testes unitários/contratuais, sozinhos, não comprovam geração real. PR #150 permanece aberta e `main` não foi mesclada.
