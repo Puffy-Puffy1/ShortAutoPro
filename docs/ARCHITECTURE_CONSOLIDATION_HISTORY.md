@@ -443,3 +443,11 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - `media_engine_v2.py` agora prioriza três formulações de catálogo para cenas que exigem avião + oceano à noite e excluem luz do dia/aviões comerciais: avião a hélice sobre oceano aberto à noite, avião leve sobre mar escuro e avião monomotor em voo acima do oceano.
 - O teste de regressão `test_targeted_visual_search_recovers_light_aircraft_over_ocean_at_night` verifica as três variantes. O limite de buscas continua em três e as regras visuais MUST/AVOID não foram reduzidas.
 - A correção só é considerada comprovada depois de uma nova execução FIRST_VIDEO produzir o MP4 da própria execução e o FFprobe confirmar vídeo H.264 1080x1920 a 30 fps, áudio AAC e duração positiva. A PR #150 permanece aberta; nenhuma alteração foi mesclada em `main`.
+
+
+## 43. Recuperação de convés histórico vazio — 25/10/2026
+
+- A execução FIRST_VIDEO `40211389200` falhou na cena 02: a busca retornou 10 candidatos do Wikimedia, mas os 8 enviados à verificação visual falharam porque mostravam pessoas ou não comprovavam simultaneamente convés de madeira e cordame. O pipeline bloqueou a mídia e não criou MP4 nesta execução.
+- `media_provider_router_v2.py` agora inclui quatro consultas específicas para convés de navio histórico vazio, cordame e ausência de tripulação; o orçamento de busca sobe para até oito variantes apenas para esse contexto.
+- `tests_sim/test_media_must_verifier.py` verifica as consultas e o limite. Os requisitos MUST/AVOID e a verificação visual permanecem rigorosos; não se aceitam imagens com pessoas para contornar a falha.
+- A PR precisa de uma nova execução FIRST_VIDEO que gere MP4 e passe no FFprobe antes de ser considerada pronta para fechamento.
