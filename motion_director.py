@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import json, os, math, tempfile
+import json, os, math, tempfile, re
 from datetime import date
 from pathlib import Path
 
@@ -18,7 +18,7 @@ SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat()).strip()
 SCENE_MAP = BASE / "roteiros" / f"scene_map_{SHORT_ID}.json"
 MEDIA_DIR = BASE / "imagens" / f"short_{SHORT_ID}"
 OUTPUT = BASE / "roteiros" / f"motion_plan_{SHORT_ID}.json"
-MEDIA_EXTENSIONS = {".mp4", ".jpg", ".jpeg", ".png", ".webp"}
+MEDIA_EXTENSIONS = {".mp4", ".mov", ".webm", ".mkv", ".jpg", ".jpeg", ".png", ".webp"}
 
 PERFIS = {
     "still": {"zoom_start": 1.00, "zoom_end": 1.015, "pan": "none", "intensity": 1},
@@ -104,9 +104,15 @@ def locate_media(media_dir, number):
     if not media_dir.is_dir():
         raise ValueError(f"diretório de mídia ausente: {media_dir}")
     prefix = f"scene_{number:02d}"
+    # Media Engine V2 preserves provider provenance in filenames, e.g.
+    # scene_01_wikimedia.jpg. Match by scene number while rejecting unrelated
+    # suffixes and still fail closed if more than one candidate exists.
+    pattern = re.compile(re.escape(prefix) + r"(?:_[A-Za-z0-9-]+)?", re.IGNORECASE)
     matches = sorted(
         p for p in media_dir.iterdir()
-        if p.is_file() and p.stem == prefix and p.suffix.lower() in MEDIA_EXTENSIONS
+        if p.is_file()
+        and pattern.fullmatch(p.stem)
+        and p.suffix.lower() in MEDIA_EXTENSIONS
     )
     if not matches:
         raise ValueError(f"mídia ausente para cena {number:02d}")

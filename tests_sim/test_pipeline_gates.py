@@ -13,6 +13,7 @@ def run_script(name, home, short_id="gate_test", extra_env=None):
     env = os.environ.copy()
     env["HOME"] = str(home)
     env["USERPROFILE"] = str(home)
+    env["SHORTAUTOPRO_BASE"] = str(home / "ShortAutoPro")
     env["SHORT_ID"] = short_id
     if extra_env:
         env.update(extra_env)
@@ -77,6 +78,66 @@ class SemanticGateTests(unittest.TestCase):
             self.assertEqual(proc.returncode, 0, output)
             self.assertIn("Lossless overlap verificado: True", output)
             self.assertIn("SEMANTIC INTEGRITY: PASS", output)
+
+
+
+    def _run_numeric_format_case(self, *, unsupported_number=False):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            base = home / "ShortAutoPro"
+            roteiros = base / "roteiros"
+            roteiros.mkdir(parents=True)
+
+            words = make_words(104) + ["4.500", "1.400", "1.000", "19:06"]
+            (roteiros / "short_gate_test.txt").write_text(
+                " ".join(words), encoding="utf-8"
+            )
+            (roteiros / "fonte_gate_test.txt").write_text(
+                "O registro oficial informa 4,500 pés, 1,400 metros e 1,000 pés às 19:06.",
+                encoding="utf-8",
+            )
+
+            scenes = []
+            for i in range(6):
+                segment_words = words[i * 18:(i + 1) * 18]
+                segment = " ".join(segment_words)
+                # The scene director often turns grouped values into space-separated
+                # groups; this must retain the same numeric meaning as the source.
+                segment = (
+                    segment.replace("4.500", "4 500")
+                    .replace("1.400", "1 400")
+                    .replace("1.000", "1 000")
+                    .replace("19:06", "19 06")
+                )
+                if i == 0 and unsupported_number:
+                    segment += " 7 000"
+                scenes.append({
+                    "scene": i + 1,
+                    "segment": segment,
+                    "query": f"query scene {i + 1}",
+                    "must_have": [f"anchor{i + 1}"],
+                })
+
+            (roteiros / "scene_map_gate_test.json").write_text(
+                json.dumps({"scenes": scenes}), encoding="utf-8"
+            )
+            return run_script(
+                "semantic_integrity_gate.py",
+                home,
+                extra_env={"SHORT_QTD_CENAS": "6"},
+            )
+
+    def test_locale_thousands_separators_do_not_create_false_numeric_block(self):
+        proc = self._run_numeric_format_case()
+        output = proc.stdout + proc.stderr
+        self.assertEqual(proc.returncode, 0, output)
+        self.assertIn("SEMANTIC INTEGRITY: PASS", output)
+
+    def test_truly_unsupported_number_still_blocks_semantic_integrity(self):
+        proc = self._run_numeric_format_case(unsupported_number=True)
+        output = proc.stdout + proc.stderr
+        self.assertNotEqual(proc.returncode, 0, output)
+        self.assertIn("unsupported_numbers=7000", output)
 
 
 class LosslessRepairTests(unittest.TestCase):

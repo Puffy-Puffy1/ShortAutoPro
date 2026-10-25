@@ -300,14 +300,29 @@ class Pipeline:
             stage_timeout = self._stage_timeout_seconds(file)
 
             try:
+                capture_stage_output = file in {
+                    "audio_finalizer.py",
+                    "media_engine_v2.py",
+                    "scene_director.py",
+                }
                 proc = run_group(
                     cmd,
                     cwd=BASE,
                     env=os.environ.copy(),
                     check=False,
                     timeout=stage_timeout,
+                    capture_output=capture_stage_output,
+                    text=capture_stage_output,
                 )
                 last = proc.returncode
+                if capture_stage_output and last != 0:
+                    # Preserve the actionable child error in CI/Termux logs.
+                    # Never dump the environment or command secrets.
+                    for stream_name, stream_value in (("stdout", proc.stdout), ("stderr", proc.stderr)):
+                        if stream_value:
+                            lines = str(stream_value).splitlines()
+                            print(f"SAP_STAGE_DIAGNOSTIC stage={file} stream={stream_name} lines={len(lines)}")
+                            print("\n".join(lines[-80:]))
             except subprocess.TimeoutExpired as exc:
                 elapsed = time.monotonic() - start
                 self.checkpoint(file, "fail", title, elapsed)
@@ -412,6 +427,8 @@ def stages_before_render(p: Pipeline) -> None:
     # asset validation are owned by Media Engine V2; render planning is a
     # deterministic input contract for Render Engine V2.
     p.run("MEDIA ENGINE V2 - ACQUIRE + VALIDATE + FREEZE MANIFEST", "media_engine_v2.py", "--short-id", p.sid)
+    p.run("MEDIA QUALITY REPORT - INDEPENDENT MANIFEST AUDIT", "media_quality_report.py", "--short-id", p.sid)
+    p.run("CINEMATIC MOTION DIRECTOR - VALIDATED PER-SCENE MOTION", "motion_director.py")
     p.run("RENDER PLAN V2 - DETERMINISTIC TIMELINE INPUT", "render_plan_v2.py", "--short-id", p.sid)
     p.run("6F - SPEECH DIRECTOR", "speech_director.py")
     p.run("7 - VOZ PIPER", "audio.py", retries=1)
@@ -460,6 +477,7 @@ def assemble_and_render(p: Pipeline) -> None:
 
 def final_gates(p: Pipeline) -> int:
     p.run("10A - EVOLUTION E2E", "shortautopro_evolution.py", "e2e")
+    p.run("10A1 - PRODUCTION SUPERVISOR", "production_supervisor.py")
     p.run("10B - QUALITY GATE", "quality_check.py")
     p.run("11A - PUBLISH PACK", "publish_pack.py")
     p.run("11B - SOURCE & ATTRIBUTION LEDGER", "source_ledger.py")

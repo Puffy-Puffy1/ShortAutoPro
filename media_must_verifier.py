@@ -112,6 +112,55 @@ def _phrase_present(text: str, phrase: str) -> bool:
 
 
 STRICT_VISUAL_ALIASES = {
+    # A filing/case folder is a concrete document holder. Require explicit
+    # asset metadata; loose papers or the search query alone are insufficient.
+    "folder": (
+        "folder", "file folder", "manila folder", "case file folder",
+        "archive folder", "document folder", "filing folder", "paper folder",
+    ),
+    # A tent is the core visible object; archival catalogs rarely record its fabric.
+    # This is a narrow visual equivalence, not acceptance of the search query.
+    "canvas tent": ("canvas tent", "canvas tents", "camping tent", "camping tents", "tent", "tents"),
+    "snow": ("snow", "snowfall", "snow-covered", "snow covered", "snowy landscape"),
+    # Darkness must be explicitly supported by asset metadata, not inferred from a query.
+    "darkness": ("darkness", "dark", "night", "nighttime", "at night", "low light", "low-light"),
+    # Forest catalogs use several equivalent biome and woodland labels.
+    # The asset metadata must contain one of these terms; search queries alone never count.
+    "forest": (
+        "forest", "forests", "woodland", "woodlands", "woods", "pine forest",
+        "coniferous forest", "boreal forest", "taiga", "forested area",
+    ),
+    # Vehicle/terrain wording varies widely across historical photo catalogs.
+    # These aliases still require each concept to appear in the asset's own
+    # descriptive metadata; they never use the search query as evidence.
+    # "Vintage" describes an era/style; accept explicit historic/antique
+    # catalog wording but never infer it from the editorial search query.
+    "vintage": (
+        "vintage", "historic", "historical", "antique", "retro",
+        "period photograph", "period document", "old-fashioned",
+    ),
+    "torn tent": (
+        "torn tent", "torn tents", "ripped tent", "ripped tents",
+        "damaged tent", "damaged camping tent", "torn canvas tent", "torn tent fabric",
+    ),
+    "train": (
+        "train", "trains", "railway train", "railroad train", "passenger train",
+        "freight train", "locomotive", "railway locomotive", "steam locomotive",
+        "rail transport",
+    ),
+    "topographic map": (
+        "topographic map", "topographical map", "topographic chart",
+        "topographical chart", "contour map", "terrain contour map",
+        "relief map", "elevation map",
+    ),
+    "car": (
+        "car", "cars", "automobile", "automobiles", "motorcar", "motor cars",
+        "motor vehicle", "motor vehicles",
+    ),
+    "cliff": (
+        "cliff", "cliffs", "embankment", "embankments", "steep slope",
+        "hillside", "hillsides", "escarpment", "bluff", "bluffs",
+    ),
     "female pilots": (
         "female pilot", "female pilots", "woman pilot", "women pilots",
         "woman pilots", "women pilot", "female aviator", "female aviators",
@@ -125,11 +174,46 @@ STRICT_VISUAL_ALIASES = {
         "aircraft", "airplane", "airplanes", "aeroplane", "aeroplanes",
         "plane", "planes",
     ),
+    # Archival image catalogs often identify the object as a manuscript or codex
+    # without repeating editorial qualifiers such as its century or page material.
+    # Evidence must still occur in the asset metadata, never in the search query.
+    "manuscript": (
+        "manuscript", "manuscripts", "illuminated manuscript",
+        "medieval manuscript", "manuscript page", "manuscript pages",
+        "codex", "codices", "book of hours",
+    ),
     # Conservative visual equivalences used only for explicit-MUST evidence.
     # These affect acceptance only when the asset itself contains the alias.
     "ship": (
         "ship", "ships", "vessel", "vessels", "boat", "boats",
         "watercraft", "merchant ship", "cargo ship",
+    ),
+    # Ski-catalog descriptions vary between the object and its equipment label.
+    # These aliases still require the actual ski/gear wording in asset metadata.
+    "ski equipment": (
+        "ski equipment", "ski gear", "ski", "skis", "wooden ski", "wooden skis",
+        "ski pole", "ski poles", "ski boot", "ski boots",
+        "cross-country ski", "cross-country skis",
+    ),
+    # Wrestling catalogs may label the ring as a wrestling ring or boxing ring;
+    # this remains asset-metadata evidence, not query text.
+    "canvas ring": (
+        "canvas ring",
+        "wrestling ring",
+        "professional wrestling ring",
+        "boxing ring",
+        "wrestling arena ring",
+    ),
+    # Historical catalogs may label the writing tool as a quill or feather pen.
+    # Require explicit writing-tool metadata; a generic feather is not enough.
+    "quill pen": (
+        "quill pen",
+        "feather quill pen",
+        "writing quill",
+        "quill and ink",
+        "quill with inkwell",
+        "quill",
+        "feather pen",
     ),
     "boat": (
         "boat", "boats", "ship", "ships", "vessel", "vessels", "watercraft",
@@ -163,12 +247,31 @@ STRICT_VISUAL_ALIASES = {
         "underground passage",
         "passageway",
     ),
+    # Catalogs often describe an indoor scene by its concrete space rather than
+    # using the abstract word "interior". These terms still come from asset metadata.
+    "interior": (
+        "interior",
+        "indoors",
+        "indoor",
+        "inside",
+        "room",
+        "rooms",
+        "hallway",
+        "corridor",
+        "lobby",
+    ),
     "security sensor": (
         "security sensor",
         "motion sensor",
         "alarm sensor",
         "door sensor",
         "security alarm sensor",
+    ),
+    # Pencil catalog terms are often indexed by construction or use; these remain
+    # explicit writing-tool labels, not generic pens or unrelated drawing tools.
+    "pencil": (
+        "pencil", "graphite pencil", "drawing pencil", "wooden pencil",
+        "mechanical pencil", "pencil on map", "pencil on a map",
     ),
     "picture frame": (
         "picture frame",

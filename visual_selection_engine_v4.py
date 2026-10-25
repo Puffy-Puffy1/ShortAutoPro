@@ -12,9 +12,7 @@ import json
 import inspect
 
 
-ROOT = os.path.expanduser(
-    "~/ShortAutoPro"
-)
+ROOT = os.path.abspath(os.environ.get("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro")))
 
 
 STOP = {

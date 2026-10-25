@@ -25,6 +25,10 @@ class MediaProviderV2:
         clean = [
             c for c in candidates
             if int(c.get("avoid_hits", 0) or 0) == 0
+            and (
+                not isinstance(c.get("query_relevance"), dict)
+                or c["query_relevance"].get("ok") is True
+            )
         ]
         strict = [
             c for c in clean

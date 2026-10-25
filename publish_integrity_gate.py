@@ -84,15 +84,70 @@ def tokens(text):
     return out
 
 
-def numeric_tokens(text):
-    """Extract numeric identity and safe decade shorthand consistently.
+PT_NUMBER_WORDS = {
+    "zero": 0, "um": 1, "uma": 1, "dois": 2, "duas": 2, "tres": 3,
+    "três": 3, "quatro": 4, "cinco": 5, "seis": 6, "sete": 7,
+    "oito": 8, "nove": 9, "dez": 10, "onze": 11, "doze": 12,
+    "treze": 13, "quatorze": 14, "catorze": 14, "quinze": 15,
+    "dezesseis": 16, "dezassete": 17, "dezessete": 17, "dezoito": 18,
+    "dezenove": 19, "vinte": 20, "trinta": 30, "quarenta": 40,
+    "cinquenta": 50, "sessenta": 60, "setenta": 70, "oitenta": 80,
+    "noventa": 90, "cem": 100, "cento": 100, "duzentos": 200,
+    "trezentos": 300, "quatrocentos": 400, "quinhentos": 500,
+    "seiscentos": 600, "setecentos": 700, "oitocentos": 800,
+    "novecentos": 900,
+}
 
-    A source token such as ``1960`` or ``1960s`` also authorizes the common
-    Portuguese shorthand ``anos 60``.  We only derive two-digit aliases from
-    exact decade anchors (years ending in zero), never from arbitrary years
-    such as 1968, so the integrity gate still blocks unsupported numbers.
+
+def _parse_portuguese_integer_words(items):
+    values = []
+    for item in items:
+        if item == "e":
+            continue
+        if item in PT_NUMBER_WORDS:
+            values.append(PT_NUMBER_WORDS[item])
+        elif re.fullmatch(r"\d+", item):
+            values.append(int(item))
+        else:
+            return None
+    return sum(values) if values else None
+
+
+def _normalize_thousand_magnitudes(text):
+    """Canonicalize written or numeric quantities immediately before 'mil'."""
+    items = re.findall(
+        r"\d+(?:[.,]\d+)?|[a-zà-ÿ]+|[^\w\s]",
+        expandir_texto(text).lower(),
+    )
+    output = []
+    for item in items:
+        if item != "mil":
+            output.append(item)
+            continue
+        start = len(output) - 1
+        while start >= 0 and len(output) - start <= 7:
+            token = output[start]
+            if token == "e" or token in PT_NUMBER_WORDS or re.fullmatch(r"\d+", token):
+                start -= 1
+                continue
+            break
+        phrase = output[start + 1:]
+        value = _parse_portuguese_integer_words(phrase)
+        if phrase and value is not None and 0 < value < 1000:
+            del output[start + 1:]
+            output.append(str(value * 1000))
+        else:
+            output.append(item)
+    return " ".join(output)
+
+
+def numeric_tokens(text):
+    """Extract numeric identity, Portuguese thousand values, and safe decades.
+
+    'duzentos mil' and '200 mil' normalize to the same integer. Exact decade
+    anchors may authorize common two-digit shorthand, but arbitrary years do not.
     """
-    expanded = expandir_texto(text)
+    expanded = _normalize_thousand_magnitudes(text)
     numbers = set(re.findall(r"\b\d+(?:[.,]\d+)?\b", expanded))
 
     for token in list(numbers):
@@ -306,7 +361,7 @@ def main() -> int:
     )
     report = {
         "short_id": SHORT_ID,
-        "version": "5.3.3",
+        "version": "5.3.4",
         "topic": topic,
         **result,
     }

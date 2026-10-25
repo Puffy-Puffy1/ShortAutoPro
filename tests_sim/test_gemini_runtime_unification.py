@@ -1,3 +1,4 @@
+import base64
 import json
 import os
 import unittest
@@ -56,10 +57,97 @@ class GeminiRuntimeTests(unittest.TestCase):
         self.assertIn("model-a", post.call_args_list[0].args[0])
         self.assertIn("model-b", post.call_args_list[1].args[0])
 
+    @patch("gemini_runtime.time.sleep", return_value=None)
+    @patch("gemini_runtime.requests.post")
+    def test_explicit_attempt_budget_fails_over_without_retrying_same_model(self, post, sleep):
+        post.side_effect = [
+            self._response(429, "rate limited"),
+            self._response(
+                200,
+                payload={
+                    "candidates": [{
+                        "content": {"parts": [{"text": "ok"}]}
+                    }]
+                },
+            ),
+        ]
+        with patch.dict(
+            os.environ,
+            {
+                "GEMINI_API_KEY": "test-key",
+                "SAP_GEMINI_ATTEMPTS_PER_MODEL": "3",
+            },
+            clear=False,
+        ):
+            result = gemini_runtime.generate_text(
+                "verify",
+                models=["model-a", "model-b"],
+                attempts_per_model=1,
+                component="Visual test",
+            )
+        self.assertEqual(result, "ok")
+        self.assertEqual(post.call_count, 2)
+        self.assertIn("model-a", post.call_args_list[0].args[0])
+        self.assertIn("model-b", post.call_args_list[1].args[0])
+        sleep.assert_not_called()
+
     def test_missing_key_is_typed_temporary_failure(self):
         with patch.dict(os.environ, {"GEMINI_API_KEY": ""}, clear=False):
             with self.assertRaises(gemini_runtime.GeminiTemporaryUnavailable):
                 gemini_runtime.generate_text("hello")
+
+    @patch("gemini_runtime.requests.post")
+    def test_image_bytes_use_shared_multimodal_runtime(self, post):
+        post.return_value = self._response(
+            200,
+            payload={
+                "candidates": [{
+                    "content": {"parts": [{"text": '{"ok": true}'}]}
+                }]
+            },
+        )
+        image = b"\xff\xd8\xfffixture-image-bytes"
+        with patch.dict(
+            os.environ,
+            {"GEMINI_API_KEY": "test-key", "SAP_GEMINI_ATTEMPTS_PER_MODEL": "1"},
+            clear=False,
+        ):
+            result = gemini_runtime.generate_text(
+                "verify visible objects",
+                response_mime_type="application/json",
+                image_data=image,
+                image_mime_type="image/jpeg",
+                models=["model-image"],
+                component="Visual test",
+            )
+
+        self.assertEqual(result, '{"ok": true}')
+        payload = post.call_args.kwargs["json"]
+        self.assertEqual(payload["contents"][0]["parts"][0]["text"], "verify visible objects")
+        self.assertEqual(
+            payload["contents"][0]["parts"][1]["inline_data"],
+            {
+                "mime_type": "image/jpeg",
+                "data": base64.b64encode(image).decode("ascii"),
+            },
+        )
+
+    @patch("gemini_runtime.requests.post")
+    def test_oversized_or_unsupported_inline_images_are_rejected(self, post):
+        with patch.dict(os.environ, {"GEMINI_API_KEY": "test-key"}, clear=False):
+            with self.assertRaises(gemini_runtime.GeminiInvalidResponse):
+                gemini_runtime.generate_text(
+                    "verify",
+                    image_data=b"x" * (6 * 1024 * 1024 + 1),
+                    image_mime_type="image/jpeg",
+                )
+            with self.assertRaises(gemini_runtime.GeminiInvalidResponse):
+                gemini_runtime.generate_text(
+                    "verify",
+                    image_data=b"small image",
+                    image_mime_type="image/svg+xml",
+                )
+        post.assert_not_called()
 
     def test_default_timeout_is_mobile_bounded(self):
         text = (ROOT / "gemini_runtime.py").read_text(encoding="utf-8")

@@ -121,7 +121,8 @@ class ProductionManifestTests(unittest.TestCase):
             )
             for i in range(1, 7):
                 suffix = ".webp" if i == 1 else ".jpg"
-                (media / f"scene_{i:02d}{suffix}").write_bytes(b"asset")
+                provider = "_wikimedia" if i == 1 else ("_pexels" if i == 2 else "")
+                (media / f"scene_{i:02d}{provider}{suffix}").write_bytes(b"asset")
             (videos / "short_v6_case.mp4").write_bytes(b"0" * 600_000)
             import hashlib
             topic = "Caso de Teste"

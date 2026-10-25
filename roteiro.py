@@ -14,6 +14,10 @@ from gemini_runtime import (
 )
 
 from script_fallback import build_extractive_script, build_scene_queries
+from script_claim_traceability import (
+    ScriptClaimTraceabilityError,
+    enforce_script_claim_traceability,
+)
 from source_identity import validar_identidade
 from wiki_client import WikiRateLimit
 from wiki_client import extract as wiki_extract_client
@@ -297,6 +301,10 @@ ROTEIRO:
 - ritmo rápido e frases naturais;
 - fácil para voz neural;
 - CTA final curto.
+- Cada afirmação factual deve ficar em uma frase curta e separada.
+- Prefira os termos factuais, nomes, datas e verbos presentes na fonte; evite paráfrases distantes.
+- Não una fatos de trechos diferentes em uma frase longa. Cada frase deve ser rastreável a uma ou poucas frases da fonte.
+- Atribua explicitamente teorias, hipóteses e conclusões posteriores; não as apresente como consenso.
 
 Depois escreva exatamente:
 CENAS:
@@ -419,6 +427,8 @@ REGRAS OBRIGATÓRIAS:
 - preserve fatos, gancho e CTA;
 - não adicione informação;
 - corte redundâncias;
+- preserve a rastreabilidade: cada afirmação factual deve corresponder claramente a uma ou poucas frases da fonte;
+- prefira os mesmos termos factuais da fonte e separe afirmações independentes em frases distintas;
 - português do Brasil;
 - responda SOMENTE com o roteiro final.
 """
@@ -486,7 +496,8 @@ Compare cada afirmação com a fonte.
 - não acrescente informação nova;
 - preserve fatos documentados e atribuições;
 - diferencie fato, teoria, especulação e conclusão posterior;
-- preserve gancho e ritmo;
+- preserve gancho e ritmo sem fundir fatos independentes;
+- verifique que cada afirmação pode ser localizada na fonte usando os mesmos termos factuais;
 - resultado final entre 105 e 125 palavras REAIS.
 
 Responda SOMENTE com o roteiro revisado.
@@ -578,6 +589,7 @@ REGRAS:
 - traduza palavras ou expressões em inglês;
 - mantenha entre 105 e 125 palavras REAIS;
 - preserve gancho e CTA;
+- não altere nomes, datas, números, termos factuais nem o sentido de afirmações rastreáveis à fonte;
 - responda SOMENTE com o roteiro corrigido.
 """
         try:
@@ -608,6 +620,23 @@ REGRAS:
             )
     roteiro = corrigido_final
     print("Language Guard: PASS")
+
+
+try:
+    roteiro, claim_traceability = enforce_script_claim_traceability(roteiro, fonte)
+except ScriptClaimTraceabilityError as exc:
+    sys.exit(f"ERRO: roteiro sem rastreabilidade factual suficiente: {exc}")
+
+print(
+    "SAP_SCRIPT_CLAIM_TRACEABILITY="
+    + json.dumps(claim_traceability, ensure_ascii=False, sort_keys=True)
+)
+if claim_traceability["fallback_used"]:
+    # Source-extractive recovery changes the narration; regenerate the keyword
+    # bridge rather than pairing it with stale AI-generated queries.
+    script_degraded = True
+    cenas_texto = build_scene_queries(assunto, QTD_CENAS, clean_topic=limpar_assunto)
+    print("SAP_SCRIPT_CLAIM_TRACEABILITY=SOURCE_EXTRACTIVE_FALLBACK")
 
 
 def avaliar_qualidade_roteiro(texto):

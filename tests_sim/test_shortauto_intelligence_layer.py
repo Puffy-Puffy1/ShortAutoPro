@@ -16,6 +16,47 @@ class IntelligenceLayerTests(unittest.TestCase):
         self.assertEqual(locked["coverage"], 100.0)
         self.assertTrue(all(x["locked"] for x in locked["sentences"]))
 
+    def test_claim_lock_combines_multiple_source_sentences_without_lowering_single_claim_threshold(self):
+        source = (
+            "Incidente do Passo Dyatlov foi um acontecimento que resultou na morte de nove "
+            "esquiadores ao norte dos montes Urais, na antiga União Soviética, na noite de "
+            "2 de fevereiro de 1959. Investigadores da época determinaram que os esquiadores "
+            "rasgaram suas barracas de dentro para fora, fugindo a pé sob forte nevasca."
+        )
+        script = (
+            "Nove esquiadores experientes fugiram de sua barraca rasgando-a por dentro, "
+            "na noite de 2 de fevereiro de 1959, sob forte nevasca."
+        )
+        result = intel.claim_lock(script, intel.claim_engine(source))
+        row = result["sentences"][0]
+        self.assertLess(row["support"], intel.CLAIM_SINGLE_SUPPORT_THRESHOLD)
+        self.assertGreaterEqual(row["aggregate_support"], intel.CLAIM_MULTI_SUPPORT_THRESHOLD)
+        self.assertGreaterEqual(len(row["supporting_claim_ids"]), 2)
+        self.assertTrue(row["locked"])
+        self.assertEqual(result["coverage"], 100.0)
+
+    def test_claim_engine_does_not_treat_source_section_headings_as_evidence(self):
+        claims = intel.claim_engine(
+            "=== Testes militares ===\nPesquisadores analisaram as evidências do incidente."
+        )
+        self.assertTrue(claims)
+        self.assertFalse(any(claim["text"].startswith("===") for claim in claims))
+
+    def test_claim_lock_excludes_explicit_rhetorical_prompt_and_call_to_action(self):
+        source = "Os esquiadores acamparam nas montanhas durante o inverno."
+        script = (
+            "Os esquiadores acamparam nas montanhas durante o inverno. "
+            "O que realmente aconteceu naquela noite gelada? "
+            "O que você acha que aconteceu? "
+            "Comente sua teoria e inscreva-se."
+        )
+        result = intel.claim_lock(script, intel.claim_engine(source))
+        self.assertEqual(result["coverage"], 100.0)
+        self.assertEqual(result["factual_sentence_count"], 1)
+        self.assertEqual(result["editorial_prompt_count"], 3)
+        self.assertEqual(result["unsupported"], [])
+        self.assertTrue(all(row["coverage_exempt"] for row in result["sentences"][1:]))
+
     def test_story_architecture_contains_core_roles(self):
         script = "A mystery began. The men planned an escape. But one detail changed everything. The search intensified. A clue appeared. Nobody knows the final answer."
         result = intel.story_architecture(script)
@@ -41,6 +82,45 @@ class IntelligenceLayerTests(unittest.TestCase):
         self.assertEqual(result["status"], "BLOCK")
         self.assertEqual(result["mismatches"][0]["scene"], 2)
 
+    def test_geographic_consistency_allows_specific_and_component_region_names(self):
+        rows = [
+            {
+                "location": "Northern Ural Mountains",
+                "query": "archival winter camp in the Ural Mountains",
+                "segment": "The camp was in the northern Ural range.",
+            },
+            {
+                "location": "Ural Mountains",
+                "query": "snowy mountain terrain",
+                "segment": "The range was covered in snow.",
+            },
+            {
+                "location": "Kholat Syakhl",
+                "query": "Kholat Syakhl winter camp",
+                "segment": "The camp site.",
+            },
+        ]
+        result = intel.geographic_consistency(rows)
+        self.assertEqual(result["status"], "PASS")
+        self.assertEqual(result["mismatches"], [])
+
+    def test_geographic_consistency_allows_country_parent_of_region(self):
+        rows = [
+            {
+                "location": "Bass Strait",
+                "query": "ocean search and rescue boat waves Australia",
+                "segment": "Teams searched the sea.",
+            },
+            {
+                "location": "Australia",
+                "query": "airplane metal debris on beach sand coast",
+                "segment": "A fragment was found.",
+            },
+        ]
+        result = intel.geographic_consistency(rows)
+        self.assertEqual(result["status"], "PASS")
+        self.assertEqual(result["mismatches"], [])
+
     def test_visual_system_detects_repeated_shot_run(self):
         rows = [
             {"shot_type": "close_up", "segment": "a"},
@@ -60,6 +140,17 @@ class IntelligenceLayerTests(unittest.TestCase):
         }]
         result = intel.semantic_visual_safety(rows)
         self.assertEqual(result["status"], "BLOCK")
+
+    def test_semantic_visual_safety_matches_full_avoid_phrase(self):
+        rows = [{
+            "segment": "The pilot checked the cockpit instruments.",
+            "query": "vintage airplane cockpit instrument panel gauges",
+            "must_have": ["dashboard", "gauges"],
+            "avoid": ["modern glass cockpit", "flying saucer"],
+        }]
+        result = intel.semantic_visual_safety(rows)
+        self.assertEqual(result["status"], "PASS")
+        self.assertEqual(result["violations"], [])
 
     def test_historical_authenticity_penalizes_modern_term(self):
         rows = [{"era": "1948", "query": "1948 beach smartphone tourist", "segment": "The beach."}]

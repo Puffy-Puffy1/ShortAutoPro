@@ -52,19 +52,25 @@ class V2ReliabilityHardeningTests(unittest.TestCase):
             }
 
             def fake_download(_candidate, _number, _sid):
-                return True, str(asset), {"sha256": "fixture", "probe": {"width": 100, "height": 100}}
+                return True, str(asset), {"sha256": "fixture", "probe": {"width": 1920, "height": 1080}}
 
-            with patch.object(media_engine_v2.PROVIDER, "search", side_effect=[ [candidate], [candidate] ]),                  patch.object(media_engine_v2.PROVIDER, "prepare", return_value=[]),                  patch.object(media_engine_v2.PROVIDER, "download", side_effect=fake_download),                  patch.object(media_engine_v2, "validate_asset", return_value={
+            with patch.object(media_engine_v2.PROVIDER, "search", side_effect=[[candidate], [candidate]]), \
+                 patch.object(media_engine_v2.PROVIDER, "prepare", return_value=[]), \
+                 patch.object(media_engine_v2.PROVIDER, "download", side_effect=fake_download), \
+                 patch.object(media_engine_v2, "validate_asset", return_value={
                      "sha256": "fixture",
-                     "probe": {"width": 100, "height": 100},
+                     "probe": {"width": 1920, "height": 1080},
                      "validated": True,
-                 }):
+                 }), \
+                 patch.object(media_engine_v2, "_verify_scene_pixels", return_value={"status": "PASS", "must": [], "avoid": []}):
                 result = media_engine_v2.acquire_scene(
                     "RELAX_001", 1,
                     {"query": "ship radio", "must_have": ["ship", "radio"], "avoid": []},
                     media,
                 )
-            self.assertEqual(result["verification_mode"], "strict_evidence_query_relaxed")
+            self.assertEqual(result["verification_mode"], "gemini_visual_must")
+            self.assertEqual(result["must_hits"], 2)
+            self.assertEqual(result["must_total"], 2)
 
     def test_render_input_rejects_tampered_frozen_asset(self):
         with tempfile.TemporaryDirectory() as td:

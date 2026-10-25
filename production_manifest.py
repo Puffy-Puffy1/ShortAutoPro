@@ -230,7 +230,7 @@ def build_manifest(probe_data=None):
     media_numbers = []
     media_names_ok = True
     for path in media_files:
-        match = re.fullmatch(r"scene_(\d+)", path.stem, flags=re.IGNORECASE)
+        match = re.fullmatch(r"scene_(\d+)(?:_[A-Za-z0-9-]+)?", path.stem, flags=re.IGNORECASE)
         if not match:
             media_names_ok = False
             continue

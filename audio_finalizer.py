@@ -43,9 +43,15 @@ def measure(path:Path)->dict[str,float]:
   except Exception: pass
  raise RuntimeError("loudnorm não retornou medição válida")
 
-def remaster(path:Path,m:dict[str,float])->None:
+def remaster(path:Path,m:dict[str,float],*,linear:bool=True)->None:
  tmp=path.with_name(f".{path.stem}.master.{os.getpid()}.mp4")
- filt=(f"loudnorm=I={TARGET}:TP={TP}:LRA={LRA}:measured_I={m['lufs']}:measured_TP={m['true_peak_db']}:measured_LRA={m['lra']}:measured_thresh={m['threshold']}:offset={m['offset']}:linear=true:print_format=summary,alimiter=limit={10**(TP/20):.6f}:level=false")
+ if linear:
+  norm=(f"loudnorm=I={TARGET}:TP={TP}:LRA={LRA}:measured_I={m['lufs']}:measured_TP={m['true_peak_db']}:measured_LRA={m['lra']}:measured_thresh={m['threshold']}:offset={m['offset']}:linear=true:print_format=summary")
+ else:
+  # Bounded fallback: dynamic loudnorm avoids failing when linear mode cannot
+  # satisfy the target for a short/limited source; limiter protects AAC output.
+  norm=f"loudnorm=I={TARGET}:TP={TP-1.5}:LRA={LRA}:linear=false:print_format=summary"
+ filt=f"{norm},alimiter=limit={10**((TP-1.5)/20):.6f}:attack=5:release=50:level=false"
  cmd=["ffmpeg","-y","-loglevel","error","-i",str(path),"-map","0:v:0","-map","0:a:0","-c:v","copy","-af",filt,"-c:a","aac","-b:a","192k","-ar","48000","-movflags","+faststart",str(tmp)]
  try:
   run_group(cmd,check=True,timeout=180)
@@ -61,9 +67,15 @@ def main()->int:
   before=measure(VIDEO); tolerance_lufs=env_float("SAP_AUDIO_LUFS_TOLERANCE",0.7,0.1,3.0); tolerance_tp=env_float("SAP_AUDIO_TP_TOLERANCE",0.2,0.05,1.5)
   need=abs(before["lufs"]-TARGET)>tolerance_lufs or before["true_peak_db"]>TP+tolerance_tp
   if need:
-   remaster(VIDEO,before)
+   remaster(VIDEO,before,linear=True)
    after=measure(VIDEO)
-   measurement_source="post_remaster"
+   measurement_source="post_remaster_linear"
+   # Codec true peaks can remain above target after a linear pass. Retry once
+   # in dynamic mode, then measure the actual final AAC stream again.
+   if after["true_peak_db"]>TP+0.35 or abs(after["lufs"]-TARGET)>max(1.0,tolerance_lufs):
+    remaster(VIDEO,after,linear=False)
+    after=measure(VIDEO)
+    measurement_source="post_remaster_dynamic_retry"
   else:
    after=before
    measurement_source="unchanged_reuse"

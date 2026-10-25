@@ -108,7 +108,11 @@ def parse_ass(path: Path) -> list[dict[str, Any]]:
         if len(parts) != 10:
             raise ValueError("SUBTITLE_INVALID: malformed ASS dialogue")
         start, end = ass_time(parts[1]), ass_time(parts[2])
-        text = parts[9].replace(r"\N", "\n").strip()
+        # Remotion renders subtitle text as React content, not through libass.
+        # Strip ASS override blocks before passing the cue to Remotion; the frozen
+        # .ass file remains unchanged for the FFmpeg backend.
+        text = re.sub(r"\{\\[^}]*\}", "", parts[9])
+        text = text.replace(r"\N", "\n").replace(r"\n", "\n").strip()
         if end <= start:
             raise ValueError("SUBTITLE_INVALID: non-positive cue")
         cues.append({"start": start, "end": end, "text": text})
@@ -585,6 +589,48 @@ def commit_output(temp: Path, job: Path, short_id: str) -> Path:
     finally:
         staging.unlink(missing_ok=True)
 
+def write_render_identity(short_id: str, job: Path, final_video: Path) -> Path:
+    """Bind the validated render to the canonical topic and frozen render inputs."""
+    topic_path = BASE / "roteiros" / f"used_topic_{short_id}.txt"
+    if not topic_path.is_file():
+        topic_path = BASE / "roteiros" / f"topic_{short_id}.txt"
+    try:
+        topic = topic_path.read_text(encoding="utf-8").strip()
+    except OSError as exc:
+        raise RuntimeError(f"RENDER_IDENTITY_TOPIC_MISSING:{topic_path}") from exc
+    if not topic:
+        raise RuntimeError("RENDER_IDENTITY_TOPIC_EMPTY")
+    manifest_path = job / "manifest.json"
+    timeline_path = job / "timeline.json"
+    report_path = job / "render_report.json"
+    if not final_video.is_file() or not report_path.is_file():
+        raise RuntimeError("RENDER_IDENTITY_RENDER_EVIDENCE_MISSING")
+    report = read_json(report_path)
+    if report.get("status") != "PASSED" or report.get("short_id") != short_id:
+        raise RuntimeError("RENDER_IDENTITY_RENDER_REPORT_MISMATCH")
+    job_meta = read_json(job / "job.json")
+    if job_meta.get("short_id") != short_id:
+        raise RuntimeError("RENDER_IDENTITY_JOB_MISMATCH")
+    payload = {
+        "schema": "SHORTAUTOPRO_RENDER_IDENTITY_V1",
+        "short_id": short_id,
+        "topic": topic,
+        "topic_sha256": hashlib.sha256(topic.encode("utf-8")).hexdigest(),
+        "render_id": str(job_meta.get("render_id") or ""),
+        "final_video_sha256": sha256(final_video),
+        "render_manifest_sha256": sha256(manifest_path),
+        "render_timeline_sha256": sha256(timeline_path),
+        "render_report_sha256": sha256(report_path),
+        "created_at": now(),
+    }
+    if not payload["render_id"]:
+        raise RuntimeError("RENDER_IDENTITY_RENDER_ID_MISSING")
+    destination = BASE / "manifests" / f"{short_id}_render_identity.json"
+    atomic_json(destination, payload)
+    print(f"RENDER_IDENTITY=PASS short_id={short_id} render_id={payload['render_id']}")
+    return destination
+
+
 def main() -> int:
     parser=argparse.ArgumentParser()
     parser.add_argument("--short-id",required=True)
@@ -609,6 +655,7 @@ def main() -> int:
             if verified.get("status")!="PASSED" or verified.get("short_id")!=sid:
                 transition(job,"FAILED",error_code="PASSED_STATE_INVALID",error="final_revalidation")
                 raise RuntimeError("PASSED_STATE_INVALID:final_revalidation")
+            write_render_identity(sid, job, final_path)
             print(json.dumps(verified,ensure_ascii=False)); return 0
         transition(job,"VALIDATING_INPUT")
         detail=validate_input(job)
@@ -624,6 +671,7 @@ def main() -> int:
             transition(job,"FAILED",error_code="QUALITY_GATE_FAIL",errors=report["errors"])
             return 1
         final=commit_output(temp,job,sid)
+        write_render_identity(sid, job, final)
         transition(job,"PASSED",output=str(final),report=report)
         print(json.dumps(report,ensure_ascii=False))
         return 0
