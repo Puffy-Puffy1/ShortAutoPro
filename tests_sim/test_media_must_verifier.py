@@ -347,6 +347,19 @@ class MediaMustVerifierRussianWinterTownSearchTests(unittest.TestCase):
 
 
 
+class MediaMustVerifierSnowOnlyRussianTownSearchTests(unittest.TestCase):
+    def test_snow_only_must_keeps_russian_town_scene_context(self):
+        variants = _query_variants(
+            "russian snow covered provincial town street",
+            ["snow"],
+        )
+        self.assertLessEqual(len(variants), 8)
+        self.assertEqual(variants[0], "russian snow covered provincial town street")
+        self.assertIn("old Russian town with wooden houses in snow", variants)
+        self.assertIn("snow covered provincial town street", variants)
+        self.assertIn("Russian winter town street snow", variants)
+
+
 class MediaMustVerifierTownPreferenceSearchTests(unittest.TestCase):
     def test_town_and_snow_search_expands_a_preferred_house_detail(self):
         variants = _query_variants(
