@@ -1223,6 +1223,18 @@ class MediaEngineV2FailureTests(unittest.TestCase):
             ],
         )
 
+    def test_targeted_visual_search_recovers_light_aircraft_over_ocean_at_night(self):
+        queries = media_engine_v2._targeted_visual_search_queries(
+            "single engine propeller airplane flying over dark ocean at night",
+            ["airplane", "ocean"],
+            avoid=["daylight", "commercial airliner", "unrelated event"],
+        )
+        self.assertEqual(len(queries), 3)
+        lowered = [query.casefold() for query in queries]
+        self.assertIn("small propeller aircraft flying over open ocean at night", lowered)
+        self.assertIn("light single engine airplane over dark sea at night", lowered)
+        self.assertIn("single engine plane in flight above ocean at night", lowered)
+
 if __name__=="__main__": unittest.main()
 
 
