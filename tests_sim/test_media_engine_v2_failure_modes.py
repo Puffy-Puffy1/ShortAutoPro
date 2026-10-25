@@ -1270,3 +1270,19 @@ class MediaEngineV2FailureTests(unittest.TestCase):
 if __name__=="__main__": unittest.main()
 
 
+
+
+class VisualSceneIntentNormalizationTests(unittest.TestCase):
+    def test_ship_scene_uses_observable_composition_not_unverifiable_narrative(self):
+        intent = media_engine_v2._visual_scene_intent(
+            "abandoned sailing ship drifting in open ocean",
+            ["ship"],
+        )
+        self.assertEqual(intent, "sailing ship on open ocean")
+
+    def test_non_ship_scene_intent_is_preserved(self):
+        intent = media_engine_v2._visual_scene_intent(
+            "historic Russian town with wooden houses in snow",
+            ["town", "snow"],
+        )
+        self.assertEqual(intent, "historic Russian town with wooden houses in snow")
