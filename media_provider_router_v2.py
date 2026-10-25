@@ -570,6 +570,21 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
             "steam locomotive in snow",
         ))
 
+    # Some scene plans keep only "snow" as a hard MUST while town/village
+    # context stays in the editorial query. Preserve that context in catalog
+    # searches instead of spending the bounded query budget on generic snow tags.
+    russian_winter_context = bool(
+        re.search(r"\b(?:russian|sverdlovsk|provincial|town|village|wooden houses?)\b", raw, re.IGNORECASE)
+        and re.search(r"\b(?:snow|snowy|winter|snow-covered)\b", raw, re.IGNORECASE)
+    )
+    if "snow" in must_set and russian_winter_context:
+        candidates.extend((
+            "old Russian town with wooden houses in snow",
+            "Sverdlovsk winter village wooden houses",
+            "snow covered provincial town street",
+            "Russian winter town street snow",
+        ))
+
     # Old Russian winter towns are often indexed by village/houses rather than
     # "town". House wording may be a soft preference, so it can live in query
     # text while only town and snow remain hard requirements.
