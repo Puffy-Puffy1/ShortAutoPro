@@ -464,6 +464,20 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
             "historic sailing ship ocean",
         ))
 
+    # Lone-person winter/trail scenes are often indexed as "hiker" or
+    # "solitary hiker". Keep the wilderness context in early variants so the
+    # bounded search budget does not spend its slots on generic "person" results.
+    if "person" in must_set and re.search(
+        r"\\b(?:hiker|hiking|trail|alone|solitary|wilderness|back)\\b",
+        raw,
+        re.IGNORECASE,
+    ) and re.search(r"\\b(?:snow|snowy|winter|wintry)\\b", raw, re.IGNORECASE):
+        candidates.extend((
+            "single hiker walking alone in snowy wilderness",
+            "lone person walking on a snow-covered trail",
+            "solitary hiker from behind in winter forest",
+        ))
+
     # Expand aliases in context before falling back to single-word searches.
     # This helps catalogs that index alternate labels but preserves the scene.
     for term in must_terms:
