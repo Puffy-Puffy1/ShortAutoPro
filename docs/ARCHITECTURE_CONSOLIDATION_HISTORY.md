@@ -509,3 +509,11 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - O roteador agora define aliases limitados para `person`, permitindo o orçamento de até oito variantes já usado por outras cenas com aliases. As consultas contextuais continuam antes dos fallbacks genéricos; os critérios visuais MUST/AVOID não foram alterados.
 - O FIRST_VIDEO da cabeça anterior falhou na cena 01 (`ship`): nenhum dos candidatos Wikimedia passou pela verificação visual; houve bloqueio por confiança de AVOID e visibilidade do MUST. A próxima execução após esta correção deve ser inspecionada antes de considerar a geração validada.
 - A PR permanece sem merge até a suíte portátil passar e existir um MP4 gerado nesta cabeça, validado por FFprobe.
+
+
+## 44. Busca contextual para acampamento no inverno — 25/10/2026
+
+- A execução FIRST_VIDEO `40222271843` falhou na cena 01: 64 candidatos, mas nenhum passou pela verificação visual para os MUSTs `tent`, `snow` e `dark night`. O vídeo desta execução não foi gerado.
+- O roteador agora prioriza buscas de catálogo específicas para tenda na neve à noite, antes de aliases genéricos, mantendo o limite de oito variantes.
+- A validação portátil também revelou que o teste de navio abandonado esperava duas consultas contextuais que já não estavam no conjunto limitado. As variantes foram ajustadas para preservar as consultas `old sailing vessel at sea` e `ghost ship in the ocean` dentro do orçamento.
+- Foi adicionado teste para a busca contextual de tenda/neve/noite. Os critérios visuais MUST/AVOID permanecem inalterados; a próxima execução deve comprovar a aquisição real e a validação FFprobe antes de aprovar a PR.
