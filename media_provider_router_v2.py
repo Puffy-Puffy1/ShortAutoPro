@@ -437,7 +437,7 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
     # Empty historic ship-deck scenes are often catalogued as deck/rigging
     # photographs rather than as "abandoned ship". Keep the no-people intent
     # in retrieval wording; visual AVOID checks remain authoritative.
-    if {"wooden deck", "rigging"} <= must_set and re.search(
+    if {"wooden deck", "rigging"} <= {term.casefold() for term in must_terms} and re.search(
         r"\b(?:ship|sailing|vessel|deck|rigging)\b", raw, re.IGNORECASE
     ):
         candidates.extend((
