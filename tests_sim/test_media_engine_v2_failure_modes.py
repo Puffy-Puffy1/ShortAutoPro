@@ -973,6 +973,17 @@ class MediaEngineV2FailureTests(unittest.TestCase):
         self.assertTrue(any("propeller" in query and "cessna" in query for query in lowered))
         self.assertTrue(any("ocean" in query or "water" in query for query in lowered))
 
+    def test_targeted_visual_search_prefers_archival_steam_train_when_modern_trains_are_avoided(self):
+        queries = media_engine_v2._targeted_visual_search_queries(
+            "vintage train traveling through snow landscape",
+            ["train"],
+            avoid=["high speed train"],
+        )
+        self.assertTrue(queries)
+        self.assertLessEqual(len(queries), 3)
+        self.assertIn("steam locomotive", " ".join(queries).casefold())
+        self.assertTrue(all("high speed train" not in query.casefold() for query in queries))
+
     def test_targeted_visual_search_rephrases_single_must_when_already_in_query(self):
         queries = media_engine_v2._targeted_visual_search_queries(
             "dark medieval stone prison tower interior",

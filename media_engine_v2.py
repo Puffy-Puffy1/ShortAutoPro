@@ -1014,6 +1014,31 @@ def _targeted_visual_search_queries(
                 break
         searches = prioritized
 
+    # Prefer archival steam-railway language when a snowy historical train
+    # scene excludes high-speed trains. Search terms only improve discovery;
+    # candidates still pass the existing pixel MUST/AVOID gate.
+    avoid_text = " ".join(str(item or "") for item in (avoid or [])).casefold()
+    train_context = " ".join([str(query or ""), *must_text]).casefold()
+    if (
+        len(must_text) == 1
+        and re.search(r"\btrain\b", must_text[0], re.IGNORECASE)
+        and re.search(r"\b(?:snow|snowy|winter|vintage|historic|historical)\b", train_context)
+        and re.search(r"\b(?:high[- ]speed train|bullet train|modern train)\b", avoid_text)
+    ):
+        searches = []
+        seen_train_queries = set()
+        for targeted in (
+            "vintage steam locomotive winter railway snow landscape",
+            "historic steam train traveling through snowy countryside",
+            "archival steam locomotive on snow covered railway tracks",
+        ):
+            key = targeted.casefold()
+            if key not in seen_train_queries:
+                seen_train_queries.add(key)
+                searches.append(targeted)
+            if len(searches) >= max_searches:
+                break
+
     return searches
 
 
