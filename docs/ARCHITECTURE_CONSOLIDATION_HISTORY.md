@@ -468,3 +468,11 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - `media_engine_v2.py` agora prioriza três consultas de catálogo para caminhantes com mochilas em ambiente nevado, incluindo trilha na natureza e expedição de inverno.
 - `tests_sim/test_media_engine_v2_failure_modes.py` cobre as duas consultas prioritárias e o limite de três buscas.
 - A mudança só altera descoberta de candidatos. A verificação por pixels de MUST/AVOID e a correspondência de cena permanecem obrigatórias; a conclusão depende de nova execução FIRST_VIDEO com MP4 da própria execução aprovado pelo FFprobe.
+
+
+## 43. Busca de cidade russa no inverno com MUST de neve isolado — 25/10/2026
+
+- A execução FIRST_VIDEO `40215224924` passou as cenas 01–03 e falhou na cena 04. O plano fornecia apenas `snow` como MUST, enquanto o contexto editorial era `russian snow covered provincial town street`; por isso, as variantes de vila/cidade russa não eram ativadas e oito candidatos falharam na verificação visual/intent.
+- `media_provider_router_v2.py` agora detecta contexto de cidade/vila russa de inverno na consulta mesmo quando o único MUST explícito é `snow`, priorizando buscas com cidade, vila, casas de madeira e rua antes dos aliases genéricos.
+- `tests_sim/test_media_must_verifier.py` cobre esse caso específico e mantém o limite de oito variantes.
+- Nenhum MUST/AVOID, aprovação visual ou gate de release foi relaxado. A nova execução FIRST_VIDEO precisa confirmar aquisição visual válida e MP4 próprio da execução validado por FFprobe.
