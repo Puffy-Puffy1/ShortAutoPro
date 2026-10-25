@@ -142,7 +142,7 @@ def normalize_visual_musts(
             key in {"typewritten text", "typed text", "typewritten writing"}
             and _DOCUMENT_TEXT_CONTEXT.search(item_context)
             and any(
-                re.search(r"\\b(?:document|documents|report|reports|paper|papers)\\b", other, re.IGNORECASE)
+                str(other).strip().casefold() in {"document", "documents", "report", "reports", "paper", "papers"}
                 for other in other_values
             )
         ):
