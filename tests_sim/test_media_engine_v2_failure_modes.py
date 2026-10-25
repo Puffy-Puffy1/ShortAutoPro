@@ -120,6 +120,7 @@ class MediaEngineV2FailureTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             media = Path(td) / "media"
             media.mkdir()
+            destination = media / "scene_01_wikimedia.jpg"
             candidate = {
                 "fonte": "Wikimedia", "id": "generic-money-image", "tipo": "imagem",
                 "must_hits": 1, "avoid_hits": 0, "score": 100,
@@ -130,6 +131,11 @@ class MediaEngineV2FailureTests(unittest.TestCase):
                     "required_terms": 4, "ratio": 0.167,
                 },
             }
+
+            def download(_candidate, _number, _short_id):
+                destination.write_bytes(b"fixture image bytes")
+                return True, str(destination), {}
+
             with patch.object(
                 media_engine_v2.PROVIDER, "search", side_effect=[[candidate], [candidate], [], [], []]
             ), patch.object(
@@ -138,25 +144,43 @@ class MediaEngineV2FailureTests(unittest.TestCase):
                 "media_must_verifier.verified_must",
                 return_value={"hits": 1, "total": 1, "missing": []},
             ), patch.object(
+                media_engine_v2.PROVIDER, "download", side_effect=download
+            ), patch.object(
+                media_engine_v2, "validate_asset",
+                side_effect=lambda path: {
+                    "sha256": media_engine_v2.sha256(Path(path)),
+                    "probe": {"width": 1920, "height": 1080},
+                },
+            ), patch.object(
+                media_engine_v2, "_verify_scene_pixels",
+                return_value={"status": "BLOCK", "reason": "scene_intent_mismatch"},
+            ) as visual_verify, patch.object(
                 media_engine_v2, "_local_library_asset", return_value=None
             ):
-                with self.assertRaisesRegex(RuntimeError, "query_relevance_rejected=1"):
+                with self.assertRaisesRegex(RuntimeError, "MEDIA_INCOMPLETE:scene_01:no_verified_asset"):
                     media_engine_v2.acquire_scene(
                         "X", 1,
                         {"query": "bundle of twenty dollar bills ransom money", "must_have": ["money"]},
                         media,
                     )
+            visual_verify.assert_called()
 
     def test_query_relaxation_requires_independent_must_evidence(self):
         with tempfile.TemporaryDirectory() as td:
             base = Path(td)
             media = base/"imagens"/"short_X"
             media.mkdir(parents=True)
+            destination = media / "scene_01_mock.jpg"
             candidate = {
                 "fonte": "Mock", "id": "1", "tipo": "imagem",
                 "must_hits": 0, "avoid_hits": 0, "score": 80,
                 "descricao": "ship on the ocean",
             }
+
+            def download(_candidate, _number, _short_id):
+                destination.write_bytes(b"fixture image bytes")
+                return True, str(destination), {}
+
             with patch.object(
                 media_engine_v2.PROVIDER,
                 "search",
@@ -169,14 +193,26 @@ class MediaEngineV2FailureTests(unittest.TestCase):
                 "media_must_verifier.verified_must",
                 return_value={"hits": 0, "total": 1},
             ), patch.object(
+                media_engine_v2.PROVIDER, "download", side_effect=download
+            ), patch.object(
+                media_engine_v2, "validate_asset",
+                side_effect=lambda path: {
+                    "sha256": media_engine_v2.sha256(Path(path)),
+                    "probe": {"width": 1920, "height": 1080},
+                },
+            ), patch.object(
+                media_engine_v2, "_verify_scene_pixels",
+                return_value={"status": "BLOCK", "reason": "must_visibility_failed"},
+            ) as visual_verify, patch.object(
                 media_engine_v2,
                 "_local_library_asset",
                 return_value=None,
             ):
-                with self.assertRaisesRegex(RuntimeError, "no_verified_asset"):
+                with self.assertRaisesRegex(RuntimeError, "MEDIA_INCOMPLETE:scene_01:no_verified_asset"):
                     media_engine_v2.acquire_scene(
                         "X", 1, {"query": "long query", "must_have": ["ship"]}, media
                     )
+            visual_verify.assert_called()
 
             with patch.object(
                 media_engine_v2.PROVIDER,
