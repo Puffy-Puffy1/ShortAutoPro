@@ -400,6 +400,7 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
     normalized = re.sub(r"[^A-Za-z0-9À-ÿ]+", " ", raw).strip()
     words = normalized.split()
     aliases = {
+        "person": ("hiker", "solitary person", "single person"),
         "security sensor": ("motion sensor", "alarm sensor", "door sensor"),
         "ship": ("vessel", "boat", "watercraft"),
         "boat": ("ship", "vessel", "watercraft"),
