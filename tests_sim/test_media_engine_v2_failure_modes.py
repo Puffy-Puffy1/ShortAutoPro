@@ -1011,6 +1011,17 @@ class MediaEngineV2FailureTests(unittest.TestCase):
             queries,
         )
 
+    def test_targeted_visual_search_recovers_backpacks_in_snowy_wilderness(self):
+        queries = media_engine_v2._targeted_visual_search_queries(
+            "hikers walking with backpacks in snowy wilderness",
+            ["backpack"],
+            avoid=["swimming pool", "urban street"],
+        )
+        self.assertLessEqual(len(queries), 3)
+        lowered = " ".join(queries).casefold()
+        self.assertIn("hikers walking with backpacks through snowy wilderness", lowered)
+        self.assertIn("backpacking hikers trekking through snow covered wilderness", lowered)
+
     def test_targeted_visual_search_prioritizes_historical_ski_photographs(self):
         queries = media_engine_v2._targeted_visual_search_queries(
             "group of soviet hikers in winter gear walking through snowy mountain landscape",
