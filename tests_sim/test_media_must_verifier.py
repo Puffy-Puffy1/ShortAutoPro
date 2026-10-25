@@ -456,3 +456,15 @@ class MediaMustVerifierArchiveFolderSearchTests(unittest.TestCase):
                 {"title": "police archive", "query": "case file folder"},
             )
         )
+
+
+class MediaMustVerifierEmptyHistoricDeckSearchTests(unittest.TestCase):
+    def test_empty_ship_deck_gets_contextual_searches_with_bounded_budget(self):
+        variants = _query_variants(
+            "empty wooden deck vintage sailing ship period-appropriate historical appearance",
+            ["wooden deck", "rigging"],
+        )
+        self.assertLessEqual(len(variants), 8)
+        self.assertIn("empty wooden sailing ship deck rigging no people", variants)
+        self.assertIn("historic wooden ship deck and rigging deserted", variants)
+        self.assertIn("sailing ship deck rigging without crew", variants)
