@@ -517,3 +517,11 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - O roteador agora prioriza buscas de catálogo específicas para tenda na neve à noite, antes de aliases genéricos, mantendo o limite de oito variantes.
 - A validação portátil também revelou que o teste de navio abandonado esperava duas consultas contextuais que já não estavam no conjunto limitado. As variantes foram ajustadas para preservar as consultas `old sailing vessel at sea` e `ghost ship in the ocean` dentro do orçamento.
 - Foi adicionado teste para a busca contextual de tenda/neve/noite. Os critérios visuais MUST/AVOID permanecem inalterados; a próxima execução deve comprovar a aquisição real e a validação FFprobe antes de aprovar a PR.
+
+
+## 45. Busca de barraca danificada — 25/10/2026
+
+- A execução FIRST_VIDEO `40223077657` falhou na cena 01. O tema era uma fotografia histórica de barraca rasgada; os MUSTs eram `tent` e `canvas tear`. Foram encontrados 13 candidatos Wikimedia, mas nenhum dos oito avaliados pelo verificador visual mostrou os requisitos.
+- O roteador agora inclui consultas contextuais de catálogo para `torn canvas tent in snowy mountains` e `ripped tent canvas in snowy mountains`, mantendo o assunto e o dano juntos e dentro do orçamento de oito variantes.
+- Teste de regressão cobre a expansão e o limite. Nenhum requisito visual ou gate de qualidade foi reduzido.
+- A execução FIRST_VIDEO deve ser repetida; a PR só pode ser considerada pronta após gerar MP4 nesta cabeça, validar H.264/AAC, 1080×1920 e 30 fps via FFprobe e aprovar as verificações restantes.
