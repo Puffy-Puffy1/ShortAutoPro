@@ -11,6 +11,9 @@ class TermuxBridgeDeployTests(unittest.TestCase):
         self.installer = (root / "automation" / "install_termux_bridge.sh").read_text(
             encoding="utf-8"
         )
+        self.legacy_installer = (
+            root / "automation" / "install_termux_autosync.sh"
+        ).read_text(encoding="utf-8")
 
     def test_bridge_defaults_to_approved_stable_branch(self):
         self.assertIn('BRANCH="${SAP_BRIDGE_BRANCH:-termux-stable}"', self.bridge)
@@ -45,6 +48,25 @@ class TermuxBridgeDeployTests(unittest.TestCase):
     def test_installer_does_not_change_tracked_bridge_file_mode(self):
         self.assertNotIn('chmod +x "$BRIDGE"', self.installer)
         self.assertIn('bash "$BRIDGE" || {', self.installer)
+
+    def test_installer_bootstraps_missing_termux_dependencies(self):
+        self.assertIn("pkg install -y util-linux cronie", self.installer)
+        self.assertIn('command -v flock', self.installer)
+        self.assertIn('command -v crontab', self.installer)
+
+    def test_cron_preserves_custom_project_and_stable_branch(self):
+        self.assertIn('SAP_PROJECT_DIR=\\"$PROJECT_DIR\\"', self.installer)
+        self.assertIn('SAP_BRIDGE_BRANCH=\\"$BRANCH\\"', self.installer)
+        self.assertIn('BRANCH="${SAP_BRIDGE_BRANCH:-termux-stable}"', self.installer)
+
+    def test_installer_configures_termux_boot_startup(self):
+        self.assertIn("shortautopro-autosync.sh", self.installer)
+        self.assertIn("pgrep -x crond", self.installer)
+
+    def test_legacy_autosync_installer_delegates_to_canonical_installer(self):
+        self.assertIn('exec bash "$INSTALLER"', self.legacy_installer)
+        self.assertIn('automation/install_termux_bridge.sh', self.legacy_installer)
+        self.assertNotIn("*/10 * * * *", self.legacy_installer)
 
 
 if __name__ == "__main__":
