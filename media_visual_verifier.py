@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import math
+import time
 from pathlib import Path
 from typing import Any
 
@@ -224,19 +225,34 @@ def verify_image_requirements(
     prompt = instructions + "Return only valid JSON with this exact shape: " + schema + ". "
     prompt += "Requested constraints: " + json.dumps(constraints, ensure_ascii=False)
 
-    try:
-        raw = generate_text(
-            prompt,
-            temperature=0.0,
-            max_output_tokens=1100,
-            response_mime_type="application/json",
-            component="Media Visual Verifier",
-            image_data=image_data,
-            image_mime_type=mime_type,
-            attempts_per_model=1,
-        )
-    except Exception as exc:
-        return _blocked(f"visual_model_unavailable:{type(exc).__name__}", mime_type)
+    raw = None
+    for attempt in range(3):
+        try:
+            raw = generate_text(
+                prompt,
+                temperature=0.0,
+                max_output_tokens=1100,
+                response_mime_type="application/json",
+                component="Media Visual Verifier",
+                image_data=image_data,
+                image_mime_type=mime_type,
+                attempts_per_model=1,
+            )
+            break
+        except Exception as exc:
+            # Retry only transient transport/service failures. Permanent errors
+            # still fail closed, and no retry can turn a rejected image into PASS.
+            transient = (
+                type(exc).__name__ in {
+                    "GeminiTemporaryUnavailable", "TimeoutError", "ConnectionError"
+                }
+                or any(code in str(exc) for code in ("429", "500", "502", "503", "504"))
+            )
+            if not transient or attempt == 2:
+                return _blocked(
+                    f"visual_model_unavailable:{type(exc).__name__}", mime_type
+                )
+            time.sleep(0.25 * (attempt + 1))
 
     payload = _parse_payload(raw)
     if payload is None:
