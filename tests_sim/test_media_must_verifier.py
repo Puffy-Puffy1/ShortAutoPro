@@ -507,3 +507,19 @@ class MediaMustVerifierLoneWinterHikerSearchTests(unittest.TestCase):
         self.assertIn("single hiker walking alone in snowy wilderness", variants)
         self.assertIn("lone person walking on a snow-covered trail", variants)
         self.assertIn("solitary hiker from behind in winter forest", variants)
+
+    def test_hiker_context_match_uses_word_boundaries(self):
+        variants = _query_variants("hiker walking back alone snowy trail winter", ["person"])
+        self.assertIn("single hiker walking alone in snowy wilderness", variants)
+        self.assertNotIn("single hiker walking alone in snowy wilderness", _query_variants("Australian winter hiking", ["person"]))
+
+
+
+class MediaMustVerifierOpenOceanShipSearchTests(unittest.TestCase):
+    def test_open_ocean_ship_scene_gets_old_vessel_searches(self):
+        query = "ship alone open ocean"
+        variants = _query_variants(query, ["ship"])
+        self.assertLessEqual(len(variants), 8)
+        self.assertEqual(variants[0], query)
+        self.assertIn("old sailing ship alone on open ocean", variants)
+        self.assertIn("abandoned sailing ship at sea", variants)
