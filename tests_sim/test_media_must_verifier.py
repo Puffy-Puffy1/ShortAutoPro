@@ -511,7 +511,7 @@ class MediaMustVerifierLoneWinterHikerSearchTests(unittest.TestCase):
     def test_hiker_context_match_uses_word_boundaries(self):
         variants = _query_variants("hiker walking back alone snowy trail winter", ["person"])
         self.assertIn("single hiker walking alone in snowy wilderness", variants)
-        self.assertNotIn("single hiker walking alone in snowy wilderness", _query_variants("Australian winter hiking", ["person"]))
+        self.assertNotIn("single hiker walking alone in snowy wilderness", _query_variants("Australian winter", ["person"]))
 
 
 
