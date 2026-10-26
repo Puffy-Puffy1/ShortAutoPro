@@ -496,6 +496,19 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
             "winter camping tent during snowfall at night",
         ))
 
+    # Multi-anchor railway scenes need the train, snow and tracks to
+    # stay together in catalog searches; generic train/snow tags often return
+    # unrelated locomotives or snow-only landscapes. Visual verification stays strict.
+    if {"train", "snow", "tracks"} <= must_set and re.search(
+        r"\\b(?:train|locomotive|railway)\\b", raw, re.IGNORECASE
+    ):
+        candidates.extend((
+            "train on snowy railway tracks",
+            "steam locomotive on snow-covered tracks",
+            "vintage train traveling on snow-covered railway tracks",
+            "railway tracks in snow with train",
+        ))
+
     # Lone-person winter/trail scenes are often indexed as "hiker" or
     # "solitary hiker". Keep the wilderness context in early variants so the
     # bounded search budget does not spend its slots on generic "person" results.
