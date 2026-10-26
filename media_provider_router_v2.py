@@ -453,6 +453,18 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
     # sentence. Add these contextual searches before generic aliases so the
     # bounded query budget does not discard them. MUST/AVOID verification stays strict.
     must_set = {term.casefold() for term in must_terms}
+
+    # Multi-anchor railway scenes need train, snow and tracks together.
+    # Add these before generic aliases so the eight-query budget preserves them.
+    if {"train", "snow", "tracks"} <= must_set and re.search(
+        r"\b(?:train|locomotive|railway)\b", raw, re.IGNORECASE
+    ):
+        candidates.extend((
+            "train on snowy railway tracks",
+            "steam locomotive on snow-covered tracks",
+            "vintage train traveling on snow-covered railway tracks",
+            "railway tracks in snow with train",
+        ))
     if "ship" in must_set and re.search(
         r"\b(?:ocean|sea|sailing|vintage|abandoned|drifting|ghost|alone|open water)\b",
         raw,
@@ -494,19 +506,6 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
             "camping tent in snow at night",
             "isolated tent in snowy dark wilderness",
             "winter camping tent during snowfall at night",
-        ))
-
-    # Multi-anchor railway scenes need the train, snow and tracks to
-    # stay together in catalog searches; generic train/snow tags often return
-    # unrelated locomotives or snow-only landscapes. Visual verification stays strict.
-    if {"train", "snow", "tracks"} <= must_set and re.search(
-        r"\\b(?:train|locomotive|railway)\\b", raw, re.IGNORECASE
-    ):
-        candidates.extend((
-            "train on snowy railway tracks",
-            "steam locomotive on snow-covered tracks",
-            "vintage train traveling on snow-covered railway tracks",
-            "railway tracks in snow with train",
         ))
 
     # Lone-person winter/trail scenes are often indexed as "hiker" or
