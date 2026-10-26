@@ -533,3 +533,19 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - `media_engine_v2.py` agora normaliza apenas esse caso para a composição visual observável `sailing ship on open ocean`. O MUST `ship`, os AVOID `modern ship` e `airplane`, e os outros critérios continuam sendo verificados separadamente nos pixels.
 - Foram adicionados testes de regressão para a normalização específica de navio e para garantir que outras cenas mantenham o intent original.
 - Esta alteração não comprova ainda a geração de vídeo. A nova execução FIRST_VIDEO precisa passar pela verificação visual e produzir MP4 válido, aprovado pelo FFprobe, antes de considerar a PR pronta.
+
+
+## 47. Retenção ligada ao pipeline canônico e gate fail-closed — 25/10/2026
+
+- A prova FIRST_VIDEO `40226211438` gerou MP4 válido (H.264/AAC, 1080×1920, 30 fps, 35,515 s) e passou FFprobe; a qualidade visual também passou. A decisão de publicação permaneceu corretamente em `BLOCK` por aprovação humana obrigatória e pediu reparo de ritmo.
+- Auditoria identificou que `main.py` não executava `retention_engine.py`. Assim, `release_gate.py` podia usar a nota padrão 75 quando o relatório de retenção não existia, gerando uma avaliação enganosa.
+- A branch de correção agora executa análise/reparo limitado de ritmo depois de gerar o plano determinístico e antes da renderização. O gate também rejeita relatório de retenção ausente/inválido em vez de atribuir uma nota padrão.
+- Testes cobrem a ordem do pipeline e o contrato fail-closed. Nenhuma aprovação humana é ignorada e nenhum gate visual/factual é relaxado. A nova PR precisa passar os workflows e produzir nova prova FIRST_VIDEO antes de considerar este ajuste concluído.
+
+
+## 48. Busca de trem com neve e trilhos na mesma cena — 25/10/2026
+
+- A execução FIRST_VIDEO `40229652877` falhou na cena 02. A busca encontrou 42 candidatos, mas a verificação visual não confirmou simultaneamente trem, neve e trilhos em nenhuma das oito imagens examinadas.
+- O roteador agora coloca consultas contextuais de três âncoras antes das expansões genéricas: `train on snowy railway tracks`, `steam locomotive on snow-covered tracks`, `vintage train traveling on snow-covered railway tracks` e `railway tracks in snow with train`.
+- O teste de regressão exige essas variantes dentro do limite de oito consultas. A verificação MUST/AVOID não foi afrouxada.
+- Próximo critério de aceitação: os testes de mídia devem passar e uma nova execução FIRST_VIDEO precisa gerar um MP4 da própria execução, validado por FFprobe. A correção não é considerada comprovada apenas porque a consulta foi criada.
