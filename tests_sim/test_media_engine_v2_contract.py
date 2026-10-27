@@ -874,8 +874,7 @@ class MediaEngineContractTests(unittest.TestCase):
 
     def test_scene_verification_intent_combines_narration_and_visual_direction(self):
         result = media_engine_v2._scene_verification_intent(
-            "  Amelia Earhart studied science.
- Her family moved to Chicago. ",
+            "  Amelia Earhart studied science.\n Her family moved to Chicago. ",
             "  historic chemistry classroom  ",
         )
         self.assertEqual(
