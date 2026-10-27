@@ -600,7 +600,7 @@ def _local_library_asset(
                 path,
                 must,
                 avoid,
-                query,
+                f"Narration context: {' '.join(str(segment or '').split())}. Visual direction: {' '.join(str(query or '').split())}",
                 candidate,
             )
         except Exception as exc:
