@@ -461,6 +461,15 @@ def _visual_scene_intent(scene_intent: str, must: list[str]) -> str:
     return intent
 
 
+def _scene_verification_intent(segment: str, query: str) -> str:
+    """Combine narration context and visual direction for scene verification."""
+    narration = " ".join(str(segment or "").split()).strip()
+    direction = " ".join(str(query or "").split()).strip()
+    if narration and direction:
+        return f"Narration context: {narration}. Visual direction: {direction}"
+    return narration or direction
+
+
 def _verify_scene_pixels(
     path: str | Path,
     must: list[str],
@@ -1515,7 +1524,7 @@ def acquire_scene(
                         path,
                         must,
                         avoid,
-                        f"Narration context: {' '.join(str(segment or '').split())}. Visual direction: {' '.join(str(query or '').split())}",
+                        _scene_verification_intent(segment, query),
                         candidate,
                     )
                 except Exception as exc:
