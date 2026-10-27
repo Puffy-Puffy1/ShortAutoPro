@@ -600,7 +600,7 @@ def _local_library_asset(
                 path,
                 must,
                 avoid,
-                f"Narration context: {' '.join(str(segment or '').split())}. Visual direction: {' '.join(str(query or '').split())}",
+                query,
                 candidate,
             )
         except Exception as exc:
@@ -1515,7 +1515,7 @@ def acquire_scene(
                         path,
                         must,
                         avoid,
-                        query,
+                        f"Narration context: {' '.join(str(segment or '').split())}. Visual direction: {' '.join(str(query or '').split())}",
                         candidate,
                     )
                 except Exception as exc:
