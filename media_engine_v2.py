@@ -466,7 +466,8 @@ def _scene_verification_intent(segment: str, query: str) -> str:
     narration = " ".join(str(segment or "").split()).strip()
     direction = " ".join(str(query or "").split()).strip()
     if narration and direction:
-        return f"Narration context: {narration}. Visual direction: {direction}"
+        separator = "" if narration.endswith((".", "!", "?")) else "."
+        return f"Narration context: {narration}{separator} Visual direction: {direction}"
     return narration or direction
 
 
