@@ -871,3 +871,21 @@ class MediaEngineContractTests(unittest.TestCase):
         self.assertIn("ship", variants)
         self.assertIn("ocean", variants)
         self.assertLessEqual(len(variants), 8)
+
+    def test_scene_verification_intent_combines_narration_and_visual_direction(self):
+        result = media_engine_v2._scene_verification_intent(
+            "  Amelia Earhart studied science.\\n Her family moved to Chicago. ",
+            "  historic chemistry classroom  ",
+        )
+        self.assertEqual(
+            result,
+            "Narration context: Amelia Earhart studied science. Her family moved to Chicago. "
+            "Visual direction: historic chemistry classroom",
+        )
+
+    def test_scene_verification_intent_handles_missing_context(self):
+        helper = media_engine_v2._scene_verification_intent
+        self.assertEqual(helper(" narration only ", ""), "narration only")
+        self.assertEqual(helper("", " visual only "), "visual only")
+        self.assertEqual(helper(" ", " "), "")
+\n
