@@ -889,4 +889,4 @@ class MediaEngineContractTests(unittest.TestCase):
         self.assertEqual(helper(" narration only ", ""), "narration only")
         self.assertEqual(helper("", " visual only "), "visual only")
         self.assertEqual(helper(" ", " "), "")
-\n
+
