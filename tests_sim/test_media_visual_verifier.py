@@ -149,6 +149,8 @@ class MediaVisualVerifierTests(unittest.TestCase):
         prompt = generate.call_args.args[0]
         self.assertIn("cannot be authenticated from pixels alone", prompt)
         self.assertIn("Mark matches=false only for a clear conflict", prompt)
+        self.assertIn("A medieval illustration is not a stack of detective novels", prompt)
+        self.assertIn("Reject clear composition mismatches", prompt)
         self.assertTrue(result["scene_match"]["matches"])
 
     @patch("media_visual_verifier.generate_text")

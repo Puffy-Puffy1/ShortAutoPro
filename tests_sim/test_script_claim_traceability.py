@@ -5,7 +5,7 @@ from script_claim_traceability import (
     ScriptClaimTraceabilityError,
     enforce_script_claim_traceability,
 )
-from script_fallback import count_words
+from script_fallback import build_extractive_script, count_words
 
 
 SOURCE = (
@@ -20,6 +20,23 @@ SOURCE = (
     "As investigações posteriores reuniram registros dos viajantes, das condições meteorológicas e dos locais de busca. "
     "A cronologia exata dos acontecimentos permaneceu incerta enquanto as equipes examinavam os vestígios."
 )
+
+
+
+TOPIC = "O misterioso desaparecimento de Agatha Christie em 1926"
+UNRELATED_SENTENCE = (
+    "A autora publicou livros famosos e recebeu atenção dos leitores durante sua carreira."
+)
+TOPIC_SOURCE = " ".join([
+    *([UNRELATED_SENTENCE] * 45),
+    "Em dezembro de 1926, Agatha Christie desapareceu depois de deixar sua casa em Berkshire.",
+    "Seu carro foi encontrado perto de Newlands Corner, em Surrey, e a polícia iniciou uma busca nacional.",
+    "Investigadores, voluntários e jornais acompanharam a procura, enquanto diferentes pistas foram examinadas sem uma conclusão imediata.",
+    "Onze dias depois, Agatha Christie foi localizada no Swan Hydropathic Hotel, em Harrogate, onde estava registrada como Teresa Neele.",
+    "Christie nunca explicou publicamente todos os detalhes, e o episódio passou a ser conhecido como seu desaparecimento de 1926.",
+    "A investigação recebeu ampla cobertura da imprensa britânica, mas nenhuma explicação definitiva foi oferecida na época.",
+    "O caso permaneceu associado ao mistério sobre seu paradeiro durante os onze dias em que esteve ausente.",
+])
 
 
 class ScriptClaimTraceabilityTests(unittest.TestCase):
@@ -61,6 +78,43 @@ class ScriptClaimTraceabilityTests(unittest.TestCase):
             enforce_script_claim_traceability(
                 "Uma história misteriosa ainda levanta muitas perguntas. Comente o que acha!",
                 "O grupo chegou ao acampamento ao anoitecer.",
+            )
+
+    def test_topic_aware_fallback_searches_beyond_the_first_forty_sentences(self):
+        result = build_extractive_script(
+            TOPIC_SOURCE,
+            topic=TOPIC,
+            cta="Comente o que acha!",
+        )
+
+        self.assertTrue(105 <= count_words(result) <= 125)
+        self.assertIn("Newlands Corner", result)
+        self.assertIn("Teresa Neele", result)
+        self.assertIn("desaparecimento de 1926", result)
+        self.assertNotIn(UNRELATED_SENTENCE, result)
+
+    def test_traceable_but_off_topic_script_is_replaced(self):
+        result, diagnostic = enforce_script_claim_traceability(
+            UNRELATED_SENTENCE,
+            TOPIC_SOURCE,
+            topic=TOPIC,
+        )
+
+        self.assertTrue(diagnostic["fallback_used"])
+        self.assertEqual(diagnostic["fallback_reason"], "topic_mismatch")
+        self.assertTrue(diagnostic["topic_relevant"])
+        self.assertIn("Newlands Corner", result)
+        self.assertIn("Teresa Neele", result)
+
+    def test_topic_fallback_fails_closed_when_event_is_absent(self):
+        with self.assertRaisesRegex(
+            ScriptClaimTraceabilityError,
+            "source_extract_topic_window_unavailable",
+        ):
+            enforce_script_claim_traceability(
+                UNRELATED_SENTENCE,
+                "A autora publicou livros famosos e recebeu atenção dos leitores durante sua carreira. " * 8,
+                topic=TOPIC,
             )
 
     def test_required_coverage_remains_ninety_percent(self):
