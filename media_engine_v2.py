@@ -1122,24 +1122,44 @@ def _targeted_visual_search_queries(
                 break
         searches = prioritized
 
-    # Radar-screen scenes are commonly indexed as air-traffic-control equipment,
-    # not as an "empty radar" image. Keep retrieval specific and avoid text-heavy
-    # screenshots; all candidates still pass the unchanged pixel MUST/AVOID gate.
+    # Radar screens need vocabulary matched to the scene's actual exclusions.
+    # These searches only improve discovery; the unchanged pixel MUST/AVOID gate
+    # remains responsible for accepting or rejecting every candidate.
     radar_context = query_terms | must_tokens
     radar_scene = (
         bool({"radar", "radarscope"} & radar_context)
         and bool({"screen", "display", "monitor", "scope"} & radar_context)
     )
-    if radar_scene and re.search(
+    avoid_text = " ".join(str(item or "") for item in (avoid or [])).casefold()
+    radar_avoids_people = re.search(
+        r"\b(?:person|people|human|operator|pilot|man|woman|crowd)\b",
+        avoid_text,
+    )
+    radar_avoids_text = re.search(
         r"\b(?:text overlay|text|labels|caption)\b",
-        " ".join(str(item or "") for item in (avoid or [])).casefold(),
-    ):
+        avoid_text,
+    )
+    if radar_scene:
+        if radar_avoids_people:
+            radar_queries = (
+                "air traffic control radar screen empty room no people",
+                "close up radar monitor display without operator",
+                "radar scope monitor screen isolated control panel no people",
+            )
+        elif radar_avoids_text:
+            radar_queries = (
+                "air traffic control radar screen no labels",
+                "aviation radar scope monitor without text overlay",
+                "air traffic control radar display close up blank screen",
+            )
+        else:
+            radar_queries = (
+                "air traffic control radar screen close up",
+                "aviation radar scope monitor control panel",
+                "radar display equipment in control room",
+            )
         searches = []
-        for targeted in (
-            "air traffic control radar screen no labels",
-            "aviation radar scope monitor without text overlay",
-            "air traffic control radar display close up blank screen",
-        ):
+        for targeted in radar_queries:
             searches.append(targeted)
             if len(searches) >= max_searches:
                 break
