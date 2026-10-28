@@ -1130,7 +1130,10 @@ def _targeted_visual_search_queries(
         bool({"radar", "radarscope"} & radar_context)
         and bool({"screen", "display", "monitor", "scope"} & radar_context)
     )
-    if radar_scene and re.search(r"\\b(?:text overlay|text|labels|caption)\\b", avoid_text):
+    if radar_scene and re.search(
+        r"\b(?:text overlay|text|labels|caption)\b",
+        " ".join(str(item or "") for item in (avoid or [])).casefold(),
+    ):
         searches = []
         for targeted in (
             "air traffic control radar screen no labels",
