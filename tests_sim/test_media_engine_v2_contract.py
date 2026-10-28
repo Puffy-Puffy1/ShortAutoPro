@@ -885,6 +885,20 @@ class MediaEngineContractTests(unittest.TestCase):
         self.assertTrue(any("no people" in query.casefold() for query in queries))
         self.assertTrue(any("without operator" in query.casefold() for query in queries))
 
+    def test_targeted_visual_search_recovers_historical_otorten_backpack_scene(self):
+        queries = media_engine_v2._targeted_visual_search_queries(
+            "hikers walking with heavy backpacks in deep snow",
+            ["backpack"],
+            limit=3,
+            avoid=["beach", "desert"],
+            scene_context="começando a marcha em direção a Otorten em 27 de janeiro",
+        )
+        self.assertEqual(len(queries), 3)
+        self.assertIn("1959", queries[0])
+        self.assertIn("Ural", queries[0])
+        self.assertTrue(any("Dyatlov Pass" in query for query in queries))
+        self.assertTrue(all("backpack" in query.casefold() for query in queries))
+
     def test_provider_router_query_recovery_preserves_must_anchors(self):
         from media_provider_router_v2 import _query_variants
         variants = _query_variants(

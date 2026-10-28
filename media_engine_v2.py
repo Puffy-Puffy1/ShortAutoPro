@@ -776,6 +776,7 @@ def _targeted_visual_search_queries(
     must: list[str],
     limit: int = 3,
     avoid: list[str] | None = None,
+    scene_context: str = "",
 ) -> list[str]:
     """Build bounded contextual searches that account for MUST/AVOID intent."""
     query_tokens = re.findall(r"[a-z0-9]+", str(query or "").casefold())
@@ -1094,26 +1095,41 @@ def _targeted_visual_search_queries(
                 break
         searches = prioritized
 
-    # Backpack scenes in winter are often indexed as hiking/trekking
-    # photographs rather than by the full editorial sentence. Prioritize
-    # context-preserving catalog searches; pixel MUST/AVOID and scene-intent
-    # verification remain the only acceptance gate.
-    backpack_context = query_terms | must_tokens
+    # Backpack scenes in winter are indexed inconsistently. When narration names
+    # the Dyatlov route, prioritize historical expedition wording; otherwise keep
+    # the search generic. This changes discovery only, never the pixel acceptance gate.
+    backpack_context = query_tokens | must_tokens
     backpack_scene = (
         bool({"backpack", "backpacks"} & backpack_context)
         and bool({"hiker", "hikers", "hiking", "backpacking", "trekking"} & backpack_context)
         and bool({"snow", "snowy", "snowfall", "winter", "wilderness", "mountain", "mountains"} & backpack_context)
     )
     if backpack_scene:
-        backpack_variants = [
-            "hikers walking with backpacks through snowy wilderness",
-            "backpacking hikers trekking through snow covered wilderness",
-            "winter hiking expedition with backpacks in snowy mountains",
-        ]
+        scene_context_text = " ".join(
+            (str(query or ""), str(scene_context or ""))
+        ).casefold()
+        if re.search(r"\b(?:otorten|dyatlov)\b", scene_context_text):
+            backpack_variants = [
+                "1959 Soviet expedition hikers with backpacks in snowy Ural mountains",
+                "archival Dyatlov Pass hikers carrying backpacks winter expedition",
+                "hikers with backpacks near Mount Otorten Ural winter",
+            ]
+        elif re.search(r"\b(?:ural|soviet|1959|historical|historic|archival)\b", scene_context_text):
+            backpack_variants = [
+                "archival winter expedition hikers carrying backpacks snowy mountains",
+                "historical hiking expedition backpacks in deep snow",
+                "documentary photograph winter expedition group backpacks mountain",
+            ]
+        else:
+            backpack_variants = [
+                "hikers walking with backpacks through snowy wilderness",
+                "backpacking hikers trekking through snow covered wilderness",
+                "winter hiking expedition with backpacks in snowy mountains",
+            ]
         prioritized = []
         seen_priority = set()
         for targeted in [*backpack_variants, *searches]:
-            normalized = re.sub(r"\\s+", " ", str(targeted or "")).strip()
+            normalized = re.sub(r"\s+", " ", str(targeted or "")).strip()
             key = normalized.casefold()
             if normalized and key not in seen_priority:
                 prioritized.append(normalized)
@@ -1423,7 +1439,9 @@ def acquire_scene(
         # composition. Try up to two distinct targeted variants even when the
         # first pool has complete MUST metadata; skip any query already used by
         # the main or scene-director search to avoid wasting provider calls.
-        targeted_queries = _targeted_visual_search_queries(query, must, avoid=avoid)
+        targeted_queries = _targeted_visual_search_queries(
+            query, must, avoid=avoid, scene_context=segment
+        )
         distinct_targeted_queries = []
         for raw_targeted_query in targeted_queries:
             targeted_query = re.sub(r"\s+", " ", str(raw_targeted_query or "")).strip()
