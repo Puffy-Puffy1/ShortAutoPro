@@ -1122,6 +1122,25 @@ def _targeted_visual_search_queries(
                 break
         searches = prioritized
 
+    # Radar-screen scenes are commonly indexed as air-traffic-control equipment,
+    # not as an "empty radar" image. Keep retrieval specific and avoid text-heavy
+    # screenshots; all candidates still pass the unchanged pixel MUST/AVOID gate.
+    radar_context = query_terms | must_tokens
+    radar_scene = (
+        bool({"radar", "radarscope"} & radar_context)
+        and bool({"screen", "display", "monitor", "scope"} & radar_context)
+    )
+    if radar_scene and re.search(r"\\b(?:text overlay|text|labels|caption)\\b", avoid_text):
+        searches = []
+        for targeted in (
+            "air traffic control radar screen no labels",
+            "aviation radar scope monitor without text overlay",
+            "air traffic control radar display close up blank screen",
+        ):
+            searches.append(targeted)
+            if len(searches) >= max_searches:
+                break
+
     # Prefer archival steam-railway language when a snowy historical train
     # scene excludes high-speed trains. Search terms only improve discovery;
     # candidates still pass the existing pixel MUST/AVOID gate.
