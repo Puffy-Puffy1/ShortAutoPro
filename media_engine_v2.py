@@ -1098,7 +1098,7 @@ def _targeted_visual_search_queries(
     # Backpack scenes in winter are indexed inconsistently. When narration names
     # the Dyatlov route, prioritize historical expedition wording; otherwise keep
     # the search generic. This changes discovery only, never the pixel acceptance gate.
-    backpack_context = query_tokens | must_tokens
+    backpack_context = query_token_set | must_tokens
     backpack_scene = (
         bool({"backpack", "backpacks"} & backpack_context)
         and bool({"hiker", "hikers", "hiking", "backpacking", "trekking"} & backpack_context)
