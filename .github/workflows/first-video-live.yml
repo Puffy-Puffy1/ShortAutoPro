@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - fix/first-video-canonical-entrypoint-20261014
+      - fix/scene-narration-context-20261027
     paths:
       - ".github/workflows/first-video-live.yml"
       - ".github/actions/setup-ffmpeg/action.yml"
