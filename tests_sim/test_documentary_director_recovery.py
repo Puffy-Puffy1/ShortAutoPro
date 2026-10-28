@@ -84,7 +84,7 @@ class DocumentaryDirectorRecoveryTests(unittest.TestCase):
     def test_success_preserves_narration_timing_and_metadata(self):
         self.execute([self.response()])
         self.assertEqual(self.exit, 0)
-        self.assertEqual(self.report["version"], "3.7)
+        self.assertEqual(self.report["version"], "3.7")
         self.assertEqual(self.report["attempts"], 1)
         self.assertEqual(self.result["provenance"], "preserve-me")
         self.assertEqual(self.result["scenes"], self.scenes)
