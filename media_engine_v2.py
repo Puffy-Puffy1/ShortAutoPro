@@ -236,6 +236,86 @@ def validate_short_id(value: str) -> str:
     return sid
 
 
+def _normalize_date_only_visual_contract(
+    scene: dict[str, Any],
+    query: str,
+    segment: str,
+) -> dict[str, str] | None:
+    """Use archival records for a narrated event date, not a literal calendar demand."""
+    musts = scene.get("must_have") or []
+    if isinstance(musts, str):
+        musts = [musts]
+    is_calendar_must = any(
+        re.sub(r"\s+", " ", str(item or "")).strip().casefold() == "date calendar"
+        for item in musts
+    )
+    has_event_date = bool(
+        re.search(
+            r"\b(?:event|incident|evento|incidente)\b.{0,60}\b(?:occurred|happened|took place|ocorreu|aconteceu)\b"
+            r"|\b(?:occurred|happened|took place|ocorreu|aconteceu)\b.{0,60}\b(?:19|20)\d{2}\b",
+            segment,
+            re.IGNORECASE,
+        )
+    ) and bool(re.search(r"\b(?:19|20)\d{2}\b", segment))
+    calendar_is_narrated = bool(
+        re.search(r"\b(?:calendar|calend[aá]rio|agenda)\b", segment, re.IGNORECASE)
+    )
+    if not (is_calendar_must and has_event_date and not calendar_is_narrated):
+        return None
+
+    aviation_context = bool(
+        re.search(
+            r"\b(?:aircraft|airplane|aviation|pilot|flight|aeronave|avi[aã]o|aviação|piloto|voo)\b",
+            " ".join((query, segment)),
+            re.IGNORECASE,
+        )
+    )
+    replacement = "archival aviation report" if aviation_context else "archival historical document"
+    updated_query = re.sub(
+        r"\b(?:vintage|historic|historical|antique|old)\s+calendar\s+page\b",
+        replacement,
+        query,
+        flags=re.IGNORECASE,
+    )
+    updated_query = re.sub(
+        r"\bcalendar\s+page\b", replacement, updated_query, flags=re.IGNORECASE
+    )
+    updated_query = re.sub(
+        r"\b(?:calendar|date|vintage|historic|historical|antique|old)\b",
+        "",
+        updated_query,
+        flags=re.IGNORECASE,
+    )
+    updated_query = re.sub(r"\s+", " ", updated_query).strip()
+    if not updated_query or len(updated_query.split()) < 4:
+        year = re.search(r"\b(?:19|20)\d{2}\b", segment)
+        updated_query = f"{replacement} {year.group(0)}" if year else replacement
+
+    remaining_musts = [
+        str(item).strip()
+        for item in musts
+        if re.sub(r"\s+", " ", str(item or "")).strip().casefold() != "date calendar"
+    ]
+    if "document" not in {item.casefold() for item in remaining_musts}:
+        remaining_musts.append("document")
+    scene["query"] = updated_query
+    scene["must_have"] = remaining_musts
+    preferences = scene.get("preferred_visuals") or []
+    if isinstance(preferences, str):
+        preferences = [preferences]
+    if not isinstance(preferences, (list, tuple, set)):
+        preferences = []
+    preference = "period-appropriate archival paper records"
+    if preference.casefold() not in {str(item).strip().casefold() for item in preferences}:
+        preferences = [*preferences, preference]
+    scene["preferred_visuals"] = list(preferences)
+    return {
+        "from": "date calendar",
+        "to": "document",
+        "reason": "NARRATED_EVENT_DATE_USES_ARCHIVAL_CONTEXT",
+    }
+
+
 def load_scene_map(short_id: str) -> list[dict[str, Any]]:
     sid = validate_short_id(short_id)
     path = BASE / "roteiros" / f"scene_map_{sid}.json"
@@ -257,6 +337,19 @@ def load_scene_map(short_id: str) -> list[dict[str, Any]]:
             raise RuntimeError(f"MEDIA_INPUT_INVALID:scene_{index:02d}:duplicate_scene_id")
         scene_query = str(scene.get("query") or scene.get("busca") or scene.get("segment") or "").strip()
         scene_segment = str(scene.get("segment") or "").strip()
+        date_visual_normalization = _normalize_date_only_visual_contract(
+            scene, scene_query, scene_segment
+        )
+        if date_visual_normalization:
+            scene_query = str(scene.get("query") or "").strip()
+            print(
+                "SCENE_DATE_CONTEXT_NORMALIZED="
+                + json.dumps(
+                    {"scene": scene_id, **date_visual_normalization, "query": scene_query},
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                )
+            )
         scene_context = " ".join(part for part in (scene_query, scene_segment) if part)
         raw_musts = scene.get("must_have") or []
         musts, events = normalize_visual_musts(

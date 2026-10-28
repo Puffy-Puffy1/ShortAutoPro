@@ -5,6 +5,57 @@ import media_engine_v2
 
 class MediaEngineV2FailureTests(unittest.TestCase):
 
+    def test_narrated_historical_event_date_uses_archival_document_contract(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            routes = base / "roteiros"
+            routes.mkdir()
+            scene_map = {
+                "scenes": [{
+                    "scene": 2,
+                    "segment": "aeronave O evento ocorreu em 21 de outubro de 1978",
+                    "query": "vintage calendar page october 1978 date",
+                    "must_have": ["date calendar"],
+                    "avoid": ["digital clock", "modern interface"],
+                }]
+            }
+            (routes / "scene_map_X.json").write_text(
+                json.dumps(scene_map), encoding="utf-8"
+            )
+            with patch.object(media_engine_v2, "BASE", base):
+                scenes = media_engine_v2.load_scene_map("X")
+
+        self.assertEqual(scenes[0]["query"], "archival aviation report october 1978")
+        self.assertEqual(scenes[0]["must_have"], ["document"])
+        self.assertIn("modern interface", scenes[0]["avoid"])
+        self.assertIn(
+            "period-appropriate archival paper records",
+            scenes[0]["preferred_visuals"],
+        )
+
+    def test_explicit_calendar_narration_keeps_calendar_must(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            routes = base / "roteiros"
+            routes.mkdir()
+            scene_map = {
+                "scenes": [{
+                    "scene": 2,
+                    "segment": "O investigador consultou o calendário de outubro de 1978",
+                    "query": "vintage calendar page october 1978 date",
+                    "must_have": ["date calendar"],
+                    "avoid": ["digital clock"],
+                }]
+            }
+            (routes / "scene_map_X.json").write_text(
+                json.dumps(scene_map), encoding="utf-8"
+            )
+            with patch.object(media_engine_v2, "BASE", base):
+                scenes = media_engine_v2.load_scene_map("X")
+
+        self.assertEqual(scenes[0]["query"], "vintage calendar page october 1978 date")
+        self.assertEqual(scenes[0]["must_have"], ["date calendar"])
+
     def test_critical_low_resolution_candidate_is_rejected_and_next_candidate_used(self):
         with tempfile.TemporaryDirectory() as td:
             media = Path(td) / "media"
