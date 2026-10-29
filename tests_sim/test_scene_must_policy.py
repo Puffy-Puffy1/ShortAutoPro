@@ -359,6 +359,26 @@ class SceneMustPolicyTests(unittest.TestCase):
         self.assertEqual(anchors, ["clothing", "fabric", "label"])
         self.assertEqual(events[-1]["reason"], "CONTEXTUAL_CLOTHING_LABEL_ANCHOR")
 
+    def test_coded_letter_normalizes_to_a_verifiable_document_anchor(self):
+        anchors, events = normalize_visual_musts(
+            ["letter"],
+            context="vintage coded letter police puzzle",
+        )
+        self.assertEqual(anchors, ["document"])
+        self.assertEqual(events, [{
+            "from": "letter",
+            "to": "document",
+            "reason": "CONTEXTUAL_CODED_LETTER_DOCUMENT",
+        }])
+
+    def test_plain_letter_remains_specific_without_cipher_context(self):
+        anchors, events = normalize_visual_musts(
+            ["letter"],
+            context="handwritten love letter on old paper",
+        )
+        self.assertEqual(anchors, ["letter"])
+        self.assertEqual(events, [])
+
     def test_encrypted_text_adds_a_code_anchor(self):
         anchors, events = normalize_visual_musts(
             ["paper", "handwriting"],

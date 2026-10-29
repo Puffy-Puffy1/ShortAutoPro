@@ -70,7 +70,8 @@ _CLOTHING_LABEL_CONTEXT = re.compile(
     re.IGNORECASE,
 )
 _ENCRYPTED_CODE_CONTEXT = re.compile(
-    r"\b(?:code|cipher|cryptogram|encrypted|encryption|encoded message|secret handwriting)\b",
+    r"\b(?:code|coded|cipher(?:ed)?|cryptogram|encrypted|encryption|encoded message|secret handwriting|"
+    r"cifrad[oa]s?|criptograma)\b",
     re.IGNORECASE,
 )
 _WOODEN_HOUSE_CONTEXT = re.compile(
@@ -224,6 +225,15 @@ def normalize_visual_musts(
             # queries; the document itself must still pass independent evidence.
             anchor = "document"
             reason = "CONTEXTUAL_DOCUMENT_TEXT_ANCHOR"
+        elif (
+            anchor == original
+            and key in {"letter", "letters"}
+            and _ENCRYPTED_CODE_CONTEXT.search(item_context)
+        ):
+            # Pixels can prove a visible document, but cannot establish whether
+            # a paper artifact is an original letter or a copied cipher page.
+            anchor = "document"
+            reason = "CONTEXTUAL_CODED_LETTER_DOCUMENT"
         elif (
             anchor == original
             and key == "pilot"

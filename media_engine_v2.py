@@ -23,7 +23,7 @@ from typing import Any
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", Path.home() / "ShortAutoPro")).resolve()
 MEDIA_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".webm", ".mkv"}
-ENGINE_VERSION = "2.0.15"
+ENGINE_VERSION = "2.0.16"
 MIN_VISUAL_PIXELS = 320 * 180
 MAX_VISUAL_FALLBACK_CANDIDATES = 8
 MAX_LOW_RELEVANCE_VISUAL_CANDIDATES = 4
@@ -234,6 +234,21 @@ def validate_short_id(value: str) -> str:
     ):
         raise RuntimeError("MEDIA_INPUT_INVALID:short_id")
     return sid
+
+
+def _topic_context_for_scene(short_id: str) -> str:
+    """Load the topic label for retrieval hints only; never use it as asset evidence."""
+    sid = validate_short_id(short_id)
+    for prefix in ("used_topic", "topic"):
+        path = BASE / "roteiros" / f"{prefix}_{sid}.txt"
+        try:
+            if path.is_file():
+                value = path.read_text(encoding="utf-8").strip()
+                if value:
+                    return value
+        except OSError:
+            continue
+    return ""
 
 
 def _normalize_date_only_visual_contract(
@@ -1298,6 +1313,43 @@ def _targeted_visual_search_queries(
             if len(searches) >= max_searches:
                 break
 
+    # Coded letters are catalogued inconsistently. Search for archival letter
+    # photographs using the selected topic as context, while keeping the strict
+    # document MUST and all AVOID checks unchanged.
+    combined_context = " ".join(
+        (str(query or ""), str(scene_context or ""), *must_text)
+    ).casefold()
+    coded_letter_scene = (
+        bool({"letter", "letters"} & query_token_set)
+        and bool(re.search(
+            r"\b(?:code|coded|cipher(?:ed)?|cryptogram|encrypted|encryption|encoded|"
+            r"cifrad[oa]s?|criptograma)\b",
+            combined_context,
+        ))
+    )
+    if coded_letter_scene:
+        if re.search(r"\b(?:zodiac|zod[ií]aco)\b", combined_context):
+            letter_variants = [
+                "Zodiac Killer archival handwritten cipher letter",
+                "1969 Zodiac Killer coded letter on paper",
+                "Zodiac Killer cryptogram letter historical photograph",
+            ]
+        else:
+            letter_variants = [
+                "archival photograph handwritten cipher letter",
+                "historical coded letter on paper close up",
+                "archival handwritten cryptogram document",
+            ]
+        searches = []
+        seen_letter_queries = set()
+        for targeted in letter_variants:
+            key = targeted.casefold()
+            if key not in seen_letter_queries:
+                searches.append(targeted)
+                seen_letter_queries.add(key)
+            if len(searches) >= max_searches:
+                break
+
     return searches
 
 
@@ -1532,8 +1584,14 @@ def acquire_scene(
         # composition. Try up to two distinct targeted variants even when the
         # first pool has complete MUST metadata; skip any query already used by
         # the main or scene-director search to avoid wasting provider calls.
+        topic_context = _topic_context_for_scene(short_id)
         targeted_queries = _targeted_visual_search_queries(
-            query, must, avoid=avoid, scene_context=segment
+            query,
+            must,
+            avoid=avoid,
+            scene_context=" ".join(
+                part for part in (segment, topic_context) if str(part).strip()
+            ),
         )
         distinct_targeted_queries = []
         for raw_targeted_query in targeted_queries:

@@ -56,6 +56,33 @@ class MediaEngineV2FailureTests(unittest.TestCase):
         self.assertEqual(scenes[0]["query"], "vintage calendar page october 1978 date")
         self.assertEqual(scenes[0]["must_have"], ["date calendar"])
 
+    def test_coded_letter_uses_topic_specific_archival_queries(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            routes = base / "roteiros"
+            routes.mkdir()
+            (routes / "used_topic_X.txt").write_text(
+                "O caso do assassino do Zodíaco", encoding="utf-8"
+            )
+            with patch.object(media_engine_v2, "BASE", base):
+                topic = media_engine_v2._topic_context_for_scene("X")
+                queries = media_engine_v2._targeted_visual_search_queries(
+                    "vintage coded letter police puzzle",
+                    ["document"],
+                    avoid=["modern smartphone"],
+                    scene_context=(
+                        "Um assassino em série enviou cartas cifradas " + topic
+                    ),
+                )
+
+        self.assertEqual(
+            queries[:2],
+            [
+                "Zodiac Killer archival handwritten cipher letter",
+                "1969 Zodiac Killer coded letter on paper",
+            ],
+        )
+
     def test_critical_low_resolution_candidate_is_rejected_and_next_candidate_used(self):
         with tempfile.TemporaryDirectory() as td:
             media = Path(td) / "media"

@@ -19,6 +19,7 @@ on:
       - "scene_director.py"
       - "documentary_director.py"
       - "tests_sim/test_documentary_director_recovery.py"
+      - "tests_sim/test_documentary_json_normalization.py"
       - "scene_must_policy.py"
       - "semantic_integrity_gate.py"
       - "media_engine_v2.py"
