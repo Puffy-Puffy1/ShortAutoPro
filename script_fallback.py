@@ -120,6 +120,21 @@ def source_sentences(text: str) -> list[str]:
     if not raw:
         return []
 
+    # Wikipedia extracts can place section headings inline. Stop at reference
+    # and navigation sections so repeated names in link lists cannot outrank
+    # the article's actual event narrative during topic-window selection.
+    non_story_section = re.search(
+        r"={2,}\\s*(?:ver\\s+tamb[eé]m|refer[eê]ncias|"
+        r"liga[cç][oõ]es\\s+externas|notas|bibliografia|fontes|"
+        r"leitura\\s+adicional)\\s*={2,}",
+        raw,
+        flags=re.IGNORECASE,
+    )
+    if non_story_section:
+        raw = raw[:non_story_section.start()].strip()
+    if not raw:
+        return []
+
     parts = re.split(
         r"(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÂÊÔÃÕÇ0-9])",
         raw,
