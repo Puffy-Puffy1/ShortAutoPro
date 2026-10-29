@@ -1313,6 +1313,28 @@ def _targeted_visual_search_queries(
             if len(searches) >= max_searches:
                 break
 
+    # Dyatlov scenes with snow-only MUSTs need historical context in retrieval.
+    # This affects discovery only; pixel MUST/AVOID checks remain unchanged.
+    snow_context = " ".join(
+        (str(query or ""), str(scene_context or ""), *must_text)
+    ).casefold()
+    avoid_context = " ".join(str(item or "") for item in (avoid or [])).casefold()
+    dyatlov_snow_scene = (
+        bool({"snow", "snowy", "snowfall", "winter"} & (query_token_set | must_tokens))
+        and bool(re.search(r"\b(?:dyatlov|otorten|ural)\b", snow_context))
+        and bool(re.search(r"\b(?:hospital interior|blood|hospital|injury)\b", avoid_context))
+    )
+    if dyatlov_snow_scene:
+        searches = []
+        for targeted in (
+            "1959 Dyatlov Pass archival winter expedition campsite snow",
+            "historical Soviet hikers snowy Ural mountain slope 1959",
+            "Dyatlov Pass winter wilderness archival photograph",
+        ):
+            searches.append(targeted)
+            if len(searches) >= max_searches:
+                break
+
     # Coded letters are catalogued inconsistently. Search for archival letter
     # photographs using the selected topic as context, while keeping the strict
     # document MUST and all AVOID checks unchanged.

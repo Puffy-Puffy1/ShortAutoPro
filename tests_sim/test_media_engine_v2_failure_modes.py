@@ -56,6 +56,22 @@ class MediaEngineV2FailureTests(unittest.TestCase):
         self.assertEqual(scenes[0]["query"], "vintage calendar page october 1978 date")
         self.assertEqual(scenes[0]["must_have"], ["date calendar"])
 
+    def test_dyatlov_snow_scene_uses_historical_queries(self):
+        queries = media_engine_v2._targeted_visual_search_queries(
+            "snow",
+            ["snow"],
+            avoid=["hospital interior", "blood"],
+            scene_context="1959 Dyatlov Pass winter expedition",
+        )
+        self.assertEqual(
+            queries,
+            [
+                "1959 Dyatlov Pass archival winter expedition campsite snow",
+                "historical Soviet hikers snowy Ural mountain slope 1959",
+                "Dyatlov Pass winter wilderness archival photograph",
+            ],
+        )
+
     def test_coded_letter_uses_topic_specific_archival_queries(self):
         with tempfile.TemporaryDirectory() as td:
             base = Path(td)

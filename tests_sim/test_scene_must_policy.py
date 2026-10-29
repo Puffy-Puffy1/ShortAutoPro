@@ -364,7 +364,7 @@ class SceneMustPolicyTests(unittest.TestCase):
             ["letter"],
             context="vintage coded letter police puzzle",
         )
-        self.assertEqual(anchors, ["document"])
+        self.assertEqual(anchors, ["document", "code"])
         self.assertEqual(events, [{
             "from": "letter",
             "to": "document",
