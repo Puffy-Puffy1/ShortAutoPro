@@ -5,7 +5,7 @@ from script_claim_traceability import (
     ScriptClaimTraceabilityError,
     enforce_script_claim_traceability,
 )
-from script_fallback import build_extractive_script, count_words
+from script_fallback import build_extractive_script, count_words, source_sentences
 
 
 SOURCE = (
@@ -116,6 +116,24 @@ class ScriptClaimTraceabilityTests(unittest.TestCase):
                 "A autora publicou livros famosos e recebeu atenção dos leitores durante sua carreira. " * 8,
                 topic=TOPIC,
             )
+
+    def test_inline_wikipedia_reference_sections_are_excluded_from_script_source(self):
+        source = (
+            TOPIC_SOURCE
+            + " == Ver também == "
+            + ("Agatha Christie aparece em listas de livros e referências externas. " * 12)
+            + " == Referências == Fonte bibliográfica sobre Agatha Christie."
+        )
+
+        sentences = source_sentences(source)
+        cleaned = " ".join(sentences)
+
+        self.assertIn("Newlands Corner", cleaned)
+        self.assertIn("Teresa Neele", cleaned)
+        self.assertNotIn("Ver também", cleaned)
+        self.assertNotIn("Referências", cleaned)
+        self.assertNotIn("listas de livros", cleaned)
+        self.assertNotIn("Fonte bibliográfica", cleaned)
 
     def test_required_coverage_remains_ninety_percent(self):
         self.assertEqual(MIN_SCRIPT_CLAIM_COVERAGE, 90.0)
