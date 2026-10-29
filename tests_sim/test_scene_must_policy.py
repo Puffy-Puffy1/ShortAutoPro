@@ -365,11 +365,18 @@ class SceneMustPolicyTests(unittest.TestCase):
             context="vintage coded letter police puzzle",
         )
         self.assertEqual(anchors, ["document", "code"])
-        self.assertEqual(events, [{
-            "from": "letter",
-            "to": "document",
-            "reason": "CONTEXTUAL_CODED_LETTER_DOCUMENT",
-        }])
+        self.assertEqual(events, [
+            {
+                "from": "letter",
+                "to": "document",
+                "reason": "CONTEXTUAL_CODED_LETTER_DOCUMENT",
+            },
+            {
+                "from": "scene context",
+                "to": "code",
+                "reason": "CONTEXTUAL_ENCRYPTED_CODE_ANCHOR",
+            },
+        ])
 
     def test_plain_letter_remains_specific_without_cipher_context(self):
         anchors, events = normalize_visual_musts(
