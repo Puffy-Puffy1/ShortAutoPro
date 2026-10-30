@@ -19,6 +19,12 @@ _TOPIC_STOPWORDS = {
     "mysterious", "mistério", "mystery",
 }
 _TOPIC_EVENT_ALIASES = {
+    "voo": {
+        "voo", "flight", "avião", "aeronave", "aviation", "aircraft",
+    },
+    "flight": {
+        "voo", "flight", "avião", "aeronave", "aviation", "aircraft",
+    },
     "desaparecimento": {
         "desaparecimento", "desaparecer", "desapareceu", "desaparecida",
         "desaparecido", "sumiu", "sumico", "ausencia", "ausente", "missing",
@@ -101,6 +107,14 @@ def is_topic_relevant(text: str, topic: str) -> bool:
         return True
 
     body = set(_normalized_tokens(text))
+    # Numeric identifiers in a selected topic (for example, Flight 19 or
+    # an incident year) are identity anchors, not optional relevance boosts.
+    required_numbers = {
+        term for term in terms if term.isdigit() and len(term) >= 2
+    }
+    if not required_numbers <= body:
+        return False
+
     event_groups = {
         frozenset(_TOPIC_EVENT_ALIASES[term])
         for term in terms if term in _TOPIC_EVENT_ALIASES
