@@ -153,6 +153,7 @@ class ScriptClaimTraceabilityTests(unittest.TestCase):
     def test_inline_wikipedia_reference_sections_are_excluded_from_script_source(self):
         source = (
             TOPIC_SOURCE
+            + " == Área do Triângulo == O artigo descreve a região. "
             + " == Ver também == "
             + ("Agatha Christie aparece em listas de livros e referências externas. " * 12)
             + " == Referências == Fonte bibliográfica sobre Agatha Christie."
@@ -163,6 +164,7 @@ class ScriptClaimTraceabilityTests(unittest.TestCase):
 
         self.assertIn("Newlands Corner", cleaned)
         self.assertIn("Teresa Neele", cleaned)
+        self.assertNotIn("Área do Triângulo", cleaned)
         self.assertNotIn("Ver também", cleaned)
         self.assertNotIn("Referências", cleaned)
         self.assertNotIn("listas de livros", cleaned)
