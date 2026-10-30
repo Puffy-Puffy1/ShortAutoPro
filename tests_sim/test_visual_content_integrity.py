@@ -162,7 +162,7 @@ class VisualContentIntegrityTests(unittest.TestCase):
             [],
             limit=3,
             scene_context=(
-                "Scene: Ela cruzou o Atlântico sozinha.\\n"
+                "Scene: Ela cruzou o Atlântico sozinha.\n"
                 "ASSUNTO: O misterioso voo e desaparecimento de Amelia Earhart"
             ),
         )
