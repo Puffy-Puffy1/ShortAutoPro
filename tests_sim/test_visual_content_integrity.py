@@ -127,6 +127,35 @@ class VisualContentIntegrityTests(unittest.TestCase):
         for term in ("high", "contrast", "map", "light", "background", "clear", "readable", "labels"):
             self.assertIn(term, query)
 
+    def test_zodiac_cipher_letter_search_uses_the_actual_topic_context(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            routes = base / "roteiros"
+            routes.mkdir()
+            (routes / "used_topic_gha_123_1.txt").write_text(
+                "O caso do assassino do Zodíaco",
+                encoding="utf-8",
+            )
+
+            with mock.patch.object(media_engine_v2, "BASE", base):
+                topic = media_engine_v2._topic_context_for_scene("gha_123_1")
+
+            queries = media_engine_v2._targeted_visual_search_queries(
+                "vintage coded letter police puzzle",
+                ["letter"],
+                limit=3,
+                avoid=["modern smartphone"],
+                scene_context=(
+                    "Um assassino enviou cartas cifradas desafiando a polícia. "
+                    + topic
+                ),
+            )
+
+        self.assertEqual(len(queries), 3)
+        self.assertTrue(all("zodiac" in query.casefold() for query in queries))
+        self.assertTrue(all("letter" in query.casefold() for query in queries))
+        self.assertTrue(any("1969" in query for query in queries))
+
     def test_night_snow_search_prioritizes_moonlit_forest_catalog_terms(self):
         queries = media_engine_v2._targeted_visual_search_queries(
             "dark winter night landscape snowstorm in pine forest",
