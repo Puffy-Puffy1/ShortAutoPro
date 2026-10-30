@@ -299,6 +299,26 @@ class SceneMustPolicyTests(unittest.TestCase):
             }],
         )
 
+    def test_fabric_tear_normalizes_only_when_damaged_tent_is_in_context(self):
+        anchors, events = normalize_visual_musts(
+            ["tent", "snow", "fabric tear"],
+            context="snowy tent fabric tear ripped camping winter",
+        )
+        self.assertEqual(anchors, ["tent", "snow", "torn tent"])
+        self.assertEqual(events, [{
+            "from": "fabric tear",
+            "to": "torn tent",
+            "reason": "CONTEXTUAL_TENT_ANCHOR",
+        }])
+
+    def test_fabric_tear_stays_specific_without_damaged_tent_context(self):
+        anchors, events = normalize_visual_musts(
+            ["fabric tear"],
+            context="close-up of torn fabric on a jacket",
+        )
+        self.assertEqual(anchors, ["fabric tear"])
+        self.assertEqual(events, [])
+
     def test_generic_tent_fabric_does_not_imply_a_tear(self):
         anchors, events = normalize_visual_musts(
             ["tent fabric"],
