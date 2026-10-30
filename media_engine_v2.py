@@ -1366,10 +1366,10 @@ def _targeted_visual_search_queries(
         (str(query or ""), str(scene_context or ""), *must_text)
     ).casefold()
     historical_expedition = (
-        bool(re.search(r"\\b(?:soviet|ussr|ural|dyatlov|1950s|1959)\\b", expedition_context))
-        and bool(re.search(r"\\b(?:expedition|hikers?|mountaineers?|camp|campsite)\\b", expedition_context))
-        and bool(re.search(r"\\b(?:snow|snowy|snowfall|winter)\\b", expedition_context))
-        and bool(re.search(r"\\b(?:map|compass|topographic)\\b", expedition_context))
+        bool(re.search(r"\b(?:soviet|ussr|ural|dyatlov|1950s|1959)\b", expedition_context))
+        and bool(re.search(r"\b(?:expedition|hikers?|mountaineers?|camp|campsite)\b", expedition_context))
+        and bool(re.search(r"\b(?:snow|snowy|snowfall|winter)\b", expedition_context))
+        and bool(re.search(r"\b(?:map|compass|topographic)\b", expedition_context))
     )
     if historical_expedition:
         searches = [
