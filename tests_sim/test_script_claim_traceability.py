@@ -106,6 +106,40 @@ class ScriptClaimTraceabilityTests(unittest.TestCase):
         self.assertIn("Newlands Corner", result)
         self.assertIn("Teresa Neele", result)
 
+    def test_topic_fallback_rejects_generic_bermuda_triangle_text_without_flight_19(self):
+        generic_source = (
+            "O Triângulo das Bermudas aparece em livros e relatos sobre o oceano. " * 14
+        )
+
+        result = build_extractive_script(
+            generic_source,
+            topic="O mistério do voo 19 e o Triângulo das Bermudas",
+        )
+
+        self.assertEqual(result, "")
+
+    def test_topic_fallback_prefers_the_requested_flight_19_event(self):
+        generic_source = (
+            "O Triângulo das Bermudas aparece em livros e relatos sobre o oceano. " * 14
+        )
+        event_source = " ".join([
+            "Em dezembro de 1945, cinco aviões da Marinha dos Estados Unidos, conhecidos como Voo 19, partiram da Flórida para um exercício de treinamento sobre o Atlântico.",
+            "Durante a missão, os pilotos relataram dificuldades de navegação e incerteza sobre sua posição, enquanto as comunicações por rádio registravam tentativas de orientação.",
+            "As aeronaves deveriam retornar à base, mas desapareceram durante o voo, e uma aeronave de busca enviada posteriormente também não voltou.",
+            "O episódio passou a ser associado ao Triângulo das Bermudas, embora investigações tenham considerado fatores como condições meteorológicas, combustível e erros de navegação.",
+            "Relatórios históricos descrevem o treinamento, as comunicações e as buscas realizadas pela Marinha, sem comprovar qualquer causa sobrenatural para os desaparecimentos.",
+        ])
+
+        result = build_extractive_script(
+            generic_source + event_source,
+            topic="O mistério do voo 19 e o Triângulo das Bermudas",
+        )
+
+        self.assertTrue(105 <= count_words(result) <= 125)
+        self.assertIn("Voo 19", result)
+        self.assertIn("1945", result)
+        self.assertNotIn("O Triângulo das Bermudas aparece em livros", result)
+
     def test_topic_fallback_fails_closed_when_event_is_absent(self):
         with self.assertRaisesRegex(
             ScriptClaimTraceabilityError,
