@@ -151,8 +151,8 @@ def source_sentences(text: str) -> list[str]:
 
     # Remove inline Wikipedia section labels before sentence extraction; they
     # are navigation metadata, not narration or factual evidence.
-    raw = re.sub(r"={2,}\\s*[^=\\n]+?\\s*={2,}", " ", raw)
-    raw = re.sub(r"\\s+", " ", raw).strip()
+    raw = re.sub(r"={2,}\s*[^=\n]+?\s*={2,}", " ", raw)
+    raw = re.sub(r"\s+", " ", raw).strip()
 
     parts = re.split(
         r"(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÂÊÔÃÕÇ0-9])",
