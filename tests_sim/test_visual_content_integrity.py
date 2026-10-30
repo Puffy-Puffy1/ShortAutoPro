@@ -156,6 +156,21 @@ class VisualContentIntegrityTests(unittest.TestCase):
         self.assertTrue(all("letter" in query.casefold() for query in queries))
         self.assertTrue(any("1969" in query for query in queries))
 
+    def test_visual_search_keeps_selected_subject_when_scene_query_is_generic(self):
+        queries = media_engine_v2._targeted_visual_search_queries(
+            "vintage transatlantic flight newspaper archive clipping document",
+            [],
+            limit=3,
+            scene_context=(
+                "Scene: Ela cruzou o Atlântico sozinha.\\n"
+                "ASSUNTO: O misterioso voo e desaparecimento de Amelia Earhart"
+            ),
+        )
+
+        self.assertEqual(len(queries), 1)
+        self.assertIn("amelia earhart", queries[0].casefold())
+        self.assertIn("transatlantic flight", queries[0].casefold())
+
     def test_night_snow_search_prioritizes_moonlit_forest_catalog_terms(self):
         queries = media_engine_v2._targeted_visual_search_queries(
             "dark winter night landscape snowstorm in pine forest",
