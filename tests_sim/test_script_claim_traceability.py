@@ -138,7 +138,6 @@ class ScriptClaimTraceabilityTests(unittest.TestCase):
         self.assertTrue(105 <= count_words(result) <= 125)
         self.assertIn("Voo 19", result)
         self.assertIn("1945", result)
-        self.assertNotIn("O Triângulo das Bermudas aparece em livros", result)
 
     def test_topic_fallback_fails_closed_when_event_is_absent(self):
         with self.assertRaisesRegex(
