@@ -140,6 +140,19 @@ class VisualContentIntegrityTests(unittest.TestCase):
         self.assertIn("moonlight", " ".join(queries).casefold())
         self.assertIn("snow", " ".join(queries).casefold())
 
+    def test_historical_soviet_snow_expedition_uses_archival_photo_queries(self):
+        queries = media_engine_v2._targeted_visual_search_queries(
+            "vintage 1950s soviet winter expedition map and compass",
+            ["snow"],
+            limit=3,
+            avoid=["neon", "modern digital devices", "smartphone"],
+            scene_context="1959 Soviet winter expedition in the Ural mountains",
+        )
+        self.assertEqual(len(queries), 3)
+        self.assertTrue(all("archival" in q.casefold() or "historic" in q.casefold() for q in queries))
+        self.assertTrue(any("hikers" in q.casefold() or "mountaineers" in q.casefold() for q in queries))
+        self.assertTrue(all("snow" in q.casefold() or "winter" in q.casefold() for q in queries))
+
     def test_dark_but_textured_pixels_are_not_blank(self):
         values = []
         for i in range(24 * 24):
