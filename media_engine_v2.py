@@ -1045,7 +1045,7 @@ def _targeted_visual_search_queries(
         prioritized = []
         prioritized_seen = set()
         for targeted in [*night_variants, *searches]:
-            normalized = re.sub(r"\\s+", " ", str(targeted or "")).strip()
+            normalized = re.sub(r"\s+", " ", str(targeted or "")).strip()
             key = normalized.casefold()
             if normalized and key not in prioritized_seen:
                 prioritized.append(normalized)
@@ -1383,7 +1383,7 @@ def _targeted_visual_search_queries(
     # or event. The subject is a search hint only; visual verification is unchanged.
     if not searches:
         subject_match = re.search(
-            r"\\bASSUNTO\\s*:\\s*([^\\n]+)",
+            r"\bASSUNTO\s*:\s*([^\n]+)",
             str(scene_context or ""),
             flags=re.IGNORECASE,
         )
