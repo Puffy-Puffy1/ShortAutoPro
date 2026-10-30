@@ -1028,6 +1028,31 @@ def _targeted_visual_search_queries(
     # has to prove the text is visible and the excluded alphabet is absent.
     avoid_text = " ".join(str(item or "") for item in (avoid or [])).casefold()
     text_context = " ".join([str(query or ""), *[str(item or "") for item in must]]).casefold()
+
+    # Night-snow scenes need night-specific catalog terms; broad winter searches
+    # often return sunny daytime snow photos that the strict AVOID gate rejects.
+    night_snow_scene = (
+        bool({"snow", "snowy", "snowfall", "winter"} & query_token_set)
+        and bool({"night", "nighttime", "dark", "moonlit"} & query_token_set)
+        and ("daylight" in avoid_text or re.search(r"\\bsun\\b", avoid_text))
+    )
+    if night_snow_scene:
+        night_variants = [
+            "snow covered pine forest at night under moonlight",
+            "nighttime snowy forest moonlit snowfall",
+            "dark blue winter forest night fresh snow",
+        ]
+        prioritized = []
+        prioritized_seen = set()
+        for targeted in [*night_variants, *searches]:
+            normalized = re.sub(r"\\s+", " ", str(targeted or "")).strip()
+            key = normalized.casefold()
+            if normalized and key not in prioritized_seen:
+                prioritized.append(normalized)
+                prioritized_seen.add(key)
+            if len(prioritized) >= max_searches:
+                break
+        searches = prioritized
     non_english_script = (
         "alphabet" in avoid_text
         and "english" in avoid_text
