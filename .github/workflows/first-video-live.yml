@@ -17,6 +17,8 @@ on:
       - "tests_sim/test_audio_base.py"
       - "scene_lossless_repair.py"
       - "scene_director.py"
+      - "visual_director.py"
+      - "tests_sim/test_visual_content_integrity.py"
       - "documentary_director.py"
       - "tests_sim/test_documentary_director_recovery.py"
       - "tests_sim/test_documentary_json_normalization.py"
