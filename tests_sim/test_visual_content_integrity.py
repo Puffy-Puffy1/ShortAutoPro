@@ -8,6 +8,7 @@ from unittest import mock
 import media_emergency_fallback as fallback
 import render_preflight
 import visual_qa
+import visual_director
 
 
 class VisualContentIntegrityTests(unittest.TestCase):
@@ -108,6 +109,22 @@ class VisualContentIntegrityTests(unittest.TestCase):
         stats = visual_qa._frame_content_stats(black)
         self.assertTrue(stats["blank"])
         self.assertLessEqual(stats["mean"], 1.0)
+
+    def test_map_context_queries_require_readable_high_contrast_cartography(self):
+        original = {
+            "scene": 4,
+            "segment": "na antiga União Soviética",
+            "query": "soviet union archival map",
+            "visual_mode": "map_context",
+            "must_have": ["landscape"],
+        }
+        enriched, _ = visual_director.safe_scene(
+            original,
+            {"query": "soviet union vintage archival map landscape"},
+        )
+        query = enriched["query"].casefold()
+        for term in ("high", "contrast", "map", "light", "background", "clear", "readable", "labels"):
+            self.assertIn(term, query)
 
     def test_dark_but_textured_pixels_are_not_blank(self):
         values = []
