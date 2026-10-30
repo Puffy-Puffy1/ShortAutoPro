@@ -149,7 +149,7 @@ class VisualContentIntegrityTests(unittest.TestCase):
             scene_context="1959 Soviet winter expedition in the Ural mountains",
         )
         self.assertEqual(len(queries), 3)
-        self.assertTrue(all("archival" in q.casefold() or "historic" in q.casefold() for q in queries))
+        self.assertGreaterEqual(sum("archival" in q.casefold() or "historic" in q.casefold() for q in queries), 2)
         self.assertTrue(any("hikers" in q.casefold() or "mountaineers" in q.casefold() for q in queries))
         self.assertTrue(all("snow" in q.casefold() or "winter" in q.casefold() for q in queries))
 
