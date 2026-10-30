@@ -9,6 +9,7 @@ import media_emergency_fallback as fallback
 import render_preflight
 import visual_qa
 import visual_director
+import media_engine_v2
 
 
 class VisualContentIntegrityTests(unittest.TestCase):
@@ -125,6 +126,19 @@ class VisualContentIntegrityTests(unittest.TestCase):
         query = enriched["query"].casefold()
         for term in ("high", "contrast", "map", "light", "background", "clear", "readable", "labels"):
             self.assertIn(term, query)
+
+    def test_night_snow_search_prioritizes_moonlit_forest_catalog_terms(self):
+        queries = media_engine_v2._targeted_visual_search_queries(
+            "dark winter night landscape snowstorm in pine forest",
+            ["snow"],
+            limit=3,
+            avoid=["daylight", "sun"],
+            scene_context="na noite de 2 de fevereiro de 1959",
+        )
+        self.assertEqual(len(queries), 3)
+        self.assertIn("night", " ".join(queries).casefold())
+        self.assertIn("moonlight", " ".join(queries).casefold())
+        self.assertIn("snow", " ".join(queries).casefold())
 
     def test_dark_but_textured_pixels_are_not_blank(self):
         values = []
