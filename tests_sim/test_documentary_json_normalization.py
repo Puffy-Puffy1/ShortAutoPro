@@ -1,4 +1,3 @@
-import json
 import unittest
 from pathlib import Path
 
@@ -34,8 +33,10 @@ class DocumentaryJsonNormalizationContractTests(unittest.TestCase):
         self.assertIn("must = original_must", text)
         self.assertIn("original_avoid = limpar_lista(cena_original.get", text)
         self.assertIn("avoid = original_avoid", text)
+        self.assertIn("rejected_generated_musts", text)
+        self.assertIn("rejected_generated_avoids", text)
 
-    def test_version_bumped(self):
+    def test_version_and_audit_events_are_current(self):
         text = (ROOT / "documentary_director.py").read_text(encoding="utf-8")
         self.assertIn('VERSION = "3.7"', text)
         self.assertIn("DOCUMENTARY_JSON_NORMALIZED=", text)
