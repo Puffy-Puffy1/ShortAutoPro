@@ -1670,7 +1670,7 @@ def acquire_scene(
             query,
             must,
             avoid=avoid,
-            scene_context=f"Scene: {segment}\\nASSUNTO: {topic_context}",
+            scene_context=f"Scene: {segment}\nASSUNTO: {topic_context}",
         )
         distinct_targeted_queries = []
         for raw_targeted_query in targeted_queries:
