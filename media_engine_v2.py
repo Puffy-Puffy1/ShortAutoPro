@@ -1360,6 +1360,24 @@ def _targeted_visual_search_queries(
             if len(searches) >= max_searches:
                 break
 
+    # Historical Soviet expeditions are better indexed as archival campsite
+    # photographs than as maps/compasses. Keep the snow MUST and all pixel checks.
+    expedition_context = " ".join(
+        (str(query or ""), str(scene_context or ""), *must_text)
+    ).casefold()
+    historical_expedition = (
+        bool(re.search(r"\\b(?:soviet|ussr|ural|dyatlov|1950s|1959)\\b", expedition_context))
+        and bool(re.search(r"\\b(?:expedition|hikers?|mountaineers?|camp|campsite)\\b", expedition_context))
+        and bool(re.search(r"\\b(?:snow|snowy|snowfall|winter)\\b", expedition_context))
+        and bool(re.search(r"\\b(?:map|compass|topographic)\\b", expedition_context))
+    )
+    if historical_expedition:
+        searches = [
+            "1959 Soviet winter expedition hikers snowy campsite archival photograph",
+            "historic Ural mountain expedition winter snow tent archival photo",
+            "1950s Soviet mountaineers winter expedition snowy forest photograph",
+        ][:max_searches]
+
     # Coded letters are catalogued inconsistently. Search for archival letter
     # photographs using the selected topic as context, while keeping the strict
     # document MUST and all AVOID checks unchanged.
