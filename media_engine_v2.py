@@ -1378,6 +1378,22 @@ def _targeted_visual_search_queries(
             "1950s Soviet mountaineers winter expedition snowy forest photograph",
         ][:max_searches]
 
+    # When no scene-specific strategy applies, keep the selected subject in
+    # the retrieval query so broad catalog terms do not drift to another person
+    # or event. The subject is a search hint only; visual verification is unchanged.
+    if not searches:
+        subject_match = re.search(
+            r"\\bASSUNTO\\s*:\\s*([^\\n]+)",
+            str(scene_context or ""),
+            flags=re.IGNORECASE,
+        )
+        subject = re.sub(r"\\s+", " ", subject_match.group(1)).strip() if subject_match else ""
+        subject_tokens = set(re.findall(r"[a-z0-9]+", subject.casefold()))
+        if subject and not subject_tokens <= query_token_set:
+            contextual_query = f"{subject} {query}".strip()
+            if len(contextual_query) <= 240:
+                searches.append(contextual_query)
+
     # Coded letters are catalogued inconsistently. Search for archival letter
     # photographs using the selected topic as context, while keeping the strict
     # document MUST and all AVOID checks unchanged.
@@ -1654,9 +1670,7 @@ def acquire_scene(
             query,
             must,
             avoid=avoid,
-            scene_context=" ".join(
-                part for part in (segment, topic_context) if str(part).strip()
-            ),
+            scene_context=f"Scene: {segment}\\nASSUNTO: {topic_context}",
         )
         distinct_targeted_queries = []
         for raw_targeted_query in targeted_queries:
