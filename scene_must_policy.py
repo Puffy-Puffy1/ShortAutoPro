@@ -191,6 +191,14 @@ def normalize_visual_musts(
         elif anchor == original and key == "tent fabric" and _TORN_TENT_CONTEXT.search(item_context):
             anchor = "torn tent"
             reason = "CONTEXTUAL_TENT_ANCHOR"
+        elif (
+            anchor == original
+            and key in {"fabric tear", "torn fabric", "ripped fabric"}
+            and _TENT_CONTEXT.search(item_context)
+            and _TORN_TENT_CONTEXT.search(item_context)
+        ):
+            anchor = "torn tent"
+            reason = "CONTEXTUAL_TENT_ANCHOR"
         elif anchor == original and key == "snowy background" and _SNOW_CONTEXT.search(item_context):
             anchor = "snow"
             reason = "CONTEXTUAL_SNOW_ANCHOR"
