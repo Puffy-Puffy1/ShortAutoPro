@@ -1387,7 +1387,7 @@ def _targeted_visual_search_queries(
             str(scene_context or ""),
             flags=re.IGNORECASE,
         )
-        subject = re.sub(r"\\s+", " ", subject_match.group(1)).strip() if subject_match else ""
+        subject = re.sub(r"\s+", " ", subject_match.group(1)).strip() if subject_match else ""
         subject_tokens = set(re.findall(r"[a-z0-9]+", subject.casefold()))
         if subject and not subject_tokens <= query_token_set:
             contextual_query = f"{subject} {query}".strip()
