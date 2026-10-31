@@ -1531,7 +1531,7 @@ def _targeted_visual_search_queries(
         bool({"woman", "women", "female"} & woman_shadow_context)
         and bool({"shadow", "shadows", "silhouette"} & woman_shadow_context)
         and bool({"room", "interior", "bedroom"} & woman_shadow_context)
-        and bool(re.search(r"\\b(?:bright lighting|bright|daylight|party|happy)\\b", avoid_text))
+        and bool(re.search(r"\b(?:bright lighting|bright|daylight|party|happy)\b", avoid_text))
     )
     if woman_shadow_scene:
         woman_shadow_variants = [
@@ -1542,7 +1542,7 @@ def _targeted_visual_search_queries(
         searches = []
         seen_woman_shadow_queries = set()
         for targeted in woman_shadow_variants:
-            normalized = re.sub(r"\\s+", " ", targeted).strip()
+            normalized = re.sub(r"\s+", " ", targeted).strip()
             key = normalized.casefold()
             if normalized and key not in seen_woman_shadow_queries:
                 searches.append(normalized)
