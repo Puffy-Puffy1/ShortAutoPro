@@ -5,6 +5,100 @@ import media_engine_v2
 
 class MediaEngineV2FailureTests(unittest.TestCase):
 
+    def test_narrated_historical_event_date_uses_archival_document_contract(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            routes = base / "roteiros"
+            routes.mkdir()
+            scene_map = {
+                "scenes": [{
+                    "scene": 2,
+                    "segment": "aeronave O evento ocorreu em 21 de outubro de 1978",
+                    "query": "vintage calendar page october 1978 date",
+                    "must_have": ["date calendar"],
+                    "avoid": ["digital clock", "modern interface"],
+                }]
+            }
+            (routes / "scene_map_X.json").write_text(
+                json.dumps(scene_map), encoding="utf-8"
+            )
+            with patch.object(media_engine_v2, "BASE", base):
+                scenes = media_engine_v2.load_scene_map("X")
+
+        self.assertEqual(scenes[0]["query"], "archival aviation report october 1978")
+        self.assertEqual(scenes[0]["must_have"], ["document"])
+        self.assertIn("modern interface", scenes[0]["avoid"])
+        self.assertIn(
+            "period-appropriate archival paper records",
+            scenes[0]["preferred_visuals"],
+        )
+
+    def test_explicit_calendar_narration_keeps_calendar_must(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            routes = base / "roteiros"
+            routes.mkdir()
+            scene_map = {
+                "scenes": [{
+                    "scene": 2,
+                    "segment": "O investigador consultou o calendário de outubro de 1978",
+                    "query": "vintage calendar page october 1978 date",
+                    "must_have": ["date calendar"],
+                    "avoid": ["digital clock"],
+                }]
+            }
+            (routes / "scene_map_X.json").write_text(
+                json.dumps(scene_map), encoding="utf-8"
+            )
+            with patch.object(media_engine_v2, "BASE", base):
+                scenes = media_engine_v2.load_scene_map("X")
+
+        self.assertEqual(scenes[0]["query"], "vintage calendar page october 1978 date")
+        self.assertEqual(scenes[0]["must_have"], ["date calendar"])
+
+    def test_dyatlov_snow_scene_uses_historical_queries(self):
+        queries = media_engine_v2._targeted_visual_search_queries(
+            "snow",
+            ["snow"],
+            avoid=["hospital interior", "blood"],
+            scene_context="1959 Dyatlov Pass winter expedition",
+        )
+        self.assertEqual(
+            queries,
+            [
+                "1959 Dyatlov Pass archival winter expedition campsite snow",
+                "historical Soviet hikers snowy Ural mountain slope 1959",
+                "Dyatlov Pass winter wilderness archival photograph",
+            ],
+        )
+
+    def test_coded_letter_uses_topic_specific_archival_queries(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            routes = base / "roteiros"
+            routes.mkdir()
+            (routes / "used_topic_X.txt").write_text(
+                "O caso do assassino do Zodíaco", encoding="utf-8"
+            )
+            with patch.object(media_engine_v2, "BASE", base):
+                topic = media_engine_v2._topic_context_for_scene("X")
+                queries = media_engine_v2._targeted_visual_search_queries(
+                    "vintage coded letter police puzzle",
+                    ["document"],
+                    avoid=["modern smartphone"],
+                    scene_context=(
+                        "Um assassino em série enviou cartas cifradas " + topic
+                    ),
+                )
+
+        self.assertEqual(
+            queries[:2],
+            [
+                "Zodiac Killer archival handwritten cipher letter",
+                "1969 Zodiac Killer coded letter on paper",
+            ],
+        )
+
     def test_critical_low_resolution_candidate_is_rejected_and_next_candidate_used(self):
         with tempfile.TemporaryDirectory() as td:
             media = Path(td) / "media"
@@ -1267,6 +1361,59 @@ class MediaEngineV2FailureTests(unittest.TestCase):
         self.assertIn("light single engine airplane over dark sea at night", lowered)
         self.assertIn("single engine plane in flight above ocean at night", lowered)
 
+class TargetedShipSuppliesSearchTests(unittest.TestCase):
+    def test_historical_ship_provisions_get_specific_bounded_queries(self):
+        queries = media_engine_v2._targeted_visual_search_queries(
+            "ship provisions barrels and supplies on wooden deck",
+            [],
+            scene_context="ASSUNTO: O desaparecimento da tripulação do navio Mary Celeste",
+        )
+        self.assertEqual(len(queries), 3)
+        lowered = [query.casefold() for query in queries]
+        self.assertIn(
+            "o desaparecimento da tripulação do navio mary celeste sailing ship provisions barrels supplies on wooden deck",
+            lowered,
+        )
+        self.assertIn(
+            "nineteenth century sailing vessel deck with food provisions barrels and cargo",
+            lowered,
+        )
+        self.assertIn(
+            "historic merchant sailing ship interior stores provisions stacked barrels",
+            lowered,
+        )
+
+    def test_unrelated_ship_scene_does_not_trigger_supplies_queries(self):
+        queries = media_engine_v2._targeted_visual_search_queries(
+            "abandoned sailing ship at sea",
+            [],
+        )
+        self.assertEqual(queries, [])
+
+
+class TargetedManuscriptResearchSearchTests(unittest.TestCase):
+    def test_named_voynich_research_scene_prioritizes_subject_specific_queries(self):
+        queries = media_engine_v2._targeted_visual_search_queries(
+            "researcher looking at ancient document in academic archive",
+            ["researcher", "document"],
+            scene_context="ASSUNTO: Gerard Cheshire e o Manuscrito Voynich",
+        )
+        self.assertEqual(len(queries), 3)
+        self.assertIn(
+            "Gerard Cheshire e o Manuscrito Voynich Voynich manuscript researcher examining manuscript in archive",
+            queries,
+        )
+        self.assertTrue(any("Voynich" in query for query in queries))
+        self.assertTrue(any("handwritten pages" in query for query in queries))
+
+    def test_generic_research_scene_does_not_trigger_voynich_queries(self):
+        queries = media_engine_v2._targeted_visual_search_queries(
+            "researcher looking at ancient document in academic archive",
+            ["researcher", "document"],
+        )
+        self.assertFalse(any("Voynich" in query for query in queries))
+
+
 if __name__=="__main__": unittest.main()
 
 
@@ -1286,3 +1433,41 @@ class VisualSceneIntentNormalizationTests(unittest.TestCase):
             ["town", "snow"],
         )
         self.assertEqual(intent, "historic Russian town with wooden houses in snow")
+
+
+class VisualRelevanceInflectionTests(unittest.TestCase):
+    def test_must_inflection_does_not_count_as_independent_context(self):
+        candidate = {"query_relevance": {"ok": False, "matched_terms": ["ski"]}}
+        self.assertFalse(
+            media_engine_v2._relaxed_relevance_acceptable(candidate, ["skiers"])
+        )
+
+    def test_independent_context_still_allows_relaxed_relevance(self):
+        candidate = {"query_relevance": {"ok": False, "matched_terms": ["ski", "Soviet"]}}
+        self.assertTrue(
+            media_engine_v2._relaxed_relevance_acceptable(candidate, ["skiers"])
+        )
+
+
+class VisualAvoidNormalizationTests(unittest.TestCase):
+    def test_vague_avoids_are_removed_but_concrete_exclusions_remain(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            routes = base / "roteiros"
+            routes.mkdir()
+            (routes / "scene_map_X.json").write_text(
+                json.dumps({
+                    "scenes": [{
+                        "scene": 1,
+                        "segment": "Mary Celeste ship near Haiti",
+                        "query": "historic ship near Haitian coastline",
+                        "must_have": [],
+                        "avoid": ["wrong person", "unrelated event", "modern smartphone"],
+                    }]
+                }),
+                encoding="utf-8",
+            )
+            with patch.object(media_engine_v2, "BASE", base):
+                scenes = media_engine_v2.load_scene_map("X")
+
+        self.assertEqual(scenes[0]["avoid"], ["modern smartphone"])

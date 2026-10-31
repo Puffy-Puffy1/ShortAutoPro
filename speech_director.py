@@ -18,6 +18,10 @@ PRESETS={
 }
 IMPACT_TERMS=("mas","porém","entretanto","até que","então","descobriu","revelou","prova","evidence","however","until","revealed")
 def wordseq(s:str)->list[str]:return [x.casefold() for x in re.findall(r"[A-Za-zÀ-ÿ0-9'-]+",s)]
+
+def tts_safe_text(value:str)->str:
+ """Remove unsupported Cyrillic parentheticals from Portuguese TTS only."""
+ return re.sub(r"\s*\([^)]*[\u0400-\u04FF][^)]*\)", "", str(value or "")).strip()
 def atomic_text(p:Path,s:str)->None:
  p.parent.mkdir(parents=True,exist_ok=True);fd,t=tempfile.mkstemp(prefix=f".{p.name}.",suffix=".tmp",dir=str(p.parent))
  try:
@@ -44,7 +48,7 @@ def main()->int:
   text=s.rstrip()
   if not text.endswith((".","!","?",":",";","…")):text += "."
   directed.append(text)
-  chunks.append({"index":i+1,"text":text,"tempo":round(float(tempo),3),"pause_ms":int(pause),"impact":bool(impact),"word_count":wc})
+  chunks.append({"index":i+1,"text":text,"tts_text":tts_safe_text(text),"tempo":round(float(tempo),3),"pause_ms":int(pause),"impact":bool(impact),"word_count":wc})
  directed_text="\n".join(directed).strip()+"\n"
  if wordseq(directed_text)!=wordseq(original):print("ERRO SPEECH DIRECTOR: palavras foram alteradas");return 1
  atomic_text(OUT,directed_text);atomic_json(REPORT,{"short_id":SID,"version":"2.0","profile":PROFILE,"content_preserved":True,"sentence_count":len(sentences),"source":str(SRC),"output":str(OUT),"chunks":chunks,"status":"PASS"})

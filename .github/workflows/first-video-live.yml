@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - fix/first-video-canonical-entrypoint-20261014
+      - fix/scene-narration-context-20261027
     paths:
       - ".github/workflows/first-video-live.yml"
       - ".github/actions/setup-ffmpeg/action.yml"
@@ -16,6 +17,11 @@ on:
       - "tests_sim/test_audio_base.py"
       - "scene_lossless_repair.py"
       - "scene_director.py"
+      - "visual_director.py"
+      - "tests_sim/test_visual_content_integrity.py"
+      - "documentary_director.py"
+      - "tests_sim/test_documentary_director_recovery.py"
+      - "tests_sim/test_documentary_json_normalization.py"
       - "scene_must_policy.py"
       - "semantic_integrity_gate.py"
       - "media_engine_v2.py"
@@ -46,6 +52,7 @@ on:
       - "shortauto_brain.py"
       - "shortauto_intelligence_layer.py"
       - "tests_sim/test_shortauto_intelligence_layer.py"
+      - "script_fallback.py"
       - "tests_sim/test_script_claim_traceability.py"
       - "tests_sim/test_media_must_verifier.py"
       - "tests_sim/test_shortauto_brain_integration.py"

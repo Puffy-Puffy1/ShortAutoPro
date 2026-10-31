@@ -214,6 +214,10 @@ def safe_scene(original: dict[str, Any], proposal: dict[str, Any] | None) -> tup
         must = original_must
         query = fallback["query"]
 
+    # Improve map retrieval without relaxing visual verification.
+    if norm(original.get("visual_mode")) == "map_context":
+        query = clean(query + " high contrast map light background clear readable labels")
+
     fields = {
         "main_subject": clean(p.get("main_subject")) or fallback["main_subject"],
         "environment": clean(p.get("environment")) or fallback["environment"],

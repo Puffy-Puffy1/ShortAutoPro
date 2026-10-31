@@ -8,6 +8,8 @@ from unittest import mock
 import media_emergency_fallback as fallback
 import render_preflight
 import visual_qa
+import visual_director
+import media_engine_v2
 
 
 class VisualContentIntegrityTests(unittest.TestCase):
@@ -108,6 +110,92 @@ class VisualContentIntegrityTests(unittest.TestCase):
         stats = visual_qa._frame_content_stats(black)
         self.assertTrue(stats["blank"])
         self.assertLessEqual(stats["mean"], 1.0)
+
+    def test_map_context_queries_require_readable_high_contrast_cartography(self):
+        original = {
+            "scene": 4,
+            "segment": "na antiga União Soviética",
+            "query": "soviet union archival map",
+            "visual_mode": "map_context",
+            "must_have": ["landscape"],
+        }
+        enriched, _ = visual_director.safe_scene(
+            original,
+            {"query": "soviet union vintage archival map landscape"},
+        )
+        query = enriched["query"].casefold()
+        for term in ("high", "contrast", "map", "light", "background", "clear", "readable", "labels"):
+            self.assertIn(term, query)
+
+    def test_zodiac_cipher_letter_search_uses_the_actual_topic_context(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            routes = base / "roteiros"
+            routes.mkdir()
+            (routes / "used_topic_gha_123_1.txt").write_text(
+                "O caso do assassino do Zodíaco",
+                encoding="utf-8",
+            )
+
+            with mock.patch.object(media_engine_v2, "BASE", base):
+                topic = media_engine_v2._topic_context_for_scene("gha_123_1")
+
+            queries = media_engine_v2._targeted_visual_search_queries(
+                "vintage coded letter police puzzle",
+                ["letter"],
+                limit=3,
+                avoid=["modern smartphone"],
+                scene_context=(
+                    "Um assassino enviou cartas cifradas desafiando a polícia. "
+                    + topic
+                ),
+            )
+
+        self.assertEqual(len(queries), 3)
+        self.assertTrue(all("zodiac" in query.casefold() for query in queries))
+        self.assertTrue(all("letter" in query.casefold() for query in queries))
+        self.assertTrue(any("1969" in query for query in queries))
+
+    def test_visual_search_keeps_selected_subject_when_scene_query_is_generic(self):
+        queries = media_engine_v2._targeted_visual_search_queries(
+            "vintage transatlantic flight newspaper archive clipping document",
+            [],
+            limit=3,
+            scene_context=(
+                "Scene: Ela cruzou o Atlântico sozinha.\n"
+                "ASSUNTO: O misterioso voo e desaparecimento de Amelia Earhart"
+            ),
+        )
+
+        self.assertEqual(len(queries), 1)
+        self.assertIn("amelia earhart", queries[0].casefold())
+        self.assertIn("transatlantic flight", queries[0].casefold())
+
+    def test_night_snow_search_prioritizes_moonlit_forest_catalog_terms(self):
+        queries = media_engine_v2._targeted_visual_search_queries(
+            "dark winter night landscape snowstorm in pine forest",
+            ["snow"],
+            limit=3,
+            avoid=["daylight", "sun"],
+            scene_context="na noite de 2 de fevereiro de 1959",
+        )
+        self.assertEqual(len(queries), 3)
+        self.assertIn("night", " ".join(queries).casefold())
+        self.assertIn("moonlight", " ".join(queries).casefold())
+        self.assertIn("snow", " ".join(queries).casefold())
+
+    def test_historical_soviet_snow_expedition_uses_archival_photo_queries(self):
+        queries = media_engine_v2._targeted_visual_search_queries(
+            "vintage 1950s soviet winter expedition map and compass",
+            ["snow"],
+            limit=3,
+            avoid=["neon", "modern digital devices", "smartphone"],
+            scene_context="1959 Soviet winter expedition in the Ural mountains",
+        )
+        self.assertEqual(len(queries), 3)
+        self.assertGreaterEqual(sum("archival" in q.casefold() or "historic" in q.casefold() for q in queries), 2)
+        self.assertTrue(any("hikers" in q.casefold() or "mountaineers" in q.casefold() for q in queries))
+        self.assertTrue(all("snow" in q.casefold() or "winter" in q.casefold() for q in queries))
 
     def test_dark_but_textured_pixels_are_not_blank(self):
         values = []

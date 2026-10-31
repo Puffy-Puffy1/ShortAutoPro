@@ -1,4 +1,3 @@
-import json
 import unittest
 from pathlib import Path
 
@@ -28,15 +27,20 @@ class DocumentaryJsonNormalizationContractTests(unittest.TestCase):
         self.assertNotIn("not 1 <= len(must) <= 3", text)
         self.assertIn("use [] quando nenhum elemento factual específico", text)
 
-    def test_existing_must_is_preserved_when_proposal_is_empty(self):
+    def test_original_visual_constraints_are_always_preserved(self):
         text = (ROOT / "documentary_director.py").read_text(encoding="utf-8")
         self.assertIn("original_must = limpar_lista(cena_original.get", text)
-        self.assertIn("if not must and original_must:", text)
+        self.assertIn("must = original_must", text)
+        self.assertIn("original_avoid = limpar_lista(cena_original.get", text)
+        self.assertIn("avoid = original_avoid", text)
+        self.assertIn("rejected_generated_musts", text)
+        self.assertIn("rejected_generated_avoids", text)
 
-    def test_version_bumped(self):
+    def test_version_and_audit_events_are_current(self):
         text = (ROOT / "documentary_director.py").read_text(encoding="utf-8")
-        self.assertIn('VERSION = "3.6"', text)
+        self.assertIn('VERSION = "3.7"', text)
         self.assertIn("DOCUMENTARY_JSON_NORMALIZED=", text)
+        self.assertIn("DOCUMENTARY_DIRECTOR_CONSTRAINTS_REJECTED=", text)
 
 
 if __name__ == "__main__":

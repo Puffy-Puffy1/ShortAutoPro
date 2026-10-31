@@ -23,7 +23,7 @@ from typing import Any
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", Path.home() / "ShortAutoPro")).resolve()
 MEDIA_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".webm", ".mkv"}
-ENGINE_VERSION = "2.0.15"
+ENGINE_VERSION = "2.0.16"
 MIN_VISUAL_PIXELS = 320 * 180
 MAX_VISUAL_FALLBACK_CANDIDATES = 8
 MAX_LOW_RELEVANCE_VISUAL_CANDIDATES = 4
@@ -43,11 +43,23 @@ def _resolution_issue(probe: dict[str, Any]) -> str | None:
         return f"LOW_RESOLUTION:{width}x{height}"
     return None
 
+def _relevance_token(value: Any) -> str:
+    """Normalize common English inflections so a MUST cannot count as context."""
+    token = str(value or "").casefold()
+    if len(token) > 4 and token.endswith("ers"):
+        return token[:-3]
+    if len(token) > 4 and token.endswith("ies"):
+        return token[:-3] + "y"
+    if len(token) > 3 and token.endswith("s") and not token.endswith("ss"):
+        return token[:-1]
+    return token
+
+
 def _relaxed_relevance_acceptable(
     candidate: dict[str, Any],
     must: list[str],
 ) -> bool:
-    """Require one contextual query match beyond the independently verified MUST."""
+    """Require contextual evidence beyond the independently verified MUST."""
     relevance = candidate.get("query_relevance")
     if not isinstance(relevance, dict) or relevance.get("ok") is True:
         return True
@@ -56,21 +68,19 @@ def _relaxed_relevance_acceptable(
     if not isinstance(matched_terms, (list, tuple, set)):
         return False
     must_tokens = {
-        token
+        _relevance_token(token)
         for item in must
         for token in re.findall(r"[a-z0-9]+", str(item).casefold())
     }
-    # Catalog namespace/type words are not evidence that the image depicts
-    # the requested scene. They cannot be the only relaxed-context match.
-    weak_context_terms = {"file"}
+    # Inflections of a MUST are not independent context evidence:
+    # "ski" cannot validate "skiers" by itself.
     contextual_matches = [
-        str(term).casefold()
+        _relevance_token(term)
         for term in matched_terms
-        if str(term).casefold() not in must_tokens
-        and str(term).casefold() not in weak_context_terms
+        if _relevance_token(term) not in must_tokens
+        and _relevance_token(term) != "file"
     ]
     return bool(contextual_matches)
-
 
 _NON_PHOTOGRAPHIC_METADATA = re.compile(
     r"\b(?:icons?|logos?|pictograms?|clipart|glyphs?|pinhead|svg)\b",
@@ -236,6 +246,101 @@ def validate_short_id(value: str) -> str:
     return sid
 
 
+def _topic_context_for_scene(short_id: str) -> str:
+    """Load the topic label for retrieval hints only; never use it as asset evidence."""
+    sid = validate_short_id(short_id)
+    for prefix in ("used_topic", "topic"):
+        path = BASE / "roteiros" / f"{prefix}_{sid}.txt"
+        try:
+            if path.is_file():
+                value = path.read_text(encoding="utf-8").strip()
+                if value:
+                    return value
+        except OSError:
+            continue
+    return ""
+
+
+def _normalize_date_only_visual_contract(
+    scene: dict[str, Any],
+    query: str,
+    segment: str,
+) -> dict[str, str] | None:
+    """Use archival records for a narrated event date, not a literal calendar demand."""
+    musts = scene.get("must_have") or []
+    if isinstance(musts, str):
+        musts = [musts]
+    is_calendar_must = any(
+        re.sub(r"\s+", " ", str(item or "")).strip().casefold() == "date calendar"
+        for item in musts
+    )
+    has_event_date = bool(
+        re.search(
+            r"\b(?:event|incident|evento|incidente)\b.{0,60}\b(?:occurred|happened|took place|ocorreu|aconteceu)\b"
+            r"|\b(?:occurred|happened|took place|ocorreu|aconteceu)\b.{0,60}\b(?:19|20)\d{2}\b",
+            segment,
+            re.IGNORECASE,
+        )
+    ) and bool(re.search(r"\b(?:19|20)\d{2}\b", segment))
+    calendar_is_narrated = bool(
+        re.search(r"\b(?:calendar|calend[aá]rio|agenda)\b", segment, re.IGNORECASE)
+    )
+    if not (is_calendar_must and has_event_date and not calendar_is_narrated):
+        return None
+
+    aviation_context = bool(
+        re.search(
+            r"\b(?:aircraft|airplane|aviation|pilot|flight|aeronave|avi[aã]o|aviação|piloto|voo)\b",
+            " ".join((query, segment)),
+            re.IGNORECASE,
+        )
+    )
+    replacement = "archival aviation report" if aviation_context else "archival historical document"
+    updated_query = re.sub(
+        r"\b(?:vintage|historic|historical|antique|old)\s+calendar\s+page\b",
+        replacement,
+        query,
+        flags=re.IGNORECASE,
+    )
+    updated_query = re.sub(
+        r"\bcalendar\s+page\b", replacement, updated_query, flags=re.IGNORECASE
+    )
+    updated_query = re.sub(
+        r"\b(?:calendar|date|vintage|historic|historical|antique|old)\b",
+        "",
+        updated_query,
+        flags=re.IGNORECASE,
+    )
+    updated_query = re.sub(r"\s+", " ", updated_query).strip()
+    if not updated_query or len(updated_query.split()) < 4:
+        year = re.search(r"\b(?:19|20)\d{2}\b", segment)
+        updated_query = f"{replacement} {year.group(0)}" if year else replacement
+
+    remaining_musts = [
+        str(item).strip()
+        for item in musts
+        if re.sub(r"\s+", " ", str(item or "")).strip().casefold() != "date calendar"
+    ]
+    if "document" not in {item.casefold() for item in remaining_musts}:
+        remaining_musts.append("document")
+    scene["query"] = updated_query
+    scene["must_have"] = remaining_musts
+    preferences = scene.get("preferred_visuals") or []
+    if isinstance(preferences, str):
+        preferences = [preferences]
+    if not isinstance(preferences, (list, tuple, set)):
+        preferences = []
+    preference = "period-appropriate archival paper records"
+    if preference.casefold() not in {str(item).strip().casefold() for item in preferences}:
+        preferences = [*preferences, preference]
+    scene["preferred_visuals"] = list(preferences)
+    return {
+        "from": "date calendar",
+        "to": "document",
+        "reason": "NARRATED_EVENT_DATE_USES_ARCHIVAL_CONTEXT",
+    }
+
+
 def load_scene_map(short_id: str) -> list[dict[str, Any]]:
     sid = validate_short_id(short_id)
     path = BASE / "roteiros" / f"scene_map_{sid}.json"
@@ -257,6 +362,19 @@ def load_scene_map(short_id: str) -> list[dict[str, Any]]:
             raise RuntimeError(f"MEDIA_INPUT_INVALID:scene_{index:02d}:duplicate_scene_id")
         scene_query = str(scene.get("query") or scene.get("busca") or scene.get("segment") or "").strip()
         scene_segment = str(scene.get("segment") or "").strip()
+        date_visual_normalization = _normalize_date_only_visual_contract(
+            scene, scene_query, scene_segment
+        )
+        if date_visual_normalization:
+            scene_query = str(scene.get("query") or "").strip()
+            print(
+                "SCENE_DATE_CONTEXT_NORMALIZED="
+                + json.dumps(
+                    {"scene": scene_id, **date_visual_normalization, "query": scene_query},
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                )
+            )
         scene_context = " ".join(part for part in (scene_query, scene_segment) if part)
         raw_musts = scene.get("must_have") or []
         musts, events = normalize_visual_musts(
@@ -304,9 +422,16 @@ def load_scene_map(short_id: str) -> list[dict[str, Any]]:
             raw_avoid = []
         normalized_avoid = []
         moved_style_avoids = []
+        removed_vague_avoids = []
         for raw_avoid_item in raw_avoid:
             avoid_item = str(raw_avoid_item or "").strip()
             key = avoid_item.casefold()
+            # These generic labels have no observable visual meaning. Sending
+            # them to pixel verification creates false rejections; concrete
+            # exclusions (phones, modern equipment, etc.) remain enforced.
+            if key in {"wrong person", "unrelated event"}:
+                removed_vague_avoids.append(avoid_item)
+                continue
             if period_context and key in {
                 "modern",
                 "contemporary",
@@ -320,6 +445,15 @@ def load_scene_map(short_id: str) -> list[dict[str, Any]]:
                 continue
             if avoid_item:
                 normalized_avoid.append(avoid_item)
+        if removed_vague_avoids:
+            print(
+                "SCENE_AVOID_VAGUE_REMOVED="
+                + json.dumps(
+                    {"scene": scene_id, "removed": removed_vague_avoids},
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                )
+            )
         if moved_style_avoids:
             style_preference = "period-appropriate historical appearance"
             if style_preference.casefold() not in {
@@ -459,6 +593,16 @@ def _visual_scene_intent(scene_intent: str, must: list[str]) -> str:
     if "ship" in must_terms and has_ocean_setting and has_ship_context:
         return "sailing ship on open ocean"
     return intent
+
+
+def _scene_verification_intent(segment: str, query: str) -> str:
+    """Combine narration context and visual direction for scene verification."""
+    narration = " ".join(str(segment or "").split()).strip()
+    direction = " ".join(str(query or "").split()).strip()
+    if narration and direction:
+        separator = "" if narration.endswith((".", "!", "?")) else "."
+        return f"Narration context: {narration}{separator} Visual direction: {direction}"
+    return narration or direction
 
 
 def _verify_scene_pixels(
@@ -766,6 +910,7 @@ def _targeted_visual_search_queries(
     must: list[str],
     limit: int = 3,
     avoid: list[str] | None = None,
+    scene_context: str = "",
 ) -> list[str]:
     """Build bounded contextual searches that account for MUST/AVOID intent."""
     query_tokens = re.findall(r"[a-z0-9]+", str(query or "").casefold())
@@ -909,6 +1054,31 @@ def _targeted_visual_search_queries(
     # has to prove the text is visible and the excluded alphabet is absent.
     avoid_text = " ".join(str(item or "") for item in (avoid or [])).casefold()
     text_context = " ".join([str(query or ""), *[str(item or "") for item in must]]).casefold()
+
+    # Night-snow scenes need night-specific catalog terms; broad winter searches
+    # often return sunny daytime snow photos that the strict AVOID gate rejects.
+    night_snow_scene = (
+        bool({"snow", "snowy", "snowfall", "winter"} & query_token_set)
+        and bool({"night", "nighttime", "dark", "moonlit"} & query_token_set)
+        and ("daylight" in avoid_text or re.search(r"\\bsun\\b", avoid_text))
+    )
+    if night_snow_scene:
+        night_variants = [
+            "snow covered pine forest at night under moonlight",
+            "nighttime snowy forest moonlit snowfall",
+            "dark blue winter forest night fresh snow",
+        ]
+        prioritized = []
+        prioritized_seen = set()
+        for targeted in [*night_variants, *searches]:
+            normalized = re.sub(r"\s+", " ", str(targeted or "")).strip()
+            key = normalized.casefold()
+            if normalized and key not in prioritized_seen:
+                prioritized.append(normalized)
+                prioritized_seen.add(key)
+            if len(prioritized) >= max_searches:
+                break
+        searches = prioritized
     non_english_script = (
         "alphabet" in avoid_text
         and "english" in avoid_text
@@ -1084,26 +1254,41 @@ def _targeted_visual_search_queries(
                 break
         searches = prioritized
 
-    # Backpack scenes in winter are often indexed as hiking/trekking
-    # photographs rather than by the full editorial sentence. Prioritize
-    # context-preserving catalog searches; pixel MUST/AVOID and scene-intent
-    # verification remain the only acceptance gate.
-    backpack_context = query_terms | must_tokens
+    # Backpack scenes in winter are indexed inconsistently. When narration names
+    # the Dyatlov route, prioritize historical expedition wording; otherwise keep
+    # the search generic. This changes discovery only, never the pixel acceptance gate.
+    backpack_context = query_token_set | must_tokens
     backpack_scene = (
         bool({"backpack", "backpacks"} & backpack_context)
         and bool({"hiker", "hikers", "hiking", "backpacking", "trekking"} & backpack_context)
         and bool({"snow", "snowy", "snowfall", "winter", "wilderness", "mountain", "mountains"} & backpack_context)
     )
     if backpack_scene:
-        backpack_variants = [
-            "hikers walking with backpacks through snowy wilderness",
-            "backpacking hikers trekking through snow covered wilderness",
-            "winter hiking expedition with backpacks in snowy mountains",
-        ]
+        scene_context_text = " ".join(
+            (str(query or ""), str(scene_context or ""))
+        ).casefold()
+        if re.search(r"\b(?:otorten|dyatlov)\b", scene_context_text):
+            backpack_variants = [
+                "1959 Soviet expedition hikers with backpacks in snowy Ural mountains",
+                "archival Dyatlov Pass hikers carrying backpacks winter expedition",
+                "hikers with backpacks near Mount Otorten Ural winter",
+            ]
+        elif re.search(r"\b(?:ural|soviet|1959|historical|historic|archival)\b", scene_context_text):
+            backpack_variants = [
+                "archival winter expedition hikers carrying backpacks snowy mountains",
+                "historical hiking expedition backpacks in deep snow",
+                "documentary photograph winter expedition group backpacks mountain",
+            ]
+        else:
+            backpack_variants = [
+                "hikers walking with backpacks through snowy wilderness",
+                "backpacking hikers trekking through snow covered wilderness",
+                "winter hiking expedition with backpacks in snowy mountains",
+            ]
         prioritized = []
         seen_priority = set()
         for targeted in [*backpack_variants, *searches]:
-            normalized = re.sub(r"\\s+", " ", str(targeted or "")).strip()
+            normalized = re.sub(r"\s+", " ", str(targeted or "")).strip()
             key = normalized.casefold()
             if normalized and key not in seen_priority:
                 prioritized.append(normalized)
@@ -1111,6 +1296,48 @@ def _targeted_visual_search_queries(
             if len(prioritized) >= max_searches:
                 break
         searches = prioritized
+
+    # Radar screens need vocabulary matched to the scene's actual exclusions.
+    # These searches only improve discovery; the unchanged pixel MUST/AVOID gate
+    # remains responsible for accepting or rejecting every candidate.
+    radar_context = query_terms | must_tokens
+    radar_scene = (
+        bool({"radar", "radarscope"} & radar_context)
+        and bool({"screen", "display", "monitor", "scope"} & radar_context)
+    )
+    avoid_text = " ".join(str(item or "") for item in (avoid or [])).casefold()
+    radar_avoids_people = re.search(
+        r"\b(?:person|people|human|operator|pilot|man|woman|crowd)\b",
+        avoid_text,
+    )
+    radar_avoids_text = re.search(
+        r"\b(?:text overlay|text|labels|caption)\b",
+        avoid_text,
+    )
+    if radar_scene:
+        if radar_avoids_people:
+            radar_queries = (
+                "air traffic control radar screen empty room no people",
+                "close up radar monitor display without operator",
+                "radar scope monitor screen isolated control panel no people",
+            )
+        elif radar_avoids_text:
+            radar_queries = (
+                "air traffic control radar screen no labels",
+                "aviation radar scope monitor without text overlay",
+                "air traffic control radar display close up blank screen",
+            )
+        else:
+            radar_queries = (
+                "air traffic control radar screen close up",
+                "aviation radar scope monitor control panel",
+                "radar display equipment in control room",
+            )
+        searches = []
+        for targeted in radar_queries:
+            searches.append(targeted)
+            if len(searches) >= max_searches:
+                break
 
     # Prefer archival steam-railway language when a snowy historical train
     # scene excludes high-speed trains. Search terms only improve discovery;
@@ -1134,6 +1361,166 @@ def _targeted_visual_search_queries(
             if key not in seen_train_queries:
                 seen_train_queries.add(key)
                 searches.append(targeted)
+            if len(searches) >= max_searches:
+                break
+
+    # Dyatlov scenes with snow-only MUSTs need historical context in retrieval.
+    # This affects discovery only; pixel MUST/AVOID checks remain unchanged.
+    snow_context = " ".join(
+        (str(query or ""), str(scene_context or ""), *must_text)
+    ).casefold()
+    avoid_context = " ".join(str(item or "") for item in (avoid or [])).casefold()
+    dyatlov_snow_scene = (
+        bool({"snow", "snowy", "snowfall", "winter"} & (query_token_set | must_tokens))
+        and bool(re.search(r"\b(?:dyatlov|otorten|ural)\b", snow_context))
+        and bool(re.search(r"\b(?:hospital interior|blood|hospital|injury)\b", avoid_context))
+    )
+    if dyatlov_snow_scene:
+        searches = []
+        for targeted in (
+            "1959 Dyatlov Pass archival winter expedition campsite snow",
+            "historical Soviet hikers snowy Ural mountain slope 1959",
+            "Dyatlov Pass winter wilderness archival photograph",
+        ):
+            searches.append(targeted)
+            if len(searches) >= max_searches:
+                break
+
+    # Historical Soviet expeditions are better indexed as archival campsite
+    # photographs than as maps/compasses. Keep the snow MUST and all pixel checks.
+    expedition_context = " ".join(
+        (str(query or ""), str(scene_context or ""), *must_text)
+    ).casefold()
+    historical_expedition = (
+        bool(re.search(r"\b(?:soviet|ussr|ural|dyatlov|1950s|1959)\b", expedition_context))
+        and bool(re.search(r"\b(?:expedition|hikers?|mountaineers?|camp|campsite)\b", expedition_context))
+        and bool(re.search(r"\b(?:snow|snowy|snowfall|winter)\b", expedition_context))
+        and bool(re.search(r"\b(?:map|compass|topographic)\b", expedition_context))
+    )
+    if historical_expedition:
+        searches = [
+            "1959 Soviet winter expedition hikers snowy campsite archival photograph",
+            "historic Ural mountain expedition winter snow tent archival photo",
+            "1950s Soviet mountaineers winter expedition snowy forest photograph",
+        ][:max_searches]
+
+    # When no scene-specific strategy applies, keep the selected subject in
+    # the retrieval query so broad catalog terms do not drift to another person
+    # or event. The subject is a search hint only; visual verification is unchanged.
+    if not searches:
+        subject_match = re.search(
+            r"\bASSUNTO\s*:\s*([^\n]+)",
+            str(scene_context or ""),
+            flags=re.IGNORECASE,
+        )
+        subject = re.sub(r"\s+", " ", subject_match.group(1)).strip() if subject_match else ""
+        subject_tokens = set(re.findall(r"[a-z0-9]+", subject.casefold()))
+        if subject and not subject_tokens <= query_token_set:
+            contextual_query = f"{subject} {query}".strip()
+            if len(contextual_query) <= 240:
+                searches.append(contextual_query)
+
+    # Coded letters are catalogued inconsistently. Search for archival letter
+    # photographs using the selected topic as context, while keeping the strict
+    # document MUST and all AVOID checks unchanged.
+    combined_context = " ".join(
+        (str(query or ""), str(scene_context or ""), *must_text)
+    ).casefold()
+    coded_letter_scene = (
+        bool({"letter", "letters"} & query_token_set)
+        and bool(re.search(
+            r"\b(?:code|coded|cipher(?:ed)?|cryptogram|encrypted|encryption|encoded|"
+            r"cifrad[oa]s?|criptograma)\b",
+            combined_context,
+        ))
+    )
+    if coded_letter_scene:
+        if re.search(r"\b(?:zodiac|zod[ií]aco)\b", combined_context):
+            letter_variants = [
+                "Zodiac Killer archival handwritten cipher letter",
+                "1969 Zodiac Killer coded letter on paper",
+                "Zodiac Killer cryptogram letter historical photograph",
+            ]
+        else:
+            letter_variants = [
+                "archival photograph handwritten cipher letter",
+                "historical coded letter on paper close up",
+                "archival handwritten cryptogram document",
+            ]
+        searches = []
+        seen_letter_queries = set()
+        for targeted in letter_variants:
+            key = targeted.casefold()
+            if key not in seen_letter_queries:
+                searches.append(targeted)
+                seen_letter_queries.add(key)
+            if len(searches) >= max_searches:
+                break
+
+    # Historical shipboard supplies are poorly indexed by broad sailing-ship
+    # searches. Improve discovery only; pixel verification remains mandatory.
+    ship_context = " ".join(
+        (str(query or ""), str(scene_context or ""), *must_text)
+    ).casefold()
+    ship_scene = (
+        bool(re.search(r"\b(?:ship|vessel|sailing|mary|celeste)\b", ship_context))
+        and bool(re.search(r"\b(?:provisions?|supplies|barrels?|cargo|food|stores)\b", ship_context))
+    )
+    if ship_scene:
+        subject_match = re.search(
+            r"\bASSUNTO\s*:\s*([^\n]+)",
+            str(scene_context or ""),
+            flags=re.IGNORECASE,
+        )
+        subject = re.sub(r"\s+", " ", subject_match.group(1)).strip() if subject_match else ""
+        ship_variants = [
+            " ".join(part for part in (subject, "sailing ship provisions barrels supplies on wooden deck") if part),
+            "nineteenth century sailing vessel deck with food provisions barrels and cargo",
+            "historic merchant sailing ship interior stores provisions stacked barrels",
+        ]
+        searches = []
+        seen_ship_queries = set()
+        for targeted in ship_variants:
+            normalized = re.sub(r"\s+", " ", targeted).strip()
+            key = normalized.casefold()
+            if normalized and key not in seen_ship_queries:
+                searches.append(normalized)
+                seen_ship_queries.add(key)
+            if len(searches) >= max_searches:
+                break
+
+    # Research scenes about a named manuscript need subject-specific discovery.
+    # This only prioritizes search terms; pixel MUST/AVOID verification is unchanged.
+    manuscript_context = " ".join(
+        (str(query or ""), str(scene_context or ""), *must_text)
+    ).casefold()
+    research_scene = bool(re.search(
+        r"\b(?:researcher|historian|scholar|academic|investigator)\b", manuscript_context
+    ))
+    manuscript_scene = bool(re.search(
+        r"\b(?:manuscript|document|parchment|handwriting|written|book|folio)\b", manuscript_context
+    ))
+    named_manuscript = bool(re.search(
+        r"\b(?:voynich|manuscript|unknown script|coded writing|medieval codex)\b", manuscript_context
+    ))
+    if research_scene and manuscript_scene and named_manuscript:
+        subject_match = re.search(
+            r"\bASSUNTO\s*:\s*([^\n]+)", str(scene_context or ""), flags=re.IGNORECASE
+        )
+        subject = re.sub(r"\s+", " ", subject_match.group(1)).strip() if subject_match else ""
+        manuscript_variants = [
+            " ".join(part for part in (subject, "Voynich manuscript researcher examining manuscript in archive") if part),
+            "historian studying Voynich manuscript handwritten pages close up",
+            "scholar examining medieval manuscript open book archival photograph",
+        ]
+        searches = []
+        seen_manuscript_queries = set()
+        for targeted in manuscript_variants:
+            normalized = re.sub(r"\s+", " ", targeted).strip()
+            key = normalized.casefold()
+            if normalized and key not in seen_manuscript_queries:
+                searches.append(normalized)
+                seen_manuscript_queries.add(key)
             if len(searches) >= max_searches:
                 break
 
@@ -1371,7 +1758,13 @@ def acquire_scene(
         # composition. Try up to two distinct targeted variants even when the
         # first pool has complete MUST metadata; skip any query already used by
         # the main or scene-director search to avoid wasting provider calls.
-        targeted_queries = _targeted_visual_search_queries(query, must, avoid=avoid)
+        topic_context = _topic_context_for_scene(short_id)
+        targeted_queries = _targeted_visual_search_queries(
+            query,
+            must,
+            avoid=avoid,
+            scene_context=f"Scene: {segment}\nASSUNTO: {topic_context}",
+        )
         distinct_targeted_queries = []
         for raw_targeted_query in targeted_queries:
             targeted_query = re.sub(r"\s+", " ", str(raw_targeted_query or "")).strip()
@@ -1515,7 +1908,7 @@ def acquire_scene(
                         path,
                         must,
                         avoid,
-                        query,
+                        _scene_verification_intent(segment, query),
                         candidate,
                     )
                 except Exception as exc:
