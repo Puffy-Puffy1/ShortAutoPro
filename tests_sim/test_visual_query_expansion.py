@@ -30,6 +30,20 @@ class VisualQueryExpansionTests(unittest.TestCase):
         self.assertEqual(len(result), 1)
         self.assertEqual(calls, ["abandoned merchant ship"])
 
+    def test_document_scenes_get_bounded_legal_filing_searches(self):
+        from media_engine_v2 import _targeted_visual_search_queries
+
+        queries = _targeted_visual_search_queries(
+            "legal documents and pen on table",
+            ["document"],
+            avoid=["children"],
+            scene_context="parents filed a separate lawsuit",
+        )
+
+        self.assertIn("court filing legal paperwork on desk", queries)
+        self.assertIn("legal case file document close up", queries)
+        self.assertLessEqual(len(queries), 3)
+
     def test_empty_primary_uses_must_first_rescue(self):
         from visual_query_expansion_v4 import wrap_search_function
 

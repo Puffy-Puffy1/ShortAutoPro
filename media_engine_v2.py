@@ -1035,11 +1035,18 @@ def _targeted_visual_search_queries(
         ]
         if context_terms:
             context_tail = context_terms[-3:]
-            variants = [
-                " ".join([*context_tail, object_phrase]).strip(),
-                " ".join([object_phrase, *context_tail]).strip(),
-                " ".join([context_terms[0], object_phrase, *context_terms[1:]]).strip(),
-            ]
+            if object_phrase.casefold() == "document":
+                variants = [
+                    "court filing legal paperwork on desk",
+                    "legal case file document close up",
+                    " ".join([*context_tail, object_phrase]).strip(),
+                ]
+            else:
+                variants = [
+                    " ".join([*context_tail, object_phrase]).strip(),
+                    " ".join([object_phrase, *context_tail]).strip(),
+                    " ".join([context_terms[0], object_phrase, *context_terms[1:]]).strip(),
+                ]
             for targeted in variants:
                 key = targeted.casefold()
                 if targeted and key not in seen:

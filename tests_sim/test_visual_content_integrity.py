@@ -263,7 +263,7 @@ class VisualDirectorCalendarQueryGuardTests(unittest.TestCase):
             "must_have": ["snow"],
             "avoid": ["modern"],
             "visual_mode": "document",
-            "alt_queries": ["vintage Soviet winter landscape in snow"],
+            "alt_queries": ["vintage soviet winter landscape in snow"],
         }
         proposal = {
             "query": "vintage 1950s Soviet calendar page February",
