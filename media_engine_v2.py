@@ -43,11 +43,23 @@ def _resolution_issue(probe: dict[str, Any]) -> str | None:
         return f"LOW_RESOLUTION:{width}x{height}"
     return None
 
+def _relevance_token(value: Any) -> str:
+    """Normalize common English inflections so a MUST cannot count as context."""
+    token = str(value or "").casefold()
+    if len(token) > 4 and token.endswith("ers"):
+        return token[:-3]
+    if len(token) > 4 and token.endswith("ies"):
+        return token[:-3] + "y"
+    if len(token) > 3 and token.endswith("s") and not token.endswith("ss"):
+        return token[:-1]
+    return token
+
+
 def _relaxed_relevance_acceptable(
     candidate: dict[str, Any],
     must: list[str],
 ) -> bool:
-    """Require one contextual query match beyond the independently verified MUST."""
+    """Require contextual evidence beyond the independently verified MUST."""
     relevance = candidate.get("query_relevance")
     if not isinstance(relevance, dict) or relevance.get("ok") is True:
         return True
@@ -56,21 +68,19 @@ def _relaxed_relevance_acceptable(
     if not isinstance(matched_terms, (list, tuple, set)):
         return False
     must_tokens = {
-        token
+        _relevance_token(token)
         for item in must
         for token in re.findall(r"[a-z0-9]+", str(item).casefold())
     }
-    # Catalog namespace/type words are not evidence that the image depicts
-    # the requested scene. They cannot be the only relaxed-context match.
-    weak_context_terms = {"file"}
+    # Inflections of a MUST are not independent context evidence:
+    # "ski" cannot validate "skiers" by itself.
     contextual_matches = [
-        str(term).casefold()
+        _relevance_token(term)
         for term in matched_terms
-        if str(term).casefold() not in must_tokens
-        and str(term).casefold() not in weak_context_terms
+        if _relevance_token(term) not in must_tokens
+        and _relevance_token(term) != "file"
     ]
     return bool(contextual_matches)
-
 
 _NON_PHOTOGRAPHIC_METADATA = re.compile(
     r"\b(?:icons?|logos?|pictograms?|clipart|glyphs?|pinhead|svg)\b",

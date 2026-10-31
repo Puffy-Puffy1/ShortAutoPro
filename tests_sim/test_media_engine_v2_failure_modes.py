@@ -1380,3 +1380,17 @@ class VisualSceneIntentNormalizationTests(unittest.TestCase):
             ["town", "snow"],
         )
         self.assertEqual(intent, "historic Russian town with wooden houses in snow")
+
+
+class VisualRelevanceInflectionTests(unittest.TestCase):
+    def test_must_inflection_does_not_count_as_independent_context(self):
+        candidate = {"query_relevance": {"ok": False, "matched_terms": ["ski"]}}
+        self.assertFalse(
+            media_engine_v2._relaxed_relevance_acceptable(candidate, ["skiers"])
+        )
+
+    def test_independent_context_still_allows_relaxed_relevance(self):
+        candidate = {"query_relevance": {"ok": False, "matched_terms": ["ski", "Soviet"]}}
+        self.assertTrue(
+            media_engine_v2._relaxed_relevance_acceptable(candidate, ["skiers"])
+        )
