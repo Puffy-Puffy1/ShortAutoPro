@@ -422,9 +422,16 @@ def load_scene_map(short_id: str) -> list[dict[str, Any]]:
             raw_avoid = []
         normalized_avoid = []
         moved_style_avoids = []
+        removed_vague_avoids = []
         for raw_avoid_item in raw_avoid:
             avoid_item = str(raw_avoid_item or "").strip()
             key = avoid_item.casefold()
+            # These generic labels have no observable visual meaning. Sending
+            # them to pixel verification creates false rejections; concrete
+            # exclusions (phones, modern equipment, etc.) remain enforced.
+            if key in {"wrong person", "unrelated event"}:
+                removed_vague_avoids.append(avoid_item)
+                continue
             if period_context and key in {
                 "modern",
                 "contemporary",
@@ -438,6 +445,15 @@ def load_scene_map(short_id: str) -> list[dict[str, Any]]:
                 continue
             if avoid_item:
                 normalized_avoid.append(avoid_item)
+        if removed_vague_avoids:
+            print(
+                "SCENE_AVOID_VAGUE_REMOVED="
+                + json.dumps(
+                    {"scene": scene_id, "removed": removed_vague_avoids},
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                )
+            )
         if moved_style_avoids:
             style_preference = "period-appropriate historical appearance"
             if style_preference.casefold() not in {

@@ -1394,3 +1394,27 @@ class VisualRelevanceInflectionTests(unittest.TestCase):
         self.assertTrue(
             media_engine_v2._relaxed_relevance_acceptable(candidate, ["skiers"])
         )
+
+
+class VisualAvoidNormalizationTests(unittest.TestCase):
+    def test_vague_avoids_are_removed_but_concrete_exclusions_remain(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            routes = base / "roteiros"
+            routes.mkdir()
+            (routes / "scene_map_X.json").write_text(
+                json.dumps({
+                    "scenes": [{
+                        "scene": 1,
+                        "segment": "Mary Celeste ship near Haiti",
+                        "query": "historic ship near Haitian coastline",
+                        "must_have": [],
+                        "avoid": ["wrong person", "unrelated event", "modern smartphone"],
+                    }]
+                }),
+                encoding="utf-8",
+            )
+            with patch.object(media_engine_v2, "BASE", base):
+                scenes = media_engine_v2.load_scene_map("X")
+
+        self.assertEqual(scenes[0]["avoid"], ["modern smartphone"])
