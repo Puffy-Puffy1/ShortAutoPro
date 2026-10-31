@@ -1524,6 +1524,32 @@ def _targeted_visual_search_queries(
             if len(searches) >= max_searches:
                 break
 
+    # A distressed-woman scene needs real low-light composition, not generic portraits.
+    # These are retrieval hints only; the same pixel MUST/AVOID checks remain mandatory.
+    woman_shadow_context = query_token_set | must_tokens
+    woman_shadow_scene = (
+        bool({"woman", "women", "female"} & woman_shadow_context)
+        and bool({"shadow", "shadows", "silhouette"} & woman_shadow_context)
+        and bool({"room", "interior", "bedroom"} & woman_shadow_context)
+        and bool(re.search(r"\\b(?:bright lighting|bright|daylight|party|happy)\\b", avoid_text))
+    )
+    if woman_shadow_scene:
+        woman_shadow_variants = [
+            "archival photograph of woman sitting alone in a dim room with deep shadows",
+            "1970s woman silhouette sitting alone in shadowed interior",
+            "documentary portrait of distressed woman in low light with wall shadow",
+        ]
+        searches = []
+        seen_woman_shadow_queries = set()
+        for targeted in woman_shadow_variants:
+            normalized = re.sub(r"\\s+", " ", targeted).strip()
+            key = normalized.casefold()
+            if normalized and key not in seen_woman_shadow_queries:
+                searches.append(normalized)
+                seen_woman_shadow_queries.add(key)
+            if len(searches) >= max_searches:
+                break
+
     return searches
 
 

@@ -1414,6 +1414,29 @@ class TargetedManuscriptResearchSearchTests(unittest.TestCase):
         self.assertFalse(any("Voynich" in query for query in queries))
 
 
+class TargetedWomanShadowSearchTests(unittest.TestCase):
+    def test_distressed_woman_shadow_scene_prioritizes_low_light_photographs(self):
+        queries = media_engine_v2._targeted_visual_search_queries(
+            "distressed young woman sitting alone room shadow",
+            ["woman", "shadow"],
+            avoid=["happy", "party", "bright lighting"],
+        )
+        self.assertEqual(len(queries), 3)
+        self.assertEqual(
+            queries[0],
+            "archival photograph of woman sitting alone in a dim room with deep shadows",
+        )
+        self.assertIn("shadowed interior", queries[1])
+        self.assertIn("low light", queries[2])
+
+    def test_ordinary_woman_portrait_does_not_trigger_shadow_scene_queries(self):
+        queries = media_engine_v2._targeted_visual_search_queries(
+            "woman portrait outdoors in daylight",
+            ["woman"],
+        )
+        self.assertFalse(any("shadowed interior" in query for query in queries))
+
+
 if __name__=="__main__": unittest.main()
 
 
