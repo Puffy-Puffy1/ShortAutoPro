@@ -41,7 +41,7 @@ def audio_duration(path:Path)->float:
 def render_segmented(chunks:list[dict[str,Any]],work:Path,env:dict[str,str])->Path:
  wavs=[]
  for i,ch in enumerate(chunks,1):
-  source_wav=work/f"chunk_{i:02d}_piper.wav";wav=work/f"chunk_{i:02d}.wav";piper_wav(str(ch.get("text","")),source_wav,env);tempo=bounded_value(ch.get("tempo"),1.0,0.90,1.10);pause=max(0,min(700,int(ch.get("pause_ms",150) or 150)))/1000
+  source_wav=work/f"chunk_{i:02d}_piper.wav";wav=work/f"chunk_{i:02d}.wav";piper_wav(str(ch.get("tts_text") or ch.get("text","")),source_wav,env);tempo=bounded_value(ch.get("tempo"),1.0,0.90,1.10);pause=max(0,min(700,int(ch.get("pause_ms",150) or 150)))/1000
   filt=f"atempo={tempo:.4f},aresample=44100,apad=pad_dur={pause:.3f}"
   run_group(["ffmpeg","-y","-loglevel","error","-i",str(source_wav),"-af",filt,"-ar","44100","-ac","1","-c:a","pcm_s16le",str(wav)],check=True,timeout=120);wavs.append(wav)
  concat=work/"chunks.txt";concat.write_text("".join("file '"+str(p).replace("'","'\\''")+"'\n" for p in wavs),encoding="utf-8");combined=work/"speech.wav";run_group(["ffmpeg","-y","-loglevel","error","-f","concat","-safe","0","-i",str(concat),"-c:a","pcm_s16le",str(combined)],check=True,timeout=120);return combined
