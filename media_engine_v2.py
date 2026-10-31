@@ -1489,6 +1489,41 @@ def _targeted_visual_search_queries(
             if len(searches) >= max_searches:
                 break
 
+    # Research scenes about a named manuscript need subject-specific discovery.
+    # This only prioritizes search terms; pixel MUST/AVOID verification is unchanged.
+    manuscript_context = " ".join(
+        (str(query or ""), str(scene_context or ""), *must_text)
+    ).casefold()
+    research_scene = bool(re.search(
+        r"\b(?:researcher|historian|scholar|academic|investigator)\b", manuscript_context
+    ))
+    manuscript_scene = bool(re.search(
+        r"\b(?:manuscript|document|parchment|handwriting|written|book|folio)\b", manuscript_context
+    ))
+    named_manuscript = bool(re.search(
+        r"\b(?:voynich|manuscript|unknown script|coded writing|medieval codex)\b", manuscript_context
+    ))
+    if research_scene and manuscript_scene and named_manuscript:
+        subject_match = re.search(
+            r"\bASSUNTO\s*:\s*([^\n]+)", str(scene_context or ""), flags=re.IGNORECASE
+        )
+        subject = re.sub(r"\s+", " ", subject_match.group(1)).strip() if subject_match else ""
+        manuscript_variants = [
+            " ".join(part for part in (subject, "Voynich manuscript researcher examining manuscript in archive") if part),
+            "historian studying Voynich manuscript handwritten pages close up",
+            "scholar examining medieval manuscript open book archival photograph",
+        ]
+        searches = []
+        seen_manuscript_queries = set()
+        for targeted in manuscript_variants:
+            normalized = re.sub(r"\s+", " ", targeted).strip()
+            key = normalized.casefold()
+            if normalized and key not in seen_manuscript_queries:
+                searches.append(normalized)
+                seen_manuscript_queries.add(key)
+            if len(searches) >= max_searches:
+                break
+
     return searches
 
 

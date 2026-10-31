@@ -1391,6 +1391,29 @@ class TargetedShipSuppliesSearchTests(unittest.TestCase):
         self.assertEqual(queries, [])
 
 
+class TargetedManuscriptResearchSearchTests(unittest.TestCase):
+    def test_named_voynich_research_scene_prioritizes_subject_specific_queries(self):
+        queries = media_engine_v2._targeted_visual_search_queries(
+            "researcher looking at ancient document in academic archive",
+            ["researcher", "document"],
+            scene_context="ASSUNTO: Gerard Cheshire e o Manuscrito Voynich",
+        )
+        self.assertEqual(len(queries), 3)
+        self.assertIn(
+            "Gerard Cheshire e o Manuscrito Voynich Voynich manuscript researcher examining manuscript in archive",
+            queries,
+        )
+        self.assertTrue(any("Voynich" in query for query in queries))
+        self.assertTrue(any("handwritten pages" in query for query in queries))
+
+    def test_generic_research_scene_does_not_trigger_voynich_queries(self):
+        queries = media_engine_v2._targeted_visual_search_queries(
+            "researcher looking at ancient document in academic archive",
+            ["researcher", "document"],
+        )
+        self.assertFalse(any("Voynich" in query for query in queries))
+
+
 if __name__=="__main__": unittest.main()
 
 
