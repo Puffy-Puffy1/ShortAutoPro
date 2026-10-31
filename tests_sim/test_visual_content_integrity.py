@@ -254,5 +254,55 @@ class VisualContentIntegrityTests(unittest.TestCase):
         self.assertIn("sucesso = True", block)
 
 
+class VisualDirectorCalendarQueryGuardTests(unittest.TestCase):
+    def test_date_only_narration_rejects_calendar_added_by_ai(self):
+        original = {
+            "scene": 5,
+            "segment": "na antiga União Soviética, na noite de 2 de fevereiro de 1959.",
+            "query": "vintage 1950s Soviet winter landscape",
+            "must_have": ["snow"],
+            "avoid": ["modern"],
+            "visual_mode": "document",
+            "alt_queries": ["vintage Soviet winter landscape in snow"],
+        }
+        proposal = {
+            "query": "vintage 1950s Soviet calendar page February",
+            "must_have": ["snow"],
+            "avoid": ["modern"],
+            "alt_queries": [
+                "Soviet calendar page February 1959",
+                "old February calendar sheet",
+            ],
+        }
+
+        result, report = visual_director.safe_scene(original, proposal)
+
+        self.assertEqual(result["query"], original["query"])
+        self.assertEqual(result["alt_queries"], original["alt_queries"])
+        self.assertIn(
+            "unsupported_calendar_query_reverted_to_scene_context",
+            report["query_adjustments"],
+        )
+
+    def test_explicit_calendar_narration_can_keep_calendar_query(self):
+        original = {
+            "scene": 5,
+            "segment": "A página do calendário soviético mostrava 2 de fevereiro de 1959.",
+            "query": "vintage Soviet archival document page",
+            "must_have": ["document"],
+            "avoid": ["modern"],
+        }
+        proposal = {
+            "query": "vintage 1950s Soviet calendar page February",
+            "must_have": ["document"],
+            "avoid": ["modern"],
+        }
+
+        result, report = visual_director.safe_scene(original, proposal)
+
+        self.assertIn("calendar", result["query"].casefold())
+        self.assertEqual(report["query_adjustments"], [])
+
+
 if __name__ == "__main__":
     unittest.main()

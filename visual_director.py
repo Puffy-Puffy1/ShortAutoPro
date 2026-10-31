@@ -65,6 +65,11 @@ def tokens(value: Any) -> set[str]:
     return {x for x in re.findall(r"[a-z0-9]+", norm(value)) if len(x) >= 3}
 
 
+def mentions_calendar(value: Any) -> bool:
+    """Return whether the narration explicitly asks for a calendar/agenda visual."""
+    return bool(re.search(r"\b(?:calendar|calendario|agenda)\b", norm(value)))
+
+
 def atomic_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent))
@@ -197,6 +202,23 @@ def safe_scene(original: dict[str, Any], proposal: dict[str, Any] | None) -> tup
     query = clean(p.get("query"))
     if not 5 <= len(query.split()) <= 16:
         query = fallback["query"]
+    query_adjustments: list[str] = []
+    alt_queries = clean_list(p.get("alt_queries"), 3)
+    # A date in the narration is not a request to show a calendar. Do not let
+    # the AI director introduce that object when the source scene asks for
+    # historical place/weather imagery; keep the original query contract.
+    if (
+        re.search(r"\bcalendar\b", norm(query))
+        and not mentions_calendar(fallback["segment"])
+        and not re.search(r"\bcalendar\b", norm(fallback["query"]))
+    ):
+        query = fallback["query"]
+        safe_alternates = [
+            item for item in fallback["alt_queries"]
+            if not re.search(r"\bcalendar\b", norm(item))
+        ]
+        alt_queries = safe_alternates[:3] or [query]
+        query_adjustments.append("unsupported_calendar_query_reverted_to_scene_context")
     must = clean_list(p.get("must_have"), 4) or fallback["must_have"]
     avoid = clean_list(p.get("avoid"), 6) or fallback["avoid"]
     shot = norm(p.get("shot_type")).replace(" ", "_")
@@ -229,7 +251,7 @@ def safe_scene(original: dict[str, Any], proposal: dict[str, Any] | None) -> tup
         "must_have": must,
         "avoid": avoid,
         "query": query,
-        "alt_queries": clean_list(p.get("alt_queries"), 3),
+        "alt_queries": alt_queries,
         "protected_zone": norm(p.get("protected_zone")) if norm(p.get("protected_zone")) in {"center", "top", "bottom", "left", "right"} else "center",
     }
     if not fields["alt_queries"]:
@@ -238,7 +260,13 @@ def safe_scene(original: dict[str, Any], proposal: dict[str, Any] | None) -> tup
 
     completeness = sum(bool(fields[k]) for k in ("main_subject", "emotion", "shot_type", "movement", "must_have", "avoid", "query", "alt_queries"))
     score = round(100.0 * completeness / 8.0, 1)
-    report = {"scene": int(original["scene"]), "contract_score": score, **fields, "reason": clean(p.get("reason"))}
+    report = {
+        "scene": int(original["scene"]),
+        "contract_score": score,
+        "query_adjustments": query_adjustments,
+        **fields,
+        "reason": clean(p.get("reason")),
+    }
     return out, report
 
 
