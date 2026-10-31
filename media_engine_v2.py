@@ -1457,6 +1457,38 @@ def _targeted_visual_search_queries(
             if len(searches) >= max_searches:
                 break
 
+    # Historical shipboard supplies are poorly indexed by broad sailing-ship
+    # searches. Improve discovery only; pixel verification remains mandatory.
+    ship_context = " ".join(
+        (str(query or ""), str(scene_context or ""), *must_text)
+    ).casefold()
+    ship_scene = (
+        bool(re.search(r"\b(?:ship|vessel|sailing|mary|celeste)\b", ship_context))
+        and bool(re.search(r"\b(?:provisions?|supplies|barrels?|cargo|food|stores)\b", ship_context))
+    )
+    if ship_scene:
+        subject_match = re.search(
+            r"\bASSUNTO\s*:\s*([^\n]+)",
+            str(scene_context or ""),
+            flags=re.IGNORECASE,
+        )
+        subject = re.sub(r"\s+", " ", subject_match.group(1)).strip() if subject_match else ""
+        ship_variants = [
+            " ".join(part for part in (subject, "sailing ship provisions barrels supplies on wooden deck") if part),
+            "nineteenth century sailing vessel deck with food provisions barrels and cargo",
+            "historic merchant sailing ship interior stores provisions stacked barrels",
+        ]
+        searches = []
+        seen_ship_queries = set()
+        for targeted in ship_variants:
+            normalized = re.sub(r"\s+", " ", targeted).strip()
+            key = normalized.casefold()
+            if normalized and key not in seen_ship_queries:
+                searches.append(normalized)
+                seen_ship_queries.add(key)
+            if len(searches) >= max_searches:
+                break
+
     return searches
 
 

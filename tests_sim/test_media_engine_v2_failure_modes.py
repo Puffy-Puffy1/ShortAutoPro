@@ -1361,6 +1361,36 @@ class MediaEngineV2FailureTests(unittest.TestCase):
         self.assertIn("light single engine airplane over dark sea at night", lowered)
         self.assertIn("single engine plane in flight above ocean at night", lowered)
 
+class TargetedShipSuppliesSearchTests(unittest.TestCase):
+    def test_historical_ship_provisions_get_specific_bounded_queries(self):
+        queries = media_engine_v2._targeted_visual_search_queries(
+            "ship provisions barrels and supplies on wooden deck",
+            [],
+            scene_context="ASSUNTO: O desaparecimento da tripulação do navio Mary Celeste",
+        )
+        self.assertEqual(len(queries), 3)
+        lowered = [query.casefold() for query in queries]
+        self.assertIn(
+            "o desaparecimento da tripulação do navio mary celeste sailing ship provisions barrels supplies on wooden deck",
+            lowered,
+        )
+        self.assertIn(
+            "nineteenth century sailing vessel deck with food provisions barrels and cargo",
+            lowered,
+        )
+        self.assertIn(
+            "historic merchant sailing ship interior stores provisions stacked barrels",
+            lowered,
+        )
+
+    def test_unrelated_ship_scene_does_not_trigger_supplies_queries(self):
+        queries = media_engine_v2._targeted_visual_search_queries(
+            "abandoned sailing ship at sea",
+            [],
+        )
+        self.assertEqual(queries, [])
+
+
 if __name__=="__main__": unittest.main()
 
 
