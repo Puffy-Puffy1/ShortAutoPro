@@ -44,6 +44,56 @@ class VisualQueryExpansionTests(unittest.TestCase):
         self.assertIn("legal case file document close up", queries)
         self.assertLessEqual(len(queries), 3)
 
+    def test_document_scenes_get_legal_searches_only_with_legal_narration(self):
+        from media_engine_v2 import _targeted_visual_search_queries
+
+        queries = _targeted_visual_search_queries(
+            "legal documents and pen on table",
+            ["document"],
+            avoid=["children"],
+            scene_context="Scene: parents filed a separate lawsuit",
+        )
+
+        self.assertEqual(
+            queries,
+            [
+                "court filing legal paperwork on desk",
+                "legal case file document close up",
+                "archival court record documents on table",
+            ],
+        )
+
+    def test_medical_document_scene_does_not_get_legal_searches(self):
+        from media_engine_v2 import _targeted_visual_search_queries
+
+        queries = _targeted_visual_search_queries(
+            "medical examination paperwork medical record close up",
+            ["document"],
+            scene_context="Scene: a doctor reviews a medical examination report",
+        )
+
+        self.assertFalse(any("court filing" in query for query in queries))
+        self.assertFalse(any("legal case file" in query for query in queries))
+
+    def test_empty_ship_deck_search_respects_no_crowd_context(self):
+        from media_engine_v2 import _targeted_visual_search_queries
+
+        queries = _targeted_visual_search_queries(
+            "empty deck of vintage wooden ship",
+            ["deck"],
+            avoid=["crowd"],
+            scene_context=(
+                "Scene: the abandoned vessel deck\n"
+                "ASSUNTO: The disappearance of the Mary Celeste crew"
+            ),
+        )
+
+        self.assertIn(
+            "The disappearance of the Mary Celeste crew empty wooden sailing ship deck with no crowd",
+            queries,
+        )
+        self.assertLessEqual(len(queries), 3)
+
     def test_empty_primary_uses_must_first_rescue(self):
         from visual_query_expansion_v4 import wrap_search_function
 

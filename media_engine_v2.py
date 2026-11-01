@@ -1035,18 +1035,11 @@ def _targeted_visual_search_queries(
         ]
         if context_terms:
             context_tail = context_terms[-3:]
-            if object_phrase.casefold() == "document":
-                variants = [
-                    "court filing legal paperwork on desk",
-                    "legal case file document close up",
-                    " ".join([*context_tail, object_phrase]).strip(),
-                ]
-            else:
-                variants = [
-                    " ".join([*context_tail, object_phrase]).strip(),
-                    " ".join([object_phrase, *context_tail]).strip(),
-                    " ".join([context_terms[0], object_phrase, *context_terms[1:]]).strip(),
-                ]
+            variants = [
+                " ".join([*context_tail, object_phrase]).strip(),
+                " ".join([object_phrase, *context_tail]).strip(),
+                " ".join([context_terms[0], object_phrase, *context_terms[1:]]).strip(),
+            ]
             for targeted in variants:
                 key = targeted.casefold()
                 if targeted and key not in seen:
@@ -1496,6 +1489,30 @@ def _targeted_visual_search_queries(
             if len(searches) >= max_searches:
                 break
 
+    # Empty ship decks are often indexed as generic sailing-ship photos.
+    # Add deck-specific retrieval hints when crowds are explicitly excluded;
+    # the same pixel-level AVOID checks still decide whether an image can pass.
+    ship_deck_context = " ".join(
+        (str(query or ""), str(scene_context or ""), *must_text)
+    ).casefold()
+    ship_deck_without_crowd = (
+        bool(re.search(r"\b(?:ship|vessel|sailing|mary|celeste)\b", ship_deck_context))
+        and bool(re.search(r"\bdeck\b", ship_deck_context))
+        and bool(re.search(r"\b(?:crowd|people|person|human)\b", avoid_text))
+    )
+    if ship_deck_without_crowd:
+        subject_match = re.search(
+            r"\bASSUNTO\s*:\s*([^\n]+)",
+            str(scene_context or ""),
+            flags=re.IGNORECASE,
+        )
+        subject = re.sub(r"\s+", " ", subject_match.group(1)).strip() if subject_match else ""
+        searches = [
+            " ".join(part for part in (subject, "empty wooden sailing ship deck with no crowd") if part),
+            "nineteenth century sailing vessel empty deck no crowd",
+            "historic merchant ship deck without people or crowd",
+        ][:max_searches]
+
     # Research scenes about a named manuscript need subject-specific discovery.
     # This only prioritizes search terms; pixel MUST/AVOID verification is unchanged.
     manuscript_context = " ".join(
@@ -1556,6 +1573,24 @@ def _targeted_visual_search_queries(
                 seen_woman_shadow_queries.add(key)
             if len(searches) >= max_searches:
                 break
+
+    # Add legal-record vocabulary only when the narration establishes a legal
+    # context. Retrieval changes do not relax the pixel-level acceptance gate.
+    legal_context = str(scene_context or "").casefold()
+    legal_document_scene = (
+        "document" in must_tokens
+        and bool(re.search(
+            r"\b(?:lawsuit|litigation|court|judge|hearing|trial|plaintiff|attorney|lawyer|"
+            r"judicial|courtroom|legal filing)\b",
+            legal_context,
+        ))
+    )
+    if legal_document_scene:
+        searches = [
+            "court filing legal paperwork on desk",
+            "legal case file document close up",
+            "archival court record documents on table",
+        ][:max_searches]
 
     return searches
 
