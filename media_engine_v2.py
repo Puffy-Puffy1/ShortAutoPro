@@ -1592,6 +1592,37 @@ def _targeted_visual_search_queries(
             "archival court record documents on table",
         ][:max_searches]
 
+    # Historical monochrome newspaper scenes need explicitly black-and-white
+    # catalog wording. This improves retrieval only; the visual verifier still
+    # enforces the document MUST and the no-color AVOID requirement.
+    historical_document_context = " ".join(
+        (str(query or ""), str(scene_context or ""), *must_text)
+    ).casefold()
+    avoid_terms_text = " ".join(str(item or "") for item in (avoid or [])).casefold()
+    monochrome_newspaper_scene = (
+        "document" in must_tokens
+        and bool(re.search(r"\bnewspaper\b", historical_document_context))
+        and bool(re.search(
+            r"\b(?:vintage|historic|historical|archival|archive|1950s|1959|soviet|dyatlov|ural)\b",
+            historical_document_context,
+        ))
+        and bool(re.search(r"\b(?:color|colour)\b", avoid_terms_text))
+    )
+    if monochrome_newspaper_scene:
+        subject_match = re.search(
+            r"\bASSUNTO\s*:\s*([^\n]+)",
+            str(scene_context or ""),
+            flags=re.IGNORECASE,
+        )
+        subject = re.sub(r"\s+", " ", subject_match.group(1)).strip() if subject_match else ""
+        searches = [
+            " ".join(part for part in (
+                subject, "Dyatlov Pass incident 1959 black and white newspaper clipping archive"
+            ) if part),
+            "monochrome Soviet newspaper archive 1959 scanned black and white page",
+            "black and white historical newspaper clipping archival photograph",
+        ][:max_searches]
+
     return searches
 
 

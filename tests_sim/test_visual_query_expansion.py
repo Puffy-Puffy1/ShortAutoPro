@@ -94,6 +94,29 @@ class VisualQueryExpansionTests(unittest.TestCase):
         )
         self.assertLessEqual(len(queries), 3)
 
+    def test_historical_newspaper_with_color_avoid_prioritizes_monochrome_search(self):
+        from media_engine_v2 import _targeted_visual_search_queries
+
+        queries = _targeted_visual_search_queries(
+            "vintage tragedy newspaper archive document photo",
+            ["document"],
+            avoid=["color", "modern"],
+            scene_context=(
+                "Scene: the Dyatlov Pass incident began in 1959\n"
+                "ASSUNTO: O caso das mortes no Passo Dyatlov"
+            ),
+        )
+
+        self.assertEqual(
+            queries,
+            [
+                "O caso das mortes no Passo Dyatlov Dyatlov Pass incident 1959 black and white newspaper clipping archive",
+                "monochrome Soviet newspaper archive 1959 scanned black and white page",
+                "black and white historical newspaper clipping archival photograph",
+            ],
+        )
+        self.assertLessEqual(len(queries), 3)
+
     def test_empty_primary_uses_must_first_rescue(self):
         from visual_query_expansion_v4 import wrap_search_function
 
