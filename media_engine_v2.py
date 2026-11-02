@@ -1632,10 +1632,10 @@ def _targeted_visual_search_queries(
         "document" in must_tokens
         and bool(re.search(
             r"\b(?:investigation|investigations|investigative|investigator|investigators|"
-            r"investigação|investigações|investigador|investigadores|witnesses|testemunhas)\\b",
+            r"investigação|investigações|investigador|investigadores|witnesses|testemunhas)\b",
             investigation_context,
         ))
-        and bool(re.search(r"\b(?:dyatlov|ural|soviet|1959)\\b", investigation_context))
+        and bool(re.search(r"\b(?:dyatlov|ural|soviet|1959)\b", investigation_context))
     )
     if historical_investigation_document:
         searches = [
