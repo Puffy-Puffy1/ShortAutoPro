@@ -304,5 +304,75 @@ class VisualDirectorCalendarQueryGuardTests(unittest.TestCase):
         self.assertEqual(report["query_adjustments"], [])
 
 
+
+
+class VisualDirectorStrictConstraintTests(unittest.TestCase):
+    def test_ai_cannot_promote_query_details_into_hard_requirements(self):
+        original = {
+            "scene": 1,
+            "segment": "Por que esquiadores experientes rasgaram suas próprias barracas",
+            "query": "skiers ripping tent fabric in snow",
+            "must_have": ["tent"],
+            "avoid": ["smartphone", "digital"],
+        }
+        proposal = {
+            "query": "torn canvas tent fabric in winter snow",
+            "must_have": ["tent fabric", "snow", "tear"],
+            "avoid": ["modern equipment"],
+        }
+
+        result, report = visual_director.safe_scene(original, proposal)
+
+        self.assertEqual(result["must_have"], ["tent"])
+        self.assertEqual(result["avoid"], ["smartphone", "digital"])
+        self.assertEqual(
+            result["preferred_visuals"],
+            ["tent fabric", "snow", "tear"],
+        )
+        self.assertEqual(
+            report["rejected_generated_musts"],
+            ["tent fabric", "snow", "tear"],
+        )
+        self.assertEqual(
+            report["rejected_generated_avoids"],
+            ["modern equipment"],
+        )
+        self.assertTrue(report["hard_contract_preserved"])
+        self.assertIn(
+            "unsupported_ai_constraints_rejected",
+            report["query_adjustments"],
+        )
+
+    def test_ai_cannot_invent_hard_requirements_when_scene_has_none(self):
+        original = {
+            "scene": 2,
+            "segment": "Uma paisagem de inverno",
+            "query": "archival winter landscape",
+            "must_have": [],
+            "avoid": [],
+        }
+
+        result, report = visual_director.safe_scene(
+            original,
+            {
+                "query": "snowy archival winter landscape",
+                "must_have": ["snow", "mountain"],
+                "avoid": ["modern vehicles"],
+            },
+        )
+
+        self.assertEqual(result["must_have"], [])
+        self.assertEqual(result["avoid"], [])
+        self.assertEqual(result["preferred_visuals"], ["snow", "mountain"])
+        self.assertEqual(
+            report["rejected_generated_musts"],
+            ["snow", "mountain"],
+        )
+        self.assertEqual(
+            report["rejected_generated_avoids"],
+            ["modern vehicles"],
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -146,8 +146,8 @@ Para cada cena, devolva:
 - emotion: atmosfera editorial, não alegação factual;
 - shot_type: wide|medium|close_up|detail|overhead|aerial|portrait|document;
 - movement: none|hold|pan_left|pan_right|zoom_in|zoom_out|parallax|native;
-- must_have: 1–4 elementos obrigatórios sustentados;
-- avoid: 2–6 elementos que causariam representação errada/genérica;
+- must_have: repita exatamente os requisitos rígidos recebidos; não crie, remova ou substitua MUSTs;
+- avoid: repita exatamente as exclusões rígidas recebidas; não crie, remova ou substitua AVOIDs;
 - query: busca principal em inglês, 5–14 palavras;
 - alt_queries: 2–3 buscas alternativas em inglês, semanticamente equivalentes;
 - protected_zone: center|top|bottom|left|right, onde assunto importante tende a ficar;
@@ -219,8 +219,33 @@ def safe_scene(original: dict[str, Any], proposal: dict[str, Any] | None) -> tup
         ]
         alt_queries = safe_alternates[:3] or [query]
         query_adjustments.append("unsupported_calendar_query_reverted_to_scene_context")
-    must = clean_list(p.get("must_have"), 4) or fallback["must_have"]
-    avoid = clean_list(p.get("avoid"), 6) or fallback["avoid"]
+    # The approved scene contract is the only source of hard MUST/AVOID rules.
+    # AI may improve retrieval, but it cannot turn query/narration details into
+    # additional pixel-level requirements or silently remove existing rules.
+    generated_musts = clean_list(p.get("must_have"), 4)
+    generated_avoids = clean_list(p.get("avoid"), 6)
+    must = list(fallback["must_have"])
+    avoid = list(fallback["avoid"])
+
+    must_keys = {item.casefold() for item in must}
+    avoid_keys = {item.casefold() for item in avoid}
+    rejected_generated_musts = [
+        item for item in generated_musts if item.casefold() not in must_keys
+    ]
+    rejected_generated_avoids = [
+        item for item in generated_avoids if item.casefold() not in avoid_keys
+    ]
+
+    # Keep extra visual detail as a retrieval preference, never as a hard gate.
+    preferred_visuals = clean_list(original.get("preferred_visuals"), 8)
+    preferred_keys = {item.casefold() for item in preferred_visuals}
+    for item in rejected_generated_musts:
+        if item.casefold() not in preferred_keys and len(preferred_visuals) < 8:
+            preferred_visuals.append(item)
+            preferred_keys.add(item.casefold())
+
+    if rejected_generated_musts or rejected_generated_avoids:
+        query_adjustments.append("unsupported_ai_constraints_rejected")
     shot = norm(p.get("shot_type")).replace(" ", "_")
     if shot not in ALLOWED_SHOTS:
         shot = norm(fallback["shot_type"]).replace(" ", "_")
@@ -250,6 +275,7 @@ def safe_scene(original: dict[str, Any], proposal: dict[str, Any] | None) -> tup
         "movement": movement,
         "must_have": must,
         "avoid": avoid,
+        "preferred_visuals": preferred_visuals,
         "query": query,
         "alt_queries": alt_queries,
         "protected_zone": norm(p.get("protected_zone")) if norm(p.get("protected_zone")) in {"center", "top", "bottom", "left", "right"} else "center",
@@ -264,6 +290,9 @@ def safe_scene(original: dict[str, Any], proposal: dict[str, Any] | None) -> tup
         "scene": int(original["scene"]),
         "contract_score": score,
         "query_adjustments": query_adjustments,
+        "rejected_generated_musts": rejected_generated_musts,
+        "rejected_generated_avoids": rejected_generated_avoids,
+        "hard_contract_preserved": True,
         **fields,
         "reason": clean(p.get("reason")),
     }
