@@ -125,7 +125,7 @@ class VisualQueryExpansionTests(unittest.TestCase):
             ["document"],
             avoid=["digital computer screen"],
             scene_context=(
-                "Scene: A ausência de testemunhas e as investigações subsequentes\\n"
+                "Scene: A ausência de testemunhas e as investigações subsequentes\n"
                 "ASSUNTO: O caso das mortes no Passo Dyatlov"
             ),
         )

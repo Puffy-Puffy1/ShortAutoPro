@@ -1060,7 +1060,7 @@ def _targeted_visual_search_queries(
     night_snow_scene = (
         bool({"snow", "snowy", "snowfall", "winter"} & query_token_set)
         and bool({"night", "nighttime", "dark", "moonlit"} & query_token_set)
-        and ("daylight" in avoid_text or re.search(r"\\bsun\\b", avoid_text))
+        and ("daylight" in avoid_text or re.search(r"\bsun\\b", avoid_text))
     )
     if night_snow_scene:
         night_variants = [
@@ -1631,11 +1631,11 @@ def _targeted_visual_search_queries(
     historical_investigation_document = (
         "document" in must_tokens
         and bool(re.search(
-            r"\\b(?:investigation|investigations|investigative|investigator|investigators|"
+            r"\b(?:investigation|investigations|investigative|investigator|investigators|"
             r"investigação|investigações|investigador|investigadores|witnesses|testemunhas)\\b",
             investigation_context,
         ))
-        and bool(re.search(r"\\b(?:dyatlov|ural|soviet|1959)\\b", investigation_context))
+        and bool(re.search(r"\b(?:dyatlov|ural|soviet|1959)\\b", investigation_context))
     )
     if historical_investigation_document:
         searches = [
