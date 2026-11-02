@@ -549,3 +549,12 @@ Este documento define o contrato de arquitetura e o caminho de migração; não 
 - O roteador agora coloca consultas contextuais de três âncoras antes das expansões genéricas: `train on snowy railway tracks`, `steam locomotive on snow-covered tracks`, `vintage train traveling on snow-covered railway tracks` e `railway tracks in snow with train`.
 - O teste de regressão exige essas variantes dentro do limite de oito consultas. A verificação MUST/AVOID não foi afrouxada.
 - Próximo critério de aceitação: os testes de mídia devem passar e uma nova execução FIRST_VIDEO precisa gerar um MP4 da própria execução, validado por FFprobe. A correção não é considerada comprovada apenas porque a consulta foi criada.
+
+
+## 49. Uma única regra para evidência de retenção — 02/11/2026
+
+- A revisão de retenção é executada no pipeline canônico depois do plano de renderização; não cria um segundo pipeline.
+- O Release Gate bloqueia relatórios ausentes ou inválidos. Nesses casos, registra `retention_analysis_unavailable` e não afirma que o ritmo está ruim.
+- `repair_pacing` só é solicitado quando existe relatório válido com pontuação medida abaixo de 80.
+- Os testes de regressão cobrem relatório ausente, inválido, pontuação baixa e pontuação saudável.
+- Esta implementação reúne o trabalho das PRs #152 e #153 na PR #152. Nenhuma regra de aprovação humana ou de validação visual foi removida.

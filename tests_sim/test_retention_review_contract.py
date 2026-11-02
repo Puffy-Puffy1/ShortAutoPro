@@ -138,5 +138,50 @@ class RetentionReviewContractTests(unittest.TestCase):
 
 
 
+class RetentionPacingActionTests(unittest.TestCase):
+    def test_missing_retention_report_is_unavailable_not_a_pacing_defect(self):
+        import release_gate
+
+        self.assertEqual(
+            release_gate.retention_report_issues({}),
+            ["retention_report_missing"],
+        )
+        self.assertEqual(
+            release_gate.retention_repair_actions({}, 75.0),
+            ["retention_analysis_unavailable"],
+        )
+
+    def test_malformed_retention_report_never_requests_pacing_repair(self):
+        import release_gate
+
+        report = {"retention_score": 140, "status": "PASS"}
+        self.assertEqual(
+            release_gate.retention_report_issues(report),
+            ["retention_report_invalid"],
+        )
+        self.assertEqual(
+            release_gate.retention_repair_actions(report, 75.0),
+            ["retention_analysis_unavailable"],
+        )
+
+    def test_measured_low_retention_requests_pacing_repair(self):
+        import release_gate
+
+        report = {"retention_score": 74.0, "status": "REVIEW"}
+        self.assertEqual(
+            release_gate.retention_repair_actions(report, 74.0),
+            ["repair_pacing"],
+        )
+
+    def test_measured_healthy_retention_does_not_request_pacing_repair(self):
+        import release_gate
+
+        report = {"retention_score": 88.0, "status": "PASS"}
+        self.assertEqual(
+            release_gate.retention_repair_actions(report, 88.0),
+            [],
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
