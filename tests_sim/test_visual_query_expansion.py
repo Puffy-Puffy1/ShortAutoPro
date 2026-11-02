@@ -117,6 +117,41 @@ class VisualQueryExpansionTests(unittest.TestCase):
         )
         self.assertLessEqual(len(queries), 3)
 
+    def test_historical_investigation_document_search_is_topic_specific(self):
+        from media_engine_v2 import _targeted_visual_search_queries
+
+        queries = _targeted_visual_search_queries(
+            "vintage soviet investigative archive documents on wooden table",
+            ["document"],
+            avoid=["digital computer screen"],
+            scene_context=(
+                "Scene: A ausência de testemunhas e as investigações subsequentes\\n"
+                "ASSUNTO: O caso das mortes no Passo Dyatlov"
+            ),
+        )
+
+        self.assertEqual(
+            queries,
+            [
+                "Dyatlov Pass incident archival investigation records documents",
+                "1959 Soviet investigation archive case files handwritten documents",
+                "historical investigative records paper files from Soviet archive",
+            ],
+        )
+
+    def test_historical_investigation_search_does_not_apply_to_medical_documents(self):
+        from media_engine_v2 import _targeted_visual_search_queries
+
+        queries = _targeted_visual_search_queries(
+            "medical examination paperwork medical record close up",
+            ["document"],
+            avoid=["digital computer screen"],
+            scene_context="Scene: a doctor reviews a medical examination report",
+        )
+
+        self.assertFalse(any("Dyatlov" in query for query in queries))
+        self.assertFalse(any("Soviet investigation archive" in query for query in queries))
+
     def test_empty_primary_uses_must_first_rescue(self):
         from visual_query_expansion_v4 import wrap_search_function
 

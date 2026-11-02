@@ -1623,6 +1623,27 @@ def _targeted_visual_search_queries(
             "black and white historical newspaper clipping archival photograph",
         ][:max_searches]
 
+    # Dyatlov investigation scenes need historical case-file vocabulary.
+    # Search hints remain narrow and never bypass the document pixel check.
+    investigation_context = " ".join(
+        (str(query or ""), str(scene_context or ""), *must_text)
+    ).casefold()
+    historical_investigation_document = (
+        "document" in must_tokens
+        and bool(re.search(
+            r"\\b(?:investigation|investigations|investigative|investigator|investigators|"
+            r"investigação|investigações|investigador|investigadores|witnesses|testemunhas)\\b",
+            investigation_context,
+        ))
+        and bool(re.search(r"\\b(?:dyatlov|ural|soviet|1959)\\b", investigation_context))
+    )
+    if historical_investigation_document:
+        searches = [
+            "Dyatlov Pass incident archival investigation records documents",
+            "1959 Soviet investigation archive case files handwritten documents",
+            "historical investigative records paper files from Soviet archive",
+        ][:max_searches]
+
     return searches
 
 
