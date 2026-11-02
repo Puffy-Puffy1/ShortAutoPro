@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - fix/first-video-canonical-entrypoint-20261014
+      - fix/retention-gate-canonical-pipeline
     paths:
       - ".github/workflows/first-video-live.yml"
       - ".github/actions/setup-ffmpeg/action.yml"
@@ -43,6 +44,8 @@ on:
       - "tests_sim/test_render_engine_v2_contract.py"
       - "tests_sim/test_render_engine_v2_manifest_e2e.py"
       - "release_gate.py"
+      - "retention_engine.py"
+      - "tests_sim/test_retention_review_contract.py"
       - "shortauto_brain.py"
       - "shortauto_intelligence_layer.py"
       - "tests_sim/test_shortauto_intelligence_layer.py"

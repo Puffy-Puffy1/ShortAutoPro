@@ -45,8 +45,32 @@ class RetentionReviewContractTests(unittest.TestCase):
         scripts = [x[1] for x in calls]
         self.assertIn("media_engine_v2.py", scripts)
         self.assertIn("render_plan_v2.py", scripts)
+        self.assertIn("retention_engine.py", scripts)
         self.assertNotIn("media_stage_runtime.py", scripts)
-        self.assertNotIn("retention_engine.py", scripts)
+
+        plan_index = scripts.index("render_plan_v2.py")
+        retention_index = scripts.index("retention_engine.py")
+        speech_index = scripts.index("speech_director.py")
+        self.assertLess(plan_index, retention_index)
+        self.assertLess(retention_index, speech_index)
+        retention_call = calls[retention_index]
+        self.assertEqual(retention_call[2], ("--repair",))
+
+    def test_release_gate_rejects_missing_or_malformed_retention_evidence(self):
+        import release_gate
+
+        self.assertEqual(
+            release_gate.retention_report_issues({}),
+            ["retention_report_missing"],
+        )
+        self.assertEqual(
+            release_gate.retention_report_issues({"retention_score": 80}),
+            ["retention_report_invalid"],
+        )
+        self.assertEqual(
+            release_gate.retention_report_issues({"retention_score": 80, "status": "PASS"}),
+            [],
+        )
 
     def test_pre_render_recovery_repairs_only_v2_inputs(self):
         source = open(production_recovery.__file__, encoding="utf-8").read()
@@ -112,6 +136,51 @@ class RetentionReviewContractTests(unittest.TestCase):
             with mock.patch.object(resume_short_runtime, "BASE", base):
                 self.assertFalse(resume_short_runtime.consolidation_plan_ok(sid))
 
+
+
+class RetentionPacingActionTests(unittest.TestCase):
+    def test_missing_retention_report_is_unavailable_not_a_pacing_defect(self):
+        import release_gate
+
+        self.assertEqual(
+            release_gate.retention_report_issues({}),
+            ["retention_report_missing"],
+        )
+        self.assertEqual(
+            release_gate.retention_repair_actions({}, 75.0),
+            ["retention_analysis_unavailable"],
+        )
+
+    def test_malformed_retention_report_never_requests_pacing_repair(self):
+        import release_gate
+
+        report = {"retention_score": 140, "status": "PASS"}
+        self.assertEqual(
+            release_gate.retention_report_issues(report),
+            ["retention_report_invalid"],
+        )
+        self.assertEqual(
+            release_gate.retention_repair_actions(report, 75.0),
+            ["retention_analysis_unavailable"],
+        )
+
+    def test_measured_low_retention_requests_pacing_repair(self):
+        import release_gate
+
+        report = {"retention_score": 74.0, "status": "REVIEW"}
+        self.assertEqual(
+            release_gate.retention_repair_actions(report, 74.0),
+            ["repair_pacing"],
+        )
+
+    def test_measured_healthy_retention_does_not_request_pacing_repair(self):
+        import release_gate
+
+        report = {"retention_score": 88.0, "status": "PASS"}
+        self.assertEqual(
+            release_gate.retention_repair_actions(report, 88.0),
+            [],
+        )
 
 
 if __name__ == "__main__":
