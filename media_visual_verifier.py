@@ -215,7 +215,13 @@ def verify_image_requirements(
             "detail contradicts it. Mark matches=false only for a clear conflict with the core "
             "subject or setting, such as underwater dolphins for an empty ocean horizon, a "
             "tropical beach for a snow-covered town, or a modern skyscraper skyline for a "
-            "low-rise historic village. Explicit MUST and AVOID anchors remain separately "
+            "low-rise historic village. Do not mark a scene as matching based only on a "
+            "single prop or a shared historical style: judge the main subject and composition. "
+            "A medieval illustration is not a stack of detective novels, a magnifying glass "
+            "does not make unrelated pages a crime novel, and a wedding scene is not a portrait "
+            "of a named person's mother. A prominent modern car contradicts a scene explicitly "
+            "set on a nineteenth-century street. Reject clear composition mismatches even when "
+            "the MUST object is visible. Explicit MUST and AVOID anchors remain separately "
             "strict. Cite observable visual evidence in scene_match. "
         )
 

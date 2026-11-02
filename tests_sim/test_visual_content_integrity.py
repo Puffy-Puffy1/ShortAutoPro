@@ -8,6 +8,8 @@ from unittest import mock
 import media_emergency_fallback as fallback
 import render_preflight
 import visual_qa
+import visual_director
+import media_engine_v2
 
 
 class VisualContentIntegrityTests(unittest.TestCase):
@@ -109,6 +111,92 @@ class VisualContentIntegrityTests(unittest.TestCase):
         self.assertTrue(stats["blank"])
         self.assertLessEqual(stats["mean"], 1.0)
 
+    def test_map_context_queries_require_readable_high_contrast_cartography(self):
+        original = {
+            "scene": 4,
+            "segment": "na antiga União Soviética",
+            "query": "soviet union archival map",
+            "visual_mode": "map_context",
+            "must_have": ["landscape"],
+        }
+        enriched, _ = visual_director.safe_scene(
+            original,
+            {"query": "soviet union vintage archival map landscape"},
+        )
+        query = enriched["query"].casefold()
+        for term in ("high", "contrast", "map", "light", "background", "clear", "readable", "labels"):
+            self.assertIn(term, query)
+
+    def test_zodiac_cipher_letter_search_uses_the_actual_topic_context(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            routes = base / "roteiros"
+            routes.mkdir()
+            (routes / "used_topic_gha_123_1.txt").write_text(
+                "O caso do assassino do Zodíaco",
+                encoding="utf-8",
+            )
+
+            with mock.patch.object(media_engine_v2, "BASE", base):
+                topic = media_engine_v2._topic_context_for_scene("gha_123_1")
+
+            queries = media_engine_v2._targeted_visual_search_queries(
+                "vintage coded letter police puzzle",
+                ["letter"],
+                limit=3,
+                avoid=["modern smartphone"],
+                scene_context=(
+                    "Um assassino enviou cartas cifradas desafiando a polícia. "
+                    + topic
+                ),
+            )
+
+        self.assertEqual(len(queries), 3)
+        self.assertTrue(all("zodiac" in query.casefold() for query in queries))
+        self.assertTrue(all("letter" in query.casefold() for query in queries))
+        self.assertTrue(any("1969" in query for query in queries))
+
+    def test_visual_search_keeps_selected_subject_when_scene_query_is_generic(self):
+        queries = media_engine_v2._targeted_visual_search_queries(
+            "vintage transatlantic flight newspaper archive clipping document",
+            [],
+            limit=3,
+            scene_context=(
+                "Scene: Ela cruzou o Atlântico sozinha.\n"
+                "ASSUNTO: O misterioso voo e desaparecimento de Amelia Earhart"
+            ),
+        )
+
+        self.assertEqual(len(queries), 1)
+        self.assertIn("amelia earhart", queries[0].casefold())
+        self.assertIn("transatlantic flight", queries[0].casefold())
+
+    def test_night_snow_search_prioritizes_moonlit_forest_catalog_terms(self):
+        queries = media_engine_v2._targeted_visual_search_queries(
+            "dark winter night landscape snowstorm in pine forest",
+            ["snow"],
+            limit=3,
+            avoid=["daylight", "sun"],
+            scene_context="na noite de 2 de fevereiro de 1959",
+        )
+        self.assertEqual(len(queries), 3)
+        self.assertIn("night", " ".join(queries).casefold())
+        self.assertIn("moonlight", " ".join(queries).casefold())
+        self.assertIn("snow", " ".join(queries).casefold())
+
+    def test_historical_soviet_snow_expedition_uses_archival_photo_queries(self):
+        queries = media_engine_v2._targeted_visual_search_queries(
+            "vintage 1950s soviet winter expedition map and compass",
+            ["snow"],
+            limit=3,
+            avoid=["neon", "modern digital devices", "smartphone"],
+            scene_context="1959 Soviet winter expedition in the Ural mountains",
+        )
+        self.assertEqual(len(queries), 3)
+        self.assertGreaterEqual(sum("archival" in q.casefold() or "historic" in q.casefold() for q in queries), 2)
+        self.assertTrue(any("hikers" in q.casefold() or "mountaineers" in q.casefold() for q in queries))
+        self.assertTrue(all("snow" in q.casefold() or "winter" in q.casefold() for q in queries))
+
     def test_dark_but_textured_pixels_are_not_blank(self):
         values = []
         for i in range(24 * 24):
@@ -164,6 +252,126 @@ class VisualContentIntegrityTests(unittest.TestCase):
         self.assertEqual(block.count("_vse42_commit_safe(escolhido)"), 1)
         self.assertIn("destino_local", block)
         self.assertIn("sucesso = True", block)
+
+
+class VisualDirectorCalendarQueryGuardTests(unittest.TestCase):
+    def test_date_only_narration_rejects_calendar_added_by_ai(self):
+        original = {
+            "scene": 5,
+            "segment": "na antiga União Soviética, na noite de 2 de fevereiro de 1959.",
+            "query": "vintage 1950s Soviet winter landscape",
+            "must_have": ["snow"],
+            "avoid": ["modern"],
+            "visual_mode": "document",
+            "alt_queries": ["vintage soviet winter landscape in snow"],
+        }
+        proposal = {
+            "query": "vintage 1950s Soviet calendar page February",
+            "must_have": ["snow"],
+            "avoid": ["modern"],
+            "alt_queries": [
+                "Soviet calendar page February 1959",
+                "old February calendar sheet",
+            ],
+        }
+
+        result, report = visual_director.safe_scene(original, proposal)
+
+        self.assertEqual(result["query"], original["query"])
+        self.assertEqual(result["alt_queries"], original["alt_queries"])
+        self.assertIn(
+            "unsupported_calendar_query_reverted_to_scene_context",
+            report["query_adjustments"],
+        )
+
+    def test_explicit_calendar_narration_can_keep_calendar_query(self):
+        original = {
+            "scene": 5,
+            "segment": "A página do calendário soviético mostrava 2 de fevereiro de 1959.",
+            "query": "vintage Soviet archival document page",
+            "must_have": ["document"],
+            "avoid": ["modern"],
+        }
+        proposal = {
+            "query": "vintage 1950s Soviet calendar page February",
+            "must_have": ["document"],
+            "avoid": ["modern"],
+        }
+
+        result, report = visual_director.safe_scene(original, proposal)
+
+        self.assertIn("calendar", result["query"].casefold())
+        self.assertEqual(report["query_adjustments"], [])
+
+
+
+
+class VisualDirectorStrictConstraintTests(unittest.TestCase):
+    def test_ai_cannot_promote_query_details_into_hard_requirements(self):
+        original = {
+            "scene": 1,
+            "segment": "Por que esquiadores experientes rasgaram suas próprias barracas",
+            "query": "skiers ripping tent fabric in snow",
+            "must_have": ["tent"],
+            "avoid": ["smartphone", "digital"],
+        }
+        proposal = {
+            "query": "torn canvas tent fabric in winter snow",
+            "must_have": ["tent fabric", "snow", "tear"],
+            "avoid": ["modern equipment"],
+        }
+
+        result, report = visual_director.safe_scene(original, proposal)
+
+        self.assertEqual(result["must_have"], ["tent"])
+        self.assertEqual(result["avoid"], ["smartphone", "digital"])
+        self.assertEqual(
+            result["preferred_visuals"],
+            ["tent fabric", "snow", "tear"],
+        )
+        self.assertEqual(
+            report["rejected_generated_musts"],
+            ["tent fabric", "snow", "tear"],
+        )
+        self.assertEqual(
+            report["rejected_generated_avoids"],
+            ["modern equipment"],
+        )
+        self.assertTrue(report["hard_contract_preserved"])
+        self.assertIn(
+            "unsupported_ai_constraints_rejected",
+            report["query_adjustments"],
+        )
+
+    def test_ai_cannot_invent_hard_requirements_when_scene_has_none(self):
+        original = {
+            "scene": 2,
+            "segment": "Uma paisagem de inverno",
+            "query": "archival winter landscape",
+            "must_have": [],
+            "avoid": [],
+        }
+
+        result, report = visual_director.safe_scene(
+            original,
+            {
+                "query": "snowy archival winter landscape",
+                "must_have": ["snow", "mountain"],
+                "avoid": ["modern vehicles"],
+            },
+        )
+
+        self.assertEqual(result["must_have"], [])
+        self.assertEqual(result["avoid"], [])
+        self.assertEqual(result["preferred_visuals"], ["snow", "mountain"])
+        self.assertEqual(
+            report["rejected_generated_musts"],
+            ["snow", "mountain"],
+        )
+        self.assertEqual(
+            report["rejected_generated_avoids"],
+            ["modern vehicles"],
+        )
 
 
 if __name__ == "__main__":

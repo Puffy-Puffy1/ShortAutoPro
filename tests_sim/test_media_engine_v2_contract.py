@@ -861,6 +861,44 @@ class MediaEngineContractTests(unittest.TestCase):
             self.assertIn("provider timeout", str(ctx.exception))
 
 
+    def test_targeted_visual_search_recovers_radar_screen_without_text(self):
+        queries = media_engine_v2._targeted_visual_search_queries(
+            "empty radar screen display close up",
+            ["screen"],
+            limit=3,
+            avoid=["text overlay"],
+        )
+        self.assertEqual(len(queries), 3)
+        self.assertTrue(all("radar" in query.casefold() for query in queries))
+        self.assertTrue(any("no labels" in query.casefold() for query in queries))
+        self.assertTrue(any("without text overlay" in query.casefold() for query in queries))
+
+    def test_targeted_visual_search_recovers_radar_screen_without_people(self):
+        queries = media_engine_v2._targeted_visual_search_queries(
+            "empty radar screen scope monitor",
+            ["screen"],
+            limit=3,
+            avoid=["person"],
+        )
+        self.assertEqual(len(queries), 3)
+        self.assertTrue(all("radar" in query.casefold() for query in queries))
+        self.assertTrue(any("no people" in query.casefold() for query in queries))
+        self.assertTrue(any("without operator" in query.casefold() for query in queries))
+
+    def test_targeted_visual_search_recovers_historical_otorten_backpack_scene(self):
+        queries = media_engine_v2._targeted_visual_search_queries(
+            "hikers walking with heavy backpacks in deep snow",
+            ["backpack"],
+            limit=3,
+            avoid=["beach", "desert"],
+            scene_context="começando a marcha em direção a Otorten em 27 de janeiro",
+        )
+        self.assertEqual(len(queries), 3)
+        self.assertIn("1959", queries[0])
+        self.assertIn("Ural", queries[0])
+        self.assertTrue(any("Dyatlov Pass" in query for query in queries))
+        self.assertTrue(all("backpack" in query.casefold() for query in queries))
+
     def test_provider_router_query_recovery_preserves_must_anchors(self):
         from media_provider_router_v2 import _query_variants
         variants = _query_variants(
@@ -871,3 +909,21 @@ class MediaEngineContractTests(unittest.TestCase):
         self.assertIn("ship", variants)
         self.assertIn("ocean", variants)
         self.assertLessEqual(len(variants), 8)
+
+    def test_scene_verification_intent_combines_narration_and_visual_direction(self):
+        result = media_engine_v2._scene_verification_intent(
+            "  Amelia Earhart studied science.\n Her family moved to Chicago. ",
+            "  historic chemistry classroom  ",
+        )
+        self.assertEqual(
+            result,
+            "Narration context: Amelia Earhart studied science. Her family moved to Chicago. "
+            "Visual direction: historic chemistry classroom",
+        )
+
+    def test_scene_verification_intent_handles_missing_context(self):
+        helper = media_engine_v2._scene_verification_intent
+        self.assertEqual(helper(" narration only ", ""), "narration only")
+        self.assertEqual(helper("", " visual only "), "visual only")
+        self.assertEqual(helper(" ", " "), "")
+
