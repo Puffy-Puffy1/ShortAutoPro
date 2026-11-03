@@ -10,7 +10,7 @@ class FirstVideoValidationContractTests(unittest.TestCase):
     def test_ffprobe_runs_after_pipeline_gate_failure_when_run_id_exists(self):
         content = WORKFLOW.read_text(encoding="utf-8")
         start = content.index("      - name: Validate generated MP4 with FFprobe")
-        next_step = content.find("\\n      - name:", start + 1)
+        next_step = content.find("\n      - name:", start + 1)
         block = content[start:] if next_step < 0 else content[start:next_step]
 
         self.assertIn(
@@ -19,15 +19,15 @@ class FirstVideoValidationContractTests(unittest.TestCase):
         )
         self.assertIn('test -f "$latest"', block)
         self.assertIn("ffprobe -v error", block)
-        self.assertIn('codec_type")==\\"audio\\"', block)
-        self.assertIn('codec_type")==\\"video\\"', block)
+        self.assertIn('codec_type")=="audio"', block)
+        self.assertIn('codec_type")=="video"', block)
 
     def test_first_video_proof_is_manual_only(self):
         content = WORKFLOW.read_text(encoding="utf-8")
         triggers = content.split("concurrency:", 1)[0]
 
         self.assertIn("workflow_dispatch:", triggers)
-        self.assertNotIn("\\n  push:", triggers)
+        self.assertNotIn("\n  push:", triggers)
 
     def test_first_video_proofs_are_globally_serialized(self):
         content = WORKFLOW.read_text(encoding="utf-8")
