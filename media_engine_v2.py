@@ -595,6 +595,34 @@ def _visual_scene_intent(scene_intent: str, must: list[str]) -> str:
     return intent
 
 
+def _visual_rejection_diagnostic(result: dict[str, Any]) -> str:
+    """Keep visual rejection logs actionable without weakening the acceptance gate."""
+    reason = str(result.get("reason") or "visual_requirements_unverified")
+    checks = []
+    for group in ("must", "avoid"):
+        rows = result.get(group, [])
+        if not isinstance(rows, list):
+            continue
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            checks.append(
+                f"{group}:{str(row.get('anchor') or '?')}"
+                f"={row.get('visible')}@{row.get('confidence')}"
+            )
+
+    scene_match = result.get("scene_match")
+    if isinstance(scene_match, dict):
+        evidence = " ".join(str(scene_match.get("evidence") or "").split())[:180]
+        checks.append(
+            f"scene_match={scene_match.get('matches')}"
+            f"@{scene_match.get('confidence')}:{evidence or 'evidence_missing'}"
+        )
+
+    check_summary = ",".join(checks)[:480] or "no_visual_evidence_details"
+    return f"{reason};checks={check_summary}"
+
+
 def _scene_verification_intent(segment: str, query: str) -> str:
     """Combine narration context and visual direction for scene verification."""
     narration = " ".join(str(segment or "").split()).strip()
@@ -2038,21 +2066,7 @@ def acquire_scene(
                         "reason": f"visual_verifier_error:{type(exc).__name__}",
                     }
                 if visual_result.get("status") != "PASS":
-                    reason = str(visual_result.get("reason") or "visual_requirements_unverified")
-                    checks = []
-                    for group in ("must", "avoid"):
-                        rows = visual_result.get(group, [])
-                        if not isinstance(rows, list):
-                            continue
-                        for row in rows:
-                            if not isinstance(row, dict):
-                                continue
-                            checks.append(
-                                f"{group}:{str(row.get('anchor') or '?')}"
-                                f"={row.get('visible')}@{row.get('confidence')}"
-                            )
-                    check_summary = ",".join(checks)[:320] or "no_anchor_details"
-                    diagnostic = f"{reason};checks={check_summary}"
+                    diagnostic = _visual_rejection_diagnostic(visual_result)
                     visual_rejections.append(diagnostic)
                     failures.append(f"{candidate.get('fonte', '?')}:VISUAL_VERIFY_BLOCK")
                     print(
