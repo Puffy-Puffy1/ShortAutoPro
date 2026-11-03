@@ -910,6 +910,21 @@ class MediaEngineContractTests(unittest.TestCase):
         self.assertIn("ocean", variants)
         self.assertLessEqual(len(variants), 8)
 
+    def test_visual_rejection_diagnostic_includes_scene_match_evidence(self):
+        diagnostic = media_engine_v2._visual_rejection_diagnostic({
+            "reason": "scene_intent_mismatch",
+            "must": [],
+            "avoid": [],
+            "scene_match": {
+                "matches": False,
+                "confidence": 0.98,
+                "evidence": "A forest is visible, but the image has no airport perimeter or fence.",
+            },
+        })
+        self.assertIn("scene_intent_mismatch", diagnostic)
+        self.assertIn("scene_match=False@0.98", diagnostic)
+        self.assertIn("no airport perimeter or fence", diagnostic)
+
     def test_scene_verification_intent_combines_narration_and_visual_direction(self):
         result = media_engine_v2._scene_verification_intent(
             "  Amelia Earhart studied science.\n Her family moved to Chicago. ",
