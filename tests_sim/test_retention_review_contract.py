@@ -183,5 +183,43 @@ class RetentionPacingActionTests(unittest.TestCase):
         )
 
 
+    def test_pacing_repair_changes_timing_without_rewriting_content(self):
+        import json
+        import tempfile
+        from pathlib import Path
+
+        scene = {
+            "scene_id": "1",
+            "segment": "A expedição alcançou a montanha durante a madrugada.",
+            "narration": "A expedição alcançou a montanha durante a madrugada.",
+            "query": "archival expedition in snowy mountains",
+            "must_have": ["mountain", "snow"],
+            "avoid": ["modern buildings"],
+            "pace_multiplier": 1.0,
+        }
+        with tempfile.TemporaryDirectory() as temp_dir:
+            plan_path = Path(temp_dir) / "edit_plan.json"
+            plan_path.write_text(
+                json.dumps({"scenes": [scene]}),
+                encoding="utf-8",
+            )
+
+            with mock.patch.object(retention_engine, "PLAN", plan_path):
+                changes = retention_engine.repair_pacing(
+                    {"issues": ["pacing_variety_low"]}
+                )
+
+            updated = json.loads(plan_path.read_text(encoding="utf-8"))
+
+        updated_scene = updated["scenes"][0]
+        self.assertEqual(updated_scene["pace_multiplier"], 0.88)
+        self.assertEqual(
+            {key: value for key, value in updated_scene.items() if key != "pace_multiplier"},
+            {key: value for key, value in scene.items() if key != "pace_multiplier"},
+        )
+        self.assertEqual(len(changes), 1)
+        self.assertEqual(updated["retention_repair"]["changes"], changes)
+
+
 if __name__ == "__main__":
     unittest.main()
