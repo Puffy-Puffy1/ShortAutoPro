@@ -295,24 +295,33 @@ def main() -> int:
             issues.append(f"gitignore_rule_missing:{rule}")
 
     _, _, seeds, active, inactive = map_active_graph.build()
+    classification = map_active_graph.audit_classification()
+    production_code = classification["production_code"]
+    test_only_code = classification["test_only_code"]
     if "main.py" not in seeds:
         issues.append("main_not_active_graph_seed")
     if "main.py" not in active:
         issues.append("main_not_active")
+    if "main.py" not in production_code:
+        issues.append("main_not_production_reachable")
 
-    # Consolidation 3.0.1 rule: tracked operational code may not be orphaned.
-    # Tests and workflows are graph seeds, so any remaining .py/.sh entry here
-    # is neither production-reachable nor test-reachable and must be removed or
-    # deliberately wired into the canonical architecture.
+    # Only files that are unreachable from both production and test/CI roots
+    # are treated as orphaned. Test-only code is reported separately so legacy
+    # compatibility coverage stays visible without being mistaken for runtime.
     for path in inactive:
         issues.append(f"inactive_code:{path}")
 
     payload = {
-        "version": "CONSOLIDATION_3_0_3_AUDIT",
+        "version": "CONSOLIDATION_3_0_4_AUDIT",
         "scope": "tracked_git_files",
+        "classification": "static_reference_graph",
         "status": "PASS" if not issues else "FAIL",
         "files": len(files),
         "active_code": len(active),
+        "production_code_count": len(production_code),
+        "production_code": production_code,
+        "test_only_code_count": len(test_only_code),
+        "test_only_code": test_only_code,
         "inactive_code_count": len(inactive),
         "inactive_code": inactive,
         "issues": issues,
