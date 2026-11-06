@@ -135,6 +135,7 @@ def refs_from_python(path: Path, files, modules):
     except SyntaxError:
         return refs
 
+    called_literals = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             names = [alias.name for alias in node.names]
@@ -156,7 +157,11 @@ def refs_from_python(path: Path, files, modules):
             for value in call_values:
                 for literal in ast.walk(value):
                     if isinstance(literal, ast.Constant) and isinstance(literal.value, str):
-                        refs |= refs_from_text(literal.value, files, modules)
+                        called_literals.append(literal.value)
+
+    # Build the filename/module lookup once per source file, not once per literal.
+    if called_literals:
+        refs |= refs_from_text("\\n".join(called_literals), files, modules)
     return refs
 
 

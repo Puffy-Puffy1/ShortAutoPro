@@ -70,6 +70,32 @@ class LocalRuntimeAuditScopeTests(unittest.TestCase):
         self.assertIn("media_engine_v2.py", refs)
         self.assertNotIn("media_stage_runtime.py", refs)
 
+    def test_python_graph_indexes_call_literals_once_per_file(self):
+        import tempfile
+        from unittest.mock import patch
+        import tools.map_active_graph as graph
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source = Path(temp_dir) / "caller.py"
+            source.write_text(
+                'p.run("first", "media_engine_v2.py")\\n'
+                'p.run("second", "render_engine_v2.py")\\n',
+                encoding="utf-8",
+            )
+            with patch.object(
+                graph,
+                "refs_from_text",
+                wraps=graph.refs_from_text,
+            ) as indexed:
+                refs = graph.refs_from_python(
+                    source,
+                    {"media_engine_v2.py", "render_engine_v2.py"},
+                    {},
+                )
+
+        self.assertEqual(indexed.call_count, 1)
+        self.assertEqual(refs, {"media_engine_v2.py", "render_engine_v2.py"})
+
     def test_static_graph_separates_production_and_test_only_code(self):
         from tools.map_active_graph import classify_reachability
 
