@@ -22,11 +22,17 @@ class FirstVideoValidationContractTests(unittest.TestCase):
         self.assertIn('codec_type")=="audio"', block)
         self.assertIn('codec_type")=="video"', block)
 
-    def test_new_commit_replaces_stale_first_video_proof_run(self):
+    def test_first_video_proof_is_manual_only(self):
         content = WORKFLOW.read_text(encoding="utf-8")
-        self.assertIn("group: shortautopro-first-video-${{ github.ref }}", content)
-        self.assertIn("cancel-in-progress: true", content)
-        self.assertIn("proof must match the current branch head", content)
+        triggers = content.split("concurrency:", 1)[0]
+
+        self.assertIn("workflow_dispatch:", triggers)
+        self.assertNotIn("\n  push:", triggers)
+
+    def test_first_video_proofs_are_globally_serialized(self):
+        content = WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("group: shortautopro-first-video-live", content)
+        self.assertIn("cancel-in-progress: false", content)
 
     def test_ffprobe_does_not_override_pipeline_failure(self):
         content = WORKFLOW.read_text(encoding="utf-8")

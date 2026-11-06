@@ -65,6 +65,11 @@ def tokens(value: Any) -> set[str]:
     return {x for x in re.findall(r"[a-z0-9]+", norm(value)) if len(x) >= 3}
 
 
+def mentions_calendar(value: Any) -> bool:
+    """Return whether the narration explicitly asks for a calendar/agenda visual."""
+    return bool(re.search(r"\b(?:calendar|calendario|agenda)\b", norm(value)))
+
+
 def atomic_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent))
@@ -141,8 +146,8 @@ Para cada cena, devolva:
 - emotion: atmosfera editorial, não alegação factual;
 - shot_type: wide|medium|close_up|detail|overhead|aerial|portrait|document;
 - movement: none|hold|pan_left|pan_right|zoom_in|zoom_out|parallax|native;
-- must_have: 1–4 elementos obrigatórios sustentados;
-- avoid: 2–6 elementos que causariam representação errada/genérica;
+- must_have: repita exatamente os requisitos rígidos recebidos; não crie, remova ou substitua MUSTs;
+- avoid: repita exatamente as exclusões rígidas recebidas; não crie, remova ou substitua AVOIDs;
 - query: busca principal em inglês, 5–14 palavras;
 - alt_queries: 2–3 buscas alternativas em inglês, semanticamente equivalentes;
 - protected_zone: center|top|bottom|left|right, onde assunto importante tende a ficar;
@@ -197,8 +202,50 @@ def safe_scene(original: dict[str, Any], proposal: dict[str, Any] | None) -> tup
     query = clean(p.get("query"))
     if not 5 <= len(query.split()) <= 16:
         query = fallback["query"]
-    must = clean_list(p.get("must_have"), 4) or fallback["must_have"]
-    avoid = clean_list(p.get("avoid"), 6) or fallback["avoid"]
+    query_adjustments: list[str] = []
+    alt_queries = clean_list(p.get("alt_queries"), 3)
+    # A date in the narration is not a request to show a calendar. Do not let
+    # the AI director introduce that object when the source scene asks for
+    # historical place/weather imagery; keep the original query contract.
+    if (
+        re.search(r"\bcalendar\b", norm(query))
+        and not mentions_calendar(fallback["segment"])
+        and not re.search(r"\bcalendar\b", norm(fallback["query"]))
+    ):
+        query = fallback["query"]
+        safe_alternates = [
+            item for item in fallback["alt_queries"]
+            if not re.search(r"\bcalendar\b", norm(item))
+        ]
+        alt_queries = safe_alternates[:3] or [query]
+        query_adjustments.append("unsupported_calendar_query_reverted_to_scene_context")
+    # The approved scene contract is the only source of hard MUST/AVOID rules.
+    # AI may improve retrieval, but it cannot turn query/narration details into
+    # additional pixel-level requirements or silently remove existing rules.
+    generated_musts = clean_list(p.get("must_have"), 4)
+    generated_avoids = clean_list(p.get("avoid"), 6)
+    must = list(fallback["must_have"])
+    avoid = list(fallback["avoid"])
+
+    must_keys = {item.casefold() for item in must}
+    avoid_keys = {item.casefold() for item in avoid}
+    rejected_generated_musts = [
+        item for item in generated_musts if item.casefold() not in must_keys
+    ]
+    rejected_generated_avoids = [
+        item for item in generated_avoids if item.casefold() not in avoid_keys
+    ]
+
+    # Keep extra visual detail as a retrieval preference, never as a hard gate.
+    preferred_visuals = clean_list(original.get("preferred_visuals"), 8)
+    preferred_keys = {item.casefold() for item in preferred_visuals}
+    for item in rejected_generated_musts:
+        if item.casefold() not in preferred_keys and len(preferred_visuals) < 8:
+            preferred_visuals.append(item)
+            preferred_keys.add(item.casefold())
+
+    if rejected_generated_musts or rejected_generated_avoids:
+        query_adjustments.append("unsupported_ai_constraints_rejected")
     shot = norm(p.get("shot_type")).replace(" ", "_")
     if shot not in ALLOWED_SHOTS:
         shot = norm(fallback["shot_type"]).replace(" ", "_")
@@ -214,6 +261,10 @@ def safe_scene(original: dict[str, Any], proposal: dict[str, Any] | None) -> tup
         must = original_must
         query = fallback["query"]
 
+    # Improve map retrieval without relaxing visual verification.
+    if norm(original.get("visual_mode")) == "map_context":
+        query = clean(query + " high contrast map light background clear readable labels")
+
     fields = {
         "main_subject": clean(p.get("main_subject")) or fallback["main_subject"],
         "environment": clean(p.get("environment")) or fallback["environment"],
@@ -224,8 +275,9 @@ def safe_scene(original: dict[str, Any], proposal: dict[str, Any] | None) -> tup
         "movement": movement,
         "must_have": must,
         "avoid": avoid,
+        "preferred_visuals": preferred_visuals,
         "query": query,
-        "alt_queries": clean_list(p.get("alt_queries"), 3),
+        "alt_queries": alt_queries,
         "protected_zone": norm(p.get("protected_zone")) if norm(p.get("protected_zone")) in {"center", "top", "bottom", "left", "right"} else "center",
     }
     if not fields["alt_queries"]:
@@ -234,7 +286,16 @@ def safe_scene(original: dict[str, Any], proposal: dict[str, Any] | None) -> tup
 
     completeness = sum(bool(fields[k]) for k in ("main_subject", "emotion", "shot_type", "movement", "must_have", "avoid", "query", "alt_queries"))
     score = round(100.0 * completeness / 8.0, 1)
-    report = {"scene": int(original["scene"]), "contract_score": score, **fields, "reason": clean(p.get("reason"))}
+    report = {
+        "scene": int(original["scene"]),
+        "contract_score": score,
+        "query_adjustments": query_adjustments,
+        "rejected_generated_musts": rejected_generated_musts,
+        "rejected_generated_avoids": rejected_generated_avoids,
+        "hard_contract_preserved": True,
+        **fields,
+        "reason": clean(p.get("reason")),
+    }
     return out, report
 
 

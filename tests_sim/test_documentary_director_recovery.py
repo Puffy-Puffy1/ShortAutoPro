@@ -84,11 +84,44 @@ class DocumentaryDirectorRecoveryTests(unittest.TestCase):
     def test_success_preserves_narration_timing_and_metadata(self):
         self.execute([self.response()])
         self.assertEqual(self.exit, 0)
-        self.assertEqual(self.report["version"], "3.6")
+        self.assertEqual(self.report["version"], "3.7")
         self.assertEqual(self.report["attempts"], 1)
         self.assertEqual(self.result["provenance"], "preserve-me")
         self.assertEqual(self.result["scenes"], self.scenes)
         self.assertEqual(json.loads((self.folder / f"scene_map_pre_documentary_{self.sid}.json").read_text()), self.original)
+
+    def test_documentary_director_cannot_invent_strict_visual_constraints(self):
+        original = copy.deepcopy(self.original)
+        scene = original["scenes"][0]
+        scene.update({
+            "segment": "Ela morreu poucas semanas depois de dar à luz Rosalie",
+            "query": "documentary visual context scene",
+            "must_have": [],
+            "avoid": ["wrong person", "unrelated event"],
+        })
+        self.path.write_text(json.dumps(original), encoding="utf-8")
+
+        generated = copy.deepcopy(original["scenes"])
+        generated[0].update({
+            "query": "19th century historical birth registry document page",
+            "must_have": ["birth record"],
+            "avoid": ["modern text", "wrong century"],
+            "visual_mode": "document",
+        })
+        self.execute([self.response({"scenes": generated})])
+
+        final_scene = self.result["scenes"][0]
+        report_scene = next(item for item in self.report["scenes"] if item["scene"] == 1)
+        self.assertEqual(final_scene["must_have"], [])
+        self.assertEqual(final_scene["avoid"], ["wrong person", "unrelated event"])
+        self.assertEqual(final_scene["segment"], scene["segment"])
+        self.assertEqual(final_scene["query"], "19th century historical birth registry document page")
+        self.assertEqual(report_scene["rejected_generated_musts"], ["birth record"])
+        self.assertEqual(
+            report_scene["rejected_generated_avoids"],
+            ["modern text", "wrong century"],
+        )
+        self.assertIn("DOCUMENTARY_DIRECTOR_CONSTRAINTS_REJECTED=", self.output)
 
     def test_malformed_json_retries_and_recovers(self):
         self.execute([Response('{"scenes":['), self.response()])
@@ -190,7 +223,7 @@ class DocumentaryDirectorRecoveryTests(unittest.TestCase):
         proc = subprocess.run([sys.executable, str(ROOT / "documentary_director.py"), "--version"],
                               env=env, capture_output=True, text=True, timeout=10)
         self.assertEqual(proc.returncode, 0, proc.stderr)
-        self.assertIn("STABLE 3.6", proc.stdout)
+        self.assertIn("STABLE 3.7", proc.stdout)
 
     def test_literal_braces_and_markdown_inside_json_strings_are_preserved(self):
         self.valid["scenes"][0]["query"] = 'archive "railway" station {historic} ```json photograph'
