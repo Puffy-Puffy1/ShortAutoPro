@@ -161,7 +161,7 @@ def refs_from_python(path: Path, files, modules):
 
     # Build the filename/module lookup once per source file, not once per literal.
     if called_literals:
-        refs |= refs_from_text("\\n".join(called_literals), files, modules)
+        refs |= refs_from_text("\n".join(called_literals), files, modules)
     return refs
 
 

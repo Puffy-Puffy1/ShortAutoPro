@@ -78,8 +78,8 @@ class LocalRuntimeAuditScopeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             source = Path(temp_dir) / "caller.py"
             source.write_text(
-                'p.run("first", "media_engine_v2.py")\\n'
-                'p.run("second", "render_engine_v2.py")\\n',
+                'p.run("first", "media_engine_v2.py")\n'
+                'p.run("second", "render_engine_v2.py")\n',
                 encoding="utf-8",
             )
             with patch.object(
