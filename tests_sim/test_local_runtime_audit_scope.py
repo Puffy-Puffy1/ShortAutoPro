@@ -82,10 +82,10 @@ class LocalRuntimeAuditScopeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             source = Path(temp_dir) / "caller.py"
             source.write_text(
-                "\\n".join((
+                chr(10).join((
                     "from render_v2.ffmpeg_visual_renderer import render_visual_ffmpeg",
                     'p.run("legacy purge", "tools/purge_legacy_runtime.py")',
-                )) + "\\n",
+                )) + chr(10),
                 encoding="utf-8",
             )
             files = {
