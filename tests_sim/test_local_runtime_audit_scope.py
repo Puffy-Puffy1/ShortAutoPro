@@ -52,15 +52,19 @@ class LocalRuntimeAuditScopeTests(unittest.TestCase):
         finally:
             probe.unlink(missing_ok=True)
 
-    def test_python_graph_ignores_blacklist_literals_but_tracks_called_scripts(self):
+    def test_python_graph_tracks_execution_calls_not_path_checks_or_blacklists(self):
         import tempfile
         from tools.map_active_graph import refs_from_python
 
         with tempfile.TemporaryDirectory() as temp_dir:
             source = Path(temp_dir) / "caller.py"
             source.write_text(
-                'FORBIDDEN = ("media_stage_runtime.py",)\n'
-                'p.run("Media stage", "media_engine_v2.py")\n',
+                chr(10).join((
+                    'FORBIDDEN = ("media_stage_runtime.py",)',
+                    'Path("media_stage_runtime.py").exists()',
+                    'p.run("Media stage", "media_engine_v2.py")',
+                    'subprocess.run([sys.executable, "render_engine_v2.py"])',
+                )) + chr(10),
                 encoding="utf-8",
             )
             refs = refs_from_python(
@@ -68,11 +72,13 @@ class LocalRuntimeAuditScopeTests(unittest.TestCase):
                 {
                     "media_stage_runtime.py",
                     "media_engine_v2.py",
+                    "render_engine_v2.py",
                 },
                 {},
             )
 
         self.assertIn("media_engine_v2.py", refs)
+        self.assertIn("render_engine_v2.py", refs)
         self.assertNotIn("media_stage_runtime.py", refs)
 
     def test_python_graph_tracks_nested_script_paths_and_package_initializers(self):

@@ -141,12 +141,30 @@ def add_import_reference(module: str, modules, refs: set[str]) -> None:
         candidate = candidate.rpartition(".")[0]
 
 
-def refs_from_python(path: Path, files, modules):
-    """Resolve imports and explicit script/module literals passed to calls.
+def is_execution_call(node: ast.Call) -> bool:
+    """Only inspect string arguments of calls that can execute a script/stage."""
+    function = node.func
+    if isinstance(function, ast.Name):
+        return function.id in {"run_stage", "run_script", "run_python", "execute_script"}
+    if not isinstance(function, ast.Attribute):
+        return False
+    receiver = function.value
+    receiver_name = receiver.id if isinstance(receiver, ast.Name) else ""
+    if function.attr == "run":
+        # p.run is the canonical Pipeline stage runner; subprocess.run executes
+        # a concrete command. Other .run methods are not file dependencies.
+        return receiver_name in {"p", "subprocess"}
+    if function.attr == "Popen":
+        return receiver_name == "subprocess"
+    return False
 
-    Do not treat arbitrary comments or blocklists as runtime dependencies:
-    a forbidden legacy filename in a guard must not make that legacy module
-    appear production-reachable.
+
+def refs_from_python(path: Path, files, modules):
+    """Resolve imports and script paths passed to actual execution calls.
+
+    Arbitrary strings used by Path checks, logs, diagnostics or forbidden-file
+    guards are not execution dependencies. Only known process/stage execution
+    APIs contribute path literals to the dependency graph.
     """
     refs = set()
     text = path.read_text(encoding="utf-8", errors="ignore")
@@ -166,7 +184,7 @@ def refs_from_python(path: Path, files, modules):
         for name in names:
             add_import_reference(name, modules, refs)
 
-        if isinstance(node, ast.Call):
+        if isinstance(node, ast.Call) and is_execution_call(node):
             call_values = list(node.args) + [
                 keyword.value for keyword in node.keywords
             ]
