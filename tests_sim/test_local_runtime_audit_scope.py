@@ -55,7 +55,7 @@ class LocalRuntimeAuditScopeTests(unittest.TestCase):
             source = Path(temp_dir) / "caller.py"
             source.write_text(
                 'FORBIDDEN = ("media_stage_runtime.py",)\\n'
-                'p.run("Media stage", "media_engine_v2.py")\\n',
+                'p.run("Media stage", "media_engine_v2.py")\n',
                 encoding="utf-8",
             )
             refs = refs_from_python(
