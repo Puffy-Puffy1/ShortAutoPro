@@ -31,12 +31,44 @@ class LocalRuntimeAuditScopeTests(unittest.TestCase):
             test_only = payload.get("test_only_code") or []
             inactive = payload.get("inactive_code") or []
             self.assertIn("main.py", production)
+            for compatibility_module in (
+                "media_stage_runtime.py",
+                "midia.py",
+                "media_runtime_adapter_v1.py",
+                "media_runtime_adapter_v2.py",
+                "vg4x_bridge.py",
+            ):
+                self.assertNotIn(compatibility_module, production)
+                self.assertIn(compatibility_module, test_only)
             self.assertEqual(payload.get("production_code_count"), len(production))
             self.assertEqual(payload.get("test_only_code_count"), len(test_only))
             self.assertEqual(payload.get("inactive_code_count"), len(inactive))
             self.assertNotIn("temp/audit_scope_probe.py", inactive)
         finally:
             probe.unlink(missing_ok=True)
+
+    def test_python_graph_ignores_blacklist_literals_but_tracks_called_scripts(self):
+        import tempfile
+        from tools.map_active_graph import refs_from_python
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source = Path(temp_dir) / "caller.py"
+            source.write_text(
+                'FORBIDDEN = ("media_stage_runtime.py",)\\n'
+                'p.run("Media stage", "media_engine_v2.py")\\n',
+                encoding="utf-8",
+            )
+            refs = refs_from_python(
+                source,
+                {
+                    "media_stage_runtime.py",
+                    "media_engine_v2.py",
+                },
+                {},
+            )
+
+        self.assertIn("media_engine_v2.py", refs)
+        self.assertNotIn("media_stage_runtime.py", refs)
 
     def test_static_graph_separates_production_and_test_only_code(self):
         from tools.map_active_graph import classify_reachability

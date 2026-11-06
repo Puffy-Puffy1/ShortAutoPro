@@ -12,13 +12,19 @@ class LocalChecksConsolidation3Tests(unittest.TestCase):
     def test_preflight_targets_canonical_pipeline(self):
         text = self.read("preflight_check.sh")
         for token in (
-            "PREFLIGHT CHECK 3.0",
+            "PREFLIGHT CHECK 3.0.4",
             "main.py",
             "profile_run.sh",
-            "media_runtime_adapter_v1.py",
-            "vg4x_bridge.py",
-            "visual_engine_unified.py",
-            "visual_query_expansion_v4.py",
+            "media_engine_v2.py",
+            "media_provider_v2.py",
+            "media_provider_router_v2.py",
+            "media_validator_v2.py",
+            "media_must_verifier.py",
+            "media_visual_verifier.py",
+            "media_external_resilience.py",
+            "media_quality_report.py",
+            "render_plan_v2.py",
+            "render_engine_v2.py",
             "video_professional.py",
             "v6_professional.py",
             "retention_engine.py",
@@ -47,12 +53,18 @@ class LocalChecksConsolidation3Tests(unittest.TestCase):
     def test_health_targets_canonical_pipeline(self):
         text = self.read("health_check.sh")
         for token in (
-            "HEALTH CHECK 3.0",
+            "HEALTH CHECK 3.0.4",
             "main.py",
-            "media_runtime_adapter_v1.py",
-            "vg4x_bridge.py",
-            "visual_engine_unified.py",
-            "visual_query_expansion_v4.py",
+            "media_engine_v2.py",
+            "media_provider_v2.py",
+            "media_provider_router_v2.py",
+            "media_validator_v2.py",
+            "media_must_verifier.py",
+            "media_visual_verifier.py",
+            "media_external_resilience.py",
+            "media_quality_report.py",
+            "render_plan_v2.py",
+            "render_engine_v2.py",
             "video_professional.py",
             "v6_professional.py",
             "visual_continuity_engine.py",
@@ -63,6 +75,45 @@ class LocalChecksConsolidation3Tests(unittest.TestCase):
         ):
             self.assertIn(token, text)
         self.assertNotIn('"v6_runtime",\n', text)
+
+    def test_operational_checks_do_not_require_legacy_media_runtime(self):
+        legacy = (
+            "media_stage_runtime.py",
+            "midia.py",
+            "media_runtime_adapter_v1.py",
+            "media_runtime_adapter_v2.py",
+            "vg4x_bridge.py",
+            "visual_engine_unified.py",
+            "visual_query_expansion_v4.py",
+            "visual_selection_engine_v4.py",
+        )
+        for name in ("preflight_check.sh", "health_check.sh"):
+            text = self.read(name)
+            for module in legacy:
+                self.assertNotIn(module, text, f"{name} still requires {module}")
+            for module in (
+                "media_engine_v2.py",
+                "media_provider_v2.py",
+                "media_provider_router_v2.py",
+                "media_validator_v2.py",
+                "media_visual_verifier.py",
+                "render_engine_v2.py",
+            ):
+                self.assertIn(module, text, f"{name}: missing {module}")
+
+    def test_repository_audit_checks_canonical_v2_provider_chain(self):
+        text = self.read("tools/repo_audit.py")
+        for module in (
+            "media_engine_v2.py",
+            "media_provider_v2.py",
+            "media_provider_router_v2.py",
+            "media_validator_v2.py",
+            "media_visual_verifier.py",
+            "media_external_resilience.py",
+        ):
+            self.assertIn(module, text)
+        self.assertNotIn("MEDIA_ADAPTER_V1_REQUIRED_TOKENS", text)
+        self.assertNotIn("MEDIA_ADAPTER_V2_REQUIRED_TOKENS", text)
 
     def test_diagnostics_reads_main_not_removed_entrypoint(self):
         text = self.read("diagnostico.sh")

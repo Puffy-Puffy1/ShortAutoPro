@@ -122,27 +122,41 @@ def refs_from_text(text: str, files, modules):
 
 
 def refs_from_python(path: Path, files, modules):
+    """Resolve imports and explicit script/module literals passed to calls.
+
+    Do not treat arbitrary comments or blocklists as runtime dependencies:
+    a forbidden legacy filename in a guard must not make that legacy module
+    appear production-reachable.
+    """
     refs = set()
     text = path.read_text(encoding="utf-8", errors="ignore")
     try:
         tree = ast.parse(text)
     except SyntaxError:
-        tree = None
-    if tree is not None:
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Import):
-                names = [alias.name for alias in node.names]
-            elif isinstance(node, ast.ImportFrom):
-                names = [node.module or ""]
-            else:
-                continue
-            for name in names:
-                while name:
-                    if name in modules:
-                        refs.add(modules[name])
-                        break
-                    name = name.rpartition(".")[0]
-    refs |= refs_from_text(text, files, modules)
+        return refs
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            names = [alias.name for alias in node.names]
+        elif isinstance(node, ast.ImportFrom):
+            names = [node.module or ""]
+        else:
+            names = []
+        for name in names:
+            while name:
+                if name in modules:
+                    refs.add(modules[name])
+                    break
+                name = name.rpartition(".")[0]
+
+        if isinstance(node, ast.Call):
+            call_values = list(node.args) + [
+                keyword.value for keyword in node.keywords
+            ]
+            for value in call_values:
+                for literal in ast.walk(value):
+                    if isinstance(literal, ast.Constant) and isinstance(literal.value, str):
+                        refs |= refs_from_text(literal.value, files, modules)
     return refs
 
 

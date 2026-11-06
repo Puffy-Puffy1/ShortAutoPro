@@ -27,7 +27,7 @@ erro() { echo "ERRO   $1"; ERROS=$((ERROS + 1)); }
 
 echo
 echo "======================================"
-echo " SHORTAUTO PRO - PREFLIGHT CHECK 3.0.3"
+echo " SHORTAUTO PRO - PREFLIGHT CHECK 3.0.4"
 echo "======================================"
 echo
 
@@ -62,7 +62,7 @@ for cmd in python ffmpeg ffprobe piper bash; do
     fi
 done
 
-# Somente componentes do pipeline canônico 3.0.3 e utilitários operacionais ativos.
+# Somente componentes do pipeline canônico 3.0.4 e utilitários operacionais ativos.
 ARQUIVOS=(
     main.py runtime_config.py subprocess_guard.py production_profiler.py production_doctor.py production_watchdog.py production_health.py production_recovery.py render_preflight.py profile_run.sh resume_short_runtime.py finalize_short.sh tools/deploy_smoke.py
     topic_engine_runtime.py topic_engine.py topic_memory.py topic_reserve.py topic_index.py wiki_client.py source_identity.py gemini_runtime.py script_fallback.py
@@ -71,9 +71,8 @@ ARQUIVOS=(
     visual_shot_bridge.py visual_shot_policy.py visual_editorial_policy.py
     visual_risk_guard.py editorial_continuity.py visual_continuity_engine.py scene_lossless_repair.py post_script_truth_lock.py
     semantic_integrity_gate.py wikimedia_source.py wikimedia_query_bridge.py source_router.py evidence_guard.py
-    media_stage_runtime.py midia.py media_runtime_adapter_v1.py media_runtime_adapter_v2.py media_must_verifier.py media_must_priority.py media_strict_must_guard.py media_acquisition_recovery.py media_emergency_fallback.py vg4x_bridge.py visual_engine_unified.py
-    visual_query_expansion_v4.py visual_query_planner_v4.py visual_pipeline_bridge_v42.py visual_selection_engine_v4.py visual_intelligence_6.py
-    vi6_8_runtime_policy.py vi6_9_runtime_policy.py media_master_gate.py visual_score_engine.py
+    media_engine_v2.py media_provider_v2.py media_provider_router_v2.py media_validator_v2.py media_must_verifier.py media_visual_verifier.py media_external_resilience.py media_quality_report.py media_emergency_fallback.py
+    render_plan_v2.py render_engine_v2.py visual_score_engine.py
     motion_director.py rhythm_director.py professional_edit_director.py professional_edit_repair.py
     multi_asset_director.py retention_engine.py sound_design_engine.py production_supervisor.py editorial_gate.py
     speech_director.py audio.py legenda_dinamica.py subtitle_alignment.py subtitle_style_policy.py
@@ -185,9 +184,8 @@ else
         scene_director.py scene_truth_refiner_6_7.py documentary_director.py visual_director.py visual_query_guard.py visual_media_refresh.py visual_shot_bridge.py
         visual_shot_policy.py visual_editorial_policy.py visual_risk_guard.py editorial_continuity.py visual_continuity_engine.py
         scene_lossless_repair.py post_script_truth_lock.py semantic_integrity_gate.py wikimedia_source.py wikimedia_query_bridge.py
-        source_router.py evidence_guard.py media_stage_runtime.py midia.py media_runtime_adapter_v1.py media_runtime_adapter_v2.py media_must_verifier.py media_must_priority.py media_strict_must_guard.py media_acquisition_recovery.py vg4x_bridge.py visual_engine_unified.py
-        visual_query_expansion_v4.py visual_query_planner_v4.py visual_pipeline_bridge_v42.py visual_selection_engine_v4.py visual_intelligence_6.py
-        vi6_8_runtime_policy.py vi6_9_runtime_policy.py media_master_gate.py visual_score_engine.py motion_director.py rhythm_director.py
+        source_router.py evidence_guard.py media_engine_v2.py media_provider_v2.py media_provider_router_v2.py media_validator_v2.py media_must_verifier.py media_visual_verifier.py media_external_resilience.py media_quality_report.py
+        render_plan_v2.py render_engine_v2.py visual_score_engine.py motion_director.py rhythm_director.py
         professional_edit_director.py professional_edit_repair.py multi_asset_director.py retention_engine.py sound_design_engine.py
         production_supervisor.py editorial_gate.py speech_director.py audio.py legenda_dinamica.py subtitle_alignment.py subtitle_style_policy.py
         professional_caption_director.py caption_layout_guard.py video_professional.py v6_professional.py audio_finalizer.py visual_qa.py
@@ -215,17 +213,16 @@ modules = (
     "visual_shot_policy",
     "visual_editorial_policy",
     "visual_shot_bridge",
-    "visual_pipeline_bridge_v42",
-    "visual_selection_engine_v4",
+    "media_engine_v2",
+    "media_provider_v2",
+    "media_provider_router_v2",
+    "media_validator_v2",
     "media_must_verifier",
-    "visual_engine_unified",
-    "visual_query_expansion_v4",
-    "media_runtime_adapter_v1",
-    "media_runtime_adapter_v2",
-    "vg4x_bridge",
-    "visual_intelligence_6",
-    "vi6_8_runtime_policy",
-    "vi6_9_runtime_policy",
+    "media_visual_verifier",
+    "media_external_resilience",
+    "media_quality_report",
+    "render_plan_v2",
+    "render_engine_v2",
     "visual_continuity_engine",
     "visual_score_engine",
     "visual_query_guard",
@@ -246,9 +243,9 @@ for name in modules:
         raise
 PY
     ); then
-        ok "imports runtime críticos 3.0.3"
+        ok "imports runtime críticos 3.0.4"
     else
-        erro "dependência/import runtime crítico 3.0.3 quebrado (veja IMPORT_FAILURE_MODULE acima)"
+        erro "dependência/import runtime crítico 3.0.4 quebrado (veja IMPORT_FAILURE_MODULE acima)"
     fi
     
     
@@ -278,7 +275,7 @@ echo "Avisos: $AVISOS"
 echo
 
 if [ "$ERROS" -eq 0 ]; then
-    echo "STATUS: PRONTO PARA PRODUÇÃO 3.0.3"
+    echo "STATUS: PRONTO PARA PRODUÇÃO 3.0.4"
     exit 0
 fi
 

@@ -20,7 +20,7 @@ fi
 
 echo
 echo "======================================"
-echo " SHORTAUTO PRO - HEALTH CHECK 3.0.3"
+echo " SHORTAUTO PRO - HEALTH CHECK 3.0.4"
 echo "======================================"
 echo
 
@@ -54,9 +54,8 @@ ARQUIVOS=(
     visual_shot_bridge.py visual_shot_policy.py visual_editorial_policy.py
     visual_risk_guard.py editorial_continuity.py visual_continuity_engine.py scene_lossless_repair.py post_script_truth_lock.py
     semantic_integrity_gate.py wikimedia_source.py wikimedia_query_bridge.py source_router.py evidence_guard.py
-    media_stage_runtime.py midia.py media_runtime_adapter_v1.py media_runtime_adapter_v2.py media_must_verifier.py media_must_priority.py media_strict_must_guard.py media_acquisition_recovery.py vg4x_bridge.py visual_engine_unified.py
-    visual_query_expansion_v4.py visual_query_planner_v4.py visual_pipeline_bridge_v42.py visual_selection_engine_v4.py visual_intelligence_6.py
-    vi6_8_runtime_policy.py vi6_9_runtime_policy.py media_master_gate.py visual_score_engine.py
+    media_engine_v2.py media_provider_v2.py media_provider_router_v2.py media_validator_v2.py media_must_verifier.py media_visual_verifier.py media_external_resilience.py media_quality_report.py
+    render_plan_v2.py render_engine_v2.py visual_score_engine.py
     motion_director.py rhythm_director.py professional_edit_director.py professional_edit_repair.py
     multi_asset_director.py retention_engine.py sound_design_engine.py production_supervisor.py editorial_gate.py
     speech_director.py audio.py legenda_dinamica.py subtitle_alignment.py subtitle_style_policy.py
@@ -119,7 +118,7 @@ if [ -x "$WHISPER_CLI" ]; then echo "OK  Whisper CLI"; else echo "ERRO  Whisper 
 if [ -f "$WHISPER_MODEL" ]; then echo "OK  Whisper model"; else echo "ERRO  Whisper model ausente: $WHISPER_MODEL"; ERROS=$((ERROS + 1)); fi
 
 if [ "$CODE_CACHE_HIT" -eq 1 ]; then
-    echo "OK  imports runtime críticos 3.0.3 (cache commit $CODE_HEAD)"
+    echo "OK  imports runtime críticos 3.0.4 (cache commit $CODE_HEAD)"
 else
     # Import-only smoke test para dependências internas sem disparar produção.
     if (
@@ -137,17 +136,17 @@ modules = (
     "topic_reserve",
     "source_identity",
     "wiki_client",
-    "visual_selection_engine_v4",
-    "media_must_verifier",
     "gemini_runtime",
-    "media_must_priority",
-    "media_strict_must_guard",
-    "media_acquisition_recovery",
-    "visual_engine_unified",
-    "visual_query_expansion_v4",
-    "media_runtime_adapter_v1",
-    "media_runtime_adapter_v2",
-    "vg4x_bridge",
+    "media_engine_v2",
+    "media_provider_v2",
+    "media_provider_router_v2",
+    "media_validator_v2",
+    "media_must_verifier",
+    "media_visual_verifier",
+    "media_external_resilience",
+    "media_quality_report",
+    "render_plan_v2",
+    "render_engine_v2",
     "visual_continuity_engine",
     "visual_score_engine",
     "visual_query_guard",
@@ -173,9 +172,9 @@ for name in modules:
         raise
 PY
     ); then
-        echo "OK  imports runtime críticos 3.0.3"
+        echo "OK  imports runtime críticos 3.0.4"
     else
-        echo "ERRO  imports runtime críticos 3.0.3 (veja IMPORT_FAILURE_MODULE acima)"
+        echo "ERRO  imports runtime críticos 3.0.4 (veja IMPORT_FAILURE_MODULE acima)"
         ERROS=$((ERROS + 1))
     fi
     
@@ -185,7 +184,7 @@ echo
 echo "--------------------------------------"
 
 if [ "$ERROS" -eq 0 ]; then
-    echo "STATUS: SAUDÁVEL 3.0.3"
+    echo "STATUS: SAUDÁVEL 3.0.4"
     exit 0
 fi
 
