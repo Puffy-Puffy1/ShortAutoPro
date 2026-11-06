@@ -286,6 +286,7 @@ def main() -> int:
     _, _, seeds, active, inactive, classification = map_active_graph.build_analysis()
     production_code = classification["production_code"]
     test_only_code = classification["test_only_code"]
+    support_code = classification["support_code"]
     if "main.py" not in seeds:
         issues.append("main_not_active_graph_seed")
     if "main.py" not in active:
@@ -310,6 +311,8 @@ def main() -> int:
         "production_code": production_code,
         "test_only_code_count": len(test_only_code),
         "test_only_code": test_only_code,
+        "support_code_count": len(support_code),
+        "support_code": support_code,
         "inactive_code_count": len(inactive),
         "inactive_code": inactive,
         "issues": issues,

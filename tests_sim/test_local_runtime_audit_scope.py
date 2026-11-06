@@ -29,8 +29,13 @@ class LocalRuntimeAuditScopeTests(unittest.TestCase):
             self.assertEqual(payload.get("classification"), "static_reference_graph")
             production = payload.get("production_code") or []
             test_only = payload.get("test_only_code") or []
+            support = payload.get("support_code") or []
             inactive = payload.get("inactive_code") or []
             self.assertIn("main.py", production)
+            self.assertIn("tools/purge_legacy_runtime.py", production)
+            self.assertIn("render_v2/__init__.py", production)
+            self.assertIn("automation/install_termux_bridge.sh", support)
+            self.assertEqual(payload.get("support_code_count"), len(support))
             for compatibility_module in (
                 "media_stage_runtime.py",
                 "midia.py",
@@ -69,6 +74,37 @@ class LocalRuntimeAuditScopeTests(unittest.TestCase):
 
         self.assertIn("media_engine_v2.py", refs)
         self.assertNotIn("media_stage_runtime.py", refs)
+
+    def test_python_graph_tracks_nested_script_paths_and_package_initializers(self):
+        import tempfile
+        from tools.map_active_graph import refs_from_python
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source = Path(temp_dir) / "caller.py"
+            source.write_text(
+                "from render_v2.ffmpeg_visual_renderer import render_visual_ffmpeg\\n"
+                'p.run("legacy purge", "tools/purge_legacy_runtime.py")\\n',
+                encoding="utf-8",
+            )
+            files = {
+                "tools/purge_legacy_runtime.py",
+                "render_v2/__init__.py",
+                "render_v2/ffmpeg_visual_renderer.py",
+            }
+            modules = {
+                "render_v2": "render_v2/__init__.py",
+                "render_v2.ffmpeg_visual_renderer": "render_v2/ffmpeg_visual_renderer.py",
+            }
+            refs = refs_from_python(source, files, modules)
+
+        self.assertEqual(
+            refs,
+            {
+                "tools/purge_legacy_runtime.py",
+                "render_v2/__init__.py",
+                "render_v2/ffmpeg_visual_renderer.py",
+            },
+        )
 
     def test_python_graph_indexes_call_literals_once_per_file(self):
         import tempfile
@@ -123,6 +159,45 @@ class LocalRuntimeAuditScopeTests(unittest.TestCase):
         self.assertEqual(
             result["test_only_code"],
             ["legacy_compat.py", "tests_sim/test_legacy.py"],
+        )
+        self.assertEqual(result["inactive_code"], ["unused.py"])
+
+    def test_static_graph_classifies_manual_installers_as_support(self):
+        from tools.map_active_graph import classify_reachability
+
+        graph = {
+            "main.py": {"pipeline.py"},
+            "pipeline.py": set(),
+            "tests_sim/test_legacy.py": {"legacy_compat.py"},
+            "legacy_compat.py": set(),
+            "automation/install_termux_bridge.sh": {"install_helper.py"},
+            "install_helper.py": set(),
+            "unused.py": set(),
+        }
+        result = classify_reachability(
+            graph=graph,
+            code_paths=[
+                "main.py",
+                "pipeline.py",
+                "tests_sim/test_legacy.py",
+                "legacy_compat.py",
+                "automation/install_termux_bridge.sh",
+                "install_helper.py",
+                "unused.py",
+            ],
+            production_seeds={"main.py"},
+            test_seeds={"tests_sim/test_legacy.py"},
+            support_seeds={"automation/install_termux_bridge.sh"},
+        )
+
+        self.assertEqual(result["production_code"], ["main.py", "pipeline.py"])
+        self.assertEqual(
+            result["test_only_code"],
+            ["legacy_compat.py", "tests_sim/test_legacy.py"],
+        )
+        self.assertEqual(
+            result["support_code"],
+            ["automation/install_termux_bridge.sh", "install_helper.py"],
         )
         self.assertEqual(result["inactive_code"], ["unused.py"])
 

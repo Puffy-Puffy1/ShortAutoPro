@@ -54,7 +54,11 @@ NON_PRODUCTION_SEEDS = {
     "tests/test_media_acquisition_v2.py",
 }
 
-PRODUCTION_SEEDS = DEFAULT_SEEDS - NON_PRODUCTION_SEEDS
+SUPPORT_SEEDS = {
+    "automation/install_termux_bridge.sh",
+}
+
+PRODUCTION_SEEDS = DEFAULT_SEEDS - NON_PRODUCTION_SEEDS - SUPPORT_SEEDS
 
 FILE_REF_RE = re.compile(r"(?<![A-Za-z0-9_./-])([A-Za-z0-9_.-]+\.(?:py|sh))(?![A-Za-z0-9_.-])")
 MODULE_LITERAL_RE = re.compile(r"[\"']([A-Za-z_][A-Za-z0-9_.]*)[\"']")
@@ -121,6 +125,22 @@ def refs_from_text(text: str, files, modules):
     return refs
 
 
+def add_import_reference(module: str, modules, refs: set[str]) -> None:
+    """Add an imported module and all tracked parent package initializers."""
+    candidate = module
+    while candidate:
+        if candidate in modules:
+            refs.add(modules[candidate])
+            parent = candidate.rpartition(".")[0]
+            while parent:
+                package_file = modules.get(parent)
+                if package_file and Path(package_file).name == "__init__.py":
+                    refs.add(package_file)
+                parent = parent.rpartition(".")[0]
+            return
+        candidate = candidate.rpartition(".")[0]
+
+
 def refs_from_python(path: Path, files, modules):
     """Resolve imports and explicit script/module literals passed to calls.
 
@@ -144,11 +164,7 @@ def refs_from_python(path: Path, files, modules):
         else:
             names = []
         for name in names:
-            while name:
-                if name in modules:
-                    refs.add(modules[name])
-                    break
-                name = name.rpartition(".")[0]
+            add_import_reference(name, modules, refs)
 
         if isinstance(node, ast.Call):
             call_values = list(node.args) + [
@@ -157,6 +173,8 @@ def refs_from_python(path: Path, files, modules):
             for value in call_values:
                 for literal in ast.walk(value):
                     if isinstance(literal, ast.Constant) and isinstance(literal.value, str):
+                        if literal.value in files:
+                            refs.add(literal.value)
                         called_literals.append(literal.value)
 
     # Build the filename/module lookup once per source file, not once per literal.
@@ -177,6 +195,7 @@ def build_analysis():
             graph[rel] = refs_from_text(path.read_text(encoding="utf-8", errors="ignore"), files, modules)
 
     seeds = set(DEFAULT_SEEDS)
+    seeds |= SUPPORT_SEEDS & set(files)
     seeds |= {rel for rel in files if rel.startswith("tests_sim/") and rel.endswith(".py")}
     seeds |= {rel for rel in files if rel.startswith(".github/workflows/") and rel.endswith((".yml", ".yaml"))}
     seeds = {seed for seed in seeds if seed in files}
@@ -198,8 +217,9 @@ def build_analysis():
         )
     }
     test_seeds |= NON_PRODUCTION_SEEDS & set(files)
+    support_seeds = SUPPORT_SEEDS & set(files)
     classification = classify_reachability(
-        graph, code_paths, production_seeds, test_seeds
+        graph, code_paths, production_seeds, test_seeds, support_seeds
     )
     return files, graph, seeds, active_code, inactive_code, classification
 
@@ -228,22 +248,26 @@ def classify_reachability(
     code_paths: list[str],
     production_seeds: set[str],
     test_seeds: set[str],
+    support_seeds: set[str] | None = None,
 ) -> dict[str, list[str]]:
-    """Separate production code from test-only and unreferenced code.
+    """Separate production, compatibility tests, support tools and orphans.
 
-    This is a static reference-graph report. It is intentionally non-destructive:
-    a test-only file may be a compatibility fixture and is not automatically
-    safe to delete.
+    This static report is non-destructive. Test-only files are compatibility
+    code, support files are manual tools, and neither is automatically safe to
+    delete.
     """
     production = reachable_from(graph, production_seeds)
     tests = reachable_from(graph, test_seeds)
+    support = reachable_from(graph, support_seeds or set())
     code = set(code_paths)
     production_code = sorted(code & production)
     test_only_code = sorted((code & tests) - production)
-    inactive_code = sorted(code - production - tests)
+    support_code = sorted((code & support) - production - tests)
+    inactive_code = sorted(code - production - tests - support)
     return {
         "production_code": production_code,
         "test_only_code": test_only_code,
+        "support_code": support_code,
         "inactive_code": inactive_code,
     }
 
@@ -256,12 +280,14 @@ def main():
         "active_code": active,
         "production_code": classification["production_code"],
         "test_only_code": classification["test_only_code"],
+        "support_code": classification["support_code"],
         "inactive_code": inactive,
         "counts": {
             "seed_count": len(seeds),
             "active_code": len(active),
             "production_code": len(classification["production_code"]),
             "test_only_code": len(classification["test_only_code"]),
+            "support_code": len(classification["support_code"]),
             "inactive_code": len(inactive),
         },
         "edges": {key: sorted(value) for key, value in graph.items() if value},
@@ -269,7 +295,13 @@ def main():
     if "--json" in sys.argv:
         print(json.dumps(payload, ensure_ascii=False, indent=2))
     else:
-        print(f"SEEDS={len(seeds)} ACTIVE_CODE={len(active)} INACTIVE_CODE={len(inactive)}")
+        print(
+            f"SEEDS={len(seeds)} ACTIVE_CODE={len(active)} "
+            f"PRODUCTION={len(classification['production_code'])} "
+            f"TEST_ONLY={len(classification['test_only_code'])} "
+            f"SUPPORT={len(classification['support_code'])} "
+            f"INACTIVE={len(inactive)}"
+        )
         for item in active:
             print("ACTIVE", item)
         for item in inactive:
