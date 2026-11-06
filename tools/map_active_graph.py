@@ -261,8 +261,8 @@ def classify_reachability(
     support = reachable_from(graph, support_seeds or set())
     code = set(code_paths)
     production_code = sorted(code & production)
-    test_only_code = sorted((code & tests) - production)
-    support_code = sorted((code & support) - production - tests)
+    support_code = sorted((code & support) - production)
+    test_only_code = sorted((code & tests) - production - support)
     inactive_code = sorted(code - production - tests - support)
     return {
         "production_code": production_code,

@@ -82,8 +82,10 @@ class LocalRuntimeAuditScopeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             source = Path(temp_dir) / "caller.py"
             source.write_text(
-                "from render_v2.ffmpeg_visual_renderer import render_visual_ffmpeg\\n"
-                'p.run("legacy purge", "tools/purge_legacy_runtime.py")\\n',
+                "\\n".join((
+                    "from render_v2.ffmpeg_visual_renderer import render_visual_ffmpeg",
+                    'p.run("legacy purge", "tools/purge_legacy_runtime.py")',
+                )) + "\\n",
                 encoding="utf-8",
             )
             files = {
@@ -168,7 +170,7 @@ class LocalRuntimeAuditScopeTests(unittest.TestCase):
         graph = {
             "main.py": {"pipeline.py"},
             "pipeline.py": set(),
-            "tests_sim/test_legacy.py": {"legacy_compat.py"},
+            "tests_sim/test_legacy.py": {"legacy_compat.py", "automation/install_termux_bridge.sh"},
             "legacy_compat.py": set(),
             "automation/install_termux_bridge.sh": {"install_helper.py"},
             "install_helper.py": set(),
