@@ -31,6 +31,36 @@ class LocalRuntimeAuditScopeTests(unittest.TestCase):
         finally:
             probe.unlink(missing_ok=True)
 
+    def test_static_graph_separates_production_and_test_only_code(self):
+        from tools.map_active_graph import classify_reachability
+
+        graph = {
+            "main.py": {"pipeline.py"},
+            "pipeline.py": set(),
+            "tests_sim/test_legacy.py": {"legacy_compat.py"},
+            "legacy_compat.py": set(),
+            "unused.py": set(),
+        }
+        result = classify_reachability(
+            graph=graph,
+            code_paths=[
+                "main.py",
+                "pipeline.py",
+                "tests_sim/test_legacy.py",
+                "legacy_compat.py",
+                "unused.py",
+            ],
+            production_seeds={"main.py"},
+            test_seeds={"tests_sim/test_legacy.py"},
+        )
+
+        self.assertEqual(result["production_code"], ["main.py", "pipeline.py"])
+        self.assertEqual(
+            result["test_only_code"],
+            ["legacy_compat.py", "tests_sim/test_legacy.py"],
+        )
+        self.assertEqual(result["inactive_code"], ["unused.py"])
+
     def test_professional_runtime_reports_are_ignored(self):
         paths = [
             "roteiros/pro_caption_client_example_001.json",
