@@ -44,6 +44,18 @@ DEFAULT_SEEDS = {
     "tests/test_media_acquisition_v2.py",
 }
 
+# These are analysis/test entrypoints, not production roots. Keeping them as
+# roots in the global graph preserves the existing repository safety audit,
+# while the split report below can distinguish their dependencies.
+NON_PRODUCTION_SEEDS = {
+    "tools/map_active_graph.py",
+    "tools/repo_audit.py",
+    "tools/deploy_smoke.py",
+    "tests/test_media_acquisition_v2.py",
+}
+
+PRODUCTION_SEEDS = DEFAULT_SEEDS - NON_PRODUCTION_SEEDS
+
 FILE_REF_RE = re.compile(r"(?<![A-Za-z0-9_./-])([A-Za-z0-9_.-]+\.(?:py|sh))(?![A-Za-z0-9_.-])")
 MODULE_LITERAL_RE = re.compile(r"[\"']([A-Za-z_][A-Za-z0-9_.]*)[\"']")
 
@@ -164,16 +176,86 @@ def build():
     return files, graph, seeds, active_code, inactive_code
 
 
+def reachable_from(graph: dict[str, set[str]], seeds: set[str]) -> set[str]:
+    """Return files reachable from an explicit set of graph roots."""
+    reachable = set(seeds)
+    queue = deque(sorted(seeds))
+    while queue:
+        current = queue.popleft()
+        for target in graph.get(current, ()):
+            if target not in reachable:
+                reachable.add(target)
+                queue.append(target)
+    return reachable
+
+
+def classify_reachability(
+    graph: dict[str, set[str]],
+    code_paths: list[str],
+    production_seeds: set[str],
+    test_seeds: set[str],
+) -> dict[str, list[str]]:
+    """Separate production code from test-only and unreferenced code.
+
+    This is a static reference-graph report. It is intentionally non-destructive:
+    a test-only file may be a compatibility fixture and is not automatically
+    safe to delete.
+    """
+    production = reachable_from(graph, production_seeds)
+    tests = reachable_from(graph, test_seeds)
+    code = set(code_paths)
+    production_code = sorted(code & production)
+    test_only_code = sorted((code & tests) - production)
+    inactive_code = sorted(code - production - tests)
+    return {
+        "production_code": production_code,
+        "test_only_code": test_only_code,
+        "inactive_code": inactive_code,
+    }
+
+
+def audit_classification() -> dict[str, list[str]]:
+    """Classify tracked Python/shell files without conflating tests with runtime."""
+    files = repo_files()
+    modules = module_map(files)
+    graph = {rel: set() for rel in files}
+    for rel, path in files.items():
+        if path.suffix == ".py":
+            graph[rel] = refs_from_python(path, files, modules)
+        elif path.suffix in {".sh", ".yml", ".yaml"}:
+            graph[rel] = refs_from_text(path.read_text(encoding="utf-8", errors="ignore"), files, modules)
+
+    production_seeds = {seed for seed in PRODUCTION_SEEDS if seed in files}
+    test_seeds = {
+        rel for rel in files
+        if (
+            (rel.startswith("tests/") or rel.startswith("tests_sim/"))
+            and rel.endswith(".py")
+        ) or (
+            rel.startswith(".github/workflows/")
+            and rel.endswith((".yml", ".yaml"))
+        )
+    }
+    test_seeds |= NON_PRODUCTION_SEEDS & set(files)
+    code_paths = sorted(rel for rel in files if Path(rel).suffix in CODE_EXTS)
+    return classify_reachability(graph, code_paths, production_seeds, test_seeds)
+
+
 def main():
     _, graph, seeds, active, inactive = build()
+    classification = audit_classification()
     payload = {
         "scope": "tracked_git_files",
         "seeds": sorted(seeds),
         "active_code": active,
+        "production_code": classification["production_code"],
+        "test_only_code": classification["test_only_code"],
         "inactive_code": inactive,
         "counts": {
             "seed_count": len(seeds),
             "active_code": len(active),
+            "production_code": len(classification["production_code"]),
+            "test_only_code": len(classification["test_only_code"]),
             "inactive_code": len(inactive),
         },
         "edges": {key: sorted(value) for key, value in graph.items() if value},
