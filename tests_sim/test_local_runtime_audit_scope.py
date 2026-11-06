@@ -26,7 +26,14 @@ class LocalRuntimeAuditScopeTests(unittest.TestCase):
             payload = json.loads(proc.stdout)
             self.assertEqual(payload.get("scope"), "tracked_git_files")
             self.assertEqual(payload.get("status"), "PASS")
+            self.assertEqual(payload.get("classification"), "static_reference_graph")
+            production = payload.get("production_code") or []
+            test_only = payload.get("test_only_code") or []
             inactive = payload.get("inactive_code") or []
+            self.assertIn("main.py", production)
+            self.assertEqual(payload.get("production_code_count"), len(production))
+            self.assertEqual(payload.get("test_only_code_count"), len(test_only))
+            self.assertEqual(payload.get("inactive_code_count"), len(inactive))
             self.assertNotIn("temp/audit_scope_probe.py", inactive)
         finally:
             probe.unlink(missing_ok=True)
