@@ -44,6 +44,7 @@ REQUIRED = {
     "profile_run.sh",
     "resume_short.sh",
     "resume_short_runtime.py",
+    "production_ready.sh",
     "media_engine_v2.py",
     "media_provider_v2.py",
     "media_provider_router_v2.py",
@@ -54,8 +55,6 @@ REQUIRED = {
     "media_quality_report.py",
     "render_plan_v2.py",
     "render_engine_v2.py",
-    "video_professional.py",
-    "v6_professional.py",
     "professional_edit_director.py",
     "professional_edit_repair.py",
     "professional_caption_director.py",
@@ -199,6 +198,7 @@ def main() -> int:
     verifier_text = read_text("media_must_verifier.py")
     preflight_text = read_text("preflight_check.sh")
     health_text = read_text("health_check.sh")
+    readiness_text = read_text("production_ready.sh")
     purge_text = read_text("tools/purge_legacy_runtime.py")
 
     for token in sorted(MAIN_REQUIRED_TOKENS):
@@ -253,7 +253,11 @@ def main() -> int:
     if 'python "$BASE/tools/purge_legacy_runtime.py"' not in preflight_text:
         issues.append("preflight_missing_legacy_purge")
 
-    for text_name, text in (("preflight", preflight_text), ("health", health_text)):
+    for text_name, text in (
+        ("preflight", preflight_text),
+        ("health", health_text),
+        ("production_ready", readiness_text),
+    ):
         for token in (
             "media_engine_v2.py",
             "media_provider_v2.py",
@@ -270,10 +274,13 @@ def main() -> int:
         for legacy in (
             "media_stage_runtime.py",
             "midia.py",
+            "media_master_gate.py",
             "media_runtime_adapter_v1.py",
             "media_runtime_adapter_v2.py",
             "vg4x_bridge.py",
             "visual_engine_unified.py",
+            "video_professional.py",
+            "v6_professional.py",
         ):
             if legacy in text:
                 issues.append(f"{text_name}_requires_legacy_media_runtime:{legacy}")

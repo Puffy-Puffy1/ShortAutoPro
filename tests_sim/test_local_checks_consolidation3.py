@@ -25,8 +25,6 @@ class LocalChecksConsolidation3Tests(unittest.TestCase):
             "media_quality_report.py",
             "render_plan_v2.py",
             "render_engine_v2.py",
-            "video_professional.py",
-            "v6_professional.py",
             "retention_engine.py",
             "sound_design_engine.py",
             "audio_finalizer.py",
@@ -65,8 +63,6 @@ class LocalChecksConsolidation3Tests(unittest.TestCase):
             "media_quality_report.py",
             "render_plan_v2.py",
             "render_engine_v2.py",
-            "video_professional.py",
-            "v6_professional.py",
             "visual_continuity_engine.py",
             "visual_score_engine.py",
             "retention_engine.py",
@@ -87,7 +83,7 @@ class LocalChecksConsolidation3Tests(unittest.TestCase):
             "visual_query_expansion_v4.py",
             "visual_selection_engine_v4.py",
         )
-        for name in ("preflight_check.sh", "health_check.sh"):
+        for name in ("preflight_check.sh", "health_check.sh", "production_ready.sh"):
             text = self.read(name)
             for module in legacy:
                 self.assertNotIn(module, text, f"{name} still requires {module}")
@@ -97,9 +93,34 @@ class LocalChecksConsolidation3Tests(unittest.TestCase):
                 "media_provider_router_v2.py",
                 "media_validator_v2.py",
                 "media_visual_verifier.py",
+                "render_plan_v2.py",
                 "render_engine_v2.py",
             ):
                 self.assertIn(module, text, f"{name}: missing {module}")
+
+    def test_production_ready_uses_canonical_v2_media_and_renderer(self):
+        text = self.read("production_ready.sh")
+        self.assertIn("READINESS GATE 3.0.4", text)
+        for module in (
+            "media_engine_v2.py",
+            "media_provider_v2.py",
+            "media_provider_router_v2.py",
+            "media_validator_v2.py",
+            "media_must_verifier.py",
+            "media_visual_verifier.py",
+            "media_external_resilience.py",
+            "render_plan_v2.py",
+            "render_engine_v2.py",
+        ):
+            self.assertIn(module, text)
+        for legacy in (
+            "media_stage_runtime.py",
+            "midia.py",
+            "media_master_gate.py",
+            "video_professional.py",
+            "v6_professional.py",
+        ):
+            self.assertNotIn(legacy, text)
 
     def test_repository_audit_checks_canonical_v2_provider_chain(self):
         text = self.read("tools/repo_audit.py")
@@ -125,8 +146,8 @@ class LocalChecksConsolidation3Tests(unittest.TestCase):
     def test_release_check_matches_ci_contract(self):
         text = self.read("release_check.sh")
         self.assertIn("RELEASE CHECK 3.0", text)
-        self.assertIn("Preflight 3.0", text)
-        self.assertIn("Repository Audit 3.0", text)
+        self.assertIn("Preflight 3.0.4", text)
+        self.assertIn("Repository Audit 3.0.4", text)
         self.assertIn("blackdetect", text)
         self.assertIn("cropdetect", text)
         self.assertNotIn("Preflight V6", text)
