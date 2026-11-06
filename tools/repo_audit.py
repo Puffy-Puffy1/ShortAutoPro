@@ -294,8 +294,7 @@ def main() -> int:
         if rule not in ignore_lines:
             issues.append(f"gitignore_rule_missing:{rule}")
 
-    _, _, seeds, active, inactive = map_active_graph.build()
-    classification = map_active_graph.audit_classification()
+    _, _, seeds, active, inactive, classification = map_active_graph.build_analysis()
     production_code = classification["production_code"]
     test_only_code = classification["test_only_code"]
     if "main.py" not in seeds:
