@@ -146,7 +146,8 @@ def refs_from_python(path: Path, files, modules):
     return refs
 
 
-def build():
+def build_analysis():
+    """Build the dependency graph once and return all reachability categories."""
     files = repo_files()
     modules = module_map(files)
     graph = {rel: set() for rel in files}
@@ -161,19 +162,33 @@ def build():
     seeds |= {rel for rel in files if rel.startswith(".github/workflows/") and rel.endswith((".yml", ".yaml"))}
     seeds = {seed for seed in seeds if seed in files}
 
-    queue = deque(sorted(seeds))
-    reachable = set(seeds)
-    while queue:
-        current = queue.popleft()
-        for nxt in graph.get(current, ()):
-            if nxt not in reachable:
-                reachable.add(nxt)
-                queue.append(nxt)
+    reachable = reachable_from(graph, seeds)
+    code_paths = sorted(rel for rel in files if Path(rel).suffix in CODE_EXTS)
+    active_code = sorted(set(code_paths) & reachable)
+    inactive_code = sorted(set(code_paths) - reachable)
 
-    code_files = sorted(rel for rel in files if Path(rel).suffix in CODE_EXTS)
-    active_code = sorted(set(code_files) & reachable)
-    inactive_code = sorted(set(code_files) - reachable)
-    return files, graph, seeds, active_code, inactive_code
+    production_seeds = {seed for seed in PRODUCTION_SEEDS if seed in files}
+    test_seeds = {
+        rel for rel in files
+        if (
+            (rel.startswith("tests/") or rel.startswith("tests_sim/"))
+            and rel.endswith(".py")
+        ) or (
+            rel.startswith(".github/workflows/")
+            and rel.endswith((".yml", ".yaml"))
+        )
+    }
+    test_seeds |= NON_PRODUCTION_SEEDS & set(files)
+    classification = classify_reachability(
+        graph, code_paths, production_seeds, test_seeds
+    )
+    return files, graph, seeds, active_code, inactive_code, classification
+
+
+def build():
+    """Backward-compatible five-value view of the dependency graph."""
+    files, graph, seeds, active, inactive, _ = build_analysis()
+    return files, graph, seeds, active, inactive
 
 
 def reachable_from(graph: dict[str, set[str]], seeds: set[str]) -> set[str]:
@@ -214,36 +229,8 @@ def classify_reachability(
     }
 
 
-def audit_classification() -> dict[str, list[str]]:
-    """Classify tracked Python/shell files without conflating tests with runtime."""
-    files = repo_files()
-    modules = module_map(files)
-    graph = {rel: set() for rel in files}
-    for rel, path in files.items():
-        if path.suffix == ".py":
-            graph[rel] = refs_from_python(path, files, modules)
-        elif path.suffix in {".sh", ".yml", ".yaml"}:
-            graph[rel] = refs_from_text(path.read_text(encoding="utf-8", errors="ignore"), files, modules)
-
-    production_seeds = {seed for seed in PRODUCTION_SEEDS if seed in files}
-    test_seeds = {
-        rel for rel in files
-        if (
-            (rel.startswith("tests/") or rel.startswith("tests_sim/"))
-            and rel.endswith(".py")
-        ) or (
-            rel.startswith(".github/workflows/")
-            and rel.endswith((".yml", ".yaml"))
-        )
-    }
-    test_seeds |= NON_PRODUCTION_SEEDS & set(files)
-    code_paths = sorted(rel for rel in files if Path(rel).suffix in CODE_EXTS)
-    return classify_reachability(graph, code_paths, production_seeds, test_seeds)
-
-
 def main():
-    _, graph, seeds, active, inactive = build()
-    classification = audit_classification()
+    _, graph, seeds, active, inactive, classification = build_analysis()
     payload = {
         "scope": "tracked_git_files",
         "seeds": sorted(seeds),
