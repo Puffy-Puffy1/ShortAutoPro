@@ -170,5 +170,13 @@ class LocalChecksConsolidation3Tests(unittest.TestCase):
             self.assertEqual(proc.returncode, 0, f"{name}: {proc.stderr}")
 
 
+    def test_preflight_only_checks_legacy_runtime_without_deleting_files(self):
+        text = self.read("preflight_check.sh")
+        self.assertIn('python "$BASE/tools/purge_legacy_runtime.py" --check', text)
+        self.assertNotIn('python "$BASE/tools/purge_legacy_runtime.py"; then', text)
+        self.assertIn("nenhuma remoção automática foi executada", text)
+
+
+
 if __name__ == "__main__":
     unittest.main()
