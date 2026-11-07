@@ -32,10 +32,10 @@ echo "======================================"
 echo
 
 if [ -f "$BASE/tools/purge_legacy_runtime.py" ]; then
-    if python "$BASE/tools/purge_legacy_runtime.py"; then
-        ok "legacy runtime purge"
+    if python "$BASE/tools/purge_legacy_runtime.py" --check; then
+        ok "legacy runtime check"
     else
-        erro "falha removendo arquitetura legada proibida"
+        erro "arquitetura legada proibida presente; nenhuma remoção automática foi executada"
     fi
 else
     erro "tools/purge_legacy_runtime.py ausente"
