@@ -47,6 +47,37 @@ def brain_enforcement_issues(enforced: bool, status: str, budget_status: str, de
  return issues
 
 
+def retention_report_issues(report: dict[str, Any]) -> list[str]:
+    """Reject absent or malformed retention evidence instead of scoring a default."""
+    if not report:
+        return ["retention_report_missing"]
+    if "retention_score" not in report or "status" not in report:
+        return ["retention_report_invalid"]
+    score = num(report.get("retention_score"), float("nan"))
+    status = str(report.get("status", "")).upper()
+    if not math.isfinite(score) or not 0 <= score <= 100 or status not in {"PASS", "REVIEW", "BLOCK"}:
+        return ["retention_report_invalid"]
+    return []
+
+
+def retention_release_blockers(report: dict[str, Any]) -> list[str]:
+    """Do not let an explicit retention BLOCK be hidden by the weighted score."""
+    if retention_report_issues(report):
+        return []
+    if str(report.get("status", "")).upper() == "BLOCK":
+        return ["retention_report_blocked"]
+    return []
+
+
+def retention_repair_actions(report: dict[str, Any], score: float) -> list[str]:
+    """Request pacing repair only when a valid retention report measured a defect."""
+    if retention_report_issues(report):
+        return ["retention_analysis_unavailable"]
+    if score < 80:
+        return ["repair_pacing"]
+    return []
+
+
 def brain_repair_actions(decision: str) -> list[str]:
     """Explain human approval requirements without changing the release decision."""
     if decision.upper() in {"HUMAN_APPROVAL_REQUIRED", "HUMAN_REVIEW_REQUIRED"}:
@@ -66,6 +97,8 @@ def main()->int:
  ap=argparse.ArgumentParser();ap.add_argument("--enforce",action="store_true");args=ap.parse_args()
  retention=load(R/f"retention_{SID}.json");continuity=load(R/f"visual_continuity_{SID}.json");vscore=load(R/f"visual_score_{SID}.json");vqa=load(E/f"visual_qa_{SID}.json");audio=load(E/f"final_audio_{SID}.json");pro=load(M/f"{SID}_professional.json");legacy=load(M/f"{SID}_quality.json");media=load(R/f"media_quality_{SID}.json");caption=load(R/f"pro_caption_{SID}.json");caption_layout=load(R/f"caption_layout_{SID}.json");vd=load(R/f"visual_director_{SID}.json")
  factual_ok=bool(legacy.get("approved",False));critical=[]
+ critical.extend(retention_report_issues(retention))
+ critical.extend(retention_release_blockers(retention))
  manifest_sha_now=file_sha(PRODUCTION_MANIFEST);quality_input=legacy.get("input_identity",{}) if isinstance(legacy.get("input_identity"),dict) else {};quality_manifest_sha=str(quality_input.get("production_manifest_sha256","") or "")
  if not manifest_sha_now:critical.append("production_manifest_identity_missing")
  elif not quality_manifest_sha:critical.append("final_quality_manifest_identity_missing")
@@ -103,7 +136,7 @@ def main()->int:
   aft=audio.get("after",{}) if isinstance(audio.get("after"),dict) else {};target=audio.get("target",{}) if isinstance(audio.get("target"),dict) else {};le=abs(num(aft.get("lufs"),-14)-num(target.get("lufs"),-14));tp_over=max(0,num(aft.get("true_peak_db"),-1.5)-num(target.get("true_peak_db"),-1.5));audio_score=clamp(100-le*12-tp_over*18)
  else:audio_score=num(pro.get("components",{}).get("audio_master"),75)
  subtitle_base=num(caption.get("score"),num(pro.get("components",{}).get("captions"),75));layout_score=num(caption_layout.get("score"),subtitle_base);subtitle=clamp(0.75*subtitle_base+0.25*layout_score)
- ret=clamp(num(retention.get("retention_score"),75));technical=clamp(num(pro.get("components",{}).get("technical"),100 if factual_ok else 0))
+ ret=clamp(num(retention.get("retention_score"),0));technical=clamp(num(pro.get("components",{}).get("technical"),100 if factual_ok else 0))
  components={"script_score":script,"media_score":clamp(media_score),"visual_score":visual,"audio_score":audio_score,"subtitle_score":subtitle,"retention_score":ret,"technical_score":technical}
  weights={"script_score":0.14,"media_score":0.16,"visual_score":0.18,"audio_score":0.12,"subtitle_score":0.10,"retention_score":0.15,"technical_score":0.15};score=round(sum(components[k]*weights[k] for k in weights),1)
  brain=brain_snapshot();brain_enforce=os.getenv("SAP_BRAIN_ENFORCE","0")=="1";brain_quality=brain.get("quality",{}) if isinstance(brain.get("quality"),dict) else {};brain_budget=brain_quality.get("quality_budget",{}) if isinstance(brain_quality.get("quality_budget"),dict) else {};intelligence=load(I/f"final_{SID}.json");intelligence_enforce=os.getenv("SAP_INTELLIGENCE_ENFORCE","0")=="1";intelligence_qa=intelligence.get("explainable_qa",{}) if isinstance(intelligence.get("explainable_qa"),dict) else {};intelligence_conf=intelligence.get("confidence_automation",{}) if isinstance(intelligence.get("confidence_automation"),dict) else {}
@@ -123,7 +156,7 @@ def main()->int:
  actions=[]
  weak_scenes=vscore.get("weak_scenes",[]) if isinstance(vscore.get("weak_scenes"),list) else []
  if components["media_score"]<80 or components["visual_score"]<80:actions.append("replace_weak_or_generic_media" + ((":"+",".join(map(str,weak_scenes))) if weak_scenes else ""))
- if components["retention_score"]<80:actions.append("repair_pacing")
+ actions.extend(retention_repair_actions(retention,components["retention_score"]))
  if components["audio_score"]<90:actions.append("remaster_audio")
  if components["subtitle_score"]<85:actions.append("repair_caption_layout")
  if str(brain_budget.get("status","")).upper()=="BLOCK":actions.append("review_shortauto_brain_quality_budget")
@@ -133,7 +166,7 @@ def main()->int:
  if not input_identity["production_manifest_sha256"]:critical.append("production_manifest_identity_missing")
  if not input_identity["final_quality_sha256"]:critical.append("final_quality_identity_missing")
  if critical:decision="BLOCK"
- payload={"short_id":SID,"version":"RELEASE_GATE_1.6_VISUAL_CONTENT_INTEGRITY","generated_at":datetime.now().astimezone().isoformat(timespec="seconds"),"shortautopro_score":score,"decision":decision,"components":components,"weights":weights,"critical":critical,"repair_actions":actions,"visual_multiscore":vscore,"shortauto_brain":brain,"brain_enforced":brain_enforce,"shortauto_intelligence":intelligence,"intelligence_enforced":intelligence_enforce,"intelligence_qa_score":num(intelligence_qa.get("score"),0),"artifact_identity":{"enforced":identity_enforce,"current_topic":current_topic,"current_topic_sha256":current_topic_sha,"render_identity":render_identity},"input_identity":input_identity};atomic(OUT,payload);print(json.dumps(payload,ensure_ascii=False,indent=2))
+ payload={"short_id":SID,"version":"RELEASE_GATE_1.6_VISUAL_CONTENT_INTEGRITY","generated_at":datetime.now().astimezone().isoformat(timespec="seconds"),"shortautopro_score":score,"decision":decision,"components":components,"weights":weights,"critical":critical,"repair_actions":actions,"retention_report_available":not retention_report_issues(retention),"visual_multiscore":vscore,"shortauto_brain":brain,"brain_enforced":brain_enforce,"shortauto_intelligence":intelligence,"intelligence_enforced":intelligence_enforce,"intelligence_qa_score":num(intelligence_qa.get("score"),0),"artifact_identity":{"enforced":identity_enforce,"current_topic":current_topic,"current_topic_sha256":current_topic_sha,"render_identity":render_identity},"input_identity":input_identity};atomic(OUT,payload);print(json.dumps(payload,ensure_ascii=False,indent=2))
  if args.enforce and decision=="BLOCK":return 1
  if args.enforce and decision=="REPAIR":return 20
  return 0

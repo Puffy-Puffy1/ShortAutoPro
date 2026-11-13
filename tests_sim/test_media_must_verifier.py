@@ -341,6 +341,16 @@ class MediaMustVerifierTrainSnowSearchTests(unittest.TestCase):
         self.assertIn("train in snow", variants)
         self.assertIn("steam locomotive in snow", variants)
 
+    def test_train_snow_tracks_query_keeps_all_three_anchors_in_catalog_searches(self):
+        variants = _query_variants(
+            "vintage train traveling through snow covered landscape 1950s",
+            ["train", "snow", "tracks"],
+        )
+        self.assertLessEqual(len(variants), 8)
+        self.assertIn("train on snowy railway tracks", variants)
+        self.assertIn("steam locomotive on snow-covered tracks", variants)
+        self.assertIn("railway tracks in snow with train", variants)
+
 
 
 class MediaMustVerifierRussianWinterTownSearchTests(unittest.TestCase):

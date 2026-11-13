@@ -43,9 +43,13 @@ class MediaTwoPassRecoveryTests(unittest.TestCase):
         self.assertIn('"render_plan_v2.py"', text)
         self.assertNotIn('p.run("6 - SMART MEDIA SELECTOR", "media_stage_runtime.py")', text)
 
-    def test_semantic_resume_uses_same_runtime(self):
+    def test_semantic_resume_uses_canonical_checkpoint_runtime(self):
         text = Path("resume_after_semantic_fix.py").read_text(encoding="utf-8")
-        self.assertIn('"media_stage_runtime.py"', text)
+        self.assertIn('"semantic_integrity_gate.py"', text)
+        self.assertIn('"resume_short_runtime.py"', text)
+        self.assertNotIn('"media_stage_runtime.py"', text)
+        self.assertNotIn('"media_master_gate.py"', text)
+        self.assertNotIn('"retention_engine.py"', text)
 
     def test_recovery_does_not_modify_strict_guard(self):
         guard = Path("media_strict_must_guard.py").read_text(encoding="utf-8")

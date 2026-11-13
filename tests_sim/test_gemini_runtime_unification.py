@@ -91,6 +91,34 @@ class GeminiRuntimeTests(unittest.TestCase):
         self.assertIn("model-b", post.call_args_list[1].args[0])
         sleep.assert_not_called()
 
+    @patch("gemini_runtime.time.sleep", return_value=None)
+    @patch("gemini_runtime.requests.post")
+    def test_all_models_unavailable_raise_typed_error_without_extra_retries(self, post, _sleep):
+        post.side_effect = [
+            self._response(503, "model-a overloaded"),
+            self._response(503, "model-b overloaded"),
+        ]
+        with patch.dict(
+            os.environ,
+            {
+                "GEMINI_API_KEY": "test-key",
+                "SAP_GEMINI_ATTEMPTS_PER_MODEL": "3",
+            },
+            clear=False,
+        ):
+            with self.assertRaises(gemini_runtime.GeminiTemporaryUnavailable):
+                gemini_runtime.generate_text(
+                    "verify scene",
+                    models=["model-a", "model-b"],
+                    attempts_per_model=1,
+                    component="Visual test",
+                )
+
+        self.assertEqual(post.call_count, 2)
+        self.assertIn("model-a", post.call_args_list[0].args[0])
+        self.assertIn("model-b", post.call_args_list[1].args[0])
+        _sleep.assert_not_called()
+
     def test_missing_key_is_typed_temporary_failure(self):
         with patch.dict(os.environ, {"GEMINI_API_KEY": ""}, clear=False):
             with self.assertRaises(gemini_runtime.GeminiTemporaryUnavailable):

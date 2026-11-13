@@ -44,17 +44,17 @@ REQUIRED = {
     "profile_run.sh",
     "resume_short.sh",
     "resume_short_runtime.py",
-    "midia.py",
-    "media_runtime_adapter_v1.py",
-    "media_runtime_adapter_v2.py",
+    "production_ready.sh",
+    "media_engine_v2.py",
+    "media_provider_v2.py",
+    "media_provider_router_v2.py",
+    "media_validator_v2.py",
     "media_must_verifier.py",
-    "vg4x_bridge.py",
-    "visual_engine_unified.py",
-    "visual_query_expansion_v4.py",
-    "visual_query_planner_v4.py",
-    "visual_selection_engine_v4.py",
-    "video_professional.py",
-    "v6_professional.py",
+    "media_visual_verifier.py",
+    "media_external_resilience.py",
+    "media_quality_report.py",
+    "render_plan_v2.py",
+    "render_engine_v2.py",
     "professional_edit_director.py",
     "professional_edit_repair.py",
     "professional_caption_director.py",
@@ -129,38 +129,20 @@ MAIN_FORBIDDEN_TOKENS = {
     '"gerar_short.sh"',
 }
 
-MEDIA_ADAPTER_V1_REQUIRED_TOKENS = {
-    '"SAP_VISUAL_UNIFIED": "1"',
-    '"SAP_VSE4": "0"',
-    '"SAP_VSE4_RESCUE": "0"',
-    '"SAP_VSE_V42": "0"',
-    '"SAP_VSE42": "0"',
-    '"SAP_VSE42_RUNTIME": "0"',
-    '"SAP_VSE42_BRIDGE": "0"',
-    '"SAP_VSE42_RESCUE": "0"',
-    '"SAP_VSE4_QUERY_EXPANSION": "1"',
-    '"SAP_VG4X": "0"',
-    '"VISUAL_INTELLIGENCE_MODE": "SHADOW"',
+MEDIA_ENGINE_V2_REQUIRED_TOKENS = {
+    "from media_provider_v2 import MediaProviderV2",
+    "from media_visual_verifier import verify_image_requirements",
     "from media_must_verifier import verified_must",
-    "_sap_contextual_rescue",
-    "_sap_declared_must_hits",
-    "_sap_verified_must_hits",
-    'candidate["must_hits"] = verified',
-    "SAP_PROVIDER_SKIP",
-    "normalize_candidate",
+    "def build_manifest(",
 }
 
-MEDIA_ADAPTER_V2_REQUIRED_TOKENS = {
-    "import media_runtime_adapter_v1 as v1",
-    "neutral_context_score",
-    "SAFE_CONTEXTUAL_RESCUE_NEUTRAL_MUST",
-    "_disable_legacy_vse42_authority",
-    'namespace["_vse42_enabled"] = disabled',
-    'namespace["_vse42_finalize_pool"] = passthrough',
-    'namespace["_vse42_note_success"] = no_note',
-    'namespace["_vse42_commit_media"] = no_commit',
-    '"authority": "VISUAL_UNIFIED"',
-    "MEDIA_RUNTIME_ADAPTER_V2=INSTALLED",
+MEDIA_PROVIDER_V2_REQUIRED_TOKENS = {
+    "from media_provider_router_v2 import MediaProviderRouterV2",
+}
+
+MEDIA_ROUTER_V2_REQUIRED_TOKENS = {
+    "from media_validator_v2 import validate",
+    "from media_external_resilience import",
 }
 
 MUST_VERIFIER_REQUIRED_TOKENS = {
@@ -210,13 +192,13 @@ def main() -> int:
     profile_text = read_text("profile_run.sh")
     resume_text = read_text("resume_short_runtime.py")
     gitignore = read_text(".gitignore")
-    adapter_v1_text = read_text("media_runtime_adapter_v1.py")
-    adapter_v2_text = read_text("media_runtime_adapter_v2.py")
+    media_engine_text = read_text("media_engine_v2.py")
+    media_provider_text = read_text("media_provider_v2.py")
+    media_router_text = read_text("media_provider_router_v2.py")
     verifier_text = read_text("media_must_verifier.py")
-    unified_text = read_text("visual_engine_unified.py")
-    vg4x_bridge_text = read_text("vg4x_bridge.py")
     preflight_text = read_text("preflight_check.sh")
     health_text = read_text("health_check.sh")
+    readiness_text = read_text("production_ready.sh")
     purge_text = read_text("tools/purge_legacy_runtime.py")
 
     for token in sorted(MAIN_REQUIRED_TOKENS):
@@ -237,26 +219,20 @@ def main() -> int:
         if token in resume_text:
             issues.append(f"resume_legacy_token:{token}")
 
-    # Canonical media runtime: V1 owns normalization/strict MUST verification;
-    # V2 is the production reliability layer that preserves Visual Unified as
-    # the single winner authority while query expansion only enriches pools.
-    for token in sorted(MEDIA_ADAPTER_V1_REQUIRED_TOKENS):
-        if token not in adapter_v1_text:
-            issues.append(f"media_runtime_v1_contract_missing:{token}")
-    for token in sorted(MEDIA_ADAPTER_V2_REQUIRED_TOKENS):
-        if token not in adapter_v2_text:
-            issues.append(f"media_runtime_v2_contract_missing:{token}")
+    # Canonical media authority: Media Engine V2 owns acquisition and freeze;
+    # the provider facade/router own provider access, validation and resilience.
+    for token in sorted(MEDIA_ENGINE_V2_REQUIRED_TOKENS):
+        if token not in media_engine_text:
+            issues.append(f"media_engine_v2_contract_missing:{token}")
+    for token in sorted(MEDIA_PROVIDER_V2_REQUIRED_TOKENS):
+        if token not in media_provider_text:
+            issues.append(f"media_provider_v2_contract_missing:{token}")
+    for token in sorted(MEDIA_ROUTER_V2_REQUIRED_TOKENS):
+        if token not in media_router_text:
+            issues.append(f"media_router_v2_contract_missing:{token}")
     for token in sorted(MUST_VERIFIER_REQUIRED_TOKENS):
         if token not in verifier_text:
             issues.append(f"must_verifier_contract_missing:{token}")
-    if "from media_must_verifier import verified_must" not in unified_text:
-        issues.append("visual_unified_missing_strict_must_verifier")
-    if "effective_pre_must_verification" not in unified_text:
-        issues.append("visual_unified_missing_must_score_recalibration")
-    if "from media_runtime_adapter_v2 import install as install_media_runtime" not in vg4x_bridge_text:
-        issues.append("vg4x_bridge_not_routed_to_media_adapter_v2")
-    if 'os.getenv("SAP_VG4X_LEGACY", "0") == "1"' not in vg4x_bridge_text:
-        issues.append("vg4x_legacy_not_opt_in")
 
     for token in (
         "gerar_short.sh",
@@ -277,42 +253,73 @@ def main() -> int:
     if 'python "$BASE/tools/purge_legacy_runtime.py"' not in preflight_text:
         issues.append("preflight_missing_legacy_purge")
 
-    for text_name, text in (("preflight", preflight_text), ("health", health_text)):
+    for text_name, text in (
+        ("preflight", preflight_text),
+        ("health", health_text),
+        ("production_ready", readiness_text),
+    ):
         for token in (
-            "media_runtime_adapter_v1.py",
-            "media_runtime_adapter_v2.py",
+            "media_engine_v2.py",
+            "media_provider_v2.py",
+            "media_provider_router_v2.py",
+            "media_validator_v2.py",
             "media_must_verifier.py",
-            "vg4x_bridge.py",
-            "visual_engine_unified.py",
-            "visual_query_expansion_v4.py",
+            "media_visual_verifier.py",
+            "media_external_resilience.py",
+            "render_plan_v2.py",
+            "render_engine_v2.py",
         ):
             if token not in text:
                 issues.append(f"{text_name}_media_runtime_missing:{token}")
+        for legacy in (
+            "media_stage_runtime.py",
+            "midia.py",
+            "media_master_gate.py",
+            "media_runtime_adapter_v1.py",
+            "media_runtime_adapter_v2.py",
+            "vg4x_bridge.py",
+            "visual_engine_unified.py",
+            "video_professional.py",
+            "v6_professional.py",
+        ):
+            if legacy in text:
+                issues.append(f"{text_name}_requires_legacy_media_runtime:{legacy}")
 
     ignore_lines = set(gitignore.splitlines())
     for rule in sorted(REQUIRED_IGNORE_RULES):
         if rule not in ignore_lines:
             issues.append(f"gitignore_rule_missing:{rule}")
 
-    _, _, seeds, active, inactive = map_active_graph.build()
+    _, _, seeds, active, inactive, classification = map_active_graph.build_analysis()
+    production_code = classification["production_code"]
+    test_only_code = classification["test_only_code"]
+    support_code = classification["support_code"]
     if "main.py" not in seeds:
         issues.append("main_not_active_graph_seed")
     if "main.py" not in active:
         issues.append("main_not_active")
+    if "main.py" not in production_code:
+        issues.append("main_not_production_reachable")
 
-    # Consolidation 3.0.1 rule: tracked operational code may not be orphaned.
-    # Tests and workflows are graph seeds, so any remaining .py/.sh entry here
-    # is neither production-reachable nor test-reachable and must be removed or
-    # deliberately wired into the canonical architecture.
+    # Only files that are unreachable from both production and test/CI roots
+    # are treated as orphaned. Test-only code is reported separately so legacy
+    # compatibility coverage stays visible without being mistaken for runtime.
     for path in inactive:
         issues.append(f"inactive_code:{path}")
 
     payload = {
-        "version": "CONSOLIDATION_3_0_3_AUDIT",
+        "version": "CONSOLIDATION_3_0_4_AUDIT",
         "scope": "tracked_git_files",
+        "classification": "static_reference_graph",
         "status": "PASS" if not issues else "FAIL",
         "files": len(files),
         "active_code": len(active),
+        "production_code_count": len(production_code),
+        "production_code": production_code,
+        "test_only_code_count": len(test_only_code),
+        "test_only_code": test_only_code,
+        "support_code_count": len(support_code),
+        "support_code": support_code,
         "inactive_code_count": len(inactive),
         "inactive_code": inactive,
         "issues": issues,
