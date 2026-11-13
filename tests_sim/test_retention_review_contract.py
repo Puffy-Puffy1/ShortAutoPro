@@ -164,6 +164,24 @@ class RetentionPacingActionTests(unittest.TestCase):
             ["retention_analysis_unavailable"],
         )
 
+    def test_explicit_retention_block_cannot_be_hidden_by_weighted_score(self):
+        import release_gate
+
+        blocked = {"retention_score": 62.0, "status": "BLOCK"}
+        review = {"retention_score": 74.0, "status": "REVIEW"}
+
+        self.assertEqual(release_gate.retention_report_issues(blocked), [])
+        self.assertEqual(
+            release_gate.retention_release_blockers(blocked),
+            ["retention_report_blocked"],
+        )
+        self.assertEqual(release_gate.retention_release_blockers(review), [])
+        # A measured low score remains eligible for the existing bounded repair.
+        self.assertEqual(
+            release_gate.retention_repair_actions(blocked, 62.0),
+            ["repair_pacing"],
+        )
+
     def test_measured_low_retention_requests_pacing_repair(self):
         import release_gate
 

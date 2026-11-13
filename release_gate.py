@@ -60,6 +60,15 @@ def retention_report_issues(report: dict[str, Any]) -> list[str]:
     return []
 
 
+def retention_release_blockers(report: dict[str, Any]) -> list[str]:
+    """Do not let an explicit retention BLOCK be hidden by the weighted score."""
+    if retention_report_issues(report):
+        return []
+    if str(report.get("status", "")).upper() == "BLOCK":
+        return ["retention_report_blocked"]
+    return []
+
+
 def retention_repair_actions(report: dict[str, Any], score: float) -> list[str]:
     """Request pacing repair only when a valid retention report measured a defect."""
     if retention_report_issues(report):
@@ -89,6 +98,7 @@ def main()->int:
  retention=load(R/f"retention_{SID}.json");continuity=load(R/f"visual_continuity_{SID}.json");vscore=load(R/f"visual_score_{SID}.json");vqa=load(E/f"visual_qa_{SID}.json");audio=load(E/f"final_audio_{SID}.json");pro=load(M/f"{SID}_professional.json");legacy=load(M/f"{SID}_quality.json");media=load(R/f"media_quality_{SID}.json");caption=load(R/f"pro_caption_{SID}.json");caption_layout=load(R/f"caption_layout_{SID}.json");vd=load(R/f"visual_director_{SID}.json")
  factual_ok=bool(legacy.get("approved",False));critical=[]
  critical.extend(retention_report_issues(retention))
+ critical.extend(retention_release_blockers(retention))
  manifest_sha_now=file_sha(PRODUCTION_MANIFEST);quality_input=legacy.get("input_identity",{}) if isinstance(legacy.get("input_identity"),dict) else {};quality_manifest_sha=str(quality_input.get("production_manifest_sha256","") or "")
  if not manifest_sha_now:critical.append("production_manifest_identity_missing")
  elif not quality_manifest_sha:critical.append("final_quality_manifest_identity_missing")
