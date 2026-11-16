@@ -182,6 +182,21 @@ class RetentionPacingActionTests(unittest.TestCase):
             ["repair_pacing"],
         )
 
+    def test_single_release_decision_never_hides_critical_blockers(self):
+        import release_gate
+
+        retention_blockers = release_gate.retention_release_blockers(
+            {"retention_score": 62.0, "status": "BLOCK"}
+        )
+        self.assertEqual(
+            release_gate.release_decision(96.0, retention_blockers),
+            "BLOCK",
+        )
+        self.assertEqual(release_gate.release_decision(96.0, []), "PUBLISH")
+        self.assertEqual(release_gate.release_decision(84.0, []), "ACCEPTABLE")
+        self.assertEqual(release_gate.release_decision(74.0, []), "REPAIR")
+        self.assertEqual(release_gate.release_decision(60.0, []), "BLOCK")
+
     def test_measured_low_retention_requests_pacing_repair(self):
         import release_gate
 

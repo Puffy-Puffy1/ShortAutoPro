@@ -69,6 +69,19 @@ def retention_release_blockers(report: dict[str, Any]) -> list[str]:
     return []
 
 
+def release_decision(score: float, critical: list[str]) -> str:
+    """Apply every critical blocker before considering the weighted score."""
+    if critical:
+        return "BLOCK"
+    if score >= 90:
+        return "PUBLISH"
+    if score >= 80:
+        return "ACCEPTABLE"
+    if score >= 70:
+        return "REPAIR"
+    return "BLOCK"
+
+
 def retention_repair_actions(report: dict[str, Any], score: float) -> list[str]:
     """Request pacing repair only when a valid retention report measured a defect."""
     if retention_report_issues(report):
@@ -148,11 +161,6 @@ def main()->int:
  ))
  if intelligence_enforce and not intelligence:critical.append("intelligence_report_missing")
  if intelligence_enforce and str(intelligence_conf.get("decision","")).upper()=="BLOCK":critical.append("intelligence_confidence_block")
- if critical:decision="BLOCK"
- elif score>=90:decision="PUBLISH"
- elif score>=80:decision="ACCEPTABLE"
- elif score>=70:decision="REPAIR"
- else:decision="BLOCK"
  actions=[]
  weak_scenes=vscore.get("weak_scenes",[]) if isinstance(vscore.get("weak_scenes"),list) else []
  if components["media_score"]<80 or components["visual_score"]<80:actions.append("replace_weak_or_generic_media" + ((":"+",".join(map(str,weak_scenes))) if weak_scenes else ""))
@@ -165,7 +173,7 @@ def main()->int:
  input_identity={"production_manifest_sha256":file_sha(PRODUCTION_MANIFEST),"final_quality_sha256":file_sha(FINAL_QUALITY)}
  if not input_identity["production_manifest_sha256"]:critical.append("production_manifest_identity_missing")
  if not input_identity["final_quality_sha256"]:critical.append("final_quality_identity_missing")
- if critical:decision="BLOCK"
+ decision=release_decision(score,critical)
  payload={"short_id":SID,"version":"RELEASE_GATE_1.6_VISUAL_CONTENT_INTEGRITY","generated_at":datetime.now().astimezone().isoformat(timespec="seconds"),"shortautopro_score":score,"decision":decision,"components":components,"weights":weights,"critical":critical,"repair_actions":actions,"retention_report_available":not retention_report_issues(retention),"visual_multiscore":vscore,"shortauto_brain":brain,"brain_enforced":brain_enforce,"shortauto_intelligence":intelligence,"intelligence_enforced":intelligence_enforce,"intelligence_qa_score":num(intelligence_qa.get("score"),0),"artifact_identity":{"enforced":identity_enforce,"current_topic":current_topic,"current_topic_sha256":current_topic_sha,"render_identity":render_identity},"input_identity":input_identity};atomic(OUT,payload);print(json.dumps(payload,ensure_ascii=False,indent=2))
  if args.enforce and decision=="BLOCK":return 1
  if args.enforce and decision=="REPAIR":return 20
