@@ -341,7 +341,7 @@ for tentativa in range(1, 4):
             "SAP_SCRIPT_AI=UNAVAILABLE "
             f"{type(exc).__name__}:{str(exc)[:220]}"
         )
-        roteiro = build_extractive_script(fonte)
+        roteiro = build_extractive_script(fonte, topic=assunto)
         if not roteiro:
             sys.exit(
                 "ERRO: Gemini indisponível e fallback factual local não conseguiu "
@@ -359,7 +359,7 @@ for tentativa in range(1, 4):
             "SAP_SCRIPT_AI=INVALID_RESPONSE "
             f"{type(exc).__name__}:{str(exc)[:220]}"
         )
-        roteiro = build_extractive_script(fonte)
+        roteiro = build_extractive_script(fonte, topic=assunto)
         if not roteiro:
             sys.exit(
                 "ERRO: resposta Gemini inválida e fallback factual local "
@@ -377,7 +377,7 @@ for tentativa in range(1, 4):
             "SAP_SCRIPT_AI=ERROR "
             f"{type(exc).__name__}:{str(exc)[:220]}"
         )
-        roteiro = build_extractive_script(fonte)
+        roteiro = build_extractive_script(fonte, topic=assunto)
         if not roteiro:
             sys.exit(f"ERRO gerando roteiro: {exc}")
         cenas_texto = build_scene_queries(assunto, QTD_CENAS, clean_topic=limpar_assunto)
@@ -447,7 +447,7 @@ REGRAS OBRIGATÓRIAS:
             "SAP_SCRIPT_REPAIR=AI_FAIL "
             f"{type(exc).__name__}:{str(exc)[:220]}"
         )
-        reparado = build_extractive_script(fonte)
+        reparado = build_extractive_script(fonte, topic=assunto)
         if reparado:
             script_degraded = True
             cenas_texto = build_scene_queries(assunto, QTD_CENAS, clean_topic=limpar_assunto)
@@ -455,7 +455,7 @@ REGRAS OBRIGATÓRIAS:
     qtd_reparada = contar_palavras(reparado)
     print(f"Palavras após reparo: {qtd_reparada}")
     if not 105 <= qtd_reparada <= 125:
-        reparado = build_extractive_script(fonte)
+        reparado = build_extractive_script(fonte, topic=assunto)
         if not reparado:
             sys.exit(
                 f"ERRO: reparo final ainda fora do limite: {qtd_reparada} palavras "
@@ -536,7 +536,7 @@ if not roteiro_auditado:
         "SAP_SCRIPT_FACT_AUDIT=AI_EXHAUSTED "
         "action=SOURCE_EXTRACTIVE_RECOVERY"
     )
-    roteiro_auditado = build_extractive_script(fonte)
+    roteiro_auditado = build_extractive_script(fonte, topic=assunto)
     if not roteiro_auditado:
         sys.exit(
             "ERRO: auditoria factual indisponível e fallback extrativo "
@@ -609,7 +609,7 @@ REGRAS:
             break
 
     if not corrigido_final:
-        corrigido_final = build_extractive_script(fonte)
+        corrigido_final = build_extractive_script(fonte, topic=assunto)
         if corrigido_final:
             script_degraded = True
             cenas_texto = build_scene_queries(assunto, QTD_CENAS, clean_topic=limpar_assunto)
@@ -623,7 +623,7 @@ REGRAS:
 
 
 try:
-    roteiro, claim_traceability = enforce_script_claim_traceability(roteiro, fonte)
+    roteiro, claim_traceability = enforce_script_claim_traceability(roteiro, fonte, topic=assunto)
 except ScriptClaimTraceabilityError as exc:
     sys.exit(f"ERRO: roteiro sem rastreabilidade factual suficiente: {exc}")
 

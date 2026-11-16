@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from script_fallback import build_extractive_script, count_words
+from script_fallback import build_extractive_script, count_words, is_topic_relevant
 from shortauto_intelligence_layer import claim_engine, claim_lock
 
 MIN_SCRIPT_CLAIM_COVERAGE = 90.0
@@ -23,6 +23,8 @@ class ScriptClaimTraceabilityError(RuntimeError):
 def enforce_script_claim_traceability(
     script: str,
     source: str,
+    *,
+    topic: str = "",
 ) -> tuple[str, dict[str, Any]]:
     """Keep a supported draft or fail closed to source-only narration."""
     candidate = str(script or "").strip()
@@ -46,13 +48,25 @@ def enforce_script_claim_traceability(
         "unsupported_sentences": len(initial.get("unsupported", [])),
         "fallback_used": False,
     }
-    if initial_coverage >= MIN_SCRIPT_CLAIM_COVERAGE:
+    topic_ok = is_topic_relevant(candidate, topic)
+    result["topic_relevance_required"] = bool(str(topic or "").strip())
+    result["topic_relevant"] = topic_ok
+    if initial_coverage >= MIN_SCRIPT_CLAIM_COVERAGE and topic_ok:
         return candidate, result
 
-    extract = build_extractive_script(source_text, cta=EXTRACTIVE_CTA)
+    result["fallback_reason"] = (
+        "topic_mismatch" if not topic_ok else "coverage_below_threshold"
+    )
+    extract = build_extractive_script(
+        source_text, cta=EXTRACTIVE_CTA, topic=topic
+    )
     if not extract:
+        reason = (
+            "source_extract_topic_window_unavailable"
+            if topic else "source_extract_window_unavailable"
+        )
         raise ScriptClaimTraceabilityError(
-            f"coverage={initial_coverage:.1f};source_extract_window_unavailable"
+            f"coverage={initial_coverage:.1f};{reason}"
         )
 
     extracted_check = claim_lock(extract, claims)
@@ -65,6 +79,7 @@ def enforce_script_claim_traceability(
         )
 
     result.update(
+        topic_relevant=is_topic_relevant(extract, topic),
         coverage=round(extracted_coverage, 1),
         unsupported_sentences=len(extracted_check.get("unsupported", [])),
         fallback_used=True,

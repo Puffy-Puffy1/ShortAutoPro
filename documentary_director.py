@@ -10,7 +10,7 @@ from datetime import date
 from gemini_runtime import generate_text
 from runtime_config import env_int
 
-VERSION = "3.6"
+VERSION = "3.7"
 if __name__ == "__main__" and "--version" in sys.argv[1:]:
     print(f"DOCUMENTARY DIRECTOR - STABLE {VERSION}")
     raise SystemExit(0)
@@ -350,7 +350,7 @@ historico = []
 
 print()
 print("================================")
-print("DOCUMENTARY DIRECTOR - STABLE 3.6")
+print("DOCUMENTARY DIRECTOR - STABLE 3.7")
 print("================================")
 print()
 
@@ -417,7 +417,7 @@ if resposta is None:
         REPORT,
         {
             "short_id": SHORT_ID,
-            "version": "3.6",
+            "version": "3.7",
             "status": "DEGRADED",
             "applied": False,
             "preserved_original_scene_map": True,
@@ -476,16 +476,37 @@ for cena_original in cenas:
     if not query:
         sys.exit(f"ERRO: cena {numero} ficou sem query válida.")
 
-    must = limpar_lista(novo.get("must_have", []), 3)
+    # Documentary direction may refine retrieval, but it cannot invent new
+    # hard evidence requirements. Scene Director's MUST/AVOID contract is the
+    # only strict visual contract; later suggestions are logged for audit.
+    generated_must = limpar_lista(novo.get("must_have", []), 3)
     original_must = limpar_lista(cena_original.get("must_have", []), 3)
-    if not must and original_must:
-        must = original_must
+    original_must_keys = {item.casefold() for item in original_must}
+    must = original_must
+    rejected_generated_musts = [
+        item for item in generated_must if item.casefold() not in original_must_keys
+    ]
 
-    avoid = limpar_lista(novo.get("avoid", []), 5)
-    if len(avoid) < 2:
-        anterior = limpar_lista(cena_original.get("avoid", []), 5)
-        if len(anterior) > len(avoid):
-            avoid = anterior
+    generated_avoid = limpar_lista(novo.get("avoid", []), 5)
+    original_avoid = limpar_lista(cena_original.get("avoid", []), 5)
+    original_avoid_keys = {item.casefold() for item in original_avoid}
+    avoid = original_avoid
+    rejected_generated_avoids = [
+        item for item in generated_avoid if item.casefold() not in original_avoid_keys
+    ]
+    if rejected_generated_musts or rejected_generated_avoids:
+        print(
+            "DOCUMENTARY_DIRECTOR_CONSTRAINTS_REJECTED="
+            + json.dumps(
+                {
+                    "scene": numero,
+                    "must_suggestions": rejected_generated_musts,
+                    "avoid_suggestions": rejected_generated_avoids,
+                },
+                ensure_ascii=False,
+                separators=(",", ":"),
+            )
+        )
 
     cena_final = dict(cena_original)
     cena_final.update({
@@ -505,6 +526,8 @@ for cena_original in cenas:
         "query_after": query,
         "must_have": must,
         "avoid": avoid,
+        "rejected_generated_musts": rejected_generated_musts,
+        "rejected_generated_avoids": rejected_generated_avoids,
         "reason": limpar(novo.get("reason", "")),
     })
 
@@ -520,7 +543,7 @@ for i in range(2, len(resultado)):
 mapa_final = dict(mapa)
 mapa_final["scenes"] = resultado
 mapa_final["documentary_director"] = {
-    "version": "3.6",
+    "version": "3.7",
     "applied": True,
     "expected_scenes": QTD_CENAS,
     "visual_mode_triple_repetitions": repeticoes_mode,
@@ -530,7 +553,7 @@ mapa_final["documentary_director"] = {
 atomic_json(SCENE_MAP, mapa_final)
 atomic_json(REPORT, {
     "short_id": SHORT_ID,
-    "version": "3.6",
+    "version": "3.7",
     "status": "PASS",
     "attempts": len(historico),
     "attempt_history": historico,

@@ -11,7 +11,7 @@ erro() { echo "ERRO $1"; ERROS=$((ERROS + 1)); }
 
 echo
 echo "======================================"
-echo " SHORTAUTO PRO - RELEASE CHECK 3.0"
+echo " SHORTAUTO PRO - RELEASE CHECK 3.0.4"
 echo "======================================"
 echo
 
@@ -20,15 +20,15 @@ if [ ! -d "$BASE" ]; then
     exit 1
 fi
 
-# Preflight e health validam exatamente o pipeline Professional canônico 3.0.
-if [ -f "$BASE/preflight_check.sh" ] && bash "$BASE/preflight_check.sh"; then ok "Preflight 3.0"; else erro "Preflight 3.0"; fi
-if [ -f "$BASE/health_check.sh" ] && bash "$BASE/health_check.sh"; then ok "Health Check 3.0"; else erro "Health Check 3.0"; fi
+# Preflight e health validam exatamente o pipeline Professional canônico 3.0.4.
+if [ -f "$BASE/preflight_check.sh" ] && bash "$BASE/preflight_check.sh"; then ok "Preflight 3.0.4"; else erro "Preflight 3.0.4"; fi
+if [ -f "$BASE/health_check.sh" ] && bash "$BASE/health_check.sh"; then ok "Health Check 3.0.4"; else erro "Health Check 3.0.4"; fi
 
 # Auditoria estrutural é obrigatória para impedir retorno de entrypoints legados.
 if [ -f "$BASE/tools/repo_audit.py" ] && python "$BASE/tools/repo_audit.py" >/dev/null; then
-    ok "Repository Audit 3.0"
+    ok "Repository Audit 3.0.4"
 else
-    erro "Repository Audit 3.0"
+    erro "Repository Audit 3.0.4"
 fi
 
 while IFS= read -r -d '' arq; do
@@ -52,9 +52,9 @@ import retention_engine
 import sound_design_engine
 PY
 then
-    ok "Imports internos críticos 3.0"
+    ok "Imports internos críticos 3.0.4"
 else
-    erro "Imports internos críticos 3.0"
+    erro "Imports internos críticos 3.0.4"
 fi
 
 FFMPEG_FILTERS="$(ffmpeg -hide_banner -filters 2>/dev/null || true)"
@@ -94,7 +94,7 @@ echo "Erros: $ERROS"
 echo
 
 if [ "$ERROS" -eq 0 ]; then
-    echo "STATUS: RELEASE READY 3.0"
+    echo "STATUS: RELEASE READY 3.0.4"
     exit 0
 fi
 

@@ -83,51 +83,18 @@ jobs:
           python tools/deploy_smoke.py
           echo "PORTABLE_DEPLOY_SMOKE=PASS"
 
-      - name: Simulated Regression Tests
+      - name: Simulated Regression Tests and Architecture Gate
         shell: bash
         run: |
           set -euo pipefail
           python -m pip install --disable-pip-version-check --quiet requests
+          # Discover the complete test suite once. This already includes the
+          # legacy compatibility contracts; do not execute a second overlapping list.
           python -m unittest discover -s tests_sim -p "test_*.py" -v
           echo "PORTABLE_SIM_TESTS=PASS"
 
-      - name: Legacy Compatibility and V2 Production Gate
-        shell: bash
-        run: |
-          set -euo pipefail
-          # Legacy contracts remain regression-protected while the old Stage 6
-          # controller is removed from the production path.
-          python -m unittest -v \
-            tests_sim.test_stage6_completion_contract \
-            tests_sim.test_stage6_anchor_timeout_id_fix \
-            tests_sim.test_stage6_early_must_recovery \
-            tests_sim.test_stage6_fast_strict_path \
-            tests_sim.test_stage6_recovery_unwrap \
-            tests_sim.test_stage6_semantic_anchor_recovery \
-            tests_sim.test_media_stage_runtime \
-            tests_sim.test_media_stage_resilience \
-            tests_sim.test_media_strict_must_guard \
-            tests_sim.test_final_render_contract \
-            tests_sim.test_mobile_render_performance \
-            tests_sim.test_subtitle_alignment \
-            tests_sim.test_termux_bridge_deploy \
-            tests_sim.test_termux_stable_promotion \
-            tests_sim.test_render_preflight \
-            tests_sim.test_media_two_pass_recovery \
-            tests_sim.test_pre_render_resilience \
-            tests_sim.test_resume_media_suffix \
-            tests_sim.test_production_watchdog_health \
-            tests_sim.test_visual_query_guard \
-            tests_sim.test_rendered_visual_diversity \
-            tests_sim.test_canonical_visual_score \
-            tests_sim.test_retention_review_contract \
-            tests_sim.test_stage6_timeout_resume \
-            tests_sim.test_visual_content_integrity \
-            tests_sim.test_fresh_run_after_success \
-            tests_sim.test_media_external_resilience
-          # V2 unit/E2E/stress qualification runs in dedicated authoritative
-          # workflows above; Portable keeps the architecture boundary here so
-          # this job does not duplicate long FFmpeg workloads.
+          # The V2 unit/E2E/stress workloads run in their dedicated workflows.
+          # Keep only the lightweight production-boundary assertions here.
           ! grep -q "media_stage_runtime.py" main.py
           grep -q "media_engine_v2.py" main.py
           grep -q "media-manifest-v2" render_engine_v2.py

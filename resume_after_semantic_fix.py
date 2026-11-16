@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Resume a canonical ShortAutoPro run after a semantic-gate code fix.
+"""Re-run the semantic gate and delegate recovery to the canonical resume runtime.
 
-This helper is intentionally narrow: it reuses already validated script/scene
-artifacts, reruns the semantic gate with the current code, rebuilds the media and
-professional planning tail, then hands control to the canonical safe-resume
-runtime. It never switches to a legacy pipeline.
+This helper does not own media, edit, audio or render stages. The checkpoint-aware
+resume_short_runtime.py selects the deepest safe V2 boundary and executes the
+remaining work once.
 """
 
 from __future__ import annotations
@@ -172,22 +171,6 @@ def main() -> int:
     os.environ["SHORT_ID"] = sid
     validate_checkpoint(sid)
 
-    stages = [
-        ("5E - SEMANTIC INTEGRITY GATE", "semantic_integrity_gate.py", (), 0),
-        ("6 - SMART MEDIA SELECTOR", "media_stage_runtime.py", (), 0),
-        ("6A - MEDIA MASTER GATE", "media_master_gate.py", (), 0),
-        ("6A1 - MULTIDIMENSIONAL VISUAL SCORE", "visual_score_engine.py", (), 0),
-        ("6B - CINEMATIC MOTION DIRECTOR", "motion_director.py", (), 0),
-        ("6C - MONTAGE RHYTHM DIRECTOR", "rhythm_director.py", (), 0),
-        ("6C1 - PROFESSIONAL EDIT DIRECTOR", "professional_edit_director.py", (), 0),
-        ("6C2 - PROFESSIONAL EDIT AUTO-REPAIR", "professional_edit_repair.py", (), 0),
-        ("6C2B - MULTI-ASSET DIRECTOR", "multi_asset_director.py", (), 1),
-        ("6C3 - RETENTION ENGINE", "retention_engine.py", ("--repair", "--enforce"), 0),
-        ("6C4 - SOUND DESIGN ENGINE", "sound_design_engine.py", (), 0),
-        ("6D - PRODUCTION SUPERVISOR", "production_supervisor.py", (), 0),
-        ("6D1 - EVOLUTION VISUAL AUDIT", "shortautopro_evolution.py", ("visual-audit",), 0),
-    ]
-
     print("==============================================")
     print(" SHORTAUTOPRO - RESUME AFTER SEMANTIC FIX")
     print("==============================================")
@@ -196,16 +179,22 @@ def main() -> int:
     run_id = profile_begin_run(sid)
     print(f"PROFILE_RUN_ID={run_id}")
 
+    # Keep the semantic correction inside the same production lock. Do not
+    # duplicate media/edit/retention/render stages here: the canonical resume
+    # runtime owns the checkpoint decision and the complete downstream path.
     try:
         with canonical.RunLock(sid):
-            for title, script, stage_args, retries in stages:
-                run_stage(sid, title, script, stage_args, retries)
+            run_stage(
+                sid,
+                "5E - SEMANTIC INTEGRITY GATE",
+                "semantic_integrity_gate.py",
+            )
     except Exception as exc:
         print(f"RESUME_AFTER_SEMANTIC_ERROR={type(exc).__name__}: {exc}", file=sys.stderr)
         return 1
 
-    # The professional planning checkpoint now exists. Hand off to the canonical
-    # artifact-validated resume runtime for editorial/audio/captions/render/QA.
+    # Release the lock before handoff. resume_short_runtime acquires the same
+    # per-Short lock and selects the deepest valid V2 checkpoint.
     resume = BASE / "resume_short_runtime.py"
     if not resume.is_file():
         print("RESUME_AFTER_SEMANTIC_ERROR=resume_short_runtime.py ausente", file=sys.stderr)

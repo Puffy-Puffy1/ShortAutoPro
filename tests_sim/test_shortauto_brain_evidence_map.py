@@ -50,6 +50,39 @@ class ShortAutoBrainEvidenceMapTests(unittest.TestCase):
         )
         self.assertEqual(result["scenes"][0]["evidence_basis"], "narration_only")
 
+    def test_explicit_cta_is_excluded_from_factual_coverage(self):
+        supported_scene = {"segment": "O piloto relatou um OVNI perseguindo seu avião"}
+        cta_scene = {
+            "segment": "Comente o que acha!",
+            "visual_intent_6_7": "CTA",
+        }
+
+        result = build_evidence_map(
+            [supported_scene, cta_scene],
+            fact_layer(SOURCE),
+        )
+
+        self.assertEqual(result["coverage"], 100.0)
+        self.assertEqual(result["eligible_scenes"], 1)
+        self.assertEqual(result["coverage_exempt_scenes"], [2])
+        self.assertEqual(result["unsupported_scenes"], [])
+        self.assertTrue(result["scenes"][1]["coverage_exempt"])
+        self.assertEqual(result["scenes"][1]["evidence_basis"], "editorial_prompt")
+        self.assertIsNone(result["scenes"][1]["supported"])
+
+    def test_unclassified_unsupported_narration_is_not_exempt(self):
+        scene = {
+            "segment": "A noite estava fria e silenciosa.",
+            "visual_intent_6_7": "environment",
+        }
+
+        result = build_evidence_map([scene], fact_layer(SOURCE))
+
+        self.assertEqual(result["coverage"], 0.0)
+        self.assertEqual(result["eligible_scenes"], 1)
+        self.assertEqual(result["coverage_exempt_scenes"], [])
+        self.assertEqual(result["unsupported_scenes"], [1])
+
     def test_existing_evidence_overlap_threshold_is_not_lowered(self):
         scene = {"segment": "Uma história misteriosa continua sem explicação."}
 
