@@ -14,6 +14,7 @@ from collections import Counter
 from datetime import date
 
 from source_identity import validar_identidade
+from studio_config import script_length_valid
 
 BASE = os.path.abspath(
     os.path.expanduser(
@@ -161,7 +162,7 @@ warnings = []
 strengths = []
 
 script_words = words(script)
-if not SCRIPT_MIN_WORDS <= len(script_words) <= SCRIPT_MAX_WORDS:
+if not script_length_valid(len(script_words), SCRIPT_MIN_WORDS, SCRIPT_MAX_WORDS):
     critical.append(
         f"script_words={len(script_words)} expected={SCRIPT_MIN_WORDS}-{SCRIPT_MAX_WORDS}"
     )
