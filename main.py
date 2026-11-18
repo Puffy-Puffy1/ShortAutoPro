@@ -29,6 +29,7 @@ import production_profiler
 import production_watchdog
 from subprocess_guard import run_group
 from runtime_config import env_int
+from studio_config import STYLES, apply_studio_config, build_studio_config
 
 BASE = Path(os.getenv("SHORTAUTOPRO_BASE", os.path.expanduser("~/ShortAutoPro"))).resolve()
 EVOLUTION = BASE / "shortautopro_evolution.py"
@@ -236,14 +237,24 @@ class Pipeline:
 
     def _stage_timeout_seconds(self, file: str) -> int:
         """Return a bounded timeout appropriate for the production stage."""
+        name = str(file or "").strip().lower()
+        long_form_stages = {
+            "media_engine_v2.py", "audio.py", "legenda_dinamica.py",
+            "render_engine_v2.py", "audio_finalizer.py", "visual_qa.py",
+            "quality_check.py", "professional_caption_director.py",
+        }
+        if (
+            os.getenv("SAP_STUDIO_FORMAT", "short").strip().lower() == "long"
+            and name in long_form_stages
+        ):
+            return env_int("SAP_STUDIO_LONG_STAGE_TIMEOUT_SECONDS", 7200, 300, 21600)
+
         explicit = os.getenv("SAP_STAGE_TIMEOUT_SECONDS", "").strip()
         if explicit:
             try:
                 return max(60, min(int(explicit), 7200))
             except ValueError:
                 pass
-
-        name = str(file or "").strip().lower()
 
         # Network/AI refinement stages already have their own short retry logic.
         if name in {
@@ -590,9 +601,29 @@ def export(p: Pipeline) -> Path:
     return destination
 
 
-def run_pipeline(*, reuse_short_id: bool = False) -> int:
+def run_pipeline(
+    *,
+    reuse_short_id: bool = False,
+    studio_options: dict[str, Any] | None = None,
+) -> int:
     source_config()
     setup_env()
+    if studio_options is not None:
+        apply_studio_config(studio_options)
+        print("\nSHORTAUTOPRO STUDIO PROFILE")
+        print(
+            f"Formato: {studio_options['format']} | "
+            f"Duração desejada: {studio_options['duration_seconds']}s"
+        )
+        print(
+            f"Quadro: {studio_options['width']}x{studio_options['height']} "
+            f"@ {studio_options['fps']}fps | "
+            f"Cenas: {studio_options['scene_count']}"
+        )
+        print(
+            f"Estilo: {studio_options['style']} | "
+            f"IA em nuvem: {'opcional/ativada' if studio_options.get('free_mode') is False else 'desligada (modo gratuito)'}"
+        )
     sid = allocate_id(reuse_existing=reuse_short_id)
     os.environ["SHORT_ID"] = sid
     STATE_DIR.mkdir(parents=True, exist_ok=True)
@@ -665,6 +696,25 @@ def cli() -> int:
     storage = sub.add_parser("storage")
     storage.add_argument("storage_command", choices=["status", "preflight", "cleanup"], default="status", nargs="?")
     storage.add_argument("--execute", action="store_true")
+    studio = sub.add_parser(
+        "studio",
+        help="Gerar um Short ou vídeo longo usando o pipeline canônico",
+    )
+    studio.add_argument("--format", dest="video_format", choices=("short", "long"), default="short")
+    studio.add_argument(
+        "--duration",
+        type=int,
+        default=None,
+        help="Short: 30/45/60 segundos. Long: 10/15/20 minutos.",
+    )
+    studio.add_argument("--theme", default="", help="Tema amplo, como ciência, história ou games")
+    studio.add_argument("--topic", default="", help="Assunto exato documentado; não usar junto com --theme")
+    studio.add_argument("--style", choices=tuple(sorted(STYLES)), default="documentary")
+    studio.add_argument(
+        "--cloud-ai",
+        action="store_true",
+        help="Permite usar a chave de IA em nuvem configurada; por padrão ela é desativada.",
+    )
     args = parser.parse_args()
     command_name = args.command or "run"
 
@@ -672,6 +722,21 @@ def cli() -> int:
         return run_pipeline(
             reuse_short_id=bool(getattr(args, "reuse_short_id", False))
         )
+
+    if command_name == "studio":
+        try:
+            options = build_studio_config(
+                args.video_format,
+                args.duration,
+                theme=args.theme,
+                exact_topic=args.topic,
+                style=args.style,
+                cloud_ai=args.cloud_ai,
+            )
+        except (TypeError, ValueError) as exc:
+            print(f"STUDIO_CONFIG_INVALID: {exc}")
+            return 2
+        return run_pipeline(studio_options=options)
 
     setup_env()
     control_timeout = env_int("SAP_CONTROL_COMMAND_TIMEOUT", 7200, 300, 21600)
