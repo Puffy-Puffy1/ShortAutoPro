@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import runpy
 import sys
 from datetime import date
@@ -111,7 +112,7 @@ def verify_exact(topic: str) -> dict:
             identity = validar_identidade(topic, title, text)
             score = float(identity.get("score", 0.0) or 0.0)
             source_limit = max(700, min(100000, int(os.getenv("SAP_STUDIO_SOURCE_MAX_CHARS", "60000"))))
-            source_words = len(__import__("re").findall(r"\\b[\\wÀ-ÿ'-]+\\b", text[:source_limit], flags=__import__("re").UNICODE))
+            source_words = len(re.findall(r"\\b[\\wÀ-ÿ'-]+\\b", text[:source_limit], flags=re.UNICODE))
             enough_for_long = True
             if os.getenv("SAP_STUDIO_FORMAT", "short").strip().lower() == "long":
                 try:
