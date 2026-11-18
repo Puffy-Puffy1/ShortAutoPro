@@ -111,6 +111,17 @@ def build_studio_config(
     }
 
 
+
+def script_length_valid(word_count: int, min_words: int, max_words: int) -> bool:
+    """Validate script length against the active profile's inclusive range."""
+    try:
+        count = int(word_count)
+        minimum = max(0, int(min_words))
+        maximum = max(minimum, int(max_words))
+    except (TypeError, ValueError):
+        return False
+    return minimum <= count <= maximum
+
 def apply_studio_config(config: dict[str, Any]) -> None:
     """Apply a validated profile after config.sh has been loaded."""
     required = {
@@ -165,5 +176,6 @@ __all__ = [
     "LONG_DURATIONS_MINUTES",
     "STYLES",
     "build_studio_config",
+    "script_length_valid",
     "apply_studio_config",
 ]
