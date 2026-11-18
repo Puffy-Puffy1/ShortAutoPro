@@ -26,6 +26,26 @@ class PiperTermuxCompatibilityTests(unittest.TestCase):
         cls.env_patch.stop()
         cls.temp.cleanup()
 
+    def test_voice_inside_configured_voice_dir_uses_model_id(self):
+        root = Path(self.temp.name)
+        voices = root / "voices"
+        voices.mkdir(exist_ok=True)
+        model = voices / "pt_BR-faber-medium.onnx"
+        model.write_bytes(b"model-placeholder")
+        self.assertEqual(
+            self.audio.resolve_model_arg("pt_BR-faber-medium", model, voices),
+            "pt_BR-faber-medium",
+        )
+
+    def test_external_voice_file_keeps_absolute_model_path(self):
+        root = Path(self.temp.name)
+        external = root / "custom.onnx"
+        external.write_bytes(b"model-placeholder")
+        self.assertEqual(
+            self.audio.resolve_model_arg("custom", external, root / "voices"),
+            str(external),
+        )
+
     def test_wav_output_is_accepted_without_reencoding(self):
         root = Path(self.temp.name)
         source = root / "piper.wav"
