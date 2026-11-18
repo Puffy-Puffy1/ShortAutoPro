@@ -8,6 +8,13 @@ on:
       - "generative_video_poc/**"
       - "tests_generative_video/**"
       - ".github/workflows/generative-video-poc.yml"
+  pull_request:
+    branches:
+      - fix/canonical-integrated-pipeline-20261102
+    paths:
+      - "generative_video_poc/**"
+      - "tests_generative_video/**"
+      - ".github/workflows/generative-video-poc.yml"
   workflow_dispatch:
 
 permissions:
