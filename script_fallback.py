@@ -275,9 +275,74 @@ def build_scene_queries(
     return "\n".join(templates[i % len(templates)] for i in range(quantity))
 
 
+
+def build_extractive_long_script(
+    source: str,
+    *,
+    min_words: int,
+    max_words: int,
+    target_words: int | None = None,
+    cta: str = "Comente o que achou!",
+    topic: str = "",
+) -> str:
+    """Build a long narration from ordered, source-verbatim sentences.
+
+    It never repeats sentences or invents facts. If the verified source does not
+    contain enough relevant material, it returns an empty string instead of
+    padding the video with unsupported narration.
+    """
+    try:
+        minimum = max(200, int(min_words))
+        maximum = max(minimum, min(int(max_words), 12000))
+        target = int(target_words) if target_words is not None else (minimum + maximum) // 2
+    except (TypeError, ValueError):
+        return ""
+
+    target = max(minimum, min(maximum, target))
+    sentences = source_sentences(source)
+    if not sentences:
+        return ""
+
+    cta_text = str(cta or "").strip()
+    cta_count = count_words(cta_text)
+    counts = [count_words(sentence) for sentence in sentences]
+    if sum(counts) + cta_count < minimum:
+        return ""
+
+    best_score = None
+    best_text = ""
+    for start in range(len(sentences)):
+        selected: list[str] = []
+        words = cta_count
+        for end in range(start, len(sentences)):
+            sentence = sentences[end]
+            words += counts[end]
+            if words > maximum:
+                break
+            selected.append(sentence)
+            if words < minimum:
+                continue
+
+            body = " ".join(selected)
+            if topic and not is_topic_relevant(body, topic):
+                continue
+
+            # Prefer a window near the requested spoken length; use source
+            # relevance and original order only as deterministic tie-breakers.
+            relevance = topic_relevance_score(body, topic) if topic else 0
+            score = (abs(words - target), -relevance, start)
+            if best_score is None or score < best_score:
+                best_score = score
+                best_text = (body + (" " + cta_text if cta_text else "")).strip()
+
+    return best_text
+
+
+
 __all__ = [
     "count_words",
     "source_sentences",
     "build_extractive_script",
+    "build_extractive_long_script",
     "build_scene_queries",
 ]
