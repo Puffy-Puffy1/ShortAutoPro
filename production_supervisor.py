@@ -17,7 +17,15 @@ try:
     QTD_CENAS = int(os.getenv("SHORT_QTD_CENAS", "12"))
 except (TypeError, ValueError):
     QTD_CENAS = 12
-QTD_CENAS = max(6, min(QTD_CENAS, 20))
+QTD_CENAS = max(6, min(QTD_CENAS, 80))
+
+STUDIO_FORMAT = os.getenv("SAP_STUDIO_FORMAT", "short").strip().lower()
+EXPECTED_WIDTH = int(os.getenv("SAP_STUDIO_WIDTH", "1080"))
+EXPECTED_HEIGHT = int(os.getenv("SAP_STUDIO_HEIGHT", "1920"))
+EXPECTED_FPS = int(os.getenv("SAP_STUDIO_FPS", "30"))
+TARGET_DURATION = max(1, int(os.getenv("SAP_STUDIO_DURATION_SECONDS", "45")))
+SCRIPT_MIN_WORDS = max(80, int(os.getenv("SAP_STUDIO_SCRIPT_MIN_WORDS", "105")))
+SCRIPT_MAX_WORDS = max(SCRIPT_MIN_WORDS, int(os.getenv("SAP_STUDIO_SCRIPT_MAX_WORDS", "125")))
 
 ROTEIROS = BASE / "roteiros"
 MEDIA_DIR = BASE / "imagens" / f"short_{SHORT_ID}"
@@ -192,7 +200,7 @@ def evaluate(topic, script, source_text, scene_map, motion):
         score -= 25
 
     wc = word_count(script)
-    if not 105 <= wc <= 125:
+    if not SCRIPT_MIN_WORDS <= wc <= SCRIPT_MAX_WORDS:
         critical.append(f"script_words_{wc}")
         score -= 25
     else:
