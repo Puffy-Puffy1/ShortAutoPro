@@ -16,7 +16,15 @@ try:
     QTD_CENAS = int(os.getenv("SHORT_QTD_CENAS", "12"))
 except (TypeError, ValueError):
     QTD_CENAS = 12
-QTD_CENAS = max(6, min(QTD_CENAS, 20))
+QTD_CENAS = max(6, min(QTD_CENAS, 80))
+
+STUDIO_FORMAT = os.getenv("SAP_STUDIO_FORMAT", "short").strip().lower()
+EXPECTED_WIDTH = int(os.getenv("SAP_STUDIO_WIDTH", "1080"))
+EXPECTED_HEIGHT = int(os.getenv("SAP_STUDIO_HEIGHT", "1920"))
+EXPECTED_FPS = int(os.getenv("SAP_STUDIO_FPS", "30"))
+TARGET_DURATION = max(1, int(os.getenv("SAP_STUDIO_DURATION_SECONDS", "45")))
+SCRIPT_MIN_WORDS = max(80, int(os.getenv("SAP_STUDIO_SCRIPT_MIN_WORDS", "105")))
+SCRIPT_MAX_WORDS = max(SCRIPT_MIN_WORDS, int(os.getenv("SAP_STUDIO_SCRIPT_MAX_WORDS", "125")))
 
 MANIFEST = BASE / "manifests" / f"{SHORT_ID}.json"
 PUBLISH = BASE / "roteiros" / f"publish_{SHORT_ID}.json"
@@ -126,7 +134,7 @@ def avaliar(manifest, publish, roteiro, hook):
 
     script_score = 25.0
     qtd_palavras = contar_palavras(roteiro)
-    if not 105 <= qtd_palavras <= 125:
+    if not SCRIPT_MIN_WORDS <= qtd_palavras <= SCRIPT_MAX_WORDS:
         script_score -= 12
 
     frases = [x.strip() for x in re.split(r"[.!?]+", roteiro) if x.strip()]
