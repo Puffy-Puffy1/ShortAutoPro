@@ -35,9 +35,9 @@ jobs:
           python -m py_compile \
             main.py studio_config.py profile_runtime.py runtime_config.py \
             topic_engine.py topic_engine_runtime.py roteiro.py script_fallback.py \
-            audio.py documentary_director.py visual_director.py professional_edit_director.py motion_director.py rhythm_director.py \\
-            scene_truth_refiner_6_7.py visual_shot_bridge.py editorial_continuity.py \\
-            scene_lossless_repair.py post_script_truth_lock.py semantic_integrity_gate.py \\
+            audio.py documentary_director.py visual_director.py professional_edit_director.py motion_director.py rhythm_director.py \
+            scene_truth_refiner_6_7.py visual_shot_bridge.py editorial_continuity.py \
+            scene_lossless_repair.py post_script_truth_lock.py semantic_integrity_gate.py \
             visual_qa.py render_preflight.py subtitle_style_policy.py \
             caption_layout_guard.py render_engine_v2.py \
             render_v2/ffmpeg_visual_renderer.py
