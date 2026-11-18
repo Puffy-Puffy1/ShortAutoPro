@@ -28,6 +28,14 @@ except ValueError:
     QTD_CENAS = 12
 QTD_CENAS = max(6, min(QTD_CENAS, 80))
 
+try:
+    SCRIPT_MIN_WORDS = int(os.getenv("SAP_STUDIO_SCRIPT_MIN_WORDS", "105"))
+    SCRIPT_MAX_WORDS = int(os.getenv("SAP_STUDIO_SCRIPT_MAX_WORDS", "125"))
+except (TypeError, ValueError):
+    SCRIPT_MIN_WORDS, SCRIPT_MAX_WORDS = 105, 125
+SCRIPT_MIN_WORDS = max(80, min(8000, SCRIPT_MIN_WORDS))
+SCRIPT_MAX_WORDS = max(SCRIPT_MIN_WORDS, min(10000, SCRIPT_MAX_WORDS))
+
 R = os.path.join(BASE, "roteiros")
 SCRIPT = os.path.join(R, f"short_{SHORT_ID}.txt")
 SCENE_MAP = os.path.join(R, f"scene_map_{SHORT_ID}.json")
@@ -153,8 +161,10 @@ warnings = []
 strengths = []
 
 script_words = words(script)
-if not 105 <= len(script_words) <= 125:
-    critical.append(f"script_words={len(script_words)}")
+if not SCRIPT_MIN_WORDS <= len(script_words) <= SCRIPT_MAX_WORDS:
+    critical.append(
+        f"script_words={len(script_words)} expected={SCRIPT_MIN_WORDS}-{SCRIPT_MAX_WORDS}"
+    )
 else:
     strengths.append("script_length_ok")
 
