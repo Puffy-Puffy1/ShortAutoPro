@@ -16,7 +16,7 @@ try:
     QTD_CENAS = int(os.getenv("SHORT_QTD_CENAS", "12"))
 except ValueError:
     QTD_CENAS = 12
-QTD_CENAS = max(6, min(QTD_CENAS, 20))
+QTD_CENAS = max(6, min(QTD_CENAS, 80))
 
 R = os.path.join(BASE, "roteiros")
 SCENE_MAP = os.path.join(R, f"scene_map_{SHORT_ID}.json")
