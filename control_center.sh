@@ -32,7 +32,7 @@ PY
 done; }
 storage_guard(){ echo "Simulação/status:";rodar_main storage status||return 1;echo;local r;read -r -p "Executar limpeza segura? [s/N]: " r||return 0;case "$r" in s|S|sim|SIM|Sim) rodar_main storage cleanup --execute;;*)echo "Cancelado.";;esac; }
 studio_generate(){
- local format_choice duration_choice tema style
+ local format_choice duration_choice tema style format
  echo "Formato de vídeo:"
  echo "1) Short vertical"
  echo "2) Vídeo longo horizontal"
