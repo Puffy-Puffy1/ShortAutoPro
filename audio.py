@@ -25,15 +25,45 @@ def atomic_json(path:Path,payload:Any):
 def read_plan()->list[dict[str,Any]]:
  try:d=json.loads(SPEECH_PLAN.read_text(encoding="utf-8"));chunks=d.get("chunks",[]) if isinstance(d,dict) else [];return [x for x in chunks if isinstance(x,dict) and str(x.get("text","")).strip()]
  except Exception:return []
-def piper_wav(text:str,dest:Path,env:dict[str,str])->None:
- try:run_group(["piper","-m",MODEL_ARG,"-f",str(dest),"--",text],env=env,check=True,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE,text=True,timeout=180)
- except subprocess.TimeoutExpired:fail("Piper excedeu 180 segundos")
- except subprocess.CalledProcessError as exc:fail(f"Piper falhou ({exc.returncode}): {(exc.stderr or '')[-700:]}")
+def piper_sample_rate()->int:
+ try:
+  config_path=MODEL_FILE.with_suffix(".onnx.json")
+  config=json.loads(config_path.read_text(encoding="utf-8"))
+  rate=int(config.get("audio",{}).get("sample_rate",22050))
+  return max(8000,min(48000,rate))
+ except Exception:return 22050
+def convert_piper_output(source:Path,dest:Path,sample_rate:int)->None:
+ """Accept both WAV output and the raw float32 output used by Termux Piper builds."""
+ try:
+  with source.open("rb") as handle:header=handle.read(4)
+ except OSError as exc:fail(f"saída Piper ausente: {exc}")
+ if header==b"RIFF":
+  os.replace(source,dest)
+ else:
+  try:
+   run_group([
+    "ffmpeg","-y","-hide_banner","-loglevel","error",
+    "-f","f32le","-ar",str(sample_rate),"-ac","1","-i",str(source),
+    "-c:a","pcm_s16le","-ar",str(sample_rate),str(dest)
+   ],check=True,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE,text=True,timeout=120)
+  except Exception as exc:fail(f"não foi possível converter áudio RAW do Piper: {exc}")
+  finally:
+   try:source.unlink(missing_ok=True)
+   except OSError:pass
  if not dest.is_file() or dest.stat().st_size<=44:fail("Piper não produziu WAV válido")
  try:
   with wave.open(str(dest),"rb") as audio_file:
    if audio_file.getnframes()<=0 or audio_file.getframerate()<=0 or audio_file.getnchannels()<=0:fail("Piper produziu WAV sem frames válidos")
  except (wave.Error,EOFError,OSError) as exc:fail(f"Piper não produziu WAV PCM válido: {exc}")
+def piper_wav(text:str,dest:Path,env:dict[str,str])->None:
+ raw=dest.with_suffix(".piper.raw")
+ try:
+  run_group(["piper","-m",MODEL_ARG,"-f",str(raw),"--",text],env=env,check=True,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE,text=True,timeout=180)
+ except subprocess.TimeoutExpired:fail("Piper excedeu 180 segundos")
+ except subprocess.CalledProcessError as exc:fail(f"Piper falhou ({exc.returncode}): {(exc.stderr or '')[-700:]}")
+ if not raw.is_file() or raw.stat().st_size<=0:fail("Piper não produziu arquivo de áudio")
+ convert_piper_output(raw,dest,piper_sample_rate())
+
 def audio_duration(path:Path)->float:
  raw=check_output_group(["ffprobe","-v","error","-show_entries","format=duration","-of","default=noprint_wrappers=1:nokey=1",str(path)],text=True,stderr=subprocess.DEVNULL,timeout=30).strip();v=float(raw)
  if not math.isfinite(v) or v<5:fail(f"duração de áudio inválida: {v}")
