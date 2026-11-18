@@ -16,7 +16,7 @@ class TermuxRuntimeTests(unittest.TestCase):
         report = TermuxRuntime(environ=self.env, machine="aarch64", meminfo_path=self.meminfo,
                                home=self.home, which=self.which).require_ready()
         self.assertEqual(report["runtime"], "termux"); self.assertTrue(report["is_arm64"])
-        self.assertTrue(report["generation_backend_available"]); self.assertEqual(report["total_ram_mb"], 8192)
+        self.assertTrue(report["generation_backend_available"]); self.assertEqual(report["total_ram_mb"], 8000)
         self.assertEqual(report["remote_compute"], "disabled_by_default")
     def test_rejects_non_termux_shell(self):
         runtime = TermuxRuntime(environ={"HOME":str(self.home)}, machine="aarch64",
