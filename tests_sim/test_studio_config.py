@@ -24,6 +24,15 @@ class StudioConfigTests(unittest.TestCase):
         self.assertGreater(twenty["script_min_words"], ten["script_min_words"])
         self.assertGreater(twenty["script_max_output_tokens"], ten["script_max_output_tokens"])
 
+    def test_script_length_validator_respects_short_and_long_ranges(self):
+        from studio_config import script_length_valid
+
+        self.assertTrue(script_length_valid(112, 105, 125))
+        self.assertFalse(script_length_valid(1300, 105, 125))
+        self.assertTrue(script_length_valid(1300, 1288, 1512))
+        self.assertFalse(script_length_valid(125, 1288, 1512))
+        self.assertFalse(script_length_valid("invalid", 105, 125))
+
     def test_unsupported_duration_is_rejected(self):
         with self.assertRaises(ValueError):
             build_studio_config("long", 8)
