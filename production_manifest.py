@@ -19,7 +19,15 @@ try:
     QTD_CENAS = int(os.getenv("SHORT_QTD_CENAS", "12"))
 except (TypeError, ValueError):
     QTD_CENAS = 12
-QTD_CENAS = max(6, min(QTD_CENAS, 20))
+QTD_CENAS = max(6, min(QTD_CENAS, 80))
+
+STUDIO_FORMAT = os.getenv("SAP_STUDIO_FORMAT", "short").strip().lower()
+EXPECTED_WIDTH = int(os.getenv("SAP_STUDIO_WIDTH", "1080"))
+EXPECTED_HEIGHT = int(os.getenv("SAP_STUDIO_HEIGHT", "1920"))
+EXPECTED_FPS = int(os.getenv("SAP_STUDIO_FPS", "30"))
+TARGET_DURATION = max(1, int(os.getenv("SAP_STUDIO_DURATION_SECONDS", "45")))
+SCRIPT_MIN_WORDS = max(80, int(os.getenv("SAP_STUDIO_SCRIPT_MIN_WORDS", "105")))
+SCRIPT_MAX_WORDS = max(SCRIPT_MIN_WORDS, int(os.getenv("SAP_STUDIO_SCRIPT_MAX_WORDS", "125")))
 
 R = BASE / "roteiros"
 MANIFEST_DIR = BASE / "manifests"
@@ -315,15 +323,15 @@ def build_manifest(probe_data=None):
         "visual_qa_present": bool(visual_qa),
         "visual_qa_not_blocked": vqa_status in {"PASS", "REVIEW"},
         "rendered_content_verified": rendered_content_verified,
-        "resolution_ok": width == 1080 and height == 1920,
-        "fps_ok": 29.0 <= fps <= 31.0,
+        "resolution_ok": width == EXPECTED_WIDTH and height == EXPECTED_HEIGHT,
+        "fps_ok": abs(fps - EXPECTED_FPS) <= 0.25,
         "video_codec_ok": video_codec_normalized == "h264",
         "audio_exists": bool(audio_codec),
         "audio_codec_ok": audio_codec_normalized == "aac",
-        "duration_ok": 15.0 <= duration <= 180.0,
+        "duration_ok": (TARGET_DURATION * 0.72 <= duration <= TARGET_DURATION * 1.30) if STUDIO_FORMAT == "long" else (15.0 <= duration <= 180.0),
         "topic_exists": bool(topic),
         "hook_exists": bool(hook),
-        "script_exists": bool(script) and 105 <= count_words(script) <= 125,
+        "script_exists": bool(script) and SCRIPT_MIN_WORDS <= count_words(script) <= SCRIPT_MAX_WORDS,
         "source_exists": bool(source),
         "publish_exists": bool(publish),
         "publish_title_exists": bool(str(publish.get("chosen_title", "") or "").strip()),
