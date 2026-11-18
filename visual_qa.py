@@ -86,7 +86,7 @@ def load(path: Path) -> dict[str, Any]:
 def scene_durations(expected: int | None = None) -> list[float]:
     """Read scene timing from the runtime sidecar or the renderer's frozen timeline."""
     if expected is None:
-        expected = env_int("SHORT_QTD_CENAS", 12, 6, 20)
+        expected = env_int("SHORT_QTD_CENAS", 12, 6, 80)
 
     def positive(values: Any) -> list[float]:
         if not isinstance(values, list):
@@ -381,7 +381,7 @@ def analyze_rendered_content(
     diversity: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Verify opening and per-scene pixels in the rendered timeline itself."""
-    expected = env_int("SHORT_QTD_CENAS", 12, 6, 20)
+    expected = env_int("SHORT_QTD_CENAS", 12, 6, 80)
     durations = scene_durations(expected)
 
     if not path.is_file():
@@ -448,7 +448,7 @@ def analyze_rendered_content(
 
 
 def analyze_scene_diversity(path: Path) -> dict[str, Any]:
-    expected = env_int("SHORT_QTD_CENAS", 12, 6, 20)
+    expected = env_int("SHORT_QTD_CENAS", 12, 6, 80)
     durations = scene_durations(expected)
     if len(durations) != expected or not path.is_file():
         return {
@@ -580,7 +580,7 @@ def main() -> int:
             and path.suffix.lower()
             in {".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".webm"}
         )
-        expected = env_int("SHORT_QTD_CENAS", 12, 6, 20)
+        expected = env_int("SHORT_QTD_CENAS", 12, 6, 80)
         primary = [
             path
             for path in files
