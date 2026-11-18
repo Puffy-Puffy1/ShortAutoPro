@@ -191,10 +191,13 @@ def verificar_wikipedia(nome):
             if not identidade.get("valid"):
                 continue
 
+            source_limit = max(700, min(100000, int(os.getenv("SAP_STUDIO_SOURCE_MAX_CHARS", "60000"))))
+            source_words = len(re.findall(r"\\b[\\wÀ-ÿ'-]+\\b", texto[:source_limit], flags=re.UNICODE))
             return {
                 "ok": True,
                 "wiki_title": titulo,
                 "chars": len(texto),
+                "words": source_words,
                 "similarity": round(semelhanca, 3),
                 "identity_score": round(float(identidade.get("score", 0.0)), 3),
                 "identity_reason": identidade.get("reason", ""),
@@ -277,35 +280,100 @@ def chamar_gemini(prompt):
 
 
 FALLBACK_TOPIC_SEEDS = [
-    "Desaparecimento de Frederick Valentich",
-    "Incidente do Passo Dyatlov",
-    "Sinal Wow!",
-    "Monstro de Flatwoods",
-    "Voo 19",
-    "D. B. Cooper",
-    "Caso Tamam Shud",
-    "MV Joyita",
-    "USS Cyclops",
-    "Farol das Ilhas Flannan",
-    "Colônia de Roanoke",
-    "Manuscrito Voynich",
-    "Cinco de Yuba County",
-    "Crianças Sodder",
-    "Caso das Máscaras de Chumbo",
-    "Hinterkaifeck",
-    "Kaspar Hauser",
-    "Desaparecimento das crianças Beaumont",
+    "Desaparecimento de Frederick Valentich", "Incidente do Passo Dyatlov",
+    "Sinal Wow!", "Monstro de Flatwoods", "Voo 19", "D. B. Cooper",
+    "Caso Tamam Shud", "MV Joyita", "USS Cyclops", "Farol das Ilhas Flannan",
+    "Colônia de Roanoke", "Manuscrito Voynich", "Cinco de Yuba County",
+    "Crianças Sodder", "Caso das Máscaras de Chumbo", "Hinterkaifeck",
+    "Kaspar Hauser", "Desaparecimento das crianças Beaumont",
+]
+
+# Seleção offline por tema: cada candidato ainda precisa passar pela pesquisa,
+# identidade da fonte e, em vídeos longos, pelo tamanho real do artigo.
+FALLBACK_THEME_GROUPS = (
+    (("historia", "história", "history", "historico", "histórico", "guerra", "revolucao", "revolução"), [
+        "Segunda Guerra Mundial", "Revolução Francesa", "Império Romano",
+        "Revolução Industrial", "Peste Negra", "Guerra Fria",
+        "Independência do Brasil", "Antigo Egito", "Queda de Constantinopla",
+    ]),
+    (("ciencia", "ciência", "science", "astronomia", "espaco", "espaço", "fisica", "física", "biologia"), [
+        "Buraco negro", "Sistema Solar", "Teoria da evolução",
+        "História da astronomia", "Missões Apollo", "Dinossauros",
+        "Genoma humano", "Mecânica quântica", "Origem da vida",
+    ]),
+    (("tecnologia", "technology", "computador", "internet", "programacao", "programação", "games", "jogos", "videogame"), [
+        "História da Internet", "História dos jogos eletrônicos",
+        "Inteligência artificial", "Nintendo", "Computador pessoal",
+        "World Wide Web", "ARPANET", "História da computação",
+    ]),
+    (("natureza", "nature", "animal", "animais", "oceano", "floresta", "clima", "ambiente"), [
+        "Floresta Amazônica", "Grande Barreira de Coral", "Tectônica de placas",
+        "Extinção do Cretáceo-Paleógeno", "Ilhas Galápagos", "Vulcanismo",
+        "Recifes de coral", "Migração animal",
+    ]),
+    (("esporte", "esportes", "futebol", "olimpiada", "olimpíada", "formula 1", "fórmula 1"), [
+        "Copa do Mundo FIFA", "Jogos Olímpicos", "História do futebol",
+        "Fórmula 1", "Pelé", "Michael Jordan", "Tour de France",
+    ]),
+    (("cinema", "filme", "filmes", "musica", "música", "arte", "cultura"), [
+        "História do cinema", "História da música", "Animação",
+        "Cinema brasileiro", "Jazz", "Rock", "História da fotografia",
+    ]),
+)
+
+GENERAL_TOPIC_SEEDS = [
+    "História da humanidade", "Exploração espacial", "História da medicina",
+    "Mudanças climáticas", "História da aviação", "Grandes navegações",
+    "História da energia elétrica", "Civilização maia",
 ]
 
 
+def fallback_topic_seed_pool():
+    theme = normalizar(TEMA)
+    selected = []
+    for keywords, candidates in FALLBACK_THEME_GROUPS:
+        if any(keyword in theme for keyword in keywords):
+            selected.extend(candidates)
+            break
+
+    # Pesquisa por tema também traz candidatos próprios para assuntos livres,
+    # sem depender de um modelo remoto ou de uma chave paga.
+    try:
+        discovered = wiki_search(TEMA, limit=12)
+        for item in discovered if isinstance(discovered, list) else []:
+            if isinstance(item, dict):
+                title = str(item.get("title", "")).strip()
+                if title:
+                    selected.append(title)
+    except Exception as exc:
+        print(f"TOPIC_ENGINE_FALLBACK=THEME_SEARCH_UNAVAILABLE {type(exc).__name__}")
+
+    if not selected:
+        selected = list(FALLBACK_TOPIC_SEEDS if any(
+            word in theme for word in ("misterio", "mistério", "crime", "desaparecimento")
+        ) else GENERAL_TOPIC_SEEDS)
+
+    result = []
+    seen = set()
+    for item in selected:
+        key = normalizar(item)
+        if key and key not in seen:
+            seen.add(key)
+            result.append(item)
+    return result
+
+
 def _fallback_candidate_score(nome, verificacao):
-    return (
+    score = (
         score_visual_nome(nome) * 1.10
         + score_hook_nome(nome) * 1.15
         + score_documentacao(verificacao.get("chars", 0)) * 1.25
         + score_titulo(verificacao.get("similarity", 0.0)) * 0.55
         + score_novidade(nome) * 0.75
     )
+    if os.getenv("SAP_STUDIO_FORMAT", "short").strip().lower() == "long":
+        score += min(20.0, float(verificacao.get("words", 0) or 0) / 180.0)
+    return score
 
 
 def escolher_fallback_sem_llm():
@@ -341,7 +409,7 @@ def escolher_fallback_sem_llm():
     print("TOPIC_ENGINE_FALLBACK=LOCAL_WIKIPEDIA_DISCOVERY")
 
     melhores = []
-    for nome in FALLBACK_TOPIC_SEEDS:
+    for nome in fallback_topic_seed_pool():
         duplicata = encontrar_duplicata(nome, historico, limite=0.72)
         if duplicata.get("duplicate"):
             continue
@@ -364,6 +432,17 @@ def escolher_fallback_sem_llm():
 
         if not verificacao.get("ok"):
             continue
+        if os.getenv("SAP_STUDIO_FORMAT", "short").strip().lower() == "long":
+            try:
+                minimum_words = max(200, int(os.getenv("SAP_STUDIO_SCRIPT_MIN_WORDS", "1288")))
+            except (TypeError, ValueError):
+                minimum_words = 1288
+            if int(verificacao.get("words", 0) or 0) < minimum_words:
+                print(
+                    "TOPIC_ENGINE_FALLBACK=SOURCE_TOO_SHORT "
+                    f"topic={nome} words={verificacao.get('words', 0)} required={minimum_words}"
+                )
+                continue
 
         score = _fallback_candidate_score(nome, verificacao)
         melhores.append(
