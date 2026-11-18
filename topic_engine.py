@@ -382,6 +382,8 @@ def escolher_fallback_sem_llm():
     print()
     print("TOPIC_ENGINE_FALLBACK=START")
 
+    topic_pool = fallback_topic_seed_pool()
+    allowed_topics = {normalizar(item) for item in topic_pool}
     reserva = melhor_reserva()
     if reserva:
         nome = str(reserva.get("topic", "")).strip()
@@ -401,7 +403,9 @@ def escolher_fallback_sem_llm():
                 print(f"TOPIC_ENGINE_FALLBACK=RESERVE_VERIFY_FAILED {type(exc).__name__}")
             except Exception as exc:
                 print(f"TOPIC_ENGINE_FALLBACK=RESERVE_VERIFY_FAILED {type(exc).__name__}")
-        if nome and (
+        # Uma reserva antiga só pode ser reaproveitada quando pertence ao
+        # conjunto pesquisado para o tema solicitado nesta produção.
+        if nome and normalizar(nome) in allowed_topics and (
             os.getenv("SAP_STUDIO_FORMAT", "short").strip().lower() != "long"
             or verified_reserve is not None
         ):
@@ -433,7 +437,7 @@ def escolher_fallback_sem_llm():
     print("TOPIC_ENGINE_FALLBACK=LOCAL_WIKIPEDIA_DISCOVERY")
 
     melhores = []
-    for nome in fallback_topic_seed_pool():
+    for nome in topic_pool:
         duplicata = encontrar_duplicata(nome, historico, limite=0.72)
         if duplicata.get("duplicate"):
             continue
