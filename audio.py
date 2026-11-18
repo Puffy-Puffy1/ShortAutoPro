@@ -5,7 +5,9 @@ from datetime import date,datetime
 from pathlib import Path
 from typing import Any
 from subprocess_guard import check_output_group, run_group
-BASE=Path(os.getenv("SHORTAUTOPRO_BASE",os.path.expanduser("~/ShortAutoPro"))).resolve();SHORT_ID=os.getenv("SHORT_ID",date.today().isoformat());R=BASE/"roteiros";ROTEIRO=R/f"short_{SHORT_ID}.txt";SPEECH=R/f"speech_{SHORT_ID}.txt";SPEECH_PLAN=R/f"speech_{SHORT_ID}.json";AUDIO_DIR=BASE/"audios";VOICE_DIR=BASE/"piper"/"voice";AUDIO_DIR.mkdir(parents=True,exist_ok=True);MP3=AUDIO_DIR/f"short_{SHORT_ID}.mp3";MODEL=os.getenv("PIPER_MODEL","pt_BR-faber-medium").strip() or "pt_BR-faber-medium";MODEL_PATH=Path(MODEL).expanduser();MODEL_FILE=MODEL_PATH if MODEL_PATH.is_absolute() and MODEL_PATH.is_file() else VOICE_DIR/f"{MODEL}.onnx";def resolve_model_arg(model_name:str,model_file:Path,voice_dir:Path)->str:
+BASE=Path(os.getenv("SHORTAUTOPRO_BASE",os.path.expanduser("~/ShortAutoPro"))).resolve();SHORT_ID=os.getenv("SHORT_ID",date.today().isoformat());R=BASE/"roteiros";ROTEIRO=R/f"short_{SHORT_ID}.txt";SPEECH=R/f"speech_{SHORT_ID}.txt";SPEECH_PLAN=R/f"speech_{SHORT_ID}.json";AUDIO_DIR=BASE/"audios";VOICE_DIR=BASE/"piper"/"voice";AUDIO_DIR.mkdir(parents=True,exist_ok=True);MP3=AUDIO_DIR/f"short_{SHORT_ID}.mp3";MODEL=os.getenv("PIPER_MODEL","pt_BR-faber-medium").strip() or "pt_BR-faber-medium";MODEL_PATH=Path(MODEL).expanduser();MODEL_FILE=MODEL_PATH if MODEL_PATH.is_absolute() and MODEL_PATH.is_file() else VOICE_DIR/f"{MODEL}.onnx";
+
+def resolve_model_arg(model_name:str,model_file:Path,voice_dir:Path)->str:
  if not model_file.is_file():return str(model_name)
  try:
   if model_file.resolve().parent==voice_dir.resolve():return model_file.stem
