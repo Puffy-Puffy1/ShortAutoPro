@@ -10,7 +10,8 @@ BASE=Path(os.getenv("SHORTAUTOPRO_BASE",os.path.expanduser("~/ShortAutoPro"))).r
 def resolve_model_arg(model_name:str,model_file:Path,voice_dir:Path)->str:
  if not model_file.is_file():return str(model_name)
  try:
-  if model_file.resolve().parent==voice_dir.resolve():return model_file.stem
+  if not Path(model_name).expanduser().is_absolute() and model_file.resolve().parent==voice_dir.resolve():
+   return model_file.stem
  except OSError:pass
  return str(model_file)
 MODEL_ARG=resolve_model_arg(MODEL,MODEL_FILE,VOICE_DIR);REPORT=BASE/"reports"/"evolution"/f"audio_{SHORT_ID}.json"
