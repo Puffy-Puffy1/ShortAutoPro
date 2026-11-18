@@ -38,4 +38,4 @@ jobs:
       - name: Run isolated automated tests
         run: python -m unittest discover -s tests_generative_video -v
       - name: Confirm production entrypoints were not modified
-        run: git diff --exit-code HEAD^ HEAD -- main.py media_engine_v2.py render_engine_v2.py longform_runtime.py
+        run: git diff --exit-code ae8916e86e0042b410e7d89467f5d2ef9f62cf5e HEAD -- main.py media_engine_v2.py render_engine_v2.py longform_runtime.py
