@@ -64,7 +64,7 @@ done
 
 # Somente componentes do pipeline canônico 3.0.4 e utilitários operacionais ativos.
 ARQUIVOS=(
-    main.py studio_config.py runtime_config.py subprocess_guard.py production_profiler.py production_doctor.py production_watchdog.py production_health.py production_recovery.py render_preflight.py profile_run.sh resume_short_runtime.py finalize_short.sh tools/deploy_smoke.py
+    main.py studio_config.py profile_runtime.py runtime_config.py subprocess_guard.py production_profiler.py production_doctor.py production_watchdog.py production_health.py production_recovery.py render_preflight.py profile_run.sh termux_setup.sh resume_short_runtime.py finalize_short.sh tools/deploy_smoke.py
     topic_engine_runtime.py topic_engine.py topic_memory.py topic_reserve.py topic_index.py wiki_client.py source_identity.py gemini_runtime.py script_fallback.py
     script_runtime.py roteiro.py used_topic.py hook_engine.py hook_runtime.py narrative_director.py cold_open_director.py media_emergency_fallback.py
     scene_director.py scene_truth_refiner_6_7.py documentary_director.py visual_director.py visual_query_guard.py visual_media_refresh.py
@@ -169,7 +169,7 @@ else
     CODE_ERRORS_BEFORE="$ERROS"
 
     SHELL_FILES=(
-        profile_run.sh finalize_short.sh health_check.sh batch_queue.sh batch_recovery.sh
+        profile_run.sh termux_setup.sh finalize_short.sh health_check.sh batch_queue.sh batch_recovery.sh
         control_center.sh preflight_check.sh diagnostico.sh release_check.sh
     )
     for arq in "${SHELL_FILES[@]}"; do
@@ -179,7 +179,7 @@ else
     done
     
     PY_FILES=(
-        main.py studio_config.py runtime_config.py subprocess_guard.py production_profiler.py production_doctor.py production_watchdog.py production_health.py production_recovery.py render_preflight.py tools/deploy_smoke.py resume_short_runtime.py topic_engine_runtime.py topic_engine.py topic_memory.py topic_reserve.py topic_index.py wiki_client.py source_identity.py gemini_runtime.py script_fallback.py media_emergency_fallback.py
+        main.py studio_config.py profile_runtime.py runtime_config.py subprocess_guard.py production_profiler.py production_doctor.py production_watchdog.py production_health.py production_recovery.py render_preflight.py tools/deploy_smoke.py resume_short_runtime.py topic_engine_runtime.py topic_engine.py topic_memory.py topic_reserve.py topic_index.py wiki_client.py source_identity.py gemini_runtime.py script_fallback.py media_emergency_fallback.py
         script_runtime.py roteiro.py used_topic.py hook_engine.py hook_runtime.py narrative_director.py cold_open_director.py
         scene_director.py scene_truth_refiner_6_7.py documentary_director.py visual_director.py visual_query_guard.py visual_media_refresh.py visual_shot_bridge.py
         visual_shot_policy.py visual_editorial_policy.py visual_risk_guard.py editorial_continuity.py visual_continuity_engine.py
