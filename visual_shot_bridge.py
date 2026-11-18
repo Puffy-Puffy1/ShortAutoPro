@@ -23,7 +23,7 @@ try:
     EXPECTED = int(os.getenv("SHORT_QTD_CENAS", "12"))
 except (TypeError, ValueError):
     EXPECTED = 12
-EXPECTED = max(6, min(20, EXPECTED))
+EXPECTED = max(6, min(80, EXPECTED))
 
 R = BASE / "roteiros"
 SCENE_MAP = R / f"scene_map_{SHORT_ID}.json"
