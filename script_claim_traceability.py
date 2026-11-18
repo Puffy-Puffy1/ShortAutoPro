@@ -26,7 +26,12 @@ class ScriptClaimTraceabilityError(RuntimeError):
     """Raised when neither the generated script nor a source extract is traceable."""
 
 
-def _build_traceable_fallback(source: str, topic: str) -> str:
+def _build_traceable_fallback(
+    source: str,
+    topic: str,
+    *,
+    cta: str = EXTRACTIVE_CTA,
+) -> str:
     if os.getenv("SAP_STUDIO_FORMAT", "short").strip().lower() == "long":
         try:
             minimum = int(os.getenv("SAP_STUDIO_SCRIPT_MIN_WORDS", "1100"))
@@ -38,8 +43,9 @@ def _build_traceable_fallback(source: str, topic: str) -> str:
             min_words=minimum,
             max_words=maximum,
             topic=topic,
+            cta=cta,
         )
-    return build_extractive_script(source, topic=topic)
+    return build_extractive_script(source, cta=cta, topic=topic)
 
 
 def enforce_script_claim_traceability(
@@ -79,23 +85,7 @@ def enforce_script_claim_traceability(
     result["fallback_reason"] = (
         "topic_mismatch" if not topic_ok else "coverage_below_threshold"
     )
-    if os.getenv("SAP_STUDIO_FORMAT", "short").strip().lower() == "long":
-        try:
-            minimum = int(os.getenv("SAP_STUDIO_SCRIPT_MIN_WORDS", "1100"))
-            maximum = int(os.getenv("SAP_STUDIO_SCRIPT_MAX_WORDS", "1500"))
-        except (TypeError, ValueError):
-            minimum, maximum = 1100, 1500
-        extract = build_extractive_long_script(
-            source_text,
-            min_words=minimum,
-            max_words=maximum,
-            topic=topic,
-            cta=EXTRACTIVE_CTA,
-        )
-    else:
-        extract = build_extractive_script(
-            source_text, cta=EXTRACTIVE_CTA, topic=topic
-        )
+    extract = _build_traceable_fallback(source_text, topic, cta=EXTRACTIVE_CTA)
     if not extract:
         reason = (
             "source_extract_topic_window_unavailable"
