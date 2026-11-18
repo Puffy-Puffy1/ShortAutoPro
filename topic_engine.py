@@ -121,8 +121,8 @@ rejeitados_runtime = carregar_rejeitados_runtime()
 rejeitados_runtime_norm = {normalizar_memoria(x) or x.casefold() for x in rejeitados_runtime}
 
 
-def wiki_search(query):
-    return wiki_search_client(query, limit=5)
+def wiki_search(query, limit=5):
+    return wiki_search_client(query, limit=max(1, min(20, int(limit))))
 
 
 def wiki_extract(title):
