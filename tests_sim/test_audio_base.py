@@ -35,7 +35,7 @@ class AudioBaseTests(unittest.TestCase):
                 timeout=30,
             )
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-            self.assertIn(str(model), result.stdout.strip())
+            self.assertEqual(result.stdout.strip(), "pt_BR-faber-medium")
 
     def test_accepts_explicit_absolute_piper_model_path(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -120,10 +120,10 @@ assert destination.is_file() and destination.stat().st_size > 44
             self.assertTrue(destination.is_file())
             self.assertGreater(destination.stat().st_size, 44)
 
-    def test_ffmpeg_does_not_mislabel_piper_wav_as_raw_float_pcm(self):
+    def test_ffmpeg_distinguishes_termux_raw_from_piper_wav(self):
         source = SCRIPT.read_text(encoding="utf-8")
-        self.assertNotIn('"f32le"', source)
-        self.assertIn('str(source_wav)', source)
+        self.assertIn('if header==b"RIFF":', source)
+        self.assertIn('"f32le"', source)
         self.assertIn('wave.open(str(dest)', source)
 
 
