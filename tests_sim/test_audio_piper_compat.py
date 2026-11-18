@@ -54,7 +54,7 @@ class PiperTermuxCompatibilityTests(unittest.TestCase):
             output.setnchannels(1)
             output.setsampwidth(2)
             output.setframerate(22050)
-            output.writeframes(b"\\x00\\x00" * 2205)
+            output.writeframes(bytes(2205 * 2))
         self.audio.convert_piper_output(source, destination, 22050)
         self.assertFalse(source.exists())
         with wave.open(str(destination), "rb") as result:
