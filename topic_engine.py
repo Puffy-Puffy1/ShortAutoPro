@@ -291,6 +291,7 @@ FALLBACK_TOPIC_SEEDS = [
 # Seleção offline por tema: cada candidato ainda precisa passar pela pesquisa,
 # identidade da fonte e, em vídeos longos, pelo tamanho real do artigo.
 FALLBACK_THEME_GROUPS = (
+    (("mistério", "misterio", "crime", "desaparecimento", "true crime", "investigação", "investigacao"), list(FALLBACK_TOPIC_SEEDS)),
     (("historia", "história", "history", "historico", "histórico", "guerra", "revolucao", "revolução"), [
         "Segunda Guerra Mundial", "Revolução Francesa", "Império Romano",
         "Revolução Industrial", "Peste Negra", "Guerra Fria",
