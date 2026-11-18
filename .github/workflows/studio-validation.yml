@@ -48,4 +48,5 @@ jobs:
           python -m unittest discover -s tests_sim -p "test_studio*.py" -v
           python -m unittest discover -s tests_sim -p "test_long_form_fallback.py" -v
           python -m unittest discover -s tests_sim -p "test_ffmpeg_visual_smoke.py" -v
+          python -m unittest discover -s tests_sim -p "test_audio_base.py" -v
           python -m unittest discover -s tests_sim -p "test_audio_piper_compat.py" -v
