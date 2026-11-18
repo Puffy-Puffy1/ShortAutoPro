@@ -10,6 +10,7 @@ from datetime import date
 
 from gemini_runtime import GeminiTemporaryUnavailable, generate_text
 from source_identity import validar_identidade
+from script_fallback import count_words
 from topic_memory import encontrar_duplicata, normalizar as normalizar_memoria
 from topic_reserve import melhor_reserva
 from wiki_client import WikiRateLimit
@@ -192,7 +193,7 @@ def verificar_wikipedia(nome):
                 continue
 
             source_limit = max(700, min(100000, int(os.getenv("SAP_STUDIO_SOURCE_MAX_CHARS", "60000"))))
-            source_words = len(re.findall(r"\\b[\\wÀ-ÿ'-]+\\b", texto[:source_limit], flags=re.UNICODE))
+            source_words = count_words(texto[:source_limit])
             return {
                 "ok": True,
                 "wiki_title": titulo,
