@@ -1,0 +1,34 @@
+name: Generative Video POC (isolated)
+
+on:
+  push:
+    branches:
+      - poc/generative-video-zero-budget-20261117
+    paths:
+      - "generative_video_poc/**"
+      - "tests_generative_video/**"
+      - ".github/workflows/generative-video-poc.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: generative-video-poc-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  poc-contract-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Compile POC modules
+        run: python -m compileall -q generative_video_poc tests_generative_video
+      - name: Run isolated automated tests
+        run: python -m unittest discover -s tests_generative_video -v
+      - name: Confirm production entrypoints were not modified
+        run: git diff --exit-code HEAD^ HEAD -- main.py media_engine_v2.py render_engine_v2.py longform_runtime.py
