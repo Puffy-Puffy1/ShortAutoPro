@@ -52,13 +52,36 @@ def _safe_zoom(scene: dict[str, Any]) -> float:
     return max(1.0, min(1.18, max(z1, z2)))
 
 
-def _scene_filter(scene: dict[str, Any]) -> str:
-    zoom = _safe_zoom(scene)
-    scaled_w = _even(1080 * zoom)
-    scaled_h = _even(1920 * zoom)
+def _scene_filter(
+    scene: dict[str, Any],
+    *,
+    width: int = 1080,
+    height: int = 1920,
+    fps: int = 30,
+    duration: float = 1.0,
+) -> str:
+    effect = scene.get("effect") or {}
+    try:
+        start = float(effect.get("zoom_start", 1.0) or 1.0)
+        end = float(effect.get("zoom_end", start) or start)
+    except (TypeError, ValueError):
+        start, end = 1.0, 1.0
+    start = max(1.0, min(1.18, start))
+    end = max(start, min(1.18, end))
+    if end <= start + 0.001:
+        end = min(1.08, start + 0.035)
+
+    scaled_w = _even(width * 1.18)
+    scaled_h = _even(height * 1.18)
+    frames = max(1, int(round(max(0.1, duration) * fps)))
+    step = max(0.0, (end - start) / frames)
+    zoom_expr = f"min(max(zoom,{start:.5f})+{step:.8f},{end:.5f})"
     return (
         f"scale={scaled_w}:{scaled_h}:force_original_aspect_ratio=increase,"
-        f"crop=1080:1920:(iw-1080)/2:(ih-1920)/2,"
+        f"crop={width}:{height}:(iw-{width})/2:(ih-{height})"
+        f",zoompan=z='{zoom_expr}':"
+        f"x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
+        f"d=1:s={width}x{height}:fps={fps},"
         "setsar=1,format=yuv420p"
     )
 
@@ -81,6 +104,9 @@ def _render_scene(
     output: Path,
     cwd: Path,
     timeout: int,
+    width: int,
+    height: int,
+    fps: int,
 ) -> None:
     asset = public_dir / str(scene["asset"])
     duration = float(scene["duration"])
@@ -90,24 +116,27 @@ def _render_scene(
         raise RuntimeError(f"RENDER_ASSET_MISSING:scene_{index:02d}")
 
     asset_type = str(scene.get("asset_type", "image")).lower()
-    filt = _scene_filter(scene)
+    filt = _scene_filter(scene, width=width, height=height, fps=fps, duration=duration)
+
+    preset = os.getenv("SAP_RENDER_V2_PRESET", "veryfast")
+    crf = os.getenv("SAP_RENDER_V2_CRF", "20")
 
     if asset_type == "image":
         cmd = [
             "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
-            "-loop", "1", "-framerate", "30", "-t", f"{duration:.6f}",
-            "-i", str(asset), "-vf", filt, "-r", "30",
-            "-frames:v", str(max(1, round(duration * 30))),
-            "-an", "-c:v", "libx264", "-preset", "veryfast",
-            "-crf", os.getenv("SAP_RENDER_V2_CRF", "20"),
+            "-loop", "1", "-framerate", str(fps), "-t", f"{duration:.6f}",
+            "-i", str(asset), "-vf", filt, "-r", str(fps),
+            "-frames:v", str(max(1, round(duration * fps))),
+            "-an", "-c:v", "libx264", "-preset", preset,
+            "-crf", crf,
             "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(output),
         ]
     elif asset_type == "video":
         cmd = [
             "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
             "-stream_loop", "-1", "-i", str(asset), "-t", f"{duration:.6f}",
-            "-vf", filt, "-r", "30", "-an", "-c:v", "libx264",
-            "-preset", "veryfast", "-crf", os.getenv("SAP_RENDER_V2_CRF", "20"),
+            "-vf", filt, "-r", str(fps), "-an", "-c:v", "libx264",
+            "-preset", preset, "-crf", crf,
             "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(output),
         ]
     else:
@@ -131,6 +160,14 @@ def render_visual_ffmpeg(job: Path, *, cwd: Path) -> Path:
     if not scenes:
         raise RuntimeError("RENDER_INPUT_INVALID:no_scenes")
 
+    width = int(timeline.get("width", 1080) or 1080)
+    height = int(timeline.get("height", 1920) or 1920)
+    fps = int(timeline.get("fps", 30) or 30)
+    if width < 480 or height < 480 or width % 2 or height % 2:
+        raise RuntimeError("RENDER_INPUT_INVALID:timeline_dimensions")
+    if not 20 <= fps <= 60:
+        raise RuntimeError("RENDER_INPUT_INVALID:timeline_fps")
+
     public_dir = job / "public"
     work = job / "ffmpeg_visual"
     if work.exists():
@@ -149,6 +186,9 @@ def render_visual_ffmpeg(job: Path, *, cwd: Path) -> Path:
             output=clip,
             cwd=cwd,
             timeout=timeout,
+            width=width,
+            height=height,
+            fps=fps,
         )
         clips.append(clip)
 
@@ -183,8 +223,8 @@ def render_visual_ffmpeg(job: Path, *, cwd: Path) -> Path:
     subtitle_proc = _run(
         [
             "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
-            "-i", str(visual), "-vf", subtitle_filter, "-r", "30",
-            "-c:v", "libx264", "-preset", "veryfast",
+            "-i", str(visual), "-vf", subtitle_filter, "-r", str(fps),
+            "-c:v", "libx264", "-preset", os.getenv("SAP_RENDER_V2_PRESET", "veryfast"),
             "-crf", os.getenv("SAP_RENDER_V2_CRF", "20"),
             "-pix_fmt", "yuv420p", "-an", "-movflags", "+faststart",
             str(subtitled),
@@ -199,4 +239,5 @@ def render_visual_ffmpeg(job: Path, *, cwd: Path) -> Path:
     if not subtitled.is_file() or subtitled.stat().st_size <= 1000:
         raise RuntimeError("SUBTITLE_RENDER_FAILED:empty_output")
     os.replace(subtitled, visual)
+    shutil.rmtree(work, ignore_errors=True)
     return visual
