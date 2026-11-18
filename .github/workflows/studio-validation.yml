@@ -1,0 +1,38 @@
+name: Termux Studio validation
+
+on:
+  push:
+    branches:
+      - feat/termux-longform-studio-20261118
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  studio-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Compile changed pipeline modules
+        run: |
+          python -m py_compile             main.py studio_config.py profile_runtime.py             topic_engine.py topic_engine_runtime.py roteiro.py script_fallback.py             professional_edit_director.py motion_director.py rhythm_director.py             visual_qa.py render_preflight.py subtitle_style_policy.py             caption_layout_guard.py render_engine_v2.py             render_v2/ffmpeg_visual_renderer.py
+
+      - name: Run Studio and long-form regressions
+        run: |
+          python -m unittest discover -s tests_sim -p "test_studio*.py" -v
+          python -m unittest discover -s tests_sim -p "test_long_form_fallback.py" -v
+          python -m unittest discover -s tests_sim -p "test_ffmpeg_visual_smoke.py" -v
