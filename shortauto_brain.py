@@ -150,33 +150,76 @@ def scene_narration_text(scene: dict[str, Any]) -> str:
     return ""
 
 
+def is_editorial_prompt(scene: dict[str, Any]) -> bool:
+    """Identify explicitly classified CTAs that are not factual claims."""
+    if scene.get("coverage_exempt") is True:
+        return True
+
+    editorial_labels = {
+        "cta",
+        "call_to_action",
+        "editorial",
+        "editorial_prompt",
+    }
+    for key in (
+        "claim_type",
+        "narrative_role",
+        "visual_intent",
+        "visual_intent_6_7",
+        "scene_type",
+        "segment_type",
+    ):
+        value = str(scene.get(key) or "").strip().lower().replace("-", "_").replace(" ", "_")
+        if value in editorial_labels:
+            return True
+    return False
+
+
 def build_evidence_map(
     scenes: list[dict[str, Any]],
     facts: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    mapped, unsupported = [], []
+    mapped, unsupported, excluded = [], [], []
     for index, scene in enumerate(scenes, 1):
         text = scene_narration_text(scene)
+        if is_editorial_prompt(scene):
+            mapped.append({
+                "scene": index,
+                "scene_text": text,
+                "evidence_basis": "editorial_prompt",
+                "fact_id": None,
+                "support_overlap": None,
+                "supported": None,
+                "coverage_exempt": True,
+            })
+            excluded.append(index)
+            continue
+
         ranked = sorted(
             ((overlap(text, fact["text"]), fact) for fact in facts),
             key=lambda item: item[0],
             reverse=True,
         )
         best_score, best = ranked[0] if ranked else (0.0, None)
-        item = {
+        supported = bool(best and best_score >= 0.18)
+        mapped.append({
             "scene": index,
             "scene_text": text,
             "evidence_basis": "narration_only",
             "fact_id": best.get("fact_id") if best else None,
             "support_overlap": round(best_score, 3),
-            "supported": bool(best and best_score >= 0.18),
-        }
-        mapped.append(item)
-        if not item["supported"]:
+            "supported": supported,
+            "coverage_exempt": False,
+        })
+        if not supported:
             unsupported.append(index)
-    coverage = 100.0 * (len(mapped) - len(unsupported)) / max(1, len(mapped))
+
+    eligible_scenes = len(mapped) - len(excluded)
+    coverage = 100.0 * (eligible_scenes - len(unsupported)) / max(1, eligible_scenes)
     return {
         "coverage": round(coverage, 1),
+        "eligible_scenes": eligible_scenes,
+        "coverage_exempt_scenes": excluded,
         "unsupported_scenes": unsupported,
         "scenes": mapped,
     }

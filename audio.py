@@ -5,7 +5,16 @@ from datetime import date,datetime
 from pathlib import Path
 from typing import Any
 from subprocess_guard import check_output_group, run_group
-BASE=Path(os.getenv("SHORTAUTOPRO_BASE",os.path.expanduser("~/ShortAutoPro"))).resolve();SHORT_ID=os.getenv("SHORT_ID",date.today().isoformat());R=BASE/"roteiros";ROTEIRO=R/f"short_{SHORT_ID}.txt";SPEECH=R/f"speech_{SHORT_ID}.txt";SPEECH_PLAN=R/f"speech_{SHORT_ID}.json";AUDIO_DIR=BASE/"audios";VOICE_DIR=BASE/"piper"/"voice";AUDIO_DIR.mkdir(parents=True,exist_ok=True);MP3=AUDIO_DIR/f"short_{SHORT_ID}.mp3";MODEL=os.getenv("PIPER_MODEL","pt_BR-faber-medium").strip() or "pt_BR-faber-medium";MODEL_PATH=Path(MODEL).expanduser();MODEL_FILE=MODEL_PATH if MODEL_PATH.is_absolute() and MODEL_PATH.is_file() else VOICE_DIR/f"{MODEL}.onnx";MODEL_ARG=str(MODEL_FILE) if MODEL_FILE.is_file() else MODEL;REPORT=BASE/"reports"/"evolution"/f"audio_{SHORT_ID}.json"
+BASE=Path(os.getenv("SHORTAUTOPRO_BASE",os.path.expanduser("~/ShortAutoPro"))).resolve();SHORT_ID=os.getenv("SHORT_ID",date.today().isoformat());R=BASE/"roteiros";ROTEIRO=R/f"short_{SHORT_ID}.txt";SPEECH=R/f"speech_{SHORT_ID}.txt";SPEECH_PLAN=R/f"speech_{SHORT_ID}.json";AUDIO_DIR=BASE/"audios";VOICE_DIR=BASE/"piper"/"voice";AUDIO_DIR.mkdir(parents=True,exist_ok=True);MP3=AUDIO_DIR/f"short_{SHORT_ID}.mp3";MODEL=os.getenv("PIPER_MODEL","pt_BR-faber-medium").strip() or "pt_BR-faber-medium";MODEL_PATH=Path(MODEL).expanduser();MODEL_FILE=MODEL_PATH if MODEL_PATH.is_absolute() and MODEL_PATH.is_file() else VOICE_DIR/f"{MODEL}.onnx";
+
+def resolve_model_arg(model_name:str,model_file:Path,voice_dir:Path)->str:
+ if not model_file.is_file():return str(model_name)
+ try:
+  if not Path(model_name).expanduser().is_absolute() and model_file.resolve().parent==voice_dir.resolve():
+   return model_file.stem
+ except OSError:pass
+ return str(model_file)
+MODEL_ARG=resolve_model_arg(MODEL,MODEL_FILE,VOICE_DIR);REPORT=BASE/"reports"/"evolution"/f"audio_{SHORT_ID}.json"
 def bounded(name,default,low,high):
  try:v=float(os.getenv(name,str(default)))
  except Exception:v=float(default)
@@ -25,15 +34,45 @@ def atomic_json(path:Path,payload:Any):
 def read_plan()->list[dict[str,Any]]:
  try:d=json.loads(SPEECH_PLAN.read_text(encoding="utf-8"));chunks=d.get("chunks",[]) if isinstance(d,dict) else [];return [x for x in chunks if isinstance(x,dict) and str(x.get("text","")).strip()]
  except Exception:return []
-def piper_wav(text:str,dest:Path,env:dict[str,str])->None:
- try:run_group(["piper","-m",MODEL_ARG,"-f",str(dest),"--",text],env=env,check=True,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE,text=True,timeout=180)
- except subprocess.TimeoutExpired:fail("Piper excedeu 180 segundos")
- except subprocess.CalledProcessError as exc:fail(f"Piper falhou ({exc.returncode}): {(exc.stderr or '')[-700:]}")
+def piper_sample_rate()->int:
+ try:
+  config_path=MODEL_FILE.with_suffix(".onnx.json")
+  config=json.loads(config_path.read_text(encoding="utf-8"))
+  rate=int(config.get("audio",{}).get("sample_rate",22050))
+  return max(8000,min(48000,rate))
+ except Exception:return 22050
+def convert_piper_output(source:Path,dest:Path,sample_rate:int)->None:
+ """Accept both WAV output and the raw float32 output used by Termux Piper builds."""
+ try:
+  with source.open("rb") as handle:header=handle.read(4)
+ except OSError as exc:fail(f"saída Piper ausente: {exc}")
+ if header==b"RIFF":
+  os.replace(source,dest)
+ else:
+  try:
+   run_group([
+    "ffmpeg","-y","-hide_banner","-loglevel","error",
+    "-f","f32le","-ar",str(sample_rate),"-ac","1","-i",str(source),
+    "-c:a","pcm_s16le","-ar",str(sample_rate),str(dest)
+   ],check=True,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE,text=True,timeout=120)
+  except Exception as exc:fail(f"não foi possível converter áudio RAW do Piper: {exc}")
+  finally:
+   try:source.unlink(missing_ok=True)
+   except OSError:pass
  if not dest.is_file() or dest.stat().st_size<=44:fail("Piper não produziu WAV válido")
  try:
   with wave.open(str(dest),"rb") as audio_file:
    if audio_file.getnframes()<=0 or audio_file.getframerate()<=0 or audio_file.getnchannels()<=0:fail("Piper produziu WAV sem frames válidos")
  except (wave.Error,EOFError,OSError) as exc:fail(f"Piper não produziu WAV PCM válido: {exc}")
+def piper_wav(text:str,dest:Path,env:dict[str,str])->None:
+ raw=dest.with_suffix(".piper.raw")
+ try:
+  run_group(["piper","-m",MODEL_ARG,"-f",str(raw),"--",text],env=env,check=True,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE,text=True,timeout=180)
+ except subprocess.TimeoutExpired:fail("Piper excedeu 180 segundos")
+ except subprocess.CalledProcessError as exc:fail(f"Piper falhou ({exc.returncode}): {(exc.stderr or '')[-700:]}")
+ if not raw.is_file() or raw.stat().st_size<=0:fail("Piper não produziu arquivo de áudio")
+ convert_piper_output(raw,dest,piper_sample_rate())
+
 def audio_duration(path:Path)->float:
  raw=check_output_group(["ffprobe","-v","error","-show_entries","format=duration","-of","default=noprint_wrappers=1:nokey=1",str(path)],text=True,stderr=subprocess.DEVNULL,timeout=30).strip();v=float(raw)
  if not math.isfinite(v) or v<5:fail(f"duração de áudio inválida: {v}")
@@ -41,7 +80,7 @@ def audio_duration(path:Path)->float:
 def render_segmented(chunks:list[dict[str,Any]],work:Path,env:dict[str,str])->Path:
  wavs=[]
  for i,ch in enumerate(chunks,1):
-  source_wav=work/f"chunk_{i:02d}_piper.wav";wav=work/f"chunk_{i:02d}.wav";piper_wav(str(ch.get("text","")),source_wav,env);tempo=bounded_value(ch.get("tempo"),1.0,0.90,1.10);pause=max(0,min(700,int(ch.get("pause_ms",150) or 150)))/1000
+  source_wav=work/f"chunk_{i:02d}_piper.wav";wav=work/f"chunk_{i:02d}.wav";piper_wav(str(ch.get("tts_text") or ch.get("text","")),source_wav,env);tempo=bounded_value(ch.get("tempo"),1.0,0.90,1.10);pause=max(0,min(700,int(ch.get("pause_ms",150) or 150)))/1000
   filt=f"atempo={tempo:.4f},aresample=44100,apad=pad_dur={pause:.3f}"
   run_group(["ffmpeg","-y","-loglevel","error","-i",str(source_wav),"-af",filt,"-ar","44100","-ac","1","-c:a","pcm_s16le",str(wav)],check=True,timeout=120);wavs.append(wav)
  concat=work/"chunks.txt";concat.write_text("".join("file '"+str(p).replace("'","'\\''")+"'\n" for p in wavs),encoding="utf-8");combined=work/"speech.wav";run_group(["ffmpeg","-y","-loglevel","error","-f","concat","-safe","0","-i",str(concat),"-c:a","pcm_s16le",str(combined)],check=True,timeout=120);return combined

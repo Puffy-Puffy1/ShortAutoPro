@@ -27,7 +27,7 @@ try:
     QTD_CENAS = int(os.getenv("SHORT_QTD_CENAS", "12"))
 except ValueError:
     QTD_CENAS = 12
-QTD_CENAS = max(6, min(QTD_CENAS, 20))
+QTD_CENAS = max(6, min(QTD_CENAS, 80))
 
 if not os.path.isfile(ROTEIRO):
     sys.exit(f"ERRO: roteiro não encontrado: {ROTEIRO}")
@@ -87,7 +87,7 @@ def chamar_gemini(prompt):
     return generate_text(
         prompt,
         temperature=0.15,
-        max_output_tokens=2400,
+        max_output_tokens=max(2400, min(8192, QTD_CENAS * 160)),
         response_mime_type="application/json",
         component="Scene Director",
         api_key=GEMINI_KEY,
@@ -102,6 +102,28 @@ def fallback_local_scenes(texto, quantidade):
     quantidade = max(1, min(int(quantidade), len(palavras)))
     base = len(palavras) // quantidade
     resto = len(palavras) % quantidade
+    try:
+        with open(KEYWORDS, "r", encoding="utf-8") as handle:
+            visual_queries = [" ".join(line.split()) for line in handle if line.strip()]
+    except OSError:
+        visual_queries = []
+
+    style = os.getenv("SAP_STUDIO_STYLE", "documentary").strip().lower()
+    style_terms = {
+        "cinematic": "cinematic film still",
+        "storytelling": "cinematic storytelling scene",
+        "animation": "2D animated illustration",
+        "anime": "anime style illustration",
+        "cartoon": "cartoon illustration",
+        "educational": "educational documentary visual",
+        "horror": "dark atmospheric cinematic scene",
+        "mystery": "mysterious cinematic scene",
+        "historical": "historical documentary photography",
+        "nature": "nature documentary photography",
+        "technology": "technology documentary visual",
+        "minimal": "minimal editorial illustration",
+    }
+    suffix = style_terms.get(style, "documentary photography")
     cenas = []
     cursor = 0
 
@@ -111,13 +133,18 @@ def fallback_local_scenes(texto, quantidade):
         cursor += tamanho
         trecho = " ".join(trecho_palavras).strip()
 
-        # The local fallback is deliberately conservative: it preserves the
-        # narration exactly and uses a generic documentary query. Later visual
-        # directors can enrich the query when AI is available.
+        query = visual_queries[indice] if indice < len(visual_queries) else ""
+        if not query:
+            relevant = [word for word in trecho_palavras if len(word) > 4][:5]
+            query = " ".join(relevant) or "documentary subject"
+        if suffix.casefold() not in query.casefold():
+            query = (query + " " + suffix).strip()
+        query = " ".join(query.split()[:12])
+
         cenas.append(
             {
                 "segment": trecho,
-                "query": "documentary visual context scene",
+                "query": query,
                 "must_have": [],
                 "avoid": ["wrong person", "unrelated event"],
                 "fallback_local": True,
@@ -129,7 +156,7 @@ def fallback_local_scenes(texto, quantidade):
 
 
 prompt = f"""
-Você é um diretor profissional de edição visual.
+Você é um diretor profissional de edição visual.\nESTILO VISUAL SOLICITADO: {os.getenv('SAP_STUDIO_STYLE', 'documentary')}. Use esse estilo em todas as buscas, sem alterar os fatos.
 
 ROTEIRO FINAL:
 ========================

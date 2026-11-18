@@ -13,7 +13,11 @@ from gemini_runtime import (
     generate_text,
 )
 
-from script_fallback import build_extractive_script, build_scene_queries
+from script_fallback import (
+    build_extractive_long_script,
+    build_extractive_script,
+    build_scene_queries,
+)
 from script_claim_traceability import (
     ScriptClaimTraceabilityError,
     enforce_script_claim_traceability,
@@ -37,7 +41,50 @@ try:
     QTD_CENAS = int(os.getenv("SHORT_QTD_CENAS", "12"))
 except ValueError:
     QTD_CENAS = 12
-QTD_CENAS = max(6, min(QTD_CENAS, 20))
+QTD_CENAS = max(6, min(QTD_CENAS, 80))
+
+STUDIO_FORMAT = os.getenv("SAP_STUDIO_FORMAT", "short").strip().lower()
+IS_LONG_FORM = STUDIO_FORMAT == "long"
+
+
+def bounded_env_int(name, default, low, high):
+    try:
+        value = int(os.getenv(name, str(default)))
+    except (TypeError, ValueError):
+        value = default
+    return max(low, min(value, high))
+
+
+SCRIPT_MIN_WORDS = bounded_env_int(
+    "SAP_STUDIO_SCRIPT_MIN_WORDS", 105 if not IS_LONG_FORM else 1100, 80, 8000
+)
+SCRIPT_MAX_WORDS = bounded_env_int(
+    "SAP_STUDIO_SCRIPT_MAX_WORDS", 125 if not IS_LONG_FORM else 1500,
+    SCRIPT_MIN_WORDS, 10000
+)
+SCRIPT_OUTPUT_TOKENS = bounded_env_int(
+    "SAP_STUDIO_SCRIPT_MAX_OUTPUT_TOKENS",
+    max(1600, int(SCRIPT_MAX_WORDS * 1.75)),
+    1200,
+    8192,
+)
+SOURCE_MAX_CHARS = bounded_env_int(
+    "SAP_STUDIO_SOURCE_MAX_CHARS", 16000 if not IS_LONG_FORM else 60000,
+    700, 100000
+)
+STUDIO_STYLE = os.getenv("SAP_STUDIO_STYLE", "documentary").strip() or "documentary"
+
+
+def build_script_fallback(source, topic):
+    if IS_LONG_FORM:
+        return build_extractive_long_script(
+            source,
+            min_words=SCRIPT_MIN_WORDS,
+            max_words=SCRIPT_MAX_WORDS,
+            topic=topic,
+        )
+    return build_extractive_script(source, topic=topic)
+
 
 GeminiGenerationUnavailable = GeminiInvalidResponse
 
@@ -182,6 +229,15 @@ def buscar_artigo(assunto):
             if not identidade.get("valid"):
                 continue
 
+            if IS_LONG_FORM:
+                source_words = contar_palavras(texto[:SOURCE_MAX_CHARS])
+                if source_words < SCRIPT_MIN_WORDS:
+                    print(
+                        "Fonte válida, mas insuficiente para a duração longa: "
+                        f"{source_words}/{SCRIPT_MIN_WORDS} palavras; buscando outra."
+                    )
+                    continue
+
             return titulo, texto, identidade
 
     return "", "", None
@@ -221,7 +277,7 @@ Escolha UM caso REAL e documentado dentro do tema:
 REQUISITOS:
 - precisa ser real e possuir documentação pública;
 - conhecido o suficiente para provavelmente possuir artigo na Wikipedia em português;
-- fatos suficientes para um Short de 30 a 45 segundos;
+- conteúdo suficiente para o tamanho solicitado, sem inventar ou repetir fatos;
 - não invente nomes, casos ou eventos.
 
 NÃO escolha novamente:
@@ -273,11 +329,11 @@ Responda SOMENTE com o nome do caso ou evento.
 if not fonte:
     sys.exit("ERRO: não consegui encontrar uma fonte factual válida após 4 assuntos.")
 
-fonte = fonte[:16000]
+fonte = fonte[:SOURCE_MAX_CHARS]
 print(f"Contexto recuperado: {len(fonte)} caracteres")
 
 prompt_criacao = f"""
-Você é roteirista profissional de YouTube Shorts.
+Você é roteirista profissional de {'vídeos longos para YouTube' if IS_LONG_FORM else 'YouTube Shorts'}.
 
 ASSUNTO:
 {assunto}
@@ -296,9 +352,13 @@ Quando um detalhe sensível não for necessário para compreender o caso, omita-
 
 ROTEIRO:
 - português do Brasil;
-- entre 105 e 125 palavras REAIS;
+- entre {SCRIPT_MIN_WORDS} e {SCRIPT_MAX_WORDS} palavras REAIS;
+- formato: {'narrativa documental aprofundada' if IS_LONG_FORM else 'narrativa curta e direta'};
+- estilo visual/editorial solicitado: {STUDIO_STYLE};
+- duração aproximada desejada: {os.getenv('SAP_STUDIO_DURATION_SECONDS', '45')} segundos;
 - gancho forte na primeira frase;
-- ritmo rápido e frases naturais;
+- ritmo natural, frases claras e progressão narrativa;
+- para vídeos longos, desenvolva contexto, sequência cronológica, explicações e conclusão sem repetir ideias;
 - fácil para voz neural;
 - CTA final curto.
 - Cada afirmação factual deve ficar em uma frase curta e separada.
@@ -334,18 +394,18 @@ for tentativa in range(1, 4):
         bruto = chamar_gemini(
             prompt_criacao,
             temperatura=0.50,
-            tokens=1600,
+            tokens=SCRIPT_OUTPUT_TOKENS,
         )
     except GeminiTemporaryUnavailable as exc:
         print(
             "SAP_SCRIPT_AI=UNAVAILABLE "
             f"{type(exc).__name__}:{str(exc)[:220]}"
         )
-        roteiro = build_extractive_script(fonte)
+        roteiro = build_script_fallback(fonte, topic=assunto)
         if not roteiro:
             sys.exit(
                 "ERRO: Gemini indisponível e fallback factual local não conseguiu "
-                "atingir 105-125 palavras sem cortar afirmações."
+                "atingir a faixa de palavras configurada sem cortar afirmações."
             )
         cenas_texto = build_scene_queries(assunto, QTD_CENAS, clean_topic=limpar_assunto)
         script_degraded = True
@@ -359,11 +419,11 @@ for tentativa in range(1, 4):
             "SAP_SCRIPT_AI=INVALID_RESPONSE "
             f"{type(exc).__name__}:{str(exc)[:220]}"
         )
-        roteiro = build_extractive_script(fonte)
+        roteiro = build_script_fallback(fonte, topic=assunto)
         if not roteiro:
             sys.exit(
                 "ERRO: resposta Gemini inválida e fallback factual local "
-                "não conseguiu atingir 105-125 palavras."
+                "não conseguiu atingir a faixa de palavras configurada."
             )
         cenas_texto = build_scene_queries(assunto, QTD_CENAS, clean_topic=limpar_assunto)
         script_degraded = True
@@ -377,7 +437,7 @@ for tentativa in range(1, 4):
             "SAP_SCRIPT_AI=ERROR "
             f"{type(exc).__name__}:{str(exc)[:220]}"
         )
-        roteiro = build_extractive_script(fonte)
+        roteiro = build_script_fallback(fonte, topic=assunto)
         if not roteiro:
             sys.exit(f"ERRO gerando roteiro: {exc}")
         cenas_texto = build_scene_queries(assunto, QTD_CENAS, clean_topic=limpar_assunto)
@@ -406,7 +466,7 @@ for tentativa in range(1, 4):
     qtd = contar_palavras(r)
     print(f"Palavras recebidas: {qtd}")
 
-    if 105 <= qtd <= 125:
+    if SCRIPT_MIN_WORDS <= qtd <= SCRIPT_MAX_WORDS:
         roteiro = r
         cenas_texto = c
         break
@@ -423,7 +483,7 @@ ROTEIRO:
 {ultimo_roteiro_recebido}
 
 REGRAS OBRIGATÓRIAS:
-- entre 108 e 122 palavras REAIS;
+- entre {SCRIPT_MIN_WORDS} e {SCRIPT_MAX_WORDS} palavras REAIS;
 - preserve fatos, gancho e CTA;
 - não adicione informação;
 - corte redundâncias;
@@ -439,7 +499,7 @@ REGRAS OBRIGATÓRIAS:
             chamar_gemini(
                 prompt_reparo,
                 temperatura=0.10,
-                tokens=700,
+                tokens=SCRIPT_OUTPUT_TOKENS,
             )
         )
     except Exception as exc:
@@ -447,15 +507,15 @@ REGRAS OBRIGATÓRIAS:
             "SAP_SCRIPT_REPAIR=AI_FAIL "
             f"{type(exc).__name__}:{str(exc)[:220]}"
         )
-        reparado = build_extractive_script(fonte)
+        reparado = build_script_fallback(fonte, topic=assunto)
         if reparado:
             script_degraded = True
             cenas_texto = build_scene_queries(assunto, QTD_CENAS, clean_topic=limpar_assunto)
 
     qtd_reparada = contar_palavras(reparado)
     print(f"Palavras após reparo: {qtd_reparada}")
-    if not 105 <= qtd_reparada <= 125:
-        reparado = build_extractive_script(fonte)
+    if not SCRIPT_MIN_WORDS <= qtd_reparada <= SCRIPT_MAX_WORDS:
+        reparado = build_script_fallback(fonte, topic=assunto)
         if not reparado:
             sys.exit(
                 f"ERRO: reparo final ainda fora do limite: {qtd_reparada} palavras "
@@ -498,7 +558,7 @@ Compare cada afirmação com a fonte.
 - diferencie fato, teoria, especulação e conclusão posterior;
 - preserve gancho e ritmo sem fundir fatos independentes;
 - verifique que cada afirmação pode ser localizada na fonte usando os mesmos termos factuais;
-- resultado final entre 105 e 125 palavras REAIS.
+- resultado final entre {SCRIPT_MIN_WORDS} e {SCRIPT_MAX_WORDS} palavras REAIS.
 
 Responda SOMENTE com o roteiro revisado.
 """
@@ -518,7 +578,7 @@ for auditoria in range(1, 4) if not script_degraded else []:
             chamar_gemini(
                 prompt_auditoria,
                 temperatura=0.15,
-                tokens=900,
+                tokens=SCRIPT_OUTPUT_TOKENS,
             )
         )
     except Exception as exc:
@@ -527,7 +587,7 @@ for auditoria in range(1, 4) if not script_degraded else []:
 
     qtd = contar_palavras(revisado)
     print(f"Palavras após auditoria: {qtd}")
-    if 105 <= qtd <= 125:
+    if SCRIPT_MIN_WORDS <= qtd <= SCRIPT_MAX_WORDS:
         roteiro_auditado = revisado
         break
 
@@ -536,11 +596,11 @@ if not roteiro_auditado:
         "SAP_SCRIPT_FACT_AUDIT=AI_EXHAUSTED "
         "action=SOURCE_EXTRACTIVE_RECOVERY"
     )
-    roteiro_auditado = build_extractive_script(fonte)
+    roteiro_auditado = build_script_fallback(fonte, topic=assunto)
     if not roteiro_auditado:
         sys.exit(
             "ERRO: auditoria factual indisponível e fallback extrativo "
-            "não conseguiu produzir 105-125 palavras."
+            "não conseguiu produzir um roteiro dentro da faixa configurada."
         )
     script_degraded = True
     cenas_texto = build_scene_queries(assunto, QTD_CENAS, clean_topic=limpar_assunto)
@@ -587,7 +647,7 @@ REGRAS:
 - preserve exatamente os mesmos fatos e sentido;
 - não acrescente informação;
 - traduza palavras ou expressões em inglês;
-- mantenha entre 105 e 125 palavras REAIS;
+- mantenha entre {SCRIPT_MIN_WORDS} e {SCRIPT_MAX_WORDS} palavras REAIS;
 - preserve gancho e CTA;
 - não altere nomes, datas, números, termos factuais nem o sentido de afirmações rastreáveis à fonte;
 - responda SOMENTE com o roteiro corrigido.
@@ -597,19 +657,19 @@ REGRAS:
                 chamar_gemini(
                     prompt_idioma,
                     temperatura=0.10,
-                    tokens=700,
+                    tokens=SCRIPT_OUTPUT_TOKENS,
                 )
             )
         except Exception as exc:
             print(f"Falha Language Guard {tentativa}/2: {exc}")
             continue
 
-        if 105 <= contar_palavras(candidato) <= 125 and not detectar_ingles(candidato):
+        if SCRIPT_MIN_WORDS <= contar_palavras(candidato) <= SCRIPT_MAX_WORDS and not detectar_ingles(candidato):
             corrigido_final = candidato
             break
 
     if not corrigido_final:
-        corrigido_final = build_extractive_script(fonte)
+        corrigido_final = build_script_fallback(fonte, topic=assunto)
         if corrigido_final:
             script_degraded = True
             cenas_texto = build_scene_queries(assunto, QTD_CENAS, clean_topic=limpar_assunto)
@@ -623,7 +683,7 @@ REGRAS:
 
 
 try:
-    roteiro, claim_traceability = enforce_script_claim_traceability(roteiro, fonte)
+    roteiro, claim_traceability = enforce_script_claim_traceability(roteiro, fonte, topic=assunto)
 except ScriptClaimTraceabilityError as exc:
     sys.exit(f"ERRO: roteiro sem rastreabilidade factual suficiente: {exc}")
 
@@ -643,7 +703,7 @@ def avaliar_qualidade_roteiro(texto):
     score = 100
     problemas = []
     qtd = contar_palavras(texto)
-    if not 105 <= qtd <= 125:
+    if not SCRIPT_MIN_WORDS <= qtd <= SCRIPT_MAX_WORDS:
         score -= 50
         problemas.append(f"palavras={qtd}")
 

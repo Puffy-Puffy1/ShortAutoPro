@@ -135,7 +135,7 @@ def _probe_media(path: Path) -> None:
 
 
 def inspect(short_id: str) -> dict[str, Any]:
-    expected = env_int("SHORT_QTD_CENAS", 12, 6, 20)
+    expected = env_int("SHORT_QTD_CENAS", 12, 6, 80)
     scene_map_path = BASE / "roteiros" / f"scene_map_{short_id}.json"
     pro_plan_path = BASE / "roteiros" / f"pro_edit_plan_{short_id}.json"
     media_dir = BASE / "imagens" / f"short_{short_id}"

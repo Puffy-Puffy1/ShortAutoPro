@@ -46,9 +46,14 @@ class MediaStageRuntimeTests(unittest.TestCase):
         self.assertIn("render_plan_v2.py", text)
         self.assertNotIn("media_stage_runtime.py", text)
 
-    def test_semantic_resume_uses_media_stage_runtime(self):
+    def test_semantic_resume_delegates_once_to_canonical_checkpoint_runtime(self):
         text = Path("resume_after_semantic_fix.py").read_text(encoding="utf-8")
-        self.assertIn('("6 - SMART MEDIA SELECTOR", "media_stage_runtime.py"', text)
+        self.assertIn('"semantic_integrity_gate.py"', text)
+        self.assertIn('"resume_short_runtime.py"', text)
+        for legacy_stage in ("media_stage_runtime.py", "media_master_gate.py"):
+            self.assertNotIn(legacy_stage, text)
+        self.assertNotIn('"retention_engine.py"', text)
+        self.assertNotIn('"render_engine_v2.py"', text)
 
     def test_runtime_preserves_fail_closed_contract(self):
         text = Path("media_stage_runtime.py").read_text(encoding="utf-8")
@@ -57,15 +62,29 @@ class MediaStageRuntimeTests(unittest.TestCase):
         self.assertIn("MEDIA_STAGE_RUNTIME=V2_NO_PROGRESS", text)
         self.assertIn("MEDIA_STAGE_RUNTIME=EXHAUSTED", text)
 
-    def test_preflight_and_health_require_runtime(self):
-        self.assertIn(
+    def test_preflight_and_health_require_only_canonical_v2_media_runtime(self):
+        legacy = (
             "media_stage_runtime.py",
-            Path("preflight_check.sh").read_text(encoding="utf-8"),
+            "midia.py",
+            "media_runtime_adapter_v1.py",
+            "media_runtime_adapter_v2.py",
+            "vg4x_bridge.py",
+            "visual_engine_unified.py",
         )
-        self.assertIn(
-            "media_stage_runtime.py",
-            Path("health_check.sh").read_text(encoding="utf-8"),
+        canonical = (
+            "media_engine_v2.py",
+            "media_provider_v2.py",
+            "media_provider_router_v2.py",
+            "media_validator_v2.py",
+            "media_visual_verifier.py",
+            "render_engine_v2.py",
         )
+        for name in ("preflight_check.sh", "health_check.sh"):
+            text = Path(name).read_text(encoding="utf-8")
+            for module in canonical:
+                self.assertIn(module, text, f"{name}: {module}")
+            for module in legacy:
+                self.assertNotIn(module, text, f"{name}: {module}")
 
 
 if __name__ == "__main__":

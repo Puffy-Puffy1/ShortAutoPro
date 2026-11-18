@@ -7,9 +7,15 @@ are not lowered and production is blocked if even the extract cannot pass.
 """
 from __future__ import annotations
 
+import os
 from typing import Any
 
-from script_fallback import build_extractive_script, count_words
+from script_fallback import (
+    build_extractive_long_script,
+    build_extractive_script,
+    count_words,
+    is_topic_relevant,
+)
 from shortauto_intelligence_layer import claim_engine, claim_lock
 
 MIN_SCRIPT_CLAIM_COVERAGE = 90.0
@@ -20,9 +26,33 @@ class ScriptClaimTraceabilityError(RuntimeError):
     """Raised when neither the generated script nor a source extract is traceable."""
 
 
+def _build_traceable_fallback(
+    source: str,
+    topic: str,
+    *,
+    cta: str = EXTRACTIVE_CTA,
+) -> str:
+    if os.getenv("SAP_STUDIO_FORMAT", "short").strip().lower() == "long":
+        try:
+            minimum = int(os.getenv("SAP_STUDIO_SCRIPT_MIN_WORDS", "1100"))
+            maximum = int(os.getenv("SAP_STUDIO_SCRIPT_MAX_WORDS", "1500"))
+        except (TypeError, ValueError):
+            minimum, maximum = 1100, 1500
+        return build_extractive_long_script(
+            source,
+            min_words=minimum,
+            max_words=maximum,
+            topic=topic,
+            cta=cta,
+        )
+    return build_extractive_script(source, cta=cta, topic=topic)
+
+
 def enforce_script_claim_traceability(
     script: str,
     source: str,
+    *,
+    topic: str = "",
 ) -> tuple[str, dict[str, Any]]:
     """Keep a supported draft or fail closed to source-only narration."""
     candidate = str(script or "").strip()
@@ -46,13 +76,23 @@ def enforce_script_claim_traceability(
         "unsupported_sentences": len(initial.get("unsupported", [])),
         "fallback_used": False,
     }
-    if initial_coverage >= MIN_SCRIPT_CLAIM_COVERAGE:
+    topic_ok = is_topic_relevant(candidate, topic)
+    result["topic_relevance_required"] = bool(str(topic or "").strip())
+    result["topic_relevant"] = topic_ok
+    if initial_coverage >= MIN_SCRIPT_CLAIM_COVERAGE and topic_ok:
         return candidate, result
 
-    extract = build_extractive_script(source_text, cta=EXTRACTIVE_CTA)
+    result["fallback_reason"] = (
+        "topic_mismatch" if not topic_ok else "coverage_below_threshold"
+    )
+    extract = _build_traceable_fallback(source_text, topic, cta=EXTRACTIVE_CTA)
     if not extract:
+        reason = (
+            "source_extract_topic_window_unavailable"
+            if topic else "source_extract_window_unavailable"
+        )
         raise ScriptClaimTraceabilityError(
-            f"coverage={initial_coverage:.1f};source_extract_window_unavailable"
+            f"coverage={initial_coverage:.1f};{reason}"
         )
 
     extracted_check = claim_lock(extract, claims)
@@ -65,6 +105,7 @@ def enforce_script_claim_traceability(
         )
 
     result.update(
+        topic_relevant=is_topic_relevant(extract, topic),
         coverage=round(extracted_coverage, 1),
         unsupported_sentences=len(extracted_check.get("unsupported", [])),
         fallback_used=True,

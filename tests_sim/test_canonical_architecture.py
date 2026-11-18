@@ -19,6 +19,23 @@ class ConsolidationArchitectureTests(unittest.TestCase):
         self.assertIn('p.run("0 - LEGACY RUNTIME PURGE", "tools/purge_legacy_runtime.py")',main)
         for legacy in ("gerar_short.sh","gerar_short_professional.sh","professional_pipeline_runtime.py","resume_short_professional_runtime.py","v6_professional_runtime.py","v6_runtime.py","v6.py","video.py","limpar_storage.sh","_arquivo_historico"): self.assertIn(legacy,purge)
 
+    def test_semantic_fix_resume_only_runs_gate_then_canonical_resume(self):
+        text = (ROOT / "resume_after_semantic_fix.py").read_text(encoding="utf-8")
+        self.assertIn('"semantic_integrity_gate.py"', text)
+        self.assertIn('"resume_short_runtime.py"', text)
+        for duplicate_stage in (
+            "media_stage_runtime.py",
+            "media_master_gate.py",
+            "visual_score_engine.py",
+            "motion_director.py",
+            "rhythm_director.py",
+            "professional_edit_director.py",
+            "retention_engine.py",
+            "sound_design_engine.py",
+        ):
+            self.assertNotIn(duplicate_stage, text)
+        self.assertIn("resume_short_runtime acquires the same", text)
+
     def test_single_canonical_pipeline_and_resume(self):
         main=(ROOT/"main.py").read_text(encoding="utf-8"); profile=(ROOT/"profile_run.sh").read_text(encoding="utf-8"); resume=(ROOT/"resume_short_runtime.py").read_text(encoding="utf-8")
         self.assertIn("CONSOLIDATION_3_0",main); self.assertIn("PROFESSIONAL_CANONICAL",main)

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import runpy
 import sys
 from datetime import date
@@ -110,13 +111,26 @@ def verify_exact(topic: str) -> dict:
                 continue
             identity = validar_identidade(topic, title, text)
             score = float(identity.get("score", 0.0) or 0.0)
+            try:
+                source_limit = max(700, min(100000, int(os.getenv("SAP_STUDIO_SOURCE_MAX_CHARS", "60000"))))
+            except (TypeError, ValueError):
+                source_limit = 60000
+            source_words = len(re.findall(r"\b[\wÀ-ÿ'-]+\b", text[:source_limit], flags=re.UNICODE))
+            enough_for_long = True
+            if os.getenv("SAP_STUDIO_FORMAT", "short").strip().lower() == "long":
+                try:
+                    required_words = max(200, int(os.getenv("SAP_STUDIO_SCRIPT_MIN_WORDS", "1288")))
+                except (TypeError, ValueError):
+                    required_words = 1288
+                enough_for_long = source_words >= required_words
             candidate = {
                 "topic": topic,
                 "wiki_title": title,
                 "wiki_chars": len(text),
+                "wiki_words": source_words,
                 "identity_score": round(score, 4),
-                "identity_reason": identity.get("reason", ""),
-                "valid": bool(identity.get("valid")),
+                "identity_reason": identity.get("reason", "") if enough_for_long else "insufficient_source_length",
+                "valid": bool(identity.get("valid")) and enough_for_long,
             }
             if best is None or score > best["identity_score"]:
                 best = candidate

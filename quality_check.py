@@ -17,7 +17,15 @@ try:
     QTD_CENAS = int(os.getenv("SHORT_QTD_CENAS", "12"))
 except (TypeError, ValueError):
     QTD_CENAS = 12
-QTD_CENAS = max(6, min(QTD_CENAS, 20))
+QTD_CENAS = max(6, min(QTD_CENAS, 80))
+
+STUDIO_FORMAT = os.getenv("SAP_STUDIO_FORMAT", "short").strip().lower()
+EXPECTED_WIDTH = int(os.getenv("SAP_STUDIO_WIDTH", "1080"))
+EXPECTED_HEIGHT = int(os.getenv("SAP_STUDIO_HEIGHT", "1920"))
+EXPECTED_FPS = int(os.getenv("SAP_STUDIO_FPS", "30"))
+TARGET_DURATION = max(1, int(os.getenv("SAP_STUDIO_DURATION_SECONDS", "45")))
+SCRIPT_MIN_WORDS = max(80, int(os.getenv("SAP_STUDIO_SCRIPT_MIN_WORDS", "105")))
+SCRIPT_MAX_WORDS = max(SCRIPT_MIN_WORDS, int(os.getenv("SAP_STUDIO_SCRIPT_MAX_WORDS", "125")))
 
 SUPERVISOR = BASE / "roteiros" / f"supervisor_{SHORT_ID}.json"
 VIDEO = BASE / "videos" / f"short_v6_{SHORT_ID}.mp4"
@@ -148,13 +156,13 @@ def evaluate(video_path, media_dir, scene_map_path, supervisor_path, expected, p
         height = safe_int(stream.get("height"))
         codec = str(stream.get("codec_name", "") or "")
         fps = parse_fps(stream.get("avg_frame_rate"))
-        if width != 1080:
+        if width != EXPECTED_WIDTH:
             errors.append(f"Largura incorreta: {width}")
-        if height != 1920:
+        if height != EXPECTED_HEIGHT:
             errors.append(f"Altura incorreta: {height}")
         if codec != "h264":
             warnings.append(f"Codec inesperado: {codec or '?'}")
-        if not 29.0 <= fps <= 31.0:
+        if abs(fps - EXPECTED_FPS) > 0.25:
             errors.append(f"FPS fora do esperado: {fps:.2f}")
 
     if not audio_streams:
@@ -165,12 +173,19 @@ def evaluate(video_path, media_dir, scene_map_path, supervisor_path, expected, p
             warnings.append(f"Codec de áudio: {audio_codec or '?'}")
 
     duration = safe_float(fmt.get("duration"))
-    if duration < 15:
-        errors.append(f"Vídeo curto demais: {duration:.2f}s")
-    elif duration > 180:
-        errors.append(f"Vídeo longo demais para Short: {duration:.2f}s")
-    elif duration > 60:
-        warnings.append(f"Vídeo acima de 60s: {duration:.2f}s")
+    if STUDIO_FORMAT == "long":
+        if not TARGET_DURATION * 0.72 <= duration <= TARGET_DURATION * 1.30:
+            errors.append(
+                f"Duração fora da faixa do vídeo longo: {duration:.2f}s "
+                f"(alvo {TARGET_DURATION}s)"
+            )
+    else:
+        if duration < 15:
+            errors.append(f"Vídeo curto demais: {duration:.2f}s")
+        elif duration > 180:
+            errors.append(f"Vídeo longo demais para Short: {duration:.2f}s")
+        elif duration > 60:
+            warnings.append(f"Vídeo acima de 60s: {duration:.2f}s")
 
     media = media_inventory(media_dir)
     if len(media) != expected:

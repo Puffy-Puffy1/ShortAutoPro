@@ -3,6 +3,8 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import wave
+from unittest.mock import patch
 from pathlib import Path
 
 
@@ -33,7 +35,7 @@ class AudioBaseTests(unittest.TestCase):
                 timeout=30,
             )
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-            self.assertIn(str(model), result.stdout.strip())
+            self.assertEqual(result.stdout.strip(), "pt_BR-faber-medium")
 
     def test_accepts_explicit_absolute_piper_model_path(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -118,11 +120,69 @@ assert destination.is_file() and destination.stat().st_size > 44
             self.assertTrue(destination.is_file())
             self.assertGreater(destination.stat().st_size, 44)
 
-    def test_ffmpeg_does_not_mislabel_piper_wav_as_raw_float_pcm(self):
+    def test_ffmpeg_distinguishes_termux_raw_from_piper_wav(self):
         source = SCRIPT.read_text(encoding="utf-8")
-        self.assertNotIn('"f32le"', source)
-        self.assertIn('str(source_wav)', source)
+        self.assertIn('if header==b"RIFF":', source)
+        self.assertIn('"f32le"', source)
         self.assertIn('wave.open(str(dest)', source)
+
+
+    def test_speech_director_preserves_cyrillic_subtitles_but_sanitizes_tts_text(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            roteiro_dir = base / "roteiros"
+            roteiro_dir.mkdir()
+            original = (
+                'A montanha Kholat Syakhl (Холат Сяхл) fica nos Urais. '
+                'O Passo Dyatlov (Перевал Дятлова) recebeu esse nome.'
+            )
+            (roteiro_dir / "short_pronunciation_case.txt").write_text(original, encoding="utf-8")
+            env = os.environ.copy()
+            env["SHORTAUTOPRO_BASE"] = str(base)
+            env["SHORT_ID"] = "pronunciation_case"
+            result = subprocess.run(
+                [sys.executable, str(ROOT / "speech_director.py")],
+                cwd=str(ROOT), env=env, capture_output=True, text=True, timeout=30
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            speech_text = (roteiro_dir / "speech_pronunciation_case.txt").read_text(encoding="utf-8")
+            import json
+            plan = json.loads((roteiro_dir / "speech_pronunciation_case.json").read_text(encoding="utf-8"))
+            self.assertIn("Холат Сяхл", speech_text)
+            self.assertIn("Перевал Дятлова", speech_text)
+            tts_text = " ".join(chunk["tts_text"] for chunk in plan["chunks"])
+            self.assertIn("Kholat Syakhl", tts_text)
+            self.assertIn("Passo Dyatlov", tts_text)
+            self.assertNotRegex(tts_text, r"[\u0400-\u04FF]")
+
+    def test_segmented_audio_uses_pronunciation_safe_text(self):
+        import audio
+        with tempfile.TemporaryDirectory() as tmp:
+            work = Path(tmp)
+            spoken = []
+
+            def fake_piper(text, destination, _env):
+                spoken.append(text)
+                with wave.open(str(destination), "wb") as output:
+                    output.setnchannels(1)
+                    output.setsampwidth(2)
+                    output.setframerate(22050)
+                    output.writeframes(b"\x00\x00" * 2205)
+
+            def fake_ffmpeg(command, **_kwargs):
+                destination = Path(command[-1])
+                with wave.open(str(destination), "wb") as output:
+                    output.setnchannels(1)
+                    output.setsampwidth(2)
+                    output.setframerate(44100)
+                    output.writeframes(b"\x00\x00" * 2205)
+
+            with patch("audio.piper_wav", side_effect=fake_piper), patch("audio.run_group", side_effect=fake_ffmpeg):
+                audio.render_segmented(
+                    [{"text": "Kholat Syakhl (Холат Сяхл)", "tts_text": "Kholat Syakhl"}],
+                    work, {}
+                )
+            self.assertEqual(spoken, ["Kholat Syakhl"])
 
 if __name__ == "__main__":
     unittest.main()

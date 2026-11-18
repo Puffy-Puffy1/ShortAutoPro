@@ -12,7 +12,7 @@ def _scene_count():
         value = int(os.getenv("SHORT_QTD_CENAS", "12"))
     except (TypeError, ValueError):
         value = 12
-    return max(6, min(20, value))
+    return max(6, min(80, value))
 
 
 EXPECTED_SCENES = _scene_count()

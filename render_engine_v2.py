@@ -42,9 +42,19 @@ def _manifest_integrity(payload: dict[str, Any]) -> str:
     unsigned.pop("integrity_sha256", None)
     return hashlib.sha256(_canonical_json(unsigned)).hexdigest()
 
-FPS = 30
-WIDTH = 1080
-HEIGHT = 1920
+def _bounded_env_int(name: str, default: int, low: int, high: int) -> int:
+    try:
+        value = int(os.getenv(name, str(default)))
+    except (TypeError, ValueError):
+        value = default
+    return max(low, min(value, high))
+
+
+FPS = _bounded_env_int("SAP_STUDIO_FPS", 30, 20, 60)
+WIDTH = _bounded_env_int("SAP_STUDIO_WIDTH", 1080, 480, 3840)
+HEIGHT = _bounded_env_int("SAP_STUDIO_HEIGHT", 1920, 480, 3840)
+WIDTH -= WIDTH % 2
+HEIGHT -= HEIGHT % 2
 MEDIA_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".webm", ".mkv"}
 STATES = ["CREATED","VALIDATING_INPUT","READY","RENDERING","RENDERED","VALIDATING_OUTPUT","PASSED","FAILED","RECOVERY_PENDING","RETRYING","CANCELLED"]
 
@@ -354,7 +364,7 @@ def build_job(short_id: str) -> Path:
         "width": WIDTH,
         "height": HEIGHT,
         "duration_target": round(duration, 6),
-        "orientation": "portrait",
+        "orientation": "portrait" if HEIGHT > WIDTH else "landscape",
         "codec": "h264",
         "audio_required": True,
         "subtitles_required": True,
@@ -534,9 +544,16 @@ def ffprobe_validator(path: Path, job: Path) -> dict[str, Any]:
     if audio and audio.get("codec_name")!="aac": errors.append("INVALID_AUDIO_CODEC")
     if not math.isfinite(actual) or actual<=0 or abs(actual-target)>max(0.45,target*0.02): errors.append("INVALID_DURATION")
     if video:
-        rate=str(video.get("avg_frame_rate",""))
-        if rate not in {"30/1","30000/1001"}: errors.append("INVALID_FPS")
-    decode=run_cmd(["ffmpeg","-v","error","-xerror","-i",str(path),"-map","0:v:0","-map","0:a:0","-f","null","-"],BASE,max(60,min(300,int(target*4+30))))
+        rate = str(video.get("avg_frame_rate", ""))
+        try:
+            numerator, denominator = rate.split("/", 1)
+            actual_fps = float(numerator) / max(0.0001, float(denominator))
+        except (TypeError, ValueError, ZeroDivisionError):
+            actual_fps = 0.0
+        if abs(actual_fps - FPS) > 0.15:
+            errors.append("INVALID_FPS")
+    decode_timeout = max(60, min(21600, int(target * 2 + 300)))
+    decode=run_cmd(["ffmpeg","-v","error","-xerror","-i",str(path),"-map","0:v:0","-map","0:a:0","-f","null","-"],BASE,decode_timeout)
     if decode.returncode!=0: errors.append("OUTPUT_DECODE_FAILED")
     first=run_cmd(["ffmpeg","-v","error","-i",str(path),"-vf",r"select=eq(n\,0),signalstats,metadata=print:file=-","-frames:v","1","-f","null","-"],BASE,45)
     first_text=(first.stdout or "")+(first.stderr or "")

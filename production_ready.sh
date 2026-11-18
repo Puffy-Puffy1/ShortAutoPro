@@ -24,7 +24,7 @@ erro() {
 
 echo
 echo "======================================"
-echo " SHORTAUTO PRO - READINESS GATE 2.4.0"
+echo " SHORTAUTO PRO - READINESS GATE 3.0.4"
 echo "======================================"
 echo
 
@@ -235,13 +235,18 @@ CRITICOS=(
     hook_runtime.py
     scene_director.py
     semantic_integrity_gate.py
-    media_stage_runtime.py
-    midia.py
-    media_master_gate.py
+    media_engine_v2.py
+    media_provider_v2.py
+    media_provider_router_v2.py
+    media_validator_v2.py
+    media_must_verifier.py
+    media_visual_verifier.py
+    media_external_resilience.py
+    media_quality_report.py
+    render_plan_v2.py
+    render_engine_v2.py
     audio.py
     legenda_dinamica.py
-    video_professional.py
-    v6_professional.py
     quality_check.py
     publish_pack.py
     production_manifest.py
