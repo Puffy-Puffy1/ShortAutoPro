@@ -229,6 +229,15 @@ def buscar_artigo(assunto):
             if not identidade.get("valid"):
                 continue
 
+            if IS_LONG_FORM:
+                source_words = contar_palavras(texto[:SOURCE_MAX_CHARS])
+                if source_words < SCRIPT_MIN_WORDS:
+                    print(
+                        "Fonte válida, mas insuficiente para a duração longa: "
+                        f"{source_words}/{SCRIPT_MIN_WORDS} palavras; buscando outra."
+                    )
+                    continue
+
             return titulo, texto, identidade
 
     return "", "", None
