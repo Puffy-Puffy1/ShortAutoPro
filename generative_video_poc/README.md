@@ -1,40 +1,51 @@
-# Generative Video POC — isolated, zero-budget
+# ShortAutoPro — Termux-first generative video POC
 
-This experiment is isolated on the POC branch. It does not replace or modify the production entrypoints, is not enabled in production, and does not create a second orchestration pipeline.
+**The Android phone running Termux is the brain and primary machine.** The production controller, project state, prompts, scene plan, model registry, queue, logs, file management, FFmpeg assembly, FFprobe validation and exports must run on the phone. No external orchestrator is required. Remote GPU execution is disabled by default and is not part of this zero-budget POC.
 
-## Scope
+## What this POC adds
 
-- One project/clip contract describes portrait Shorts and landscape long-form.
-- Long videos are planned as bounded generated clips rather than one giant model output.
-- A ComfyUI API worker can be submitted to, polled with a deadline, and its video outputs downloaded atomically.
-- Missing output, malformed responses and provider failures fail closed.
+- A Termux/Android ARM64 preflight: RAM, free storage, required binaries and optional local inference binaries.
+- A safe local-process adapter: invokes an explicitly reviewed native executable without a shell, enforces a timeout, refuses output overwrite, and requires FFprobe validation.
+- One project/clip contract shared by 9:16 Shorts and 16:9 long-form output.
+- Automated tests use fake local executables; no paid API, GPU rental, remote worker or external model download is used.
 
-The ComfyUI client is only a transport adapter. It does not select a checkpoint, construct model nodes, validate model licenses, or prove that a GPU generated media. A model-specific workflow must be selected and reviewed separately.
+## Candidate local video engine
 
-## Zero-budget model and GPU candidate
+The upstream stable-diffusion.cpp project lists Android via Termux, Vulkan support, and video families including Wan2.1/2.2 and LTX-2.3/2.5. This confirms a plausible Termux path, not that every video model runs on every phone. Model weights, RAM, GPU driver, Vulkan support, thermals and battery require a device-specific smoke test.
 
-First candidate for the real smoke test: Wan2.2 TI2V-5B. Its official model card declares Apache-2.0 and describes text/image-to-video at up to 720p/24fps. The official Wan inference script documents a 24GB VRAM requirement, while the ComfyUI workflow documentation says its native offloading path can fit 8GB VRAM; these are different execution paths, so we will test the ComfyUI route rather than assume the official script fits a small GPU.
+Reference: https://github.com/leejet/stable-diffusion.cpp
 
-Kaggle Notebooks currently documents free NVIDIA P100 GPU access, a weekly GPU quota (commonly 30 hours), and per-session limits; free capacity can be queued and is not guaranteed. This is a no-cost compute option, not a paid rental. Google Colab also offers free GPU access, but explicitly says availability and limits are dynamic and not guaranteed. If neither grants a GPU session, the real generation test must wait — no paid fallback will be started.
+The code deliberately does not hardcode CLI flags for a video model: those flags differ by model and upstream revision. A reviewed command template must be supplied after testing the selected binary's help output and model guide. The adapter does not fetch models or run arbitrary shell strings.
 
-## Free automated validation
+## Install base dependencies in Termux
 
-Run from repository root:
+Run this manually inside the Termux app. ShortAutoPro does not install packages automatically:
+
+    pkg update
+    pkg install python ffmpeg git clang cmake ninja pkg-config
+
+Grant shared-storage access only when needed:
+
+    termux-setup-storage
+
+Keep models, cache and active generation files in Termux private HOME/.shortautopro/. Copy final MP4s to shared Movies/ShortAutoPro/ only after validation. Do not execute downloaded native binaries from shared storage; install reviewed executables under PREFIX/bin/.
+
+Run the POC checks:
 
     python -m unittest discover -s tests_generative_video -v
-    python -m compileall -q generative_video_poc tests_generative_video
+    python -m generative_video_poc.termux_runtime
 
-Tests use a local fake HTTP server and a byte fixture. The fixture is not a real MP4 and is not evidence of AI video generation. No paid API, GPU rental, secret, or external network is used.
+## Local execution constraints
 
-## Shared project contract
+- Termux controller and media assembly are always local.
+- Model generation is local only when the device has a compatible executable/backend and enough available memory.
+- Vulkan/NPU availability is reported, never assumed. A shell process cannot automatically use a handset's NPU just because the chip has one; the runtime must explicitly support it.
+- Long-form projects are a queue of short generated clips, assembled locally by FFmpeg. Store each clip on disk and checkpoint after each completed scene; do not keep the full video in RAM.
+- If the model does not fit, stop with a clear hardware diagnostic. No silent cloud fallback, paid service, laptop or PC dependency.
 
-- Shorts: kind=shorts, aspect_ratio=9:16, target up to 180 seconds.
-- Long-form: kind=longform, aspect_ratio=16:9, target above 180 seconds.
-- Both use the same clip planner; a 30-minute project at 10 seconds per clip plans 180 clips. Continuity, dialogue/audio and final editing still require model-specific workflows and integration tests.
+## Next gate
 
-## Next gate — not yet approved
-
-1. Run one real 5-second 9:16 Wan2.2 TI2V-5B clip on a free Kaggle GPU session using the ComfyUI workflow.
-2. Validate the actual MP4 with FFprobe, inspect visual quality, and record GPU type, runtime, resolution, frame count and exact model/workflow revisions.
-3. Run a small 16:9 long-form assembly test using multiple clips; do not infer that a 30–40 minute render is feasible from one clip.
-4. Only after evidence, propose one adapter integration into the existing canonical orchestrator.
+1. Run the Termux preflight on the target phone and inspect chipset, ABI, RAM, free storage and binaries.
+2. Build or install a pinned stable-diffusion.cpp Android/Termux executable only after checking its exact release/build instructions.
+3. Verify the model-specific command with a tiny clip, then record timing, peak memory if observable, resolution and FFprobe metadata.
+4. Only after a real local MP4 passes, wire the single local backend into the existing ShortAutoPro orchestration. Do not create another pipeline or modify the production entrypoints as part of this POC.
