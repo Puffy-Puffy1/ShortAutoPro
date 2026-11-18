@@ -31,7 +31,7 @@ BACKUP = R / f"scene_map_pre_visual_{SHORT_ID}.json"
 REPORT = R / f"visual_director_{SHORT_ID}.json"
 
 try:
-    QTD_CENAS = max(6, min(20, int(os.getenv("SHORT_QTD_CENAS", "12"))))
+    QTD_CENAS = max(6, min(80, int(os.getenv("SHORT_QTD_CENAS", "12"))))
 except ValueError:
     QTD_CENAS = 12
 
