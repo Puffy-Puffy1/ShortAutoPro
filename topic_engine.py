@@ -384,7 +384,26 @@ def escolher_fallback_sem_llm():
     reserva = melhor_reserva()
     if reserva:
         nome = str(reserva.get("topic", "")).strip()
-        if nome:
+        verified_reserve = None
+        if nome and os.getenv("SAP_STUDIO_FORMAT", "short").strip().lower() == "long":
+            try:
+                reserve_check = verificar_wikipedia(nome)
+                required_words = max(200, int(os.getenv("SAP_STUDIO_SCRIPT_MIN_WORDS", "1288")))
+                if reserve_check.get("ok") and int(reserve_check.get("words", 0) or 0) >= required_words:
+                    verified_reserve = reserve_check
+                else:
+                    print(
+                        "TOPIC_ENGINE_FALLBACK=RESERVE_TOO_SHORT "
+                        f"topic={nome} words={reserve_check.get('words', 0)} required={required_words}"
+                    )
+            except (WikiRateLimit, TypeError, ValueError) as exc:
+                print(f"TOPIC_ENGINE_FALLBACK=RESERVE_VERIFY_FAILED {type(exc).__name__}")
+            except Exception as exc:
+                print(f"TOPIC_ENGINE_FALLBACK=RESERVE_VERIFY_FAILED {type(exc).__name__}")
+        if nome and (
+            os.getenv("SAP_STUDIO_FORMAT", "short").strip().lower() != "long"
+            or verified_reserve is not None
+        ):
             print(
                 "TOPIC_ENGINE_FALLBACK=VERIFIED_RESERVE "
                 f"topic={nome}"
@@ -392,15 +411,18 @@ def escolher_fallback_sem_llm():
             return {
                 "topic": nome,
                 "score": float(reserva.get("score", 0.0) or 0.0),
-                "wiki_title": str(reserva.get("wiki_title", "") or ""),
-                "wiki_chars": 0,
-                "wiki_similarity": 1.0,
+                "wiki_title": (
+                    verified_reserve.get("wiki_title", "")
+                    if verified_reserve else str(reserva.get("wiki_title", "") or "")
+                ),
+                "wiki_chars": verified_reserve.get("chars", 0) if verified_reserve else 0,
+                "wiki_similarity": verified_reserve.get("similarity", 1.0) if verified_reserve else 1.0,
                 "gemini": {},
                 "objective": {
                     "visual": score_visual_nome(nome),
                     "hook": score_hook_nome(nome),
-                    "documentation": 0.0,
-                    "title_match": 10.0,
+                    "documentation": score_documentacao(verified_reserve.get("chars", 0)) if verified_reserve else 0.0,
+                    "title_match": score_titulo(verified_reserve.get("similarity", 1.0)) if verified_reserve else 10.0,
                     "novelty": score_novidade(nome),
                 },
                 "reserve": True,
