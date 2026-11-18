@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - feat/termux-longform-studio-20261118
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -12,7 +15,7 @@ permissions:
 jobs:
   studio-regression:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Checkout feature branch
         uses: actions/checkout@v4
@@ -27,12 +30,20 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg
 
-      - name: Compile changed pipeline modules
+      - name: Validate Python and shell syntax
         run: |
-          python -m py_compile             main.py studio_config.py profile_runtime.py             topic_engine.py topic_engine_runtime.py roteiro.py script_fallback.py             professional_edit_director.py motion_director.py rhythm_director.py             visual_qa.py render_preflight.py subtitle_style_policy.py             caption_layout_guard.py render_engine_v2.py             render_v2/ffmpeg_visual_renderer.py
+          python -m py_compile \
+            main.py studio_config.py profile_runtime.py runtime_config.py \
+            topic_engine.py topic_engine_runtime.py roteiro.py script_fallback.py \
+            audio.py professional_edit_director.py motion_director.py rhythm_director.py \
+            visual_qa.py render_preflight.py subtitle_style_policy.py \
+            caption_layout_guard.py render_engine_v2.py \
+            render_v2/ffmpeg_visual_renderer.py
+          bash -n control_center.sh preflight_check.sh health_check.sh termux_setup.sh
 
       - name: Run Studio and long-form regressions
         run: |
           python -m unittest discover -s tests_sim -p "test_studio*.py" -v
           python -m unittest discover -s tests_sim -p "test_long_form_fallback.py" -v
           python -m unittest discover -s tests_sim -p "test_ffmpeg_visual_smoke.py" -v
+          python -m unittest discover -s tests_sim -p "test_audio_piper_compat.py" -v
