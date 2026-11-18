@@ -31,6 +31,27 @@ except Exception:print(f"{p.name} | JSON INVÁLIDO")
 PY
 done; }
 storage_guard(){ echo "Simulação/status:";rodar_main storage status||return 1;echo;local r;read -r -p "Executar limpeza segura? [s/N]: " r||return 0;case "$r" in s|S|sim|SIM|Sim) rodar_main storage cleanup --execute;;*)echo "Cancelado.";;esac; }
+studio_generate(){
+ local format_choice duration_choice tema style
+ echo "Formato de vídeo:"
+ echo "1) Short vertical"
+ echo "2) Vídeo longo horizontal"
+ read -r -p "Escolha [1/2]: " format_choice || return 1
+ case "$format_choice" in
+  1) format="short"; echo "Duração: 30, 45 ou 60 segundos"; read -r -p "Duração [45]: " duration_choice; duration_choice="${duration_choice:-45}";;
+  2) format="long"; echo "Duração: 10, 15 ou 20 minutos"; read -r -p "Duração [10]: " duration_choice; duration_choice="${duration_choice:-10}";;
+  *) echo "Formato inválido."; return 1;;
+ esac
+ read -r -p "Tema (ex.: história, ciência, natureza, tecnologia, games): " tema || return 1
+ read -r -p "Estilo [documentary/cinematic/storytelling/animation/anime/cartoon/educational/horror/mystery/historical/nature/technology] (documentary): " style || return 1
+ style="${style:-documentary}"
+ local args=(studio --format "$format" --duration "$duration_choice" --style "$style")
+ if [ -n "$tema" ]; then args+=(--theme "$tema"); fi
+ echo
+ echo "Modo gratuito: IA em nuvem desativada; o pipeline usará pesquisa e voz locais."
+ rodar_main "${args[@]}"
+}
+
 status_sistema(){ echo "ARMAZENAMENTO:";df -h "$HOME"|tail -1||true;echo;du -sh "$BASE" 2>/dev/null||true;echo;echo "VÍDEOS:";find "$BASE/videos" -maxdepth 1 -type f -name 'short_v6_*.mp4' 2>/dev/null|wc -l;echo;echo "GIT:";git -C "$BASE" status --short||true; }
 brain_status(){ local sid;read -r -p "SHORT_ID: " sid;[ -n "$sid" ]||{ echo "SHORT_ID vazio.";return 1;};rodar_brain status --short-id "$sid"; }
 brain_prepare(){ local sid;read -r -p "SHORT_ID: " sid;[ -n "$sid" ]||{ echo "SHORT_ID vazio.";return 1;};rodar_brain prepare --short-id "$sid"; }
@@ -42,7 +63,7 @@ repair_plan(){ local sid r;read -r -p "SHORT_ID: " sid;[ -n "$sid" ]||{ echo "SH
 intelligence_phase(){ local phase="$1" sid;read -r -p "SHORT_ID: " sid;[ -n "$sid" ]||{ echo "SHORT_ID vazio.";return 1;};rodar_intelligence "$phase" --short-id "$sid"; }
 while true;do
  cabecalho
- echo "1) Gerar 1 Short (main.py)";echo "2) Gerar lote";echo "3) Retomar lote";echo "4) Status do lote";echo "5) Retomar Short";echo "6) Status da retomada";echo "7) Últimas releases";echo "8) Último Publish Pack";echo "9) Último vídeo";echo "10) Auditoria do repositório";echo "11) Storage Manager";echo "12) Status do sistema";echo "13) Preflight";echo "14) Health Check";echo "15) Diagnóstico";echo "16) Evolution Center";echo "17) Git status";echo "18) Últimos commits";echo "19) Brain - preparar Evidence/Story/A-B";echo "20) Brain - Quality Budget";echo "21) Brain - Status completo";echo "22) Brain - Registrar analytics";echo "23) Director AI - Provenance/Visual Intent";echo "24) Asset Library - Status";echo "25) Repair Engine - Plano/Executar";echo "26) Intelligence - PRE (Story/Claim Lock)";echo "27) Intelligence - SCENE (Entity/Time/Geo/Visual)";echo "28) Intelligence - MEDIA (Source/Cache/Aging)";echo "29) Intelligence - FINAL (Explainable QA/Confidence)";echo "30) Intelligence - Status completo";echo "31) Production Center - Status";echo "32) Production Doctor";echo "33) Production Profiler";echo "34) Production Watch";echo "0) Sair";echo
+ echo "1) Gerar 1 Short (main.py)";echo "2) Gerar lote";echo "3) Retomar lote";echo "4) Status do lote";echo "5) Retomar Short";echo "6) Status da retomada";echo "7) Últimas releases";echo "8) Último Publish Pack";echo "9) Último vídeo";echo "10) Auditoria do repositório";echo "11) Storage Manager";echo "12) Status do sistema";echo "13) Preflight";echo "14) Health Check";echo "15) Diagnóstico";echo "16) Evolution Center";echo "17) Git status";echo "18) Últimos commits";echo "19) Brain - preparar Evidence/Story/A-B";echo "20) Brain - Quality Budget";echo "21) Brain - Status completo";echo "22) Brain - Registrar analytics";echo "23) Director AI - Provenance/Visual Intent";echo "24) Asset Library - Status";echo "25) Repair Engine - Plano/Executar";echo "26) Intelligence - PRE (Story/Claim Lock)";echo "27) Intelligence - SCENE (Entity/Time/Geo/Visual)";echo "28) Intelligence - MEDIA (Source/Cache/Aging)";echo "29) Intelligence - FINAL (Explainable QA/Confidence)";echo "30) Intelligence - Status completo";echo "31) Production Center - Status";echo "32) Production Doctor";echo "33) Production Profiler";echo "34) Production Watch";echo "35) Studio - Criar Short ou vídeo longo";echo "0) Sair";echo
  read -r -p "Escolha: " OP||exit 0
  case "$OP" in
   1)cabecalho;unset SHORT_ID;rodar_main run||true;pausa;;
@@ -79,6 +100,7 @@ while true;do
   32)cabecalho;rodar_production_center doctor||true;pausa;;
   33)cabecalho;rodar_production_center profile||true;pausa;;
   34)cabecalho;rodar_production_center watch||true;pausa;;
+  35)cabecalho;studio_generate||true;pausa;;
   0)clear 2>/dev/null||true;exit 0;;
   *)echo "Opção inválida.";sleep 1;;
  esac
