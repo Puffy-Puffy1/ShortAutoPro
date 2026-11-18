@@ -32,6 +32,15 @@ PRODUCTION_MANIFEST = BASE / "manifests" / f"{SHORT_ID}.json"
 AUDIO_REPORT = BASE / "reports" / "evolution" / f"final_audio_{SHORT_ID}.json"
 OUTPUT = BASE / "manifests" / f"{SHORT_ID}_professional.json"
 
+STUDIO_FORMAT = os.getenv("SAP_STUDIO_FORMAT", "short").strip().lower()
+EXPECTED_WIDTH = int(os.getenv("SAP_STUDIO_WIDTH", "1080"))
+EXPECTED_HEIGHT = int(os.getenv("SAP_STUDIO_HEIGHT", "1920"))
+EXPECTED_FPS = int(os.getenv("SAP_STUDIO_FPS", "30"))
+TARGET_DURATION = max(1, int(os.getenv("SAP_STUDIO_DURATION_SECONDS", "45")))
+SCRIPT_MIN_WORDS = max(80, int(os.getenv("SAP_STUDIO_SCRIPT_MIN_WORDS", "105")))
+SCRIPT_MAX_WORDS = max(SCRIPT_MIN_WORDS, int(os.getenv("SAP_STUDIO_SCRIPT_MAX_WORDS", "125")))
+
+
 
 def read_json(path: Path) -> dict[str, Any]:
     try:
@@ -138,10 +147,10 @@ def cached_technical_score() -> tuple[float, list[str], dict[str, Any]] | None:
     if video_codec != "h264":
         errors.append("video_codec")
         score -= 35
-    if (width, height) != (1080, 1920):
+    if (width, height) != (EXPECTED_WIDTH, EXPECTED_HEIGHT):
         errors.append(f"resolution={width}x{height}")
         score -= 35
-    if not 29 <= fps <= 31:
+    if abs(fps - EXPECTED_FPS) > 0.25:
         errors.append(f"fps={fps:.2f}")
         score -= 15
     if audio_codec != "aac":
@@ -178,10 +187,10 @@ def technical_score() -> tuple[float, list[str], dict[str, Any]]:
     if video.get("codec_name") != "h264":
         errors.append("video_codec")
         score -= 35
-    if (width, height) != (1080, 1920):
+    if (width, height) != (EXPECTED_WIDTH, EXPECTED_HEIGHT):
         errors.append(f"resolution={width}x{height}")
         score -= 35
-    if not 29 <= fps <= 31:
+    if abs(fps - EXPECTED_FPS) > 0.25:
         errors.append(f"fps={fps:.2f}")
         score -= 15
     if audio.get("codec_name") != "aac":
