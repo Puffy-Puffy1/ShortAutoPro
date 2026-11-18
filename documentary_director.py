@@ -19,7 +19,7 @@ BASE = os.path.abspath(os.path.expanduser(os.getenv("SHORTAUTOPRO_BASE", "~/Shor
 SHORT_ID = os.getenv("SHORT_ID", date.today().isoformat())
 API_KEY = os.getenv("GEMINI_API_KEY", "")
 MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
-QTD_CENAS = env_int("SHORT_QTD_CENAS", 12, 6, 20)
+QTD_CENAS = env_int("SHORT_QTD_CENAS", 12, 6, 80)
 
 R = os.path.join(BASE, "roteiros")
 SCENE_MAP = os.path.join(R, f"scene_map_{SHORT_ID}.json")
