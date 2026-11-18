@@ -8,6 +8,7 @@ blocks. It only changes presentation; it never rewrites spoken content.
 
 from __future__ import annotations
 
+import os
 import re
 
 
@@ -80,19 +81,35 @@ def group_timed_words(timed_words):
     return [group for group in result if group]
 
 
+def _studio_resolution():
+    """Return bounded canvas dimensions from the active Studio profile."""
+    try:
+        width = int(os.getenv("SAP_STUDIO_WIDTH", "1080"))
+        height = int(os.getenv("SAP_STUDIO_HEIGHT", "1920"))
+    except (TypeError, ValueError):
+        width, height = 1080, 1920
+    return max(320, min(3840, width)), max(240, min(2160, height))
+
+
 def style_header(font_name=DEFAULT_FONT):
-    """Return ASS header tuned for vertical documentary shorts."""
+    """Return an ASS header sized for the active portrait or landscape canvas."""
     font = str(font_name or DEFAULT_FONT).replace(",", " ").strip() or DEFAULT_FONT
+    width, height = _studio_resolution()
+    landscape = width >= height
+    font_size = 42 if landscape else 66
+    outline = 3 if landscape else 4
+    margin_lr = max(35, round(width * (0.047 if landscape else 0.102)))
+    margin_v = max(55, round(height * 0.148))
     return f"""[Script Info]
 ScriptType: v4.00+
-PlayResX: 1080
-PlayResY: 1920
+PlayResX: {width}
+PlayResY: {height}
 ScaledBorderAndShadow: yes
 WrapStyle: 2
 
 [V4+ Styles]
 Format: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding
-Style: Dynamic,{font},66,&H00FFFFFF,&H00D9E7FF,&H00000000,&H90000000,-1,0,0,0,100,100,0,0,1,4,0,2,110,110,285,1
+Style: Dynamic,{font},{font_size},&H00FFFFFF,&H00D9E7FF,&H00000000,&H90000000,-1,0,0,0,100,100,0,0,1,{outline},0,2,{margin_lr},{margin_lr},{margin_v},1
 
 [Events]
 Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text
