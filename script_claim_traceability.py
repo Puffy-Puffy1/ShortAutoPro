@@ -7,9 +7,15 @@ are not lowered and production is blocked if even the extract cannot pass.
 """
 from __future__ import annotations
 
+import os
 from typing import Any
 
-from script_fallback import build_extractive_script, count_words, is_topic_relevant
+from script_fallback import (
+    build_extractive_long_script,
+    build_extractive_script,
+    count_words,
+    is_topic_relevant,
+)
 from shortauto_intelligence_layer import claim_engine, claim_lock
 
 MIN_SCRIPT_CLAIM_COVERAGE = 90.0
@@ -18,6 +24,22 @@ EXTRACTIVE_CTA = "Comente o que acha!"
 
 class ScriptClaimTraceabilityError(RuntimeError):
     """Raised when neither the generated script nor a source extract is traceable."""
+
+
+def _build_traceable_fallback(source: str, topic: str) -> str:
+    if os.getenv("SAP_STUDIO_FORMAT", "short").strip().lower() == "long":
+        try:
+            minimum = int(os.getenv("SAP_STUDIO_SCRIPT_MIN_WORDS", "1100"))
+            maximum = int(os.getenv("SAP_STUDIO_SCRIPT_MAX_WORDS", "1500"))
+        except (TypeError, ValueError):
+            minimum, maximum = 1100, 1500
+        return build_extractive_long_script(
+            source,
+            min_words=minimum,
+            max_words=maximum,
+            topic=topic,
+        )
+    return build_extractive_script(source, topic=topic)
 
 
 def enforce_script_claim_traceability(
@@ -57,9 +79,23 @@ def enforce_script_claim_traceability(
     result["fallback_reason"] = (
         "topic_mismatch" if not topic_ok else "coverage_below_threshold"
     )
-    extract = build_extractive_script(
-        source_text, cta=EXTRACTIVE_CTA, topic=topic
-    )
+    if os.getenv("SAP_STUDIO_FORMAT", "short").strip().lower() == "long":
+        try:
+            minimum = int(os.getenv("SAP_STUDIO_SCRIPT_MIN_WORDS", "1100"))
+            maximum = int(os.getenv("SAP_STUDIO_SCRIPT_MAX_WORDS", "1500"))
+        except (TypeError, ValueError):
+            minimum, maximum = 1100, 1500
+        extract = build_extractive_long_script(
+            source_text,
+            min_words=minimum,
+            max_words=maximum,
+            topic=topic,
+            cta=EXTRACTIVE_CTA,
+        )
+    else:
+        extract = build_extractive_script(
+            source_text, cta=EXTRACTIVE_CTA, topic=topic
+        )
     if not extract:
         reason = (
             "source_extract_topic_window_unavailable"
