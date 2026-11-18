@@ -82,8 +82,8 @@ def runtime_env(name: str) -> dict[str, str]:
 
     env = {
         "SAP_CHANNEL_PROFILE": name,
-        "SHORT_QTD_CENAS": str(as_int(profile.get("scene_count"), 12, 6, 20)),
-        "SHORT_TARGET_DURATION_SECONDS": str(as_int(profile.get("target_duration_seconds"), 55, 25, 180)),
+        "SHORT_QTD_CENAS": str(as_int(profile.get("scene_count"), 12, 6, 80)),
+        "SHORT_TARGET_DURATION_SECONDS": str(as_int(profile.get("target_duration_seconds"), 55, 25, 1200)),
         "PIPER_MODEL": str(profile.get("voice", "pt_BR-faber-medium")).strip() or "pt_BR-faber-medium",
         "SHORT_LANGUAGE": language,
         "SHORT_WHISPER_LANGUAGE": whisper_language,
