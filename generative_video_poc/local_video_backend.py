@@ -40,6 +40,17 @@ class LocalVideoBackend:
         if not self.ffprobe or not Path(self.ffprobe).is_file():
             raise ValueError("ffprobe is required to validate a generated clip")
 
+    @staticmethod
+    def _tail(path: Path, limit: int = 1600) -> str:
+        try:
+            with path.open("rb") as handle:
+                handle.seek(0, 2)
+                size = handle.tell()
+                handle.seek(max(0, size - limit))
+                return handle.read(limit).decode("utf-8", errors="replace")
+        except OSError:
+            return ""
+
     def generate_clip(self, *, prompt: str, output: Path, width: int,
                       height: int, frames: int, seed: int, model: str) -> dict:
         if not prompt.strip() or width <= 0 or height <= 0 or frames <= 0:
@@ -50,35 +61,58 @@ class LocalVideoBackend:
             raise ValueError("output must use a supported video extension")
         if output.exists():
             raise LocalGenerationError("refusing to overwrite an existing output")
+
         values = {"prompt": prompt, "output": str(output), "width": str(width),
                   "height": str(height), "frames": str(frames), "seed": str(seed), "model": model}
         args = [self.executable] + [part.format_map(values) for part in self.command_template]
+        log_path = output.with_name(output.name + ".generation.log")
         try:
-            proc = subprocess.run(args, capture_output=True, text=True,
-                                  timeout=self.timeout_seconds, check=False)
+            # Redirect potentially large native model logs to disk, not Python RAM.
+            with log_path.open("wb") as log_handle:
+                proc = subprocess.run(
+                    args, stdout=log_handle, stderr=subprocess.STDOUT,
+                    timeout=self.timeout_seconds, check=False,
+                )
         except subprocess.TimeoutExpired as exc:
-            raise LocalGenerationError("local model generation timed out") from exc
+            raise LocalGenerationError(
+                f"local model generation timed out; log={log_path}"
+            ) from exc
         except OSError as exc:
             raise LocalGenerationError(f"could not start local model: {type(exc).__name__}") from exc
         if proc.returncode != 0:
-            tail = (proc.stderr or proc.stdout or "")[-1200:]
-            raise LocalGenerationError(f"local model exited with code {proc.returncode}: {tail}")
+            tail = self._tail(log_path)
+            raise LocalGenerationError(
+                f"local model exited with code {proc.returncode}; log={log_path}; {tail}"
+            )
         if not output.is_file() or output.stat().st_size == 0:
-            raise LocalGenerationError("local model reported success but produced no video file")
+            raise LocalGenerationError(f"local model produced no video file; log={log_path}")
+
         try:
-            probe = subprocess.run([self.ffprobe, "-v", "error", "-show_entries",
-                                    "stream=codec_type,codec_name,width,height", "-show_entries",
-                                    "format=duration", "-of", "json", str(output)],
-                                   capture_output=True, text=True, timeout=30, check=False)
+            probe = subprocess.run(
+                [self.ffprobe, "-v", "error", "-show_entries",
+                 "stream=codec_type,codec_name,width,height", "-show_entries",
+                 "format=duration", "-of", "json", str(output)],
+                capture_output=True, text=True, timeout=30, check=False,
+            )
             data = json.loads(probe.stdout) if probe.returncode == 0 else {}
         except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError) as exc:
-            raise LocalGenerationError("FFprobe could not inspect generated clip") from exc
+            output.unlink(missing_ok=True)
+            raise LocalGenerationError(f"FFprobe could not inspect generated clip; log={log_path}") from exc
+
         streams = data.get("streams", []) if isinstance(data, dict) else []
         video = next((s for s in streams if isinstance(s, dict) and s.get("codec_type") == "video"), None)
         duration = float((data.get("format", {}) or {}).get("duration") or 0)
         if not video or duration <= 0:
-            raise LocalGenerationError("generated file is not a valid video stream")
-        return {"status": "GENERATED_AND_PROBED", "path": str(output),
-                "size_bytes": output.stat().st_size, "duration_seconds": duration,
-                "video_codec": video.get("codec_name"), "width": video.get("width"),
-                "height": video.get("height"), "generation_host": "termux_local"}
+            output.unlink(missing_ok=True)
+            raise LocalGenerationError(f"generated file is not a valid video stream; log={log_path}")
+        return {
+            "status": "GENERATED_AND_PROBED",
+            "path": str(output),
+            "size_bytes": output.stat().st_size,
+            "duration_seconds": duration,
+            "video_codec": video.get("codec_name"),
+            "width": video.get("width"),
+            "height": video.get("height"),
+            "generation_host": "termux_local",
+            "log_path": str(log_path),
+        }
