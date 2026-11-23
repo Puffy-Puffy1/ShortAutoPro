@@ -1,6 +1,5 @@
 """Termux-first Android device discovery and safe preflight."""
 from __future__ import annotations
-
 import os
 import platform
 import re
@@ -17,20 +16,18 @@ ANDROID_PROPERTY_ALLOWLIST = {
     "ro.product.cpu.abi", "ro.hardware.egl",
 }
 
-
 class TermuxPreflightError(RuntimeError):
     """The current shell does not satisfy the Termux runtime contract."""
-
 
 def _memory_mb(meminfo: str, key: str) -> int | None:
     match = re.search(rf"^{re.escape(key)}: +([0-9]+) +kB", meminfo, re.MULTILINE)
     return int(match.group(1)) // 1024 if match else None
 
-
 class TermuxRuntime:
     REQUIRED_BINARIES = ("python", "ffmpeg", "ffprobe", "git")
     OPTIONAL_BINARIES = (
-        "sd-cli", "sd-server", "termux-wake-lock", "termux-info", "vulkaninfo", "getprop",
+        "llama-cli", "llama-server", "sd-cli", "sd-server",
+        "termux-wake-lock", "termux-info", "vulkaninfo", "getprop",
     )
 
     def __init__(
@@ -99,7 +96,7 @@ class TermuxRuntime:
             free_storage = None
         is_arm64 = self.machine in {"aarch64", "arm64", "arm64-v8a"}
         properties = self._android_properties(binaries.get("getprop"))
-        native_binary = bool(binaries.get("sd-cli") or binaries.get("sd-server"))
+        video_binary = bool(binaries.get("sd-cli") or binaries.get("sd-server"))
         return {
             "runtime": "termux" if self.is_termux() else "unsupported_shell",
             "android_abi": self.machine,
@@ -127,8 +124,10 @@ class TermuxRuntime:
             "project_dir": str(self.home / ".shortautopro" / "projects"),
             "shared_storage": str(self.home / "storage" / "shared"),
             "binaries": binaries,
-            "native_inference_binary_present": native_binary,
-            "arm64_native_inference_candidate": bool(is_arm64 and native_binary),
+            "local_text_director_available": bool(binaries.get("llama-cli")),
+            "local_text_server_available": bool(binaries.get("llama-server")),
+            "local_video_inference_binary_present": video_binary,
+            "arm64_video_inference_candidate": bool(is_arm64 and binaries.get("sd-cli")),
             "vulkan": self._vulkan_report(binaries.get("vulkaninfo")),
             "remote_compute": "disabled_by_default",
         }
@@ -145,7 +144,6 @@ class TermuxRuntime:
             raise TermuxPreflightError("; ".join(errors))
         return report
 
-
 def main() -> int:
     import json
     runtime = TermuxRuntime()
@@ -159,7 +157,6 @@ def main() -> int:
     print(status)
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0 if status.endswith("PASS") else 2
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

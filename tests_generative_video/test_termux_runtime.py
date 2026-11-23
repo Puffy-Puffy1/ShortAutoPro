@@ -5,7 +5,6 @@ from pathlib import Path
 from types import SimpleNamespace
 from generative_video_poc.termux_runtime import TermuxRuntime, TermuxPreflightError, TERMUX_PREFIX
 
-
 class TermuxRuntimeTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -13,7 +12,7 @@ class TermuxRuntimeTests(unittest.TestCase):
         self.meminfo = self.home / "meminfo"
         self.meminfo.write_text("MemTotal:       8192000 kB\nMemAvailable:   4096000 kB\n", encoding="utf-8")
         self.env = {"PREFIX": TERMUX_PREFIX, "TERMUX_VERSION": "0.118", "HOME": str(self.home)}
-        self.commands = {"python", "ffmpeg", "ffprobe", "git", "sd-cli"}
+        self.commands = {"python", "ffmpeg", "ffprobe", "git", "sd-cli", "llama-cli"}
 
     def tearDown(self):
         self.temp.cleanup()
@@ -21,13 +20,14 @@ class TermuxRuntimeTests(unittest.TestCase):
     def which(self, name):
         return f"/fake/bin/{name}" if name in self.commands else None
 
-    def test_detects_termux_and_separates_controller_from_inference(self):
+    def test_detects_termux_and_separates_text_and_video_backends(self):
         report = TermuxRuntime(environ=self.env, machine="aarch64", meminfo_path=self.meminfo,
                                home=self.home, which=self.which).require_ready()
         self.assertEqual(report["runtime"], "termux")
         self.assertTrue(report["is_arm64"])
-        self.assertTrue(report["native_inference_binary_present"])
-        self.assertTrue(report["arm64_native_inference_candidate"])
+        self.assertTrue(report["local_text_director_available"])
+        self.assertTrue(report["local_video_inference_binary_present"])
+        self.assertTrue(report["arm64_video_inference_candidate"])
         self.assertEqual(report["total_ram_mb"], 8000)
         self.assertEqual(report["remote_compute"], "disabled_by_default")
 
@@ -35,7 +35,7 @@ class TermuxRuntimeTests(unittest.TestCase):
         report = TermuxRuntime(environ=self.env, machine="x86_64", meminfo_path=self.meminfo,
                                home=self.home, which=self.which).require_ready()
         self.assertFalse(report["is_arm64"])
-        self.assertFalse(report["arm64_native_inference_candidate"])
+        self.assertFalse(report["arm64_video_inference_candidate"])
 
     def test_rejects_non_termux_shell(self):
         runtime = TermuxRuntime(environ={"HOME": str(self.home)}, machine="aarch64",
@@ -72,7 +72,6 @@ class TermuxRuntimeTests(unittest.TestCase):
         self.assertNotIn("DO_NOT_REPORT", str(report))
         self.assertEqual(report["vulkan"]["device_name"], "Example GPU")
         self.assertTrue(report["vulkan"]["runtime_detected"])
-
 
 if __name__ == "__main__":
     unittest.main()
