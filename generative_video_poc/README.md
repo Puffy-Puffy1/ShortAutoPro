@@ -15,7 +15,7 @@ Run these commands from the repository root in Termux:
     python -m generative_video_poc.brain show meu-short
     python -m generative_video_poc.brain claim --project-id meu-short
 
-The command interface is local. The device remains the source of truth; the GitHub repository is only the versioned source for the software.
+The device report inspects Android manufacturer/model, platform identifiers from an allow-list, RAM, free internal storage, installed tools and optional Vulkan information. It does not collect serial numbers or account/network identifiers. Termux readiness for controlling projects is checked separately from whether a local video inference executable is present and compatible.
 
 ## Persistent state and recovery
 
@@ -23,7 +23,7 @@ The command interface is local. The device remains the source of truth; the GitH
 - Project workspace: $HOME/.shortautopro/projects/<project_id>/.
 - Every scene/clip has PENDING, RUNNING, READY or FAILED status.
 - A worker claims a clip with a unique lease token. Heartbeats renew the lease.
-- An expired lease returns to the queue up to the per-project retry limit; the former worker cannot complete it.
+- An expired lease returns to the queue up to the retry limit; the former worker cannot complete it.
 - Retry limits are stored with each clip, not accepted as an override during retry.
 - Each attempt gets its own suggested output filename; a retry cannot silently overwrite the previous attempt.
 - Completion is accepted only when the file is inside the project workspace and metadata says FFprobe validated a real video stream.
@@ -33,9 +33,13 @@ This is the controller/state foundation. A model worker is not yet wired into it
 
 ## Local generation engine candidate
 
-The upstream stable-diffusion.cpp project lists Android via Termux, Vulkan and video model families including Wan2.1/2.2 and LTX. That is promising, but it does not guarantee that a specific model fits a particular handset. Its CLI and video implementations are under active development, so model-specific flags must be pinned and tested instead of guessed.
+The upstream stable-diffusion.cpp project lists Android through Termux and video model families including Wan2.1/2.2 and LTX. It also warns that the project is under active development and command-line options may change. That makes it a candidate to evaluate, not a pre-certified mobile backend.
 
-Reference: https://github.com/leejet/stable-diffusion.cpp
+Important build caveat: the upstream Android build section documents an Android NDK path for arm64-v8a and OpenCL setup; it does not provide a one-command Termux package installation for every Android GPU. Its OpenCL notes are specifically for Adreno GPUs. The general Vulkan build instructions do not by themselves prove that the handset's Termux environment has a compatible Vulkan driver or build. Therefore this POC only detects local tools and reports hardware; it does not attempt to build or download a model blindly.
+
+References:
+- https://github.com/leejet/stable-diffusion.cpp
+- https://github.com/leejet/stable-diffusion.cpp/blob/master/docs/build.md
 
 ## Base packages
 
@@ -57,7 +61,8 @@ The automated tests use fake local processes and fixture data. They validate sta
 ## Next gate
 
 1. Run the device report on the target phone.
-2. Pin/build one native inference backend for the reported ABI and test its model-specific flags.
-3. Generate a real short clip locally; validate with FFprobe and record time, memory and thermal behavior.
-4. Connect the model worker to the durable queue and test resume after terminating Termux mid-job.
-5. Only after the above gates pass, propose integration with the existing canonical pipeline. Do not add another production orchestrator.
+2. Identify the exact chipset and GPU driver; only then choose the build backend and model quantization.
+3. Pin/build one native inference backend for the reported Android ABI and test its model-specific flags.
+4. Generate a real short clip locally; validate with FFprobe and record time, memory and thermal behavior.
+5. Connect the model worker to this durable queue and test resume after terminating Termux mid-job.
+6. Only after the above gates pass, propose integration with the existing canonical pipeline. Do not add another production orchestrator.
