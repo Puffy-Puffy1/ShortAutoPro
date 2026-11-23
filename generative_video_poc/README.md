@@ -1,51 +1,63 @@
 # ShortAutoPro — Termux-first generative video POC
 
-**The Android phone running Termux is the brain and primary machine.** The production controller, project state, prompts, scene plan, model registry, queue, logs, file management, FFmpeg assembly, FFprobe validation and exports must run on the phone. No external orchestrator is required. Remote GPU execution is disabled by default and is not part of this zero-budget POC.
+**The Android phone running Termux is the brain and primary machine.** Project creation, queue, persistent state, clip claims, lease recovery, checkpoints, prompts, storage, FFmpeg, FFprobe and export orchestration belong on the phone. Remote compute remains disabled by default.
 
-## What this POC adds
+## Local controller and queue
 
-- A Termux/Android ARM64 preflight: RAM, free storage, required binaries and optional local inference binaries.
-- A safe local-process adapter: invokes an explicitly reviewed native executable without a shell, enforces a timeout, refuses output overwrite, and requires FFprobe validation.
-- One project/clip contract shared by 9:16 Shorts and 16:9 long-form output.
-- Automated tests use fake local executables; no paid API, GPU rental, remote worker or external model download is used.
+The POC uses Python's built-in SQLite; no extra database server or service is needed.
 
-## Candidate local video engine
+Run these commands from the repository root in Termux:
 
-The upstream stable-diffusion.cpp project lists Android via Termux, Vulkan support, and video families including Wan2.1/2.2 and LTX-2.3/2.5. This confirms a plausible Termux path, not that every video model runs on every phone. Model weights, RAM, GPU driver, Vulkan support, thermals and battery require a device-specific smoke test.
+    python -m generative_video_poc.brain device
+    python -m generative_video_poc.brain create meu-short --spec-file generative_video_poc/examples/shorts.json
+    python -m generative_video_poc.brain create meu-documentario --spec-file generative_video_poc/examples/longform.json
+    python -m generative_video_poc.brain list
+    python -m generative_video_poc.brain show meu-short
+    python -m generative_video_poc.brain claim --project-id meu-short
+
+The command interface is local. The device remains the source of truth; the GitHub repository is only the versioned source for the software.
+
+## Persistent state and recovery
+
+- Database: $HOME/.shortautopro/state/queue.sqlite3.
+- Project workspace: $HOME/.shortautopro/projects/<project_id>/.
+- Every scene/clip has PENDING, RUNNING, READY or FAILED status.
+- A worker claims a clip with a unique lease token. Heartbeats renew the lease.
+- An expired lease returns to the queue up to the per-project retry limit; the former worker cannot complete it.
+- Retry limits are stored with each clip, not accepted as an override during retry.
+- Each attempt gets its own suggested output filename; a retry cannot silently overwrite the previous attempt.
+- Completion is accepted only when the file is inside the project workspace and metadata says FFprobe validated a real video stream.
+- Project IDs are validated; project specs are immutable once created. Repeating the same create command is idempotent.
+
+This is the controller/state foundation. A model worker is not yet wired into it, and the real device must still be used for the first local generation test.
+
+## Local generation engine candidate
+
+The upstream stable-diffusion.cpp project lists Android via Termux, Vulkan and video model families including Wan2.1/2.2 and LTX. That is promising, but it does not guarantee that a specific model fits a particular handset. Its CLI and video implementations are under active development, so model-specific flags must be pinned and tested instead of guessed.
 
 Reference: https://github.com/leejet/stable-diffusion.cpp
 
-The code deliberately does not hardcode CLI flags for a video model: those flags differ by model and upstream revision. A reviewed command template must be supplied after testing the selected binary's help output and model guide. The adapter does not fetch models or run arbitrary shell strings.
+## Base packages
 
-## Install base dependencies in Termux
-
-Run this manually inside the Termux app. ShortAutoPro does not install packages automatically:
+Install manually in Termux (the app does not install anything automatically):
 
     pkg update
     pkg install python ffmpeg git clang cmake ninja pkg-config
-
-Grant shared-storage access only when needed:
-
     termux-setup-storage
 
-Keep models, cache and active generation files in Termux private HOME/.shortautopro/. Copy final MP4s to shared Movies/ShortAutoPro/ only after validation. Do not execute downloaded native binaries from shared storage; install reviewed executables under PREFIX/bin/.
+Keep models and intermediate files in Termux private storage. Copy finished videos to shared storage only after final validation. Never execute downloaded binaries from shared storage.
 
-Run the POC checks:
+## Automated checks
 
+    python -m compileall -q generative_video_poc tests_generative_video
     python -m unittest discover -s tests_generative_video -v
-    python -m generative_video_poc.termux_runtime
 
-## Local execution constraints
-
-- Termux controller and media assembly are always local.
-- Model generation is local only when the device has a compatible executable/backend and enough available memory.
-- Vulkan/NPU availability is reported, never assumed. A shell process cannot automatically use a handset's NPU just because the chip has one; the runtime must explicitly support it.
-- Long-form projects are a queue of short generated clips, assembled locally by FFmpeg. Store each clip on disk and checkpoint after each completed scene; do not keep the full video in RAM.
-- If the model does not fit, stop with a clear hardware diagnostic. No silent cloud fallback, paid service, laptop or PC dependency.
+The automated tests use fake local processes and fixture data. They validate state, concurrency, recovery and contracts; they are not evidence of AI model inference. No paid API, GPU rental, external worker or cloud orchestrator is used.
 
 ## Next gate
 
-1. Run the Termux preflight on the target phone and inspect chipset, ABI, RAM, free storage and binaries.
-2. Build or install a pinned stable-diffusion.cpp Android/Termux executable only after checking its exact release/build instructions.
-3. Verify the model-specific command with a tiny clip, then record timing, peak memory if observable, resolution and FFprobe metadata.
-4. Only after a real local MP4 passes, wire the single local backend into the existing ShortAutoPro orchestration. Do not create another pipeline or modify the production entrypoints as part of this POC.
+1. Run the device report on the target phone.
+2. Pin/build one native inference backend for the reported ABI and test its model-specific flags.
+3. Generate a real short clip locally; validate with FFprobe and record time, memory and thermal behavior.
+4. Connect the model worker to the durable queue and test resume after terminating Termux mid-job.
+5. Only after the above gates pass, propose integration with the existing canonical pipeline. Do not add another production orchestrator.

@@ -1,0 +1,8 @@
+{
+  "kind": "longform",
+  "target_duration_seconds": 1800,
+  "aspect_ratio": "16:9",
+  "width": 1280,
+  "height": 720,
+  "clip_seconds": 10
+}

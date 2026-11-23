@@ -1,0 +1,8 @@
+{
+  "kind": "shorts",
+  "target_duration_seconds": 60,
+  "aspect_ratio": "9:16",
+  "width": 720,
+  "height": 1280,
+  "clip_seconds": 10
+}
