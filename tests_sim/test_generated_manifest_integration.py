@@ -122,7 +122,7 @@ class GeneratedManifestIntegrationTests(unittest.TestCase):
     def test_rejects_clip_checksum_tampering(self):
         with tempfile.TemporaryDirectory() as tmp:
             manifest, media, payload = self._write_manifest(Path(tmp))
-            media.write_bytes(b"changed video fixture")
+            media.write_bytes(b"X" * media.stat().st_size)
             payload["integrity_sha256"] = hashlib.sha256(_canonical(payload)).hexdigest()
             manifest.write_text(json.dumps(payload), encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "checksum"):
