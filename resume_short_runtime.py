@@ -8,6 +8,7 @@ Short ID rather than trying to interpret legacy state.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -603,6 +604,10 @@ def restore_generated_manifest(sid: str) -> str | None:
         backend = Path(saved_backend).expanduser().resolve()
         if not backend.is_file():
             raise RuntimeError(f"configuração do gerador local salva não encontrada: {backend}")
+        expected_sha = str(state.get("local_ai_backend_config_sha256") or "")
+        actual_sha = hashlib.sha256(backend.read_bytes()).hexdigest()
+        if expected_sha and actual_sha != expected_sha:
+            raise RuntimeError("configuração do gerador local mudou desde a produção; use uma nova execução")
         os.environ["SAP_GENERATIVE_VIDEO_BACKEND_CONFIG"] = str(backend)
         return str(backend)
     return None
