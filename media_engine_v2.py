@@ -2197,7 +2197,8 @@ def _load_generated_shorts_manifest(path: str | Path, expected_scenes: int) -> d
         raise RuntimeError("MEDIA_GENERATED_MANIFEST_DURATION_INVALID")
     if (target_duration + clip_seconds - 1) // clip_seconds != expected_scenes:
         raise RuntimeError("MEDIA_GENERATED_MANIFEST_SCHEDULE_COUNT_MISMATCH")
-    if int(spec.get("width") or 0) <= int(spec.get("height") or 0):
+    width, height = int(spec.get("width") or 0), int(spec.get("height") or 0)
+    if width <= 0 or height <= 0 or width >= height:
         raise RuntimeError("MEDIA_GENERATED_MANIFEST_DIMENSIONS_INVALID")
     expected_start = 0
     for index, clip in enumerate(clips, 1):
