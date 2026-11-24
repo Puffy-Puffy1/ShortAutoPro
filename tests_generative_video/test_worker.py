@@ -107,6 +107,28 @@ class QueueWorkerTests(unittest.TestCase):
         self.assertEqual(result["status"], "PROJECT_FAILED")
         self.assertEqual(result["progress"]["failed"], 1)
 
+    def test_worker_uses_clip_specific_prompt_for_each_claim(self):
+        prompts = ["A lighthouse during a storm", "A lighthouse at sunrise"]
+        self.store.create_project("prompt-sequence", {
+            "kind": "shorts", "target_duration_seconds": 20,
+            "aspect_ratio": "9:16", "width": 360, "height": 640,
+            "clip_seconds": 10, "clip_prompts": prompts,
+        })
+        seen = []
+        def generate(**kwargs):
+            seen.append(kwargs["prompt"])
+            output = kwargs["output"]
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_bytes(b"fixture video bytes")
+            return {
+                "status": "GENERATED_AND_PROBED", "path": str(output),
+                "duration_seconds": 10.0, "video_codec": "h264",
+                "width": 360, "height": 640,
+            }
+        result = self.worker(generate).run_until_idle("prompt-sequence")
+        self.assertEqual(result["status"], "PROJECT_COMPLETE")
+        self.assertEqual(seen, prompts)
+
     def test_prompt_placeholders_are_limited_to_clip_metadata(self):
         claim = {"clip_index": 3, "start_seconds": 20, "duration_seconds": 10}
         self.assertEqual(
