@@ -595,6 +595,7 @@ def export(p: Pipeline) -> Path:
 def run_pipeline(*, reuse_short_id: bool = False, generated_clips_manifest: str | None = None, local_ai_backend_config: str | None = None) -> int:
     source_config()
     setup_env()
+    explicit_media_input = bool(generated_clips_manifest or local_ai_backend_config)
     if generated_clips_manifest and local_ai_backend_config:
         print("ERRO: escolha manifesto pronto ou configuração do gerador local, não ambos.")
         return 2
@@ -613,7 +614,7 @@ def run_pipeline(*, reuse_short_id: bool = False, generated_clips_manifest: str 
         os.environ["SAP_GENERATIVE_VIDEO_BACKEND_CONFIG"] = str(backend_path)
         os.environ.pop("SAP_GENERATED_CLIPS_MANIFEST", None)
     sid = allocate_id(reuse_existing=reuse_short_id)
-    if reuse_short_id:
+    if reuse_short_id and not explicit_media_input:
         prior_state = STATE_DIR / f"pipeline_{sid}.json"
         if prior_state.is_file():
             try:
