@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import fcntl
+import hashlib
 import json
 import os
 import secrets
@@ -201,6 +202,12 @@ class Pipeline:
             "status": "RUNNING",
             "generated_clips_manifest": os.getenv("SAP_GENERATED_CLIPS_MANIFEST", "").strip() or None,
             "local_ai_backend_config": os.getenv("SAP_GENERATIVE_VIDEO_BACKEND_CONFIG", "").strip() or None,
+            "local_ai_backend_config_sha256": (
+                hashlib.sha256(Path(os.getenv("SAP_GENERATIVE_VIDEO_BACKEND_CONFIG", "")).expanduser().read_bytes()).hexdigest()
+                if os.getenv("SAP_GENERATIVE_VIDEO_BACKEND_CONFIG", "").strip()
+                and Path(os.getenv("SAP_GENERATIVE_VIDEO_BACKEND_CONFIG", "")).expanduser().is_file()
+                else None
+            ),
             "stages": [],
         }
         atomic_json(self.state_path, self.state)
@@ -631,10 +638,16 @@ def run_pipeline(*, reuse_short_id: bool = False, generated_clips_manifest: str 
                 if not os.getenv("SAP_GENERATIVE_VIDEO_BACKEND_CONFIG", "").strip():
                     saved_backend = str(saved.get("local_ai_backend_config") or "").strip()
                     if saved_backend:
-                        if not Path(saved_backend).is_file():
-                            print(f"ERRO: configuração local salva não encontrada: {saved_backend}")
+                        saved_backend_path = Path(saved_backend).expanduser().resolve()
+                        if not saved_backend_path.is_file():
+                            print(f"ERRO: configuração local salva não encontrada: {saved_backend_path}")
                             return 2
-                        os.environ["SAP_GENERATIVE_VIDEO_BACKEND_CONFIG"] = saved_backend
+                        expected_backend_sha = str(saved.get("local_ai_backend_config_sha256") or "")
+                        actual_backend_sha = hashlib.sha256(saved_backend_path.read_bytes()).hexdigest()
+                        if expected_backend_sha and actual_backend_sha != expected_backend_sha:
+                            print("ERRO: configuração do gerador local mudou desde a execução anterior; use uma nova produção.")
+                            return 2
+                        os.environ["SAP_GENERATIVE_VIDEO_BACKEND_CONFIG"] = str(saved_backend_path)
             except (OSError, json.JSONDecodeError):
                 pass
     if os.getenv("SAP_GENERATED_CLIPS_MANIFEST", "").strip() and os.getenv("SAP_GENERATIVE_VIDEO_BACKEND_CONFIG", "").strip():
