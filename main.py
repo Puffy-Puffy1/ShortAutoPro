@@ -597,7 +597,8 @@ def run_pipeline(*, reuse_short_id: bool = False, generated_clips_manifest: str 
     if generated_clips_manifest:
         manifest_path = Path(generated_clips_manifest).expanduser().resolve()
         if not manifest_path.is_file():
-            raise FileNotFoundError(f"manifesto de clipes gerados não encontrado: {manifest_path}")
+            print(f"ERRO: manifesto de clipes gerados não encontrado: {manifest_path}")
+            return 2
         os.environ["SAP_GENERATED_CLIPS_MANIFEST"] = str(manifest_path)
     sid = allocate_id(reuse_existing=reuse_short_id)
     if not os.getenv("SAP_GENERATED_CLIPS_MANIFEST", "").strip() and reuse_short_id:
