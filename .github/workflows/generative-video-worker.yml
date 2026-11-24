@@ -1,0 +1,32 @@
+name: Generative Video Queue Worker
+on:
+  push:
+    branches:
+      - feat/generative-video-queue-worker-20261124
+  pull_request:
+    branches:
+      - poc/generative-video-zero-budget-20261117
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: generative-video-worker-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  queue-worker:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile POC and worker
+        run: python -m compileall -q generative_video_poc tests_generative_video
+      - name: Worker and queue integration tests
+        run: python -m unittest tests_generative_video.test_worker -v
+      - name: Full POC regression suite
+        run: python -m unittest discover -s tests_generative_video -v
