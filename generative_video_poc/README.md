@@ -53,7 +53,7 @@ References:
 - Expired leases return to the queue up to the fixed per-project retry limit; stale workers cannot complete a clip.
 - Each attempt gets its own suggested output filename. Completion requires an in-project file and FFprobe validation metadata.
 - Project specs are immutable and create is idempotent. Each spec includes either a visual `prompt_template` or a `clip_prompts` list with exactly one prompt per scheduled clip; supported placeholders are `{clip_index}`, `{start_seconds}` and `{duration_seconds}`.
-- The worker writes generated clips only into the project workspace and marks them READY after FFprobe, resolution and duration checks. It does not yet insert them into the Shorts or Long-form final render manifest.
+- The worker writes generated clips only into the project workspace and marks them READY after FFprobe, resolution and duration checks. A completed project receives an integrity-checked `generated_manifest.json` containing clip order, timing, prompts, checksums and FFprobe metadata. This manifest is a handoff contract, not a finished MP4.
 
 ## Configure a real local video model
 
@@ -63,8 +63,9 @@ The project JSON must contain a meaningful `prompt_template`. Replace the bracke
 
     python -m generative_video_poc.brain work --project-id meu-documentario --backend-config generative_video_poc/local_video_backend.json --drain
     python -m generative_video_poc.brain show meu-documentario
+    python -m generative_video_poc.brain verify-manifest ~/.shortautopro/projects/meu-documentario/generated_manifest.json
 
-A READY clip is a generated asset checkpoint, not a finished exported video. Final assembly into the canonical ShortAutoPro pipeline is a separate integration gate; no parallel renderer is introduced here.
+A READY clip is a generated asset checkpoint, not a finished exported video. The manifest is the interchange contract for the canonical media/long-form pipeline; final assembly remains a separate integration gate, and no parallel renderer is introduced here.
 
 ## Base packages
 
