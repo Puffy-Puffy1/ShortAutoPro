@@ -10,6 +10,13 @@ Módulos especializados são estágios do mesmo pipeline; não existem pipelines
 
 ## Entrada e recuperação
 
+- `main.py run`: produção oficial de Shorts (pipeline canônico).
+- `main.py longform run --topic "assunto" --minutes 15`: produção de vídeo longo pelo runtime Long-form existente.
+- `main.py longform resume --run-id ID`: retoma um vídeo longo salvo.
+- `main.py longform status --run-id ID`: consulta o estado de um vídeo longo.
+- O comando unificado carrega primeiro a configuração privada do Termux e só então inicia o runtime longo, garantindo que as variáveis de ambiente estejam disponíveis no processo.
+- IDs de execução long-form são validados antes de qualquer acesso ao diretório de projetos.
+
 - `main.py run`: produção oficial.
 - `main.py resume`: retomada segura por checkpoints validados.
 - `main.py audit`: auditoria estrutural do repositório.
