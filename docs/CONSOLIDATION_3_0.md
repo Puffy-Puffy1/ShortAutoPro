@@ -69,3 +69,24 @@ Os clipes gerados continuam passando pelo Render Engine V2, timeline, áudio,
 legendas, QA e Release Gate existentes. Esta integração não cria renderer novo.
 A validação visual de quadros é independente do prompt registrado; prompt sozinho
 não é aceito como prova de que o clipe atende à cena.
+
+
+### Geração automática local (sem manifesto prévio)
+
+Se o backend/modelo de vídeo já estiver instalado no Termux e existir um arquivo
+de configuração compatível com o worker local, o próprio pipeline pode montar
+um prompt por cena, criar/retomar a fila, gerar os clipes, exportar o manifesto
+e continuar pelo Media Engine V2:
+
+```bash
+python main.py run --local-ai-backend-config "$HOME/ShortAutoPro/config/local_video_backend.json"
+```
+
+O arquivo de configuração deve apontar para um executável e modelo realmente
+instalados no aparelho, com um `command_template` de argumentos sem shell.
+A integração limita Shorts a até 20 cenas e até 180 segundos de clipes agendados.
+O worker é retomável e a configuração fica registrada no estado da produção.
+Se a fila falhar ou algum clipe não passar pelo FFprobe/verificação visual,
+o pipeline interrompe a etapa de mídia; não troca silenciosamente para imagens
+de terceiros. A aquisição convencional continua disponível quando nenhuma
+das duas opções de mídia gerada é informada.
