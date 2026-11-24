@@ -262,6 +262,8 @@ class Pipeline:
 
         # Media acquisition is explicitly bounded and has emergency completion.
         if name == "media_engine_v2.py":
+            if os.getenv("SAP_GENERATIVE_VIDEO_BACKEND_CONFIG", "").strip():
+                return env_int("SAP_STAGE_TIMEOUT_GENERATIVE_MEDIA_SECONDS", 7200, 900, 21600)
             return env_int("SAP_STAGE_TIMEOUT_MEDIA_ENGINE_V2_SECONDS", 900, 180, 1800)
 
         # Pre-render recovery may rerun media plus downstream planning once.
