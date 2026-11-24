@@ -42,3 +42,30 @@ A auditoria 3.0 falha se os antigos entrypoints voltarem a ser rastreados, inclu
 ## Validação e promoção
 
 Toda alteração deve passar pela Portable Validation. A promoção para `termux-stable` ocorre somente para o SHA exato validado em `main` e por fast-forward.
+
+
+## Shorts com clipes locais gerados (integração em validação)
+
+O pipeline canônico de Shorts aceita opcionalmente um manifesto da fila local:
+um clipe vertical 9:16 para cada cena do mapa de cenas. A aquisição continua
+sob responsabilidade do Media Engine V2; os clipes são copiados para o workspace
+normal, revalidados pelo Media Validator e passam pela verificação visual de
+quadros (MUST/AVOID/intenção da cena). Se a verificação visual bloquear um clipe,
+a produção falha de forma explícita e não o substitui silenciosamente.
+
+Uso pelo entrypoint oficial:
+
+```bash
+python main.py run --generated-clips-manifest "$HOME/.shortautopro/projects/PROJECT_ID/generated_manifest.json"
+```
+
+A retomada pelo comando oficial recupera o manifesto salvo no estado da produção.
+O projeto local precisa ter exatamente um clipe por cena e um prompt específico
+por clipe; o manifesto deve ser do tipo `shorts`, proporção 9:16 e conter uma
+timeline completa. Sem o argumento, o fluxo de aquisição convencional permanece
+inalterado.
+
+Os clipes gerados continuam passando pelo Render Engine V2, timeline, áudio,
+legendas, QA e Release Gate existentes. Esta integração não cria renderer novo.
+A validação visual de quadros é independente do prompt registrado; prompt sozinho
+não é aceito como prova de que o clipe atende à cena.
