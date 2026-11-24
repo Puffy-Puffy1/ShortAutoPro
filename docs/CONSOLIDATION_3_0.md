@@ -90,3 +90,31 @@ Se a fila falhar ou algum clipe não passar pelo FFprobe/verificação visual,
 o pipeline interrompe a etapa de mídia; não troca silenciosamente para imagens
 de terceiros. A aquisição convencional continua disponível quando nenhuma
 das duas opções de mídia gerada é informada.
+
+
+Exemplo estrutural de configuração (substitua executável e argumentos pelos
+aceitos pelo gerador que realmente estiver instalado):
+
+```json
+{
+  "executable": "/caminho/absoluto/do/gerador-local",
+  "command_template": [
+    "--prompt", "{prompt}",
+    "--output", "{output}",
+    "--width", "{width}",
+    "--height", "{height}",
+    "--frames", "{frames}",
+    "--seed", "{seed}",
+    "--model", "{model}"
+  ],
+  "timeout_seconds": 1800,
+  "fps": 12,
+  "seed": 1,
+  "model": "modelo-local",
+  "ffprobe": "ffprobe"
+}
+```
+
+O worker passa cada item como argumento separado a `subprocess`, sem shell.
+O exemplo é apenas um contrato de configuração: não instala nem representa
+um gerador embutido no ShortAutoPro.
