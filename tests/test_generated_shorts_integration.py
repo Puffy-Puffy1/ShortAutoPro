@@ -159,6 +159,21 @@ class GeneratedShortsManifestTests(unittest.TestCase):
                 media_engine_v2._manifest_integrity(result),
             )
 
+    def test_discards_only_stale_generated_asset_before_provider_fallback(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            media_dir = Path(tmp) / "short_demo"
+            media_dir.mkdir()
+            media = media_dir / "scene_01.mp4"
+            media.write_bytes(b"generated")
+            sidecar = media_dir / "scene_01.json"
+            sidecar.write_text(json.dumps({
+                "generated_manifest_sha256": "abc",
+                "path": str(media),
+            }), encoding="utf-8")
+            media_engine_v2._discard_generated_asset_cache(media_dir, 1)
+            self.assertFalse(media.exists())
+            self.assertFalse(sidecar.exists())
+
     def test_generated_asset_cache_is_not_reused_without_manifest(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
