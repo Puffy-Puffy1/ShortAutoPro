@@ -16,7 +16,8 @@ def _canonical(payload):
 
 class GeneratedShortsManifestTests(unittest.TestCase):
     def _manifest(self, root):
-        project = root / "shorts_project"
+        project_id = "shortsproject"
+        project = root / project_id
         project.mkdir()
         clips = []
         for index in range(1, 3):
@@ -42,7 +43,7 @@ class GeneratedShortsManifestTests(unittest.TestCase):
             })
         payload = {
             "schema_version": "shortautopro-generated-clips-v1",
-            "project_id": "shorts_project",
+            "project_id": project_id,
             "project": {
                 "kind": "shorts",
                 "target_duration_seconds": 20,
@@ -147,7 +148,10 @@ class GeneratedShortsManifestTests(unittest.TestCase):
                  patch.object(media_engine_v2, "validate_asset", side_effect=validate), \
                  patch.object(media_engine_v2, "_verify_scene_pixels", return_value={"status": "PASS", "method": "fixture"}), \
                  patch.object(media_engine_v2, "acquire_scene") as provider, \
-                 patch.dict("os.environ", {"SAP_GENERATED_CLIPS_MANIFEST": str(manifest_path)}):
+                 patch.dict("os.environ", {
+                     "SAP_GENERATED_CLIPS_MANIFEST": str(manifest_path),
+                     "SAP_GENERATIVE_VIDEO_BACKEND_CONFIG": "",
+                 }):
                 result = media_engine_v2.build_manifest("demo")
             provider.assert_not_called()
             self.assertEqual(result["schema_version"], "media-manifest-v2")
