@@ -22,10 +22,7 @@ class LongFormIntegrationTests(unittest.TestCase):
             resume("../outside")
 
     def test_main_exposes_longform_under_the_canonical_entrypoint(self):
-        with mock.patch.object(main, "source_config") as source, \\
-             mock.patch.object(main, "setup_env") as setup, \\
-             mock.patch.object(main, "run_group", return_value=mock.Mock(returncode=0)) as runner, \\
-             mock.patch("sys.argv", [
+        with mock.patch.object(main, "source_config") as source, mock.patch.object(main, "setup_env") as setup, mock.patch.object(main, "run_group", return_value=mock.Mock(returncode=0)) as runner, mock.patch("sys.argv", [
                  "main.py", "longform", "run", "--topic", "História do Brasil",
                  "--minutes", "20", "--chapters", "5", "--profile", "true_crime",
              ]):
