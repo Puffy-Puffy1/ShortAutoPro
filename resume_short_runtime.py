@@ -589,14 +589,23 @@ def restore_generated_manifest(sid: str) -> str | None:
     """Restore the immutable generated-media input before any resumed stage runs."""
     state_path = canonical.STATE_DIR / f"pipeline_{sid}.json"
     state = read_json(state_path)
-    saved = str(state.get("generated_clips_manifest") or "").strip()
-    if not saved:
-        return None
-    manifest = Path(saved).expanduser().resolve()
-    if not manifest.is_file():
-        raise RuntimeError(f"manifesto de clipes salvo não encontrado: {manifest}")
-    os.environ["SAP_GENERATED_CLIPS_MANIFEST"] = str(manifest)
-    return str(manifest)
+    saved_manifest = str(state.get("generated_clips_manifest") or "").strip()
+    saved_backend = str(state.get("local_ai_backend_config") or "").strip()
+    if saved_manifest and saved_backend:
+        raise RuntimeError("estado contém duas fontes de geração de mídia; correção manual necessária")
+    if saved_manifest:
+        manifest = Path(saved_manifest).expanduser().resolve()
+        if not manifest.is_file():
+            raise RuntimeError(f"manifesto de clipes salvo não encontrado: {manifest}")
+        os.environ["SAP_GENERATED_CLIPS_MANIFEST"] = str(manifest)
+        return str(manifest)
+    if saved_backend:
+        backend = Path(saved_backend).expanduser().resolve()
+        if not backend.is_file():
+            raise RuntimeError(f"configuração do gerador local salva não encontrada: {backend}")
+        os.environ["SAP_GENERATIVE_VIDEO_BACKEND_CONFIG"] = str(backend)
+        return str(backend)
+    return None
 
 
 def resume(sid: str) -> int:
