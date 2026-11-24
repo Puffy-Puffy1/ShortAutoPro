@@ -149,7 +149,14 @@ class ProjectStore:
                 "SELECT spec_json FROM projects WHERE project_id = ?", (project_id,)
             ).fetchone()
             if existing:
-                if existing["spec_json"] != encoded:
+                try:
+                    previous_spec = json.loads(existing["spec_json"])
+                except (TypeError, json.JSONDecodeError):
+                    previous_spec = None
+                if isinstance(previous_spec, dict):
+                    # Backward compatibility for queue projects created before prompt_template existed.
+                    previous_spec.setdefault("prompt_template", "")
+                if previous_spec != json.loads(encoded):
                     db.rollback()
                     raise ProjectConflict("project ID already exists with a different spec")
                 db.commit()
