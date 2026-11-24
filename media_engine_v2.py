@@ -2258,8 +2258,14 @@ def _generate_local_shorts_manifest(
         "clip_seconds": clip_seconds,
         "clip_prompts": prompts,
     })
+    backend_config_sha256 = sha256(config_path)
     scene_identity = hashlib.sha256(
-        _canonical_json({"short_id": short_id, "prompts": prompts, "clip_seconds": clip_seconds})
+        _canonical_json({
+            "short_id": short_id,
+            "prompts": prompts,
+            "clip_seconds": clip_seconds,
+            "backend_config_sha256": backend_config_sha256,
+        })
     ).hexdigest()[:10]
     slug = re.sub(r"[^A-Za-z0-9_-]+", "_", short_id).strip("_-")[:42] or "short"
     project_id = f"short_{slug}_{scene_identity}"[:63]
