@@ -93,6 +93,7 @@ class GeneratedShortsCliTests(unittest.TestCase):
         run.assert_called_once_with(
             reuse_short_id=False,
             generated_clips_manifest=manifest,
+            local_ai_backend_config=None,
         )
 
 
