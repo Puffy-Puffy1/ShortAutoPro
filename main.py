@@ -622,6 +622,23 @@ def run_pipeline(*, reuse_short_id: bool = False, generated_clips_manifest: str 
             return 2
         os.environ["SAP_GENERATIVE_VIDEO_BACKEND_CONFIG"] = str(backend_path)
         os.environ.pop("SAP_GENERATED_CLIPS_MANIFEST", None)
+    env_manifest = os.getenv("SAP_GENERATED_CLIPS_MANIFEST", "").strip()
+    env_backend = os.getenv("SAP_GENERATIVE_VIDEO_BACKEND_CONFIG", "").strip()
+    if env_manifest and env_backend:
+        print("ERRO: manifesto e configuração de geração local não podem ser usados juntos.")
+        return 2
+    if env_manifest:
+        manifest_path = Path(env_manifest).expanduser().resolve()
+        if not manifest_path.is_file():
+            print(f"ERRO: manifesto de clipes gerados não encontrado: {manifest_path}")
+            return 2
+        os.environ["SAP_GENERATED_CLIPS_MANIFEST"] = str(manifest_path)
+    if env_backend:
+        backend_path = Path(env_backend).expanduser().resolve()
+        if not backend_path.is_file():
+            print(f"ERRO: configuração do gerador local não encontrada: {backend_path}")
+            return 2
+        os.environ["SAP_GENERATIVE_VIDEO_BACKEND_CONFIG"] = str(backend_path)
     sid = allocate_id(reuse_existing=reuse_short_id)
     if reuse_short_id and not explicit_media_input:
         prior_state = STATE_DIR / f"pipeline_{sid}.json"
