@@ -101,12 +101,14 @@ class LocalQueueWorker:
             project = self.store.get_project(project_id)
             spec = project["spec"]
             prompt_template = str(spec.get("prompt_template") or "").strip()
-            if not prompt_template:
-                raise WorkerConfigError("project has no prompt_template; refusing to generate empty or generic clips")
-            # Validate prompt placeholders before claiming work.
-            self._prompt(prompt_template, {
-                "clip_index": 1, "start_seconds": 0, "duration_seconds": 1,
-            })
+            clip_prompts = spec.get("clip_prompts") if isinstance(spec.get("clip_prompts"), list) else []
+            if not prompt_template and not clip_prompts:
+                raise WorkerConfigError("project has no prompt_template or clip_prompts; refusing generic clips")
+            # Validate prompt source before claiming work.
+            self._prompt(
+                str(clip_prompts[0]) if clip_prompts else prompt_template,
+                {"clip_index": 1, "start_seconds": 0, "duration_seconds": 1},
+            )
 
         lease_seconds = min(86400, self.timeout_seconds + 180)
         claim = self.store.claim_next_clip(
@@ -118,7 +120,12 @@ class LocalQueueWorker:
         project = self.store.get_project(claim["project_id"])
         spec = project["spec"]
         try:
-            prompt = self._prompt(str(spec.get("prompt_template") or ""), claim)
+            clip_prompts = spec.get("clip_prompts") if isinstance(spec.get("clip_prompts"), list) else []
+            prompt_source = (
+                str(clip_prompts[int(claim["clip_index"]) - 1])
+                if clip_prompts else str(spec.get("prompt_template") or "")
+            )
+            prompt = self._prompt(prompt_source, claim)
             duration = int(claim["duration_seconds"])
             result = self.backend_call(
                 prompt=prompt,
