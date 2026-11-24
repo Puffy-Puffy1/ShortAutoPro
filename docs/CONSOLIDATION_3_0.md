@@ -17,7 +17,6 @@ Módulos especializados são estágios do mesmo pipeline; não existem pipelines
 - O comando unificado carrega primeiro a configuração privada do Termux e só então inicia o runtime longo, garantindo que as variáveis de ambiente estejam disponíveis no processo.
 - IDs de execução long-form são validados antes de qualquer acesso ao diretório de projetos.
 
-- `main.py run`: produção oficial.
 - `main.py resume`: retomada segura por checkpoints validados.
 - `main.py audit`: auditoria estrutural do repositório.
 - `main.py storage`: preflight/status/limpeza de armazenamento.
