@@ -174,3 +174,53 @@ class LocalQueueWorker:
                 "error": type(exc).__name__,
                 "retry_status": retry_status,
             }
+
+
+    def run_until_idle(self, project_id: str) -> dict[str, Any]:
+        """Process queued clips until completion, exhaustion or a terminal failure."""
+        project = self.store.get_project(project_id)
+        total = int(project["progress"]["total"])
+        max_attempts = max(
+            (int(item.get("max_attempts") or 1) for item in project["clips"]),
+            default=1,
+        )
+        safety_limit = max(1, total * max_attempts)
+        generated = 0
+        attempts = 0
+
+        while attempts < safety_limit:
+            result = self.run_one(project_id)
+            attempts += 1
+            if result["status"] == "QUEUE_EMPTY":
+                current = self.store.get_project(project_id)
+                status = "PROJECT_COMPLETE" if current["status"] == "COMPLETE" else "PROJECT_INCOMPLETE"
+                return {
+                    "status": status,
+                    "project_id": project_id,
+                    "generated_clips": generated,
+                    "worker_attempts": attempts,
+                    "progress": current["progress"],
+                }
+            if result["status"] == "CLIP_READY":
+                generated += 1
+                continue
+            if result["status"] == "CLIP_FAILED":
+                if result.get("retry_status") == "PENDING":
+                    continue
+                return {
+                    "status": "PROJECT_FAILED",
+                    "project_id": project_id,
+                    "generated_clips": generated,
+                    "worker_attempts": attempts,
+                    "failure": result,
+                    "progress": self.store.get_project(project_id)["progress"],
+                }
+
+        current = self.store.get_project(project_id)
+        return {
+            "status": "WORKER_SAFETY_LIMIT",
+            "project_id": project_id,
+            "generated_clips": generated,
+            "worker_attempts": attempts,
+            "progress": current["progress"],
+        }
