@@ -42,8 +42,6 @@ class ProjectSpec:
             raise ValueError(f"{kind} projects require aspect_ratio {expected}")
         if kind == "shorts" and duration > 180:
             raise ValueError("Shorts proof-of-concept projects are limited to 180 seconds")
-        if kind == "longform" and duration <= 180:
-            raise ValueError("longform projects must exceed 180 seconds")
         if ratio == "9:16" and height <= width:
             raise ValueError("9:16 output must be portrait")
         if ratio == "16:9" and width <= height:
