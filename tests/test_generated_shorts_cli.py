@@ -63,6 +63,27 @@ class GeneratedShortsCliTests(unittest.TestCase):
                 self.assertEqual(restored, str(config.resolve()))
                 self.assertEqual(os.environ["SAP_GENERATIVE_VIDEO_BACKEND_CONFIG"], str(config.resolve()))
 
+    def test_resume_rejects_changed_local_backend_config(self):
+        import hashlib
+        import json
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            config = root / "backend.json"
+            config.write_text('{"model":"old"}', encoding="utf-8")
+            state_dir = root / ".sap_state"
+            state_dir.mkdir()
+            (state_dir / "pipeline_demo.json").write_text(json.dumps({
+                "local_ai_backend_config": str(config),
+                "local_ai_backend_config_sha256": hashlib.sha256(config.read_bytes()).hexdigest(),
+            }), encoding="utf-8")
+            config.write_text('{"model":"new"}', encoding="utf-8")
+            with patch.object(resume_short_runtime.canonical, "STATE_DIR", state_dir):
+                with self.assertRaisesRegex(RuntimeError, "mudou desde a produção"):
+                    resume_short_runtime.restore_generated_manifest("demo")
+
     def test_run_forwards_generated_clips_manifest(self):
         manifest = "/tmp/shorts_project/generated_manifest.json"
         with patch.object(sys, "argv", [
