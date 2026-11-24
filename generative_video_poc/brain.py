@@ -40,6 +40,7 @@ def build_parser() -> argparse.ArgumentParser:
     work.add_argument("--project-id")
     work.add_argument("--backend-config", required=True)
     work.add_argument("--worker", default=f"{socket.gethostname()}-{os.getpid()}")
+    work.add_argument("--drain", action="store_true", help="keep processing until the project is complete or fails")
     work.add_argument("--root")
     return parser
 
@@ -64,9 +65,11 @@ def main(argv: list[str] | None = None) -> int:
                 model=config["model"], worker_id=args.worker,
                 timeout_seconds=config["timeout_seconds"],
             )
-            result = worker.run_one(project_id=args.project_id)
+            if args.drain and not args.project_id:
+                raise ValueError("--drain requires --project-id")
+            result = worker.run_until_idle(args.project_id) if args.drain else worker.run_one(project_id=args.project_id)
             _print(result)
-            return 0 if result["status"] in {"CLIP_READY", "QUEUE_EMPTY"} else 2
+            return 0 if result["status"] in {"CLIP_READY", "QUEUE_EMPTY", "PROJECT_COMPLETE"} else 2
         store = ProjectStore(Path(args.root) if args.root else None)
         if args.command == "create":
             spec_path = Path(args.spec_file).expanduser().resolve()
