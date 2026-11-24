@@ -18,6 +18,7 @@ class ProjectSpec:
     height: int
     clip_seconds: int = 10
     prompt_template: str = ""
+    clip_prompts: tuple[str, ...] = ()
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> "ProjectSpec":
@@ -50,7 +51,18 @@ class ProjectSpec:
         prompt_template = str(payload.get("prompt_template", "")).strip()
         if len(prompt_template) > 4000:
             raise ValueError("prompt_template must not exceed 4000 characters")
-        return cls(kind, duration, ratio, width, height, clip_seconds, prompt_template)
+        raw_prompts = payload.get("clip_prompts", [])
+        if not isinstance(raw_prompts, list):
+            raise ValueError("clip_prompts must be a list when provided")
+        clip_prompts = tuple(str(item).strip() for item in raw_prompts)
+        if any(not item or len(item) > 4000 for item in clip_prompts):
+            raise ValueError("each clip prompt must contain 1-4000 characters")
+        expected_clips = (duration + clip_seconds - 1) // clip_seconds
+        if clip_prompts and len(clip_prompts) != expected_clips:
+            raise ValueError(f"clip_prompts must contain exactly {expected_clips} entries")
+        if clip_prompts and prompt_template:
+            raise ValueError("use clip_prompts or prompt_template, not both")
+        return cls(kind, duration, ratio, width, height, clip_seconds, prompt_template, clip_prompts)
 
     def clip_schedule(self) -> list[Clip]:
         clips, start = [], 0
