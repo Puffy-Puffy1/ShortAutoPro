@@ -75,6 +75,16 @@ class GeneratedShortsManifestTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "expected_shorts"):
                 media_engine_v2._load_generated_shorts_manifest(manifest, 2)
 
+    def test_rejects_landscape_dimensions_for_shorts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest, payload = self._manifest(Path(tmp))
+            payload["project"]["width"] = 1280
+            payload["project"]["height"] = 720
+            payload["integrity_sha256"] = hashlib.sha256(_canonical(payload)).hexdigest()
+            manifest.write_text(json.dumps(payload), encoding="utf-8")
+            with self.assertRaisesRegex(RuntimeError, "DIMENSIONS_INVALID"):
+                media_engine_v2._load_generated_shorts_manifest(manifest, 2)
+
     def test_rejects_scene_count_mismatch(self):
         with tempfile.TemporaryDirectory() as tmp:
             manifest, _ = self._manifest(Path(tmp))
