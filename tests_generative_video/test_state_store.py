@@ -7,10 +7,11 @@ from generative_video_poc.contracts import ProjectSpec
 from generative_video_poc.state_store import LeaseError, ProjectConflict, ProjectStore
 
 
-def spec(seconds=20):
+def spec(seconds=20, prompt="A cinematic documentary scene"):
     return ProjectSpec.from_dict({
         "kind": "shorts", "target_duration_seconds": seconds,
         "aspect_ratio": "9:16", "width": 360, "height": 640, "clip_seconds": 10,
+        "prompt_template": prompt,
     })
 
 
@@ -30,6 +31,8 @@ class ProjectStoreTests(unittest.TestCase):
         self.assertEqual(second["progress"]["pending"], 2)
         with self.assertRaises(ProjectConflict):
             self.store.create_project("sample-01", spec(30))
+        with self.assertRaises(ProjectConflict):
+            self.store.create_project("sample-01", spec(prompt="A different visual direction"))
 
     def test_rejects_path_traversal_project_ids(self):
         with self.assertRaises(ValueError):
