@@ -78,6 +78,35 @@ class QueueWorkerTests(unittest.TestCase):
         output = self.store.project_dir("worker-test") / "clips" / "clip_00001_attempt_01.mp4"
         self.assertFalse(output.exists())
 
+    def test_drain_processes_all_clips_until_project_is_complete(self):
+        self.store.create_project("worker-batch", {
+            **project_spec(), "target_duration_seconds": 20,
+        })
+        calls = []
+        def generate(**kwargs):
+            calls.append(kwargs["output"])
+            output = kwargs["output"]
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_bytes(b"fixture video bytes")
+            return {
+                "status": "GENERATED_AND_PROBED", "path": str(output),
+                "duration_seconds": 10.0, "video_codec": "h264",
+                "width": 360, "height": 640,
+            }
+        result = self.worker(generate).run_until_idle("worker-batch")
+        self.assertEqual(result["status"], "PROJECT_COMPLETE")
+        self.assertEqual(result["generated_clips"], 2)
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(result["progress"]["ready"], 2)
+
+    def test_drain_stops_after_non_retryable_failure(self):
+        self.store.create_project("worker-fail", project_spec())
+        def generate(**kwargs):
+            raise ValueError("invalid generator arguments")
+        result = self.worker(generate).run_until_idle("worker-fail")
+        self.assertEqual(result["status"], "PROJECT_FAILED")
+        self.assertEqual(result["progress"]["failed"], 1)
+
     def test_prompt_placeholders_are_limited_to_clip_metadata(self):
         claim = {"clip_index": 3, "start_seconds": 20, "duration_seconds": 10}
         self.assertEqual(
