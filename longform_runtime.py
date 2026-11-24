@@ -14,6 +14,7 @@ Gemini (using the user's configured key/free quota), Piper and FFmpeg.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import html
 import json
 import math
@@ -462,7 +463,92 @@ def ass_filter_path(path: Path) -> str:
     return str(path.resolve()).replace("\\", "\\\\").replace(":", "\\:").replace("'", "\\'")
 
 
-def render_chapter(chapter_dir: Path, images: list[Path], audio: Path, duration: float, ass: Path) -> Path:
+
+def verify_generated_manifest(path: Path | str) -> dict[str, Any]:
+    """Validate the worker manifest and every clip before media enters production."""
+    manifest_path = Path(path).expanduser().resolve()
+    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict) or payload.get("schema_version") != "shortautopro-generated-clips-v1":
+        raise ValueError("manifesto de clipes incompatível")
+    canonical = dict(payload)
+    expected = str(canonical.pop("integrity_sha256", ""))
+    raw = json.dumps(canonical, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    if not expected or hashlib.sha256(raw).hexdigest() != expected:
+        raise ValueError("integridade do manifesto de clipes inválida")
+    project_id = str(payload.get("project_id") or "")
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,79}", project_id) or manifest_path.parent.name != project_id:
+        raise ValueError("manifesto fora do workspace correspondente")
+    clips = payload.get("clips")
+    if not isinstance(clips, list) or not clips or len(clips) != int(payload.get("clip_count", -1)):
+        raise ValueError("lista/quantidade de clipes inválida")
+    root = manifest_path.parent.resolve()
+    seen = set()
+    for item in clips:
+        if not isinstance(item, dict):
+            raise ValueError("entrada de clipe inválida")
+        index = int(item.get("clip_index", 0))
+        start = int(item.get("start_seconds", -1))
+        duration = int(item.get("duration_seconds", 0))
+        if index < 1 or index in seen or start < 0 or duration < 1:
+            raise ValueError("índice ou timeline de clipe inválido")
+        seen.add(index)
+        media = Path(str(item.get("path") or "")).expanduser().resolve()
+        if not media.is_relative_to(root) or not media.is_file() or media.stat().st_size <= 0:
+            raise ValueError(f"arquivo do clipe {index} ausente ou fora do workspace")
+        digest = hashlib.sha256()
+        with media.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+        if digest.hexdigest() != item.get("sha256"):
+            raise ValueError(f"checksum do clipe {index} não confere")
+        probe = item.get("ffprobe")
+        if not isinstance(probe, dict) or probe.get("status") != "GENERATED_AND_PROBED":
+            raise ValueError(f"clipe {index} sem validação FFprobe")
+    if seen != set(range(1, len(clips) + 1)):
+        raise ValueError("sequência de clipes não é contínua")
+    return payload
+
+
+def render_generated_chapter(
+    chapter_dir: Path, manifest: dict[str, Any], start_seconds: float,
+    end_seconds: float, audio: Path, duration: float, ass: Path,
+) -> Path:
+    """Normalize timeline slices from generated clips, then use the canonical chapter mux."""
+    clips_dir = chapter_dir / "generated_clips"
+    clips_dir.mkdir(parents=True, exist_ok=True)
+    selected: list[Path] = []
+    for item in manifest["clips"]:
+        clip_start = float(item["start_seconds"])
+        clip_end = clip_start + float(item["duration_seconds"])
+        overlap_start = max(start_seconds, clip_start)
+        overlap_end = min(end_seconds, clip_end)
+        if overlap_end <= overlap_start:
+            continue
+        source = Path(item["path"]).resolve()
+        target = clips_dir / f"clip_{int(item['clip_index']):04d}.mp4"
+        subprocess.run([
+            "ffmpeg", "-y", "-loglevel", "error", "-ss", f"{overlap_start-clip_start:.3f}",
+            "-i", str(source), "-t", f"{overlap_end-overlap_start:.3f}",
+            "-vf", "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p",
+            "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "22",
+            "-pix_fmt", "yuv420p", "-r", "30", str(target),
+        ], check=True, timeout=900)
+        if not target.is_file() or target.stat().st_size < 10000:
+            raise RuntimeError(f"normalização do clipe gerado {item['clip_index']} falhou")
+        selected.append(target)
+    if not selected:
+        raise RuntimeError(f"manifesto não contém clipes para o intervalo {start_seconds:.1f}-{end_seconds:.1f}s")
+    concat = chapter_dir / "generated_visuals.txt"
+    atomic_text(concat, "".join(f"file '{p.as_posix()}'\n" for p in selected))
+    visual = chapter_dir / "generated_visual.mp4"
+    subprocess.run([
+        "ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0",
+        "-i", str(concat), "-c", "copy", str(visual),
+    ], check=True, timeout=600)
+    return mux_chapter_visual(chapter_dir, visual, audio, duration, ass)
+
+
+def mux_chapter_visual(chapter_dir: Path, visual: Path, audio: Path, duration: float, ass: Path) -> Path:
     clips = chapter_dir / "clips"
     clips.mkdir(parents=True, exist_ok=True)
     visual_seconds = duration / len(images)
@@ -490,6 +576,14 @@ def render_chapter(chapter_dir: Path, images: list[Path], audio: Path, duration:
         "ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", str(concat),
         "-c", "copy", str(visual),
     ], check=True, timeout=240)
+    return mux_chapter_visual(chapter_dir, visual, audio, duration, ass)
+
+
+def render_chapter(chapter_dir: Path, images: list[Path], audio: Path, duration: float, ass: Path) -> Path:
+    raise RuntimeError("render_chapter legacy entrypoint is not intended for direct use")
+
+
+def _unused_legacy_marker(chapter_dir: Path, images: list[Path], audio: Path, duration: float, ass: Path) -> Path:
     output = chapter_dir / "chapter.mp4"
     subprocess.run([
         "ffmpeg", "-y", "-loglevel", "error", "-i", str(visual), "-i", str(audio),
@@ -550,7 +644,7 @@ def credits_text(credits: list[dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
-def execute(topic: str, minutes: int, chapters: int | None, profile_name: str, existing_id: str | None = None) -> dict[str, Any]:
+def execute(topic: str, minutes: int, chapters: int | None, profile_name: str, existing_id: str | None = None, generated_manifest: str | None = None) -> dict[str, Any]:
     require_runtime()
     profile = safe_profile(profile_name)
     minutes = max(5, min(int(minutes), 60))
@@ -582,6 +676,9 @@ def execute(topic: str, minutes: int, chapters: int | None, profile_name: str, e
     })
     state.setdefault("created_at", now_iso())
     state.setdefault("chapters", [])
+    if generated_manifest:
+        state["generated_manifest"] = str(Path(generated_manifest).expanduser().resolve())
+    generated = verify_generated_manifest(state["generated_manifest"]) if state.get("generated_manifest") else None
     atomic_json(state_path, state)
 
     print("========================================")
@@ -645,20 +742,28 @@ def execute(topic: str, minutes: int, chapters: int | None, profile_name: str, e
         try:
             data = chapter_script(topic, source, chapter, target_words, prior)
             atomic_json(chapter_json, {**chapter, **data})
-            desired_images = max(4, min(8, round((minutes * 60 / chapters) / 25)))
-            images, credits = download_visuals(chapter_dir, data["visual_queries"], topic, desired_images, used_urls)
-            atomic_json(credits_json, credits)
             audio, duration = tts_chapter(chapter_dir, data["narration"], profile)
             caption_words = int(profile.get("captions", {}).get("max_words_per_event", 7)) if isinstance(profile.get("captions"), dict) else 7
             ass = chapter_dir / "captions.ass"
             make_ass(ass, data["narration"], duration, caption_words)
-            rendered = render_chapter(chapter_dir, images, audio, duration, ass)
+            if generated:
+                timeline_start = (index - 1) * (minutes * 60 / chapters)
+                timeline_end = index * (minutes * 60 / chapters)
+                rendered = render_generated_chapter(chapter_dir, generated, timeline_start, timeline_end, audio, duration, ass)
+                credits = []
+                media_count = sum(1 for clip in generated["clips"] if timeline_start < float(clip["start_seconds"]) + float(clip["duration_seconds"]) and timeline_end > float(clip["start_seconds"]))
+            else:
+                desired_images = max(4, min(8, round((minutes * 60 / chapters) / 25)))
+                images, credits = download_visuals(chapter_dir, data["visual_queries"], topic, desired_images, used_urls)
+                atomic_json(credits_json, credits)
+                rendered = render_chapter(chapter_dir, images, audio, duration, ass)
+                media_count = len(images)
             probe = probe_video(rendered)
             if probe["width"] != 1920 or probe["height"] != 1080 or probe["video_codec"] != "h264" or probe["audio_codec"] != "aac":
                 raise RuntimeError(f"contrato técnico do capítulo falhou: {probe}")
             item.update({
                 "status": "PASS", "finished_at": now_iso(), "duration": probe["duration"],
-                "word_count": data["word_count"], "media_count": len(images), "video": str(rendered),
+                "word_count": data["word_count"], "media_count": media_count, "video": str(rendered),
             })
             prior.append({"title": chapter["title"], "summary": data["summary"]})
             all_credits.extend(credits)
@@ -745,7 +850,7 @@ def resume(run_name: str | None) -> dict[str, Any]:
         raise SystemExit(f"ERRO: estado long-form inválido: {exc}")
     return execute(
         str(state["topic"]), int(state["target_minutes"]), int(state["chapter_count"]),
-        str(state.get("profile", "default")), existing_id=run_name,
+        str(state.get("profile", "default")), existing_id=run_name, generated_manifest=state.get("generated_manifest"),
     )
 
 
@@ -757,6 +862,7 @@ def main() -> int:
     p.add_argument("--minutes", type=int, default=15)
     p.add_argument("--chapters", type=int, default=None)
     p.add_argument("--profile", default="true_crime")
+    p.add_argument("--generated-manifest", default=None, help="manifesto gerado pela fila local (opcional)")
     p = sub.add_parser("resume")
     p.add_argument("--run-id", default=None)
     p = sub.add_parser("status")
@@ -764,7 +870,7 @@ def main() -> int:
     args = parser.parse_args()
     try:
         if args.command == "run":
-            execute(args.topic.strip(), args.minutes, args.chapters, args.profile)
+            execute(args.topic.strip(), args.minutes, args.chapters, args.profile, generated_manifest=args.generated_manifest)
         elif args.command == "resume":
             resume(args.run_id)
         else:
