@@ -25,14 +25,15 @@ class GeneratedManifestIntegrationTests(unittest.TestCase):
             "schema_version": "shortautopro-generated-clips-v1",
             "project_id": "project_01",
             "clip_count": 1,
-            "project": {"kind": "longform", "aspect_ratio": "16:9"},
+            "project": {"kind": "longform", "aspect_ratio": "16:9", "target_duration_seconds": 60, "clip_seconds": 10, "width": 1920, "height": 1080},
             "clips": [{
                 "clip_index": 1,
                 "start_seconds": 0,
                 "duration_seconds": 60,
                 "path": str(media),
+                "size_bytes": media.stat().st_size,
                 "sha256": hashlib.sha256(media.read_bytes()).hexdigest(),
-                "ffprobe": {"status": "GENERATED_AND_PROBED", "video_codec": "h264"},
+                "ffprobe": {"status": "GENERATED_AND_PROBED", "video_codec": "h264", "width": 1920, "height": 1080, "duration_seconds": 60},
             }],
         }
         payload["integrity_sha256"] = hashlib.sha256(_canonical(payload)).hexdigest()
@@ -81,6 +82,24 @@ class GeneratedManifestIntegrationTests(unittest.TestCase):
             self.assertEqual(probe["video_codec"], "h264")
             self.assertEqual(probe["audio_codec"], "aac")
             self.assertGreaterEqual(probe["duration"], 3.8)
+
+    def test_rejects_incomplete_declared_timeline(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest, _, payload = self._write_manifest(Path(tmp))
+            payload["project"]["target_duration_seconds"] = 70
+            payload["integrity_sha256"] = hashlib.sha256(_canonical(payload)).hexdigest()
+            manifest.write_text(json.dumps(payload), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "quantidade"):
+                verify_generated_manifest(manifest)
+
+    def test_rejects_ffprobe_resolution_mismatch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest, _, payload = self._write_manifest(Path(tmp))
+            payload["clips"][0]["ffprobe"]["width"] = 1280
+            payload["integrity_sha256"] = hashlib.sha256(_canonical(payload)).hexdigest()
+            manifest.write_text(json.dumps(payload), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "resolução"):
+                verify_generated_manifest(manifest)
 
     def test_rejects_manifest_integrity_tampering(self):
         with tempfile.TemporaryDirectory() as tmp:
