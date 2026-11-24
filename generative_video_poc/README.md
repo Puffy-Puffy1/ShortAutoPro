@@ -52,7 +52,7 @@ References:
 - The worker claims one clip with a unique lease token and sets the lease longer than the bounded model timeout; stale workers cannot commit results.
 - Expired leases return to the queue up to the fixed per-project retry limit; stale workers cannot complete a clip.
 - Each attempt gets its own suggested output filename. Completion requires an in-project file and FFprobe validation metadata.
-- Project specs are immutable and create is idempotent. Each spec includes a visual `prompt_template`; supported placeholders are `{clip_index}`, `{start_seconds}` and `{duration_seconds}`.
+- Project specs are immutable and create is idempotent. Each spec includes either a visual `prompt_template` or a `clip_prompts` list with exactly one prompt per scheduled clip; supported placeholders are `{clip_index}`, `{start_seconds}` and `{duration_seconds}`.
 - The worker writes generated clips only into the project workspace and marks them READY after FFprobe, resolution and duration checks. It does not yet insert them into the Shorts or Long-form final render manifest.
 
 ## Configure a real local video model
