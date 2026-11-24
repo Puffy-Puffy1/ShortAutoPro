@@ -26,7 +26,7 @@ class ProjectContractTests(unittest.TestCase):
         })
         self.assertEqual(len(chapter.clip_schedule()), 12)
 
-    def test_rejects_invalid_kind_and_prompt_count(self):
+    def test_rejects_invalid_kind_prompt_count_and_duration_over_two_hours(self):
         with self.assertRaises(ValueError):
             ProjectSpec.from_dict({"kind":"other"})
         with self.assertRaisesRegex(ValueError, "exactly 2"):
@@ -34,6 +34,11 @@ class ProjectContractTests(unittest.TestCase):
                 "kind": "shorts", "target_duration_seconds": 20,
                 "aspect_ratio": "9:16", "width": 360, "height": 640,
                 "clip_seconds": 10, "clip_prompts": ["only one prompt"],
+            })
+        with self.assertRaisesRegex(ValueError, "120 minutes"):
+            ProjectSpec.from_dict({
+                "kind": "longform", "target_duration_seconds": 7201,
+                "aspect_ratio": "16:9", "width": 1280, "height": 720,
             })
 
 if __name__ == "__main__":
