@@ -23,6 +23,7 @@ class GeneratedManifestIntegrationTests(unittest.TestCase):
             "schema_version": "shortautopro-generated-clips-v1",
             "project_id": "project_01",
             "clip_count": 1,
+            "project": {"kind": "longform", "aspect_ratio": "16:9"},
             "clips": [{
                 "clip_index": 1,
                 "start_seconds": 0,
