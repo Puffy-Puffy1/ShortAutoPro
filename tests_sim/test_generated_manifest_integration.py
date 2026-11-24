@@ -1,10 +1,12 @@
 import hashlib
 import json
+import shutil
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 
-from longform_runtime import verify_generated_manifest
+from longform_runtime import make_ass, probe_video, render_generated_chapter, verify_generated_manifest
 
 
 def _canonical(payload):
@@ -44,6 +46,41 @@ class GeneratedManifestIntegrationTests(unittest.TestCase):
             result = verify_generated_manifest(manifest)
             self.assertEqual(result["project_id"], payload["project_id"])
             self.assertEqual(len(result["clips"]), 1)
+
+    @unittest.skipUnless(shutil.which("ffmpeg") and shutil.which("ffprobe"), "FFmpeg/FFprobe required")
+    def test_generated_clips_render_to_real_h264_aac_chapter(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            project = root / "project_01"
+            project.mkdir()
+            clips = []
+            for index, color in enumerate(("red", "blue"), start=1):
+                media = project / f"clip_{index:04d}.mp4"
+                subprocess.run([
+                    "ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi",
+                    "-i", f"color=c={color}:s=640x360:r=24:d=2",
+                    "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(media),
+                ], check=True, timeout=60)
+                clips.append({
+                    "clip_index": index, "start_seconds": (index - 1) * 2,
+                    "duration_seconds": 2, "path": str(media),
+                })
+            audio = root / "speech.wav"
+            subprocess.run([
+                "ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi",
+                "-i", "sine=frequency=440:duration=4", "-c:a", "pcm_s16le", str(audio),
+            ], check=True, timeout=60)
+            ass = root / "captions.ass"
+            make_ass(ass, "Generated clips integration test", 4)
+            rendered = render_generated_chapter(
+                root / "chapter_01", {"clips": clips}, 0, 4, audio, 4, ass,
+            )
+            probe = probe_video(rendered)
+            self.assertEqual(probe["width"], 1920)
+            self.assertEqual(probe["height"], 1080)
+            self.assertEqual(probe["video_codec"], "h264")
+            self.assertEqual(probe["audio_codec"], "aac")
+            self.assertGreaterEqual(probe["duration"], 3.8)
 
     def test_rejects_manifest_integrity_tampering(self):
         with tempfile.TemporaryDirectory() as tmp:
