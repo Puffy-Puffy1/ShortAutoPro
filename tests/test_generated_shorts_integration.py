@@ -121,6 +121,34 @@ class GeneratedShortsManifestTests(unittest.TestCase):
             self.assertEqual(record["generated_clip_index"], 1)
             visual.assert_called_once()
 
+    def test_build_manifest_uses_generated_clips_without_provider_download(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manifest_path, _ = self._manifest(root)
+            scenes = [
+                {"scene_id": "scene-1", "query": "forest documentary", "segment": "A forest", "must_have": ["forest"], "avoid": []},
+                {"scene_id": "scene-2", "query": "river documentary", "segment": "A river", "must_have": ["river"], "avoid": []},
+            ]
+            probe = {"width": 720, "height": 1280, "duration": 10}
+            def validate(path):
+                return {"sha256": media_engine_v2.sha256(Path(path)), "probe": probe}
+            with patch.object(media_engine_v2, "BASE", root), \
+                 patch.object(media_engine_v2, "load_scene_map", return_value=scenes), \
+                 patch.object(media_engine_v2, "validate_asset", side_effect=validate), \
+                 patch.object(media_engine_v2, "_verify_scene_pixels", return_value={"status": "PASS", "method": "fixture"}), \
+                 patch.object(media_engine_v2, "acquire_scene") as provider, \
+                 patch.dict("os.environ", {"SAP_GENERATED_CLIPS_MANIFEST": str(manifest_path)}):
+                result = media_engine_v2.build_manifest("demo")
+            provider.assert_not_called()
+            self.assertEqual(result["schema_version"], "media-manifest-v2")
+            self.assertEqual(result["scene_count"], 2)
+            self.assertTrue(all(row["asset"]["asset_type"] == "video" for row in result["scenes"]))
+            self.assertTrue(all(row["asset"]["generated_manifest_sha256"] for row in result["scenes"]))
+            self.assertEqual(
+                result["integrity_sha256"],
+                media_engine_v2._manifest_integrity(result),
+            )
+
     def test_generated_asset_cache_is_not_reused_without_manifest(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
