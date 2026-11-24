@@ -158,19 +158,15 @@ class LocalQueueWorker:
                     output.unlink()
             except OSError:
                 pass
+            retryable = isinstance(exc, (LocalGenerationError, TimeoutError, OSError))
+            error_code = "WORKER_INVALID_CONFIG" if isinstance(exc, (WorkerConfigError, ValueError)) else f"WORKER_{type(exc).__name__}".upper()
             try:
                 retry_status = self.store.fail_clip(
                     claim["project_id"], claim["clip_index"], self.worker_id,
-                    claim["lease_token"], f"WORKER_{type(exc).__name__}".upper(),
-                    retryable=isinstance(exc, (LocalGenerationError, TimeoutError, OSError)),
+                    claim["lease_token"], error_code, retryable=retryable,
                 )
             except LeaseError:
                 retry_status = "LEASE_LOST"
-            if isinstance(exc, (WorkerConfigError, ValueError)):
-                retry_status = self.store.fail_clip(
-                    claim["project_id"], claim["clip_index"], self.worker_id,
-                    claim["lease_token"], "WORKER_INVALID_CONFIG", retryable=False,
-                ) if retry_status != "LEASE_LOST" else retry_status
             return {
                 "status": "CLIP_FAILED",
                 "project_id": claim["project_id"],
