@@ -56,7 +56,7 @@ class GeneratedManifestIntegrationTests(unittest.TestCase):
             manifest, _, payload = self._write_manifest(Path(tmp))
             result = verify_generated_manifest(manifest)
             self.assertEqual(result["project_id"], payload["project_id"])
-            self.assertEqual(len(result["clips"]), 1)
+            self.assertEqual(len(result["clips"]), 2)
 
     @unittest.skipUnless(shutil.which("ffmpeg") and shutil.which("ffprobe"), "FFmpeg/FFprobe required")
     def test_generated_clips_render_to_real_h264_aac_chapter(self):
