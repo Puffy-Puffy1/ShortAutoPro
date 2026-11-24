@@ -42,6 +42,16 @@ MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 GEMINI_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 USER_AGENT = "ShortAutoPro/1.0 factual-video-tool"
 
+_RUN_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$")
+
+
+def validate_run_id(value: str) -> str:
+    """Reject unsafe run identifiers before they are used in filesystem paths."""
+    run_name = str(value or "").strip()
+    if not _RUN_ID_RE.fullmatch(run_name):
+        raise ValueError("run_id must contain 1-80 letters, numbers, '_' or '-' and cannot contain path segments")
+    return run_name
+
 
 def now_iso() -> str:
     return datetime.now().astimezone().isoformat(timespec="seconds")
@@ -546,7 +556,7 @@ def execute(topic: str, minutes: int, chapters: int | None, profile_name: str, e
     minutes = max(5, min(int(minutes), 60))
     chapters = chapters or max(3, min(12, round(minutes / 2.5)))
     chapters = max(3, min(int(chapters), 12))
-    rid = existing_id or run_id(topic)
+    rid = validate_run_id(existing_id) if existing_id else validate_run_id(run_id(topic))
     run_dir = MEDIA_ROOT / rid
     state_path = RUN_ROOT / f"{rid}.json"
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -727,6 +737,7 @@ def resume(run_name: str | None) -> dict[str, Any]:
     run_name = run_name or latest_run_id()
     if not run_name:
         raise SystemExit("ERRO: nenhum long-form salvo para retomar.")
+    run_name = validate_run_id(run_name)
     path = RUN_ROOT / f"{run_name}.json"
     try:
         state = json.loads(path.read_text(encoding="utf-8"))
@@ -761,6 +772,7 @@ def main() -> int:
             if not rid:
                 print("Nenhum long-form salvo.")
                 return 0
+            rid = validate_run_id(rid)
             print((RUN_ROOT / f"{rid}.json").read_text(encoding="utf-8"))
     except Exception as exc:
         print(f"LONGFORM_ERROR={type(exc).__name__}: {exc}", file=sys.stderr)

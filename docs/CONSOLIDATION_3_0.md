@@ -10,12 +10,22 @@ Módulos especializados são estágios do mesmo pipeline; não existem pipelines
 
 ## Entrada e recuperação
 
-- `main.py run`: produção oficial.
+- `main.py run`: produção oficial de Shorts (pipeline canônico).
+- `main.py longform run --topic "assunto" --minutes 15`: produção de vídeo longo pelo runtime Long-form existente.
+- `main.py longform resume --run-id ID`: retoma um vídeo longo salvo.
+- `main.py longform status --run-id ID`: consulta o estado de um vídeo longo.
+- O comando unificado carrega primeiro a configuração privada do Termux e só então inicia o runtime longo, garantindo que as variáveis de ambiente estejam disponíveis no processo.
+- IDs de execução long-form são validados antes de qualquer acesso ao diretório de projetos.
+
 - `main.py resume`: retomada segura por checkpoints validados.
 - `main.py audit`: auditoria estrutural do repositório.
 - `main.py storage`: preflight/status/limpeza de armazenamento.
 - `profile_run.sh`: aplica o perfil e delega para `main.py`.
 - `resume_short_runtime.py`: retoma somente o pipeline `PROFESSIONAL_CANONICAL`. Produções antigas sem os artefatos 3.0 voltam ao início com o mesmo `SHORT_ID` em vez de misturar arquiteturas.
+
+## Limitações atuais do Long-form V1
+
+O runtime longo atual usa imagens do Wikimedia Commons com movimento Ken Burns e exige `GEMINI_API_KEY` para estruturar roteiro e capítulos. Ele já monta MP4 H.264/AAC, mas não deve ser descrito como gerador local de clipes por IA nem como fluxo totalmente offline/custo zero. A integração de geração visual local e a validação de uma produção real no Termux permanecem pendentes.
 
 ## Estágios de qualidade
 

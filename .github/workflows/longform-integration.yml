@@ -1,0 +1,44 @@
+name: ShortAutoPro Long-form Integration
+on:
+  push:
+    branches:
+      - fix/unified-longform-entrypoint-20261124
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shortautopro-longform-integration-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  longform-integration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: "utf-8"
+    steps:
+      - name: Checkout exact branch commit
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up FFmpeg and FFprobe
+        uses: ./.github/actions/setup-ffmpeg
+
+      - name: Install test dependency
+        run: python -m pip install --disable-pip-version-check --quiet requests
+
+      - name: Python syntax audit
+        run: python -m compileall -q .
+
+      - name: Long-form CLI and path-safety regression tests
+        run: python -m unittest tests_sim.test_longform_integration -v
+
+      - name: Full simulated regression suite
+        run: python -m unittest discover -s tests_sim -p "test_*.py" -v

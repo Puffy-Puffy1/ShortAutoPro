@@ -665,6 +665,19 @@ def cli() -> int:
     storage = sub.add_parser("storage")
     storage.add_argument("storage_command", choices=["status", "preflight", "cleanup"], default="status", nargs="?")
     storage.add_argument("--execute", action="store_true")
+
+    longform = sub.add_parser("longform", help="criar, retomar ou consultar vídeos longos")
+    longform_sub = longform.add_subparsers(dest="longform_command", required=True)
+    longform_run = longform_sub.add_parser("run")
+    longform_run.add_argument("--topic", required=True)
+    longform_run.add_argument("--minutes", type=int, default=15)
+    longform_run.add_argument("--chapters", type=int, default=None)
+    longform_run.add_argument("--profile", default="true_crime")
+    longform_resume = longform_sub.add_parser("resume")
+    longform_resume.add_argument("--run-id", default=None)
+    longform_status = longform_sub.add_parser("status")
+    longform_status.add_argument("--run-id", default=None)
+
     args = parser.parse_args()
     command_name = args.command or "run"
 
@@ -672,6 +685,27 @@ def cli() -> int:
         return run_pipeline(
             reuse_short_id=bool(getattr(args, "reuse_short_id", False))
         )
+
+    if command_name == "longform":
+        # Load the same private Termux configuration used by Shorts before
+        # launching the long-form runtime (which reads its API key at startup).
+        source_config()
+        setup_env()
+        command = [sys.executable, str(BASE / "longform_runtime.py"), args.longform_command]
+        if args.longform_command == "run":
+            command.extend(["--topic", args.topic, "--minutes", str(args.minutes), "--profile", args.profile])
+            if args.chapters is not None:
+                command.extend(["--chapters", str(args.chapters)])
+        elif args.longform_command in {"resume", "status"} and args.run_id:
+            command.extend(["--run-id", args.run_id])
+        try:
+            return run_group(
+                command, cwd=BASE, env=os.environ.copy(), check=False,
+                timeout=env_int("SAP_CONTROL_COMMAND_TIMEOUT", 7200, 300, 21600),
+            ).returncode
+        except subprocess.TimeoutExpired:
+            print("ERRO: produção long-form excedeu o timeout de controle")
+            return 124
 
     setup_env()
     control_timeout = env_int("SAP_CONTROL_COMMAND_TIMEOUT", 7200, 300, 21600)
