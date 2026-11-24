@@ -18,11 +18,23 @@ class ProjectContractTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "portrait"):
             ProjectSpec.from_dict({"kind":"shorts","target_duration_seconds":30,"aspect_ratio":"9:16","width":1920,"height":1080})
 
-    def test_rejects_invalid_kind_and_short_longform(self):
+    def test_accepts_short_landscape_chapter_projects(self):
+        chapter = ProjectSpec.from_dict({
+            "kind": "longform", "target_duration_seconds": 120,
+            "aspect_ratio": "16:9", "width": 1280, "height": 720,
+            "clip_seconds": 10,
+        })
+        self.assertEqual(len(chapter.clip_schedule()), 12)
+
+    def test_rejects_invalid_kind_and_prompt_count(self):
         with self.assertRaises(ValueError):
             ProjectSpec.from_dict({"kind":"other"})
-        with self.assertRaisesRegex(ValueError, "exceed 180"):
-            ProjectSpec.from_dict({"kind":"longform","target_duration_seconds":180,"aspect_ratio":"16:9","width":1920,"height":1080})
+        with self.assertRaisesRegex(ValueError, "exactly 2"):
+            ProjectSpec.from_dict({
+                "kind": "shorts", "target_duration_seconds": 20,
+                "aspect_ratio": "9:16", "width": 360, "height": 640,
+                "clip_seconds": 10, "clip_prompts": ["only one prompt"],
+            })
 
 if __name__ == "__main__":
     unittest.main()
