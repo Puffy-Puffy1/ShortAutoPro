@@ -10,6 +10,7 @@ from typing import Any
 
 from generative_video_poc.state_store import ProjectStore, StoreError
 from generative_video_poc.termux_runtime import TermuxRuntime, TermuxPreflightError
+from generative_video_poc.worker import LocalQueueWorker, load_backend_config
 
 
 def _print(payload: Any) -> None:
@@ -35,6 +36,11 @@ def build_parser() -> argparse.ArgumentParser:
     claim.add_argument("--worker", default=f"{socket.gethostname()}-{os.getpid()}")
     claim.add_argument("--lease-seconds", type=int, default=900)
     claim.add_argument("--root")
+    work = sub.add_parser("work", help="generate one real clip from the local model queue")
+    work.add_argument("--project-id")
+    work.add_argument("--backend-config", required=True)
+    work.add_argument("--worker", default=f"{socket.gethostname()}-{os.getpid()}")
+    work.add_argument("--root")
     return parser
 
 
@@ -49,8 +55,19 @@ def main(argv: list[str] | None = None) -> int:
         except TermuxPreflightError as exc:
             _print({"preflight": "FAIL", "reason": str(exc), **runtime.inspect()})
             return 2
-    store = ProjectStore(Path(args.root) if args.root else None)
     try:
+        if args.command == "work":
+            backend, config = load_backend_config(args.backend_config)
+            store = ProjectStore(Path(args.root) if args.root else None)
+            worker = LocalQueueWorker(
+                store, backend, fps=config["fps"], seed=config["seed"],
+                model=config["model"], worker_id=args.worker,
+                timeout_seconds=config["timeout_seconds"],
+            )
+            result = worker.run_one(project_id=args.project_id)
+            _print(result)
+            return 0 if result["status"] in {"CLIP_READY", "QUEUE_EMPTY"} else 2
+        store = ProjectStore(Path(args.root) if args.root else None)
         if args.command == "create":
             spec_path = Path(args.spec_file).expanduser().resolve()
             data = json.loads(spec_path.read_text(encoding="utf-8"))
