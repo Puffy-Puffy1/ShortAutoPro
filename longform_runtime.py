@@ -697,6 +697,8 @@ def execute(topic: str, minutes: int, chapters: int | None, profile_name: str, e
     if generated_manifest:
         state["generated_manifest"] = str(Path(generated_manifest).expanduser().resolve())
     generated = verify_generated_manifest(state["generated_manifest"]) if state.get("generated_manifest") else None
+    if generated and int(generated["project"]["target_duration_seconds"]) < minutes * 60:
+        raise ValueError("manifesto não contém duração suficiente para o Long-form solicitado")
     generated_integrity = str(generated.get("integrity_sha256")) if generated else None
     prior_integrity = state.get("generated_manifest_integrity")
     if prior_integrity and generated_integrity and prior_integrity != generated_integrity:
