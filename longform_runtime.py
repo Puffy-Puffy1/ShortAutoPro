@@ -555,8 +555,16 @@ def render_generated_chapter(
             "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "22",
             "-pix_fmt", "yuv420p", "-r", "30", str(target),
         ], check=True, timeout=900)
-        if not target.is_file() or target.stat().st_size < 10000:
+        if not target.is_file() or target.stat().st_size <= 1000:
             raise RuntimeError(f"normalização do clipe gerado {item['clip_index']} falhou")
+        normalized_probe = probe_video(target)
+        if (
+            normalized_probe["width"] != 1920
+            or normalized_probe["height"] != 1080
+            or normalized_probe["video_codec"] != "h264"
+            or normalized_probe["duration"] < (overlap_end - overlap_start) * 0.90
+        ):
+            raise RuntimeError(f"contrato FFprobe da normalização falhou no clipe {item['clip_index']}")
         selected.append(target)
     if not selected:
         raise RuntimeError(f"manifesto não contém clipes para o intervalo {start_seconds:.1f}-{end_seconds:.1f}s")
