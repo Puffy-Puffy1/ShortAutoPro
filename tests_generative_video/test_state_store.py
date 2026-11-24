@@ -36,7 +36,7 @@ class ProjectStoreTests(unittest.TestCase):
             self.store.create_project("sample-01", spec(prompt="A different visual direction"))
 
     def test_existing_projects_without_prompt_field_remain_idempotent(self):
-        self.store.create_project("legacy-project", spec())
+        self.store.create_project("legacy-project", spec(prompt=""))
         with self.store._connection() as db:
             row = db.execute(
                 "SELECT spec_json FROM projects WHERE project_id=?",
@@ -48,7 +48,7 @@ class ProjectStoreTests(unittest.TestCase):
                 "UPDATE projects SET spec_json=? WHERE project_id=?",
                 (json.dumps(legacy, sort_keys=True, separators=(",", ":")), "legacy-project"),
             )
-        reopened = self.store.create_project("legacy-project", spec())
+        reopened = self.store.create_project("legacy-project", spec(prompt=""))
         self.assertEqual(reopened["progress"]["pending"], 2)
 
     def test_rejects_path_traversal_project_ids(self):
