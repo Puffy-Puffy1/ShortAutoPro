@@ -63,6 +63,7 @@ class GeneratedShortsManifestTests(unittest.TestCase):
     def test_loads_complete_portrait_shorts_schedule(self):
         with tempfile.TemporaryDirectory() as tmp:
             manifest, payload = self._manifest(Path(tmp))
+            self.assertEqual(manifest.resolve().parent.name, payload["project_id"])
             result = media_engine_v2._load_generated_shorts_manifest(manifest, 2)
             self.assertEqual(result["integrity_sha256"], payload["integrity_sha256"])
             self.assertEqual(len(result["clips"]), 2)
