@@ -481,9 +481,18 @@ def verify_generated_manifest(path: Path | str) -> dict[str, Any]:
     spec = payload.get("project")
     if not isinstance(spec, dict) or spec.get("kind") != "longform" or spec.get("aspect_ratio") != "16:9":
         raise ValueError("manifesto precisa ser de projeto longform 16:9")
+    try:
+        target_duration = int(spec["target_duration_seconds"])
+        clip_seconds = int(spec["clip_seconds"])
+        width, height = int(spec["width"]), int(spec["height"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError("especificação de mídia do manifesto inválida") from exc
+    if not 60 <= target_duration <= 7200 or not 1 <= clip_seconds <= 30 or width <= height:
+        raise ValueError("especificação longform fora dos limites")
     clips = payload.get("clips")
-    if not isinstance(clips, list) or not clips or len(clips) != int(payload.get("clip_count", -1)):
-        raise ValueError("lista/quantidade de clipes inválida")
+    expected_count = math.ceil(target_duration / clip_seconds)
+    if not isinstance(clips, list) or len(clips) != expected_count or len(clips) != int(payload.get("clip_count", -1)):
+        raise ValueError("lista/quantidade de clipes inválida para a duração declarada")
     root = manifest_path.parent.resolve()
     seen = set()
     expected_start = 0
@@ -493,13 +502,16 @@ def verify_generated_manifest(path: Path | str) -> dict[str, Any]:
         index = int(item.get("clip_index", 0))
         start = int(item.get("start_seconds", -1))
         duration = int(item.get("duration_seconds", 0))
-        if index < 1 or index in seen or start != expected_start or duration < 1:
+        expected_duration = min(clip_seconds, target_duration - expected_start)
+        if index < 1 or index in seen or start != expected_start or duration != expected_duration:
             raise ValueError("índice, continuidade ou duração de clipe inválida")
         seen.add(index)
         expected_start += duration
         media = Path(str(item.get("path") or "")).expanduser().resolve()
         if not media.is_relative_to(root) or not media.is_file() or media.stat().st_size <= 0:
             raise ValueError(f"arquivo do clipe {index} ausente ou fora do workspace")
+        if int(item.get("size_bytes") or -1) != media.stat().st_size:
+            raise ValueError(f"tamanho do clipe {index} não confere")
         digest = hashlib.sha256()
         with media.open("rb") as handle:
             for chunk in iter(lambda: handle.read(1024 * 1024), b""):
@@ -509,10 +521,13 @@ def verify_generated_manifest(path: Path | str) -> dict[str, Any]:
         probe = item.get("ffprobe")
         if not isinstance(probe, dict) or probe.get("status") != "GENERATED_AND_PROBED":
             raise ValueError(f"clipe {index} sem validação FFprobe")
-    if seen != set(range(1, len(clips) + 1)):
-        raise ValueError("sequência de clipes não é contínua")
-    if expected_start < 60:
-        raise ValueError("timeline gerada curta demais para long-form")
+        if int(probe.get("width") or 0) != width or int(probe.get("height") or 0) != height:
+            raise ValueError(f"resolução FFprobe do clipe {index} não confere")
+        actual_duration = float(probe.get("duration_seconds") or 0)
+        if not duration * 0.95 <= actual_duration <= duration * 1.10:
+            raise ValueError(f"duração FFprobe do clipe {index} não confere")
+    if seen != set(range(1, len(clips) + 1)) or expected_start != target_duration:
+        raise ValueError("sequência/timeline de clipes não cobre a duração declarada")
     return payload
 
 
@@ -682,6 +697,14 @@ def execute(topic: str, minutes: int, chapters: int | None, profile_name: str, e
     if generated_manifest:
         state["generated_manifest"] = str(Path(generated_manifest).expanduser().resolve())
     generated = verify_generated_manifest(state["generated_manifest"]) if state.get("generated_manifest") else None
+    generated_integrity = str(generated.get("integrity_sha256")) if generated else None
+    prior_integrity = state.get("generated_manifest_integrity")
+    if prior_integrity and generated_integrity and prior_integrity != generated_integrity:
+        raise RuntimeError("manifesto de clipes mudou desde a execução anterior; use um novo projeto Long-form")
+    if prior_integrity and not generated_integrity:
+        raise RuntimeError("esta execução foi iniciada com clipes gerados; não é permitido retomar usando outra fonte")
+    if generated_integrity:
+        state["generated_manifest_integrity"] = generated_integrity
     atomic_json(state_path, state)
 
     print("========================================")
