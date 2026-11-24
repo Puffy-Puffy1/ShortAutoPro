@@ -200,6 +200,7 @@ class Pipeline:
             "last_stage_status": "start",
             "status": "RUNNING",
             "generated_clips_manifest": os.getenv("SAP_GENERATED_CLIPS_MANIFEST", "").strip() or None,
+            "local_ai_backend_config": os.getenv("SAP_GENERATIVE_VIDEO_BACKEND_CONFIG", "").strip() or None,
             "stages": [],
         }
         atomic_json(self.state_path, self.state)
@@ -591,26 +592,51 @@ def export(p: Pipeline) -> Path:
     return destination
 
 
-def run_pipeline(*, reuse_short_id: bool = False, generated_clips_manifest: str | None = None) -> int:
+def run_pipeline(*, reuse_short_id: bool = False, generated_clips_manifest: str | None = None, local_ai_backend_config: str | None = None) -> int:
     source_config()
     setup_env()
+    if generated_clips_manifest and local_ai_backend_config:
+        print("ERRO: escolha manifesto pronto ou configuração do gerador local, não ambos.")
+        return 2
     if generated_clips_manifest:
         manifest_path = Path(generated_clips_manifest).expanduser().resolve()
         if not manifest_path.is_file():
             print(f"ERRO: manifesto de clipes gerados não encontrado: {manifest_path}")
             return 2
         os.environ["SAP_GENERATED_CLIPS_MANIFEST"] = str(manifest_path)
+        os.environ.pop("SAP_GENERATIVE_VIDEO_BACKEND_CONFIG", None)
+    if local_ai_backend_config:
+        backend_path = Path(local_ai_backend_config).expanduser().resolve()
+        if not backend_path.is_file():
+            print(f"ERRO: configuração do gerador local não encontrada: {backend_path}")
+            return 2
+        os.environ["SAP_GENERATIVE_VIDEO_BACKEND_CONFIG"] = str(backend_path)
+        os.environ.pop("SAP_GENERATED_CLIPS_MANIFEST", None)
     sid = allocate_id(reuse_existing=reuse_short_id)
-    if not os.getenv("SAP_GENERATED_CLIPS_MANIFEST", "").strip() and reuse_short_id:
+    if reuse_short_id:
         prior_state = STATE_DIR / f"pipeline_{sid}.json"
         if prior_state.is_file():
             try:
                 saved = json.loads(prior_state.read_text(encoding="utf-8"))
-                saved_manifest = str(saved.get("generated_clips_manifest") or "").strip()
-                if saved_manifest and Path(saved_manifest).is_file():
-                    os.environ["SAP_GENERATED_CLIPS_MANIFEST"] = saved_manifest
+                if not os.getenv("SAP_GENERATED_CLIPS_MANIFEST", "").strip():
+                    saved_manifest = str(saved.get("generated_clips_manifest") or "").strip()
+                    if saved_manifest:
+                        if not Path(saved_manifest).is_file():
+                            print(f"ERRO: manifesto salvo não encontrado: {saved_manifest}")
+                            return 2
+                        os.environ["SAP_GENERATED_CLIPS_MANIFEST"] = saved_manifest
+                if not os.getenv("SAP_GENERATIVE_VIDEO_BACKEND_CONFIG", "").strip():
+                    saved_backend = str(saved.get("local_ai_backend_config") or "").strip()
+                    if saved_backend:
+                        if not Path(saved_backend).is_file():
+                            print(f"ERRO: configuração local salva não encontrada: {saved_backend}")
+                            return 2
+                        os.environ["SAP_GENERATIVE_VIDEO_BACKEND_CONFIG"] = saved_backend
             except (OSError, json.JSONDecodeError):
                 pass
+    if os.getenv("SAP_GENERATED_CLIPS_MANIFEST", "").strip() and os.getenv("SAP_GENERATIVE_VIDEO_BACKEND_CONFIG", "").strip():
+        print("ERRO: manifesto e configuração de geração local não podem ser usados juntos.")
+        return 2
     os.environ["SHORT_ID"] = sid
     STATE_DIR.mkdir(parents=True, exist_ok=True)
     with RunLock(sid):
@@ -669,6 +695,11 @@ def cli() -> int:
     sub = parser.add_subparsers(dest="command")
     run_cmd = sub.add_parser("run")
     run_cmd.add_argument(
+        "--local-ai-backend-config",
+        default=None,
+        help="gera automaticamente um clipe por cena usando o backend local configurado",
+    )
+    run_cmd.add_argument(
         "--generated-clips-manifest",
         default=None,
         help="manifesto de clipes locais de IA (um clipe por cena; opcional)",
@@ -694,6 +725,7 @@ def cli() -> int:
         return run_pipeline(
             reuse_short_id=bool(getattr(args, "reuse_short_id", False)),
             generated_clips_manifest=getattr(args, "generated_clips_manifest", None),
+            local_ai_backend_config=getattr(args, "local_ai_backend_config", None),
         )
 
     setup_env()
