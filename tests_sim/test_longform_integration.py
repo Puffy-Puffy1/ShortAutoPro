@@ -55,6 +55,15 @@ class LongFormIntegrationTests(unittest.TestCase):
                 self.assertEqual(result, 0)
                 self.assertEqual(command[2:], [action, "--run-id", "run_2026_01"])
 
+    def test_main_forwards_optional_generated_manifest(self):
+        manifest = "/tmp/generated/project_01/generated_manifest.json"
+        result, command = self._run_cli([
+            "main.py", "longform", "run", "--topic", "Tema", "--generated-manifest", manifest,
+        ])
+        self.assertEqual(result, 0)
+        self.assertIn("--generated-manifest", command)
+        self.assertEqual(command[command.index("--generated-manifest") + 1], manifest)
+
     def test_main_returns_timeout_exit_code(self):
         with mock.patch.object(main, "source_config"), \
              mock.patch.object(main, "setup_env"), \
