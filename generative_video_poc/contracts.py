@@ -17,6 +17,7 @@ class ProjectSpec:
     width: int
     height: int
     clip_seconds: int = 10
+    prompt_template: str = ""
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> "ProjectSpec":
@@ -46,7 +47,10 @@ class ProjectSpec:
             raise ValueError("9:16 output must be portrait")
         if ratio == "16:9" and width <= height:
             raise ValueError("16:9 output must be landscape")
-        return cls(kind, duration, ratio, width, height, clip_seconds)
+        prompt_template = str(payload.get("prompt_template", "")).strip()
+        if len(prompt_template) > 4000:
+            raise ValueError("prompt_template must not exceed 4000 characters")
+        return cls(kind, duration, ratio, width, height, clip_seconds, prompt_template)
 
     def clip_schedule(self) -> list[Clip]:
         clips, start = [], 0
