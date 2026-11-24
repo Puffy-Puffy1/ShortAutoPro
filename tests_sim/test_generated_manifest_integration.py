@@ -19,27 +19,37 @@ class GeneratedManifestIntegrationTests(unittest.TestCase):
     def _write_manifest(self, root):
         project = root / "project_01"
         project.mkdir()
-        media = project / "clip_0001.mp4"
-        media.write_bytes(b"validated video fixture")
+        clips = []
+        for index in range(1, 3):
+            media = project / f"clip_{index:04d}.mp4"
+            media.write_bytes(f"validated video fixture {index}".encode())
+            clips.append({
+                "clip_index": index,
+                "start_seconds": (index - 1) * 30,
+                "duration_seconds": 30,
+                "path": str(media),
+                "sha256": hashlib.sha256(media.read_bytes()).hexdigest(),
+                "size_bytes": media.stat().st_size,
+                "ffprobe": {
+                    "status": "GENERATED_AND_PROBED", "video_codec": "h264",
+                    "width": 1920, "height": 1080, "duration_seconds": 30,
+                },
+            })
         payload = {
             "schema_version": "shortautopro-generated-clips-v1",
             "project_id": "project_01",
-            "clip_count": 1,
-            "project": {"kind": "longform", "aspect_ratio": "16:9", "target_duration_seconds": 60, "clip_seconds": 10, "width": 1920, "height": 1080},
-            "clips": [{
-                "clip_index": 1,
-                "start_seconds": 0,
-                "duration_seconds": 60,
-                "path": str(media),
-                "size_bytes": media.stat().st_size,
-                "sha256": hashlib.sha256(media.read_bytes()).hexdigest(),
-                "ffprobe": {"status": "GENERATED_AND_PROBED", "video_codec": "h264", "width": 1920, "height": 1080, "duration_seconds": 60},
-            }],
+            "clip_count": len(clips),
+            "project": {
+                "kind": "longform", "aspect_ratio": "16:9",
+                "target_duration_seconds": 60, "clip_seconds": 30,
+                "width": 1920, "height": 1080,
+            },
+            "clips": clips,
         }
         payload["integrity_sha256"] = hashlib.sha256(_canonical(payload)).hexdigest()
         manifest = project / "generated_manifest.json"
         manifest.write_text(json.dumps(payload), encoding="utf-8")
-        return manifest, media, payload
+        return manifest, Path(clips[0]["path"]), payload
 
     def test_accepts_valid_manifest_and_clip_checksum(self):
         with tempfile.TemporaryDirectory() as tmp:
