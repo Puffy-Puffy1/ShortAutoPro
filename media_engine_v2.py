@@ -2195,6 +2195,8 @@ def _load_generated_shorts_manifest(path: str | Path, expected_scenes: int) -> d
     clip_seconds = int(spec.get("clip_seconds") or 0)
     if not 1 <= target_duration <= 180 or not 1 <= clip_seconds <= 30:
         raise RuntimeError("MEDIA_GENERATED_MANIFEST_DURATION_INVALID")
+    if (target_duration + clip_seconds - 1) // clip_seconds != expected_scenes:
+        raise RuntimeError("MEDIA_GENERATED_MANIFEST_SCHEDULE_COUNT_MISMATCH")
     if int(spec.get("width") or 0) <= int(spec.get("height") or 0):
         raise RuntimeError("MEDIA_GENERATED_MANIFEST_DIMENSIONS_INVALID")
     expected_start = 0
@@ -2206,6 +2208,11 @@ def _load_generated_shorts_manifest(path: str | Path, expected_scenes: int) -> d
         expected_duration = min(clip_seconds, target_duration - expected_start)
         if int(clip.get("clip_index", 0)) != index or start != expected_start or duration != expected_duration:
             raise RuntimeError(f"MEDIA_GENERATED_MANIFEST_TIMELINE_INVALID:{index}")
+        if not str(clip.get("prompt") or "").strip():
+            raise RuntimeError(f"MEDIA_GENERATED_MANIFEST_PROMPT_MISSING:{index}")
+        media_path = Path(str(clip.get("path") or "")).expanduser().resolve()
+        if int(clip.get("size_bytes") or -1) != media_path.stat().st_size:
+            raise RuntimeError(f"MEDIA_GENERATED_MANIFEST_SIZE_MISMATCH:{index}")
         probe = clip.get("ffprobe")
         if not isinstance(probe, dict) or probe.get("status") != "GENERATED_AND_PROBED":
             raise RuntimeError(f"MEDIA_GENERATED_MANIFEST_FFPROBE_MISSING:{index}")
