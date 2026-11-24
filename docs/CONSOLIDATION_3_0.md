@@ -52,3 +52,26 @@ A auditoria 3.0 falha se os antigos entrypoints voltarem a ser rastreados, inclu
 ## Validação e promoção
 
 Toda alteração deve passar pela Portable Validation. A promoção para `termux-stable` ocorre somente para o SHA exato validado em `main` e por fast-forward.
+
+
+## Long-form com clipes locais gerados (integração em validação)
+
+O Long-form pode consumir, opcionalmente, um manifesto `generated_manifest.json`
+exportado pela fila local de geração de clipes. A integração valida a assinatura
+SHA-256 do manifesto, o workspace, a sequência temporal, os checksums e os
+metadados FFprobe antes de usar qualquer arquivo.
+
+Exemplo pelo entrypoint oficial:
+
+```bash
+python main.py longform run --topic "Tema factual" --minutes 15 --chapters 6 \
+  --generated-manifest "$HOME/ShortAutoPro/generative_video_poc/workspaces/PROJECT_ID/generated_manifest.json"
+```
+
+Sem `--generated-manifest`, o fluxo anterior com Wikimedia Commons e movimento
+Ken Burns permanece como fallback. O renderizador final, áudio e legendas continuam
+compartilhados; não existe um segundo motor de montagem.
+
+Esta integração ainda depende de um backend/modelo local real configurado para a
+fila e não certifica inferência de IA no aparelho. A produção MP4 real no Termux
+continua sendo um critério obrigatório antes de declarar o recurso concluído.
