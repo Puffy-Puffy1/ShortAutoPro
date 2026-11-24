@@ -673,6 +673,7 @@ def cli() -> int:
     longform_run.add_argument("--minutes", type=int, default=15)
     longform_run.add_argument("--chapters", type=int, default=None)
     longform_run.add_argument("--profile", default="true_crime")
+    longform_run.add_argument("--generated-manifest", default=None)
     longform_resume = longform_sub.add_parser("resume")
     longform_resume.add_argument("--run-id", default=None)
     longform_status = longform_sub.add_parser("status")
@@ -694,6 +695,8 @@ def cli() -> int:
         command = [sys.executable, str(BASE / "longform_runtime.py"), args.longform_command]
         if args.longform_command == "run":
             command.extend(["--topic", args.topic, "--minutes", str(args.minutes), "--profile", args.profile])
+            if args.generated_manifest:
+                command.extend(["--generated-manifest", args.generated_manifest])
             if args.chapters is not None:
                 command.extend(["--chapters", str(args.chapters)])
         elif args.longform_command in {"resume", "status"} and args.run_id:
