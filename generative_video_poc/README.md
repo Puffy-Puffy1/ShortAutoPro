@@ -4,7 +4,7 @@
 
 ## Local controller and queue
 
-The POC uses Python's built-in SQLite; no extra database server or service is needed.
+The POC uses Python's built-in SQLite; no extra database server or service is needed. Project schedules support up to 120 minutes per run, with bounded clip counts and prompt payloads.
 
 Run from the repository root in Termux:
 
