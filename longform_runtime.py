@@ -549,6 +549,20 @@ def render_generated_chapter(
 
 
 def mux_chapter_visual(chapter_dir: Path, visual: Path, audio: Path, duration: float, ass: Path) -> Path:
+    output = chapter_dir / "chapter.mp4"
+    subprocess.run([
+        "ffmpeg", "-y", "-loglevel", "error", "-i", str(visual), "-i", str(audio),
+        "-vf", f"ass='{ass_filter_path(ass)}'", "-map", "0:v:0", "-map", "1:a:0",
+        "-c:v", "libx264", "-preset", "fast", "-crf", "21", "-profile:v", "high",
+        "-pix_fmt", "yuv420p", "-r", "30", "-c:a", "aac", "-b:a", "192k", "-ar", "48000",
+        "-t", f"{duration:.3f}", "-movflags", "+faststart", str(output),
+    ], check=True, timeout=900)
+    if not output.is_file() or output.stat().st_size < 100_000:
+        raise RuntimeError("render do capítulo não produziu MP4 válido")
+    return output
+
+
+def render_chapter(chapter_dir: Path, images: list[Path], audio: Path, duration: float, ass: Path) -> Path:
     clips = chapter_dir / "clips"
     clips.mkdir(parents=True, exist_ok=True)
     visual_seconds = duration / len(images)
@@ -577,24 +591,6 @@ def mux_chapter_visual(chapter_dir: Path, visual: Path, audio: Path, duration: f
         "-c", "copy", str(visual),
     ], check=True, timeout=240)
     return mux_chapter_visual(chapter_dir, visual, audio, duration, ass)
-
-
-def render_chapter(chapter_dir: Path, images: list[Path], audio: Path, duration: float, ass: Path) -> Path:
-    raise RuntimeError("render_chapter legacy entrypoint is not intended for direct use")
-
-
-def _unused_legacy_marker(chapter_dir: Path, images: list[Path], audio: Path, duration: float, ass: Path) -> Path:
-    output = chapter_dir / "chapter.mp4"
-    subprocess.run([
-        "ffmpeg", "-y", "-loglevel", "error", "-i", str(visual), "-i", str(audio),
-        "-vf", f"ass='{ass_filter_path(ass)}'", "-map", "0:v:0", "-map", "1:a:0",
-        "-c:v", "libx264", "-preset", "fast", "-crf", "21", "-profile:v", "high",
-        "-pix_fmt", "yuv420p", "-r", "30", "-c:a", "aac", "-b:a", "192k", "-ar", "48000",
-        "-t", f"{duration:.3f}", "-movflags", "+faststart", str(output),
-    ], check=True, timeout=900)
-    if not output.is_file() or output.stat().st_size < 100_000:
-        raise RuntimeError("render do capítulo não produziu MP4 válido")
-    return output
 
 
 def probe_video(path: Path) -> dict[str, Any]:
