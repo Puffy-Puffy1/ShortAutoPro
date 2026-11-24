@@ -59,9 +59,9 @@ References:
 
 Copy `local_video_backend.example.json` to `local_video_backend.json` and edit the executable path, model name and argument list to match the CLI of a model that is actually installed on the phone. The example is a template, not an installed generator: the backend deliberately does not guess model-specific flags. It invokes the executable without a shell and requires FFprobe-valid video output.
 
-The project JSON must contain a meaningful `prompt_template`. Replace the bracketed subject in the sample Shorts/long-form specs before creating a project. The worker processes one clip per command, so it can be restarted safely:
+The project JSON must contain a meaningful `prompt_template`. Replace the bracketed subject in the sample Shorts/long-form specs before creating a project. Use `--drain` to process the entire project automatically in one session; without it, the command processes only one clip. The SQLite checkpoints make interrupted projects resumable:
 
-    python -m generative_video_poc.brain work --project-id meu-documentario --backend-config generative_video_poc/local_video_backend.json
+    python -m generative_video_poc.brain work --project-id meu-documentario --backend-config generative_video_poc/local_video_backend.json --drain
     python -m generative_video_poc.brain show meu-documentario
 
 A READY clip is a generated asset checkpoint, not a finished exported video. Final assembly into the canonical ShortAutoPro pipeline is a separate integration gate; no parallel renderer is introduced here.
