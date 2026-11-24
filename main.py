@@ -199,6 +199,7 @@ class Pipeline:
             "current_stage": "pipeline",
             "last_stage_status": "start",
             "status": "RUNNING",
+            "generated_clips_manifest": os.getenv("SAP_GENERATED_CLIPS_MANIFEST", "").strip() or None,
             "stages": [],
         }
         atomic_json(self.state_path, self.state)
@@ -590,10 +591,25 @@ def export(p: Pipeline) -> Path:
     return destination
 
 
-def run_pipeline(*, reuse_short_id: bool = False) -> int:
+def run_pipeline(*, reuse_short_id: bool = False, generated_clips_manifest: str | None = None) -> int:
     source_config()
     setup_env()
+    if generated_clips_manifest:
+        manifest_path = Path(generated_clips_manifest).expanduser().resolve()
+        if not manifest_path.is_file():
+            raise FileNotFoundError(f"manifesto de clipes gerados não encontrado: {manifest_path}")
+        os.environ["SAP_GENERATED_CLIPS_MANIFEST"] = str(manifest_path)
     sid = allocate_id(reuse_existing=reuse_short_id)
+    if not os.getenv("SAP_GENERATED_CLIPS_MANIFEST", "").strip() and reuse_short_id:
+        prior_state = STATE_DIR / f"pipeline_{sid}.json"
+        if prior_state.is_file():
+            try:
+                saved = json.loads(prior_state.read_text(encoding="utf-8"))
+                saved_manifest = str(saved.get("generated_clips_manifest") or "").strip()
+                if saved_manifest and Path(saved_manifest).is_file():
+                    os.environ["SAP_GENERATED_CLIPS_MANIFEST"] = saved_manifest
+            except (OSError, json.JSONDecodeError):
+                pass
     os.environ["SHORT_ID"] = sid
     STATE_DIR.mkdir(parents=True, exist_ok=True)
     with RunLock(sid):
@@ -652,6 +668,11 @@ def cli() -> int:
     sub = parser.add_subparsers(dest="command")
     run_cmd = sub.add_parser("run")
     run_cmd.add_argument(
+        "--generated-clips-manifest",
+        default=None,
+        help="manifesto de clipes locais de IA (um clipe por cena; opcional)",
+    )
+    run_cmd.add_argument(
         "--reuse-short-id",
         action="store_true",
         help=argparse.SUPPRESS,
@@ -670,7 +691,8 @@ def cli() -> int:
 
     if command_name == "run":
         return run_pipeline(
-            reuse_short_id=bool(getattr(args, "reuse_short_id", False))
+            reuse_short_id=bool(getattr(args, "reuse_short_id", False)),
+            generated_clips_manifest=getattr(args, "generated_clips_manifest", None),
         )
 
     setup_env()
