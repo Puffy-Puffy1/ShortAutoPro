@@ -114,5 +114,6 @@ class LocalVideoBackend:
             "width": video.get("width"),
             "height": video.get("height"),
             "generation_host": "termux_local",
+            "model": model,
             "log_path": str(log_path),
         }
