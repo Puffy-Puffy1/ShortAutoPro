@@ -42,6 +42,7 @@ def _spec_payload(spec: ProjectSpec) -> dict[str, Any]:
         "width": spec.width,
         "height": spec.height,
         "clip_seconds": spec.clip_seconds,
+        "prompt_template": spec.prompt_template,
     }
 
 
