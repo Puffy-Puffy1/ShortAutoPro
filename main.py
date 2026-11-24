@@ -698,10 +698,14 @@ def cli() -> int:
                 command.extend(["--chapters", str(args.chapters)])
         elif args.longform_command in {"resume", "status"} and args.run_id:
             command.extend(["--run-id", args.run_id])
-        return run_group(
-            command, cwd=BASE, env=os.environ.copy(), check=False,
-            timeout=env_int("SAP_CONTROL_COMMAND_TIMEOUT", 7200, 300, 21600),
-        ).returncode
+        try:
+            return run_group(
+                command, cwd=BASE, env=os.environ.copy(), check=False,
+                timeout=env_int("SAP_CONTROL_COMMAND_TIMEOUT", 7200, 300, 21600),
+            ).returncode
+        except subprocess.TimeoutExpired:
+            print("ERRO: produção long-form excedeu o timeout de controle")
+            return 124
 
     setup_env()
     control_timeout = env_int("SAP_CONTROL_COMMAND_TIMEOUT", 7200, 300, 21600)
