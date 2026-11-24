@@ -27,7 +27,7 @@ class GeneratedManifestIntegrationTests(unittest.TestCase):
             "clips": [{
                 "clip_index": 1,
                 "start_seconds": 0,
-                "duration_seconds": 10,
+                "duration_seconds": 60,
                 "path": str(media),
                 "sha256": hashlib.sha256(media.read_bytes()).hexdigest(),
                 "ffprobe": {"status": "GENERATED_AND_PROBED", "video_codec": "h264"},
