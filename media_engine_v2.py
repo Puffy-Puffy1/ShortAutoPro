@@ -518,6 +518,8 @@ def _existing_asset_record(
         record = json.loads(sidecar.read_text(encoding="utf-8"))
         if not isinstance(record, dict):
             return None
+        if record.get("generated_manifest_sha256"):
+            return None
         relevance = record.get("query_relevance")
         if not isinstance(relevance, dict) or relevance.get("ok") is not True:
             return None
@@ -2189,7 +2191,9 @@ def _load_generated_shorts_manifest(path: str | Path, expected_scenes: int) -> d
         )
     if int(payload.get("clip_count", -1)) != expected_scenes:
         raise RuntimeError("MEDIA_GENERATED_MANIFEST_CLIP_COUNT_INVALID")
-    if int(spec.get("target_duration_seconds") or 0) <= 0:
+    target_duration = int(spec.get("target_duration_seconds") or 0)
+    clip_seconds = int(spec.get("clip_seconds") or 0)
+    if not 1 <= target_duration <= 180 or not 1 <= clip_seconds <= 30:
         raise RuntimeError("MEDIA_GENERATED_MANIFEST_DURATION_INVALID")
     if int(spec.get("width") or 0) <= int(spec.get("height") or 0):
         raise RuntimeError("MEDIA_GENERATED_MANIFEST_DIMENSIONS_INVALID")
@@ -2199,7 +2203,8 @@ def _load_generated_shorts_manifest(path: str | Path, expected_scenes: int) -> d
             raise RuntimeError(f"MEDIA_GENERATED_MANIFEST_CLIP_INVALID:{index}")
         start = int(clip.get("start_seconds", -1))
         duration = int(clip.get("duration_seconds", 0))
-        if int(clip.get("clip_index", 0)) != index or start != expected_start or duration <= 0:
+        expected_duration = min(clip_seconds, target_duration - expected_start)
+        if int(clip.get("clip_index", 0)) != index or start != expected_start or duration != expected_duration:
             raise RuntimeError(f"MEDIA_GENERATED_MANIFEST_TIMELINE_INVALID:{index}")
         probe = clip.get("ffprobe")
         if not isinstance(probe, dict) or probe.get("status") != "GENERATED_AND_PROBED":
@@ -2209,7 +2214,7 @@ def _load_generated_shorts_manifest(path: str | Path, expected_scenes: int) -> d
         if not duration * 0.95 <= float(probe.get("duration_seconds") or 0) <= duration * 1.10:
             raise RuntimeError(f"MEDIA_GENERATED_MANIFEST_DURATION_MISMATCH:{index}")
         expected_start += duration
-    if expected_start != int(spec["target_duration_seconds"]):
+    if expected_start != target_duration:
         raise RuntimeError("MEDIA_GENERATED_MANIFEST_TIMELINE_INCOMPLETE")
     return payload
 
