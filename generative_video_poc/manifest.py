@@ -116,7 +116,7 @@ def verify_ready_manifest(path: Path | str) -> dict[str, Any]:
     project_id = ProjectStore.validate_project_id(str(payload.get("project_id") or ""))
     project_root = manifest_path.parent.resolve()
     if project_root.name != project_id:
-        raise ValueError("manifest is not stored in its matching project workspace")
+        raise ValueError(f"manifest workspace mismatch: parent={project_root.name!r} project_id={project_id!r}")
     clips = payload.get("clips")
     if not isinstance(clips, list) or len(clips) != int(payload.get("clip_count") or -1):
         raise ValueError("manifest clip count is inconsistent")
