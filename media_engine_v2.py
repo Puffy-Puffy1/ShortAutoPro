@@ -2196,6 +2196,104 @@ def acquire_scene(
 
 
 
+
+def _generate_local_shorts_manifest(
+    short_id: str,
+    scenes: list[dict[str, Any]],
+    backend_config_path: str | Path,
+) -> str:
+    """Create/resume the local queue directly from the canonical scene map."""
+    from generative_video_poc.contracts import ProjectSpec
+    from generative_video_poc.manifest import build_ready_manifest
+    from generative_video_poc.state_store import ProjectStore
+    from generative_video_poc.worker import LocalQueueWorker, load_backend_config
+
+    if not scenes or len(scenes) > 20:
+        raise RuntimeError("MEDIA_LOCAL_AI_SCENE_COUNT_OUT_OF_RANGE")
+    config_path = Path(backend_config_path).expanduser().resolve()
+    if not config_path.is_file():
+        raise RuntimeError(f"MEDIA_LOCAL_AI_BACKEND_CONFIG_NOT_FOUND:{config_path}")
+
+    prompts = []
+    for index, scene in enumerate(scenes, 1):
+        if not isinstance(scene, dict):
+            raise RuntimeError(f"MEDIA_LOCAL_AI_SCENE_INVALID:{index}")
+        query = str(scene.get("query") or scene.get("busca") or "").strip()
+        segment = str(scene.get("segment") or "").strip()
+        direction = str(
+            scene.get("visual_direction")
+            or scene.get("visual_intent")
+            or scene.get("visual_mode")
+            or scene.get("modo_visual")
+            or ""
+        ).strip()
+        must = scene.get("must_have") or []
+        avoid = scene.get("avoid") or []
+        if isinstance(must, str):
+            must = [must]
+        if isinstance(avoid, str):
+            avoid = [avoid]
+        required = ", ".join(str(x).strip() for x in must if str(x).strip())
+        excluded = ", ".join(str(x).strip() for x in avoid if str(x).strip())
+        subject = " ".join(part for part in (segment, direction, query) if part)
+        if not subject:
+            raise RuntimeError(f"MEDIA_LOCAL_AI_SCENE_HAS_NO_VISUAL_DIRECTION:{index}")
+        prompt = (
+            "Create one continuous vertical 9:16 documentary video shot, "
+            "photorealistic and visually coherent, with natural motion and stable subjects. "
+            f"Scene {index}: {subject}. "
+            + (f"Required visible elements: {required}. " if required else "")
+            + (f"Avoid showing: {excluded}. " if excluded else "")
+            + "No captions, subtitles, logos, watermarks, borders, or UI text."
+        )
+        prompts.append(prompt[:4000])
+
+    clip_seconds = min(10, max(1, 180 // len(scenes)))
+    spec = ProjectSpec.from_dict({
+        "kind": "shorts",
+        "target_duration_seconds": clip_seconds * len(scenes),
+        "aspect_ratio": "9:16",
+        "width": 720,
+        "height": 1280,
+        "clip_seconds": clip_seconds,
+        "clip_prompts": prompts,
+    })
+    scene_identity = hashlib.sha256(
+        _canonical_json({"short_id": short_id, "prompts": prompts, "clip_seconds": clip_seconds})
+    ).hexdigest()[:10]
+    slug = re.sub(r"[^A-Za-z0-9_-]+", "_", short_id).strip("_-")[:42] or "short"
+    project_id = f"short_{slug}_{scene_identity}"[:63]
+
+    backend, settings = load_backend_config(str(config_path))
+    store = ProjectStore()
+    store.create_project(project_id, spec)
+    worker = LocalQueueWorker(
+        store,
+        backend,
+        fps=int(settings["fps"]),
+        seed=int(settings["seed"]),
+        model=str(settings["model"]),
+        worker_id=f"sap-short-{scene_identity}",
+        timeout_seconds=int(settings["timeout_seconds"]),
+    )
+    result = worker.run_until_idle(project_id)
+    if result.get("status") != "PROJECT_COMPLETE":
+        raise RuntimeError(
+            "MEDIA_LOCAL_AI_GENERATION_INCOMPLETE:"
+            + json.dumps(result, ensure_ascii=False, sort_keys=True, default=str)
+        )
+    exported = build_ready_manifest(store, project_id)
+    manifest_path = Path(str(exported.get("manifest_path") or "")).expanduser().resolve()
+    if not manifest_path.is_file():
+        raise RuntimeError("MEDIA_LOCAL_AI_MANIFEST_EXPORT_FAILED")
+    print(
+        f"MEDIA_LOCAL_AI=PASS project={project_id} "
+        f"clips={len(prompts)} manifest={manifest_path}"
+    )
+    return str(manifest_path)
+
+
+
 def _load_generated_shorts_manifest(path: str | Path, expected_scenes: int) -> dict[str, Any]:
     from generative_video_poc.manifest import verify_ready_manifest
 
@@ -2337,6 +2435,11 @@ def build_manifest(short_id: str) -> dict[str, Any]:
     records = []
     used_asset_hashes: set[str] = set()
     generated_path = os.getenv("SAP_GENERATED_CLIPS_MANIFEST", "").strip()
+    backend_config = os.getenv("SAP_GENERATIVE_VIDEO_BACKEND_CONFIG", "").strip()
+    if generated_path and backend_config:
+        raise RuntimeError("MEDIA_GENERATED_INPUT_AMBIGUOUS:choose_manifest_or_local_backend_config")
+    if backend_config and not generated_path:
+        generated_path = _generate_local_shorts_manifest(short_id, scenes, backend_config)
     generated = _load_generated_shorts_manifest(generated_path, len(scenes)) if generated_path else None
     if generated:
         generated["_manifest_path"] = str(Path(generated_path).expanduser().resolve())
