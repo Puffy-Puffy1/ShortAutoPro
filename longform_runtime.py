@@ -724,7 +724,8 @@ def execute(topic: str, minutes: int, chapters: int | None, profile_name: str, e
         chapter_json = chapter_dir / "chapter.json"
         credits_json = chapter_dir / "credits.json"
 
-        if item.get("status") == "PASS" and output.is_file() and output.stat().st_size > 100_000 and chapter_json.is_file():
+        media_source = "generated_manifest" if generated else "wikimedia"
+        if item.get("status") == "PASS" and item.get("media_source", "wikimedia") == media_source and output.is_file() and output.stat().st_size > 100_000 and chapter_json.is_file():
             print(f"Capítulo {index}/{chapters}: já aprovado — pulando.")
             data = json.loads(chapter_json.read_text(encoding="utf-8"))
             prior.append({"title": chapter["title"], "summary": str(data.get("summary", ""))})
@@ -737,7 +738,7 @@ def execute(topic: str, minutes: int, chapters: int | None, profile_name: str, e
             continue
 
         print(f"Capítulo {index}/{chapters}: {chapter['title']}")
-        item.update({"status": "RUNNING", "title": chapter["title"], "started_at": now_iso()})
+        item.update({"status": "RUNNING", "title": chapter["title"], "media_source": media_source, "started_at": now_iso()})
         existing_items[index] = item
         state["chapters"] = [existing_items[i] for i in sorted(existing_items)]
         atomic_json(state_path, state)
