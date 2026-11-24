@@ -65,7 +65,7 @@ Exemplo pelo entrypoint oficial:
 
 ```bash
 python main.py longform run --topic "Tema factual" --minutes 15 --chapters 6 \
-  --generated-manifest "$HOME/ShortAutoPro/generative_video_poc/workspaces/PROJECT_ID/generated_manifest.json"
+  --generated-manifest "$HOME/.shortautopro/projects/PROJECT_ID/generated_manifest.json"
 ```
 
 Sem `--generated-manifest`, o fluxo anterior com Wikimedia Commons e movimento
