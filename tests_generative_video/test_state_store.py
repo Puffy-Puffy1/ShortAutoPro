@@ -1,4 +1,5 @@
 import concurrent.futures
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -33,6 +34,22 @@ class ProjectStoreTests(unittest.TestCase):
             self.store.create_project("sample-01", spec(30))
         with self.assertRaises(ProjectConflict):
             self.store.create_project("sample-01", spec(prompt="A different visual direction"))
+
+    def test_existing_projects_without_prompt_field_remain_idempotent(self):
+        self.store.create_project("legacy-project", spec())
+        with self.store._connection() as db:
+            row = db.execute(
+                "SELECT spec_json FROM projects WHERE project_id=?",
+                ("legacy-project",),
+            ).fetchone()
+            legacy = json.loads(row["spec_json"])
+            legacy.pop("prompt_template", None)
+            db.execute(
+                "UPDATE projects SET spec_json=? WHERE project_id=?",
+                (json.dumps(legacy, sort_keys=True, separators=(",", ":")), "legacy-project"),
+            )
+        reopened = self.store.create_project("legacy-project", spec())
+        self.assertEqual(reopened["progress"]["pending"], 2)
 
     def test_rejects_path_traversal_project_ids(self):
         with self.assertRaises(ValueError):
