@@ -584,6 +584,21 @@ def _resume_locked(sid: str, point: str) -> int:
         return 1
 
 
+
+def restore_generated_manifest(sid: str) -> str | None:
+    """Restore the immutable generated-media input before any resumed stage runs."""
+    state_path = canonical.STATE_DIR / f"pipeline_{sid}.json"
+    state = read_json(state_path)
+    saved = str(state.get("generated_clips_manifest") or "").strip()
+    if not saved:
+        return None
+    manifest = Path(saved).expanduser().resolve()
+    if not manifest.is_file():
+        raise RuntimeError(f"manifesto de clipes salvo não encontrado: {manifest}")
+    os.environ["SAP_GENERATED_CLIPS_MANIFEST"] = str(manifest)
+    return str(manifest)
+
+
 def resume(sid: str) -> int:
     os.environ["SHORT_ID"] = sid
     try:
@@ -648,6 +663,11 @@ def main() -> int:
             )
         )
         return 0
+    try:
+        restore_generated_manifest(sid)
+    except Exception as exc:
+        print(f"RESUME_ERROR={type(exc).__name__}: {exc}", file=sys.stderr)
+        return 1
     return resume(sid)
 
 
