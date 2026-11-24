@@ -23,6 +23,10 @@ Módulos especializados são estágios do mesmo pipeline; não existem pipelines
 - `profile_run.sh`: aplica o perfil e delega para `main.py`.
 - `resume_short_runtime.py`: retoma somente o pipeline `PROFESSIONAL_CANONICAL`. Produções antigas sem os artefatos 3.0 voltam ao início com o mesmo `SHORT_ID` em vez de misturar arquiteturas.
 
+## Limitações atuais do Long-form V1
+
+O runtime longo atual usa imagens do Wikimedia Commons com movimento Ken Burns e exige `GEMINI_API_KEY` para estruturar roteiro e capítulos. Ele já monta MP4 H.264/AAC, mas não deve ser descrito como gerador local de clipes por IA nem como fluxo totalmente offline/custo zero. A integração de geração visual local e a validação de uma produção real no Termux permanecem pendentes.
+
 ## Estágios de qualidade
 
 A produção integra sourcing factual, roteiro, Visual Director, continuidade visual, seleção de mídia, score visual multidimensional, motion/rhythm, edição Professional, múltiplos assets, Retention Engine, Sound Design, Speech Director, Piper, Whisper, captions Professional, safe-zone guard, assembler multi-beat, render Professional, masterização pós-AAC, Visual QA, gates técnicos/editoriais e Release Gate.
