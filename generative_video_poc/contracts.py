@@ -35,6 +35,8 @@ class ProjectSpec:
         ratio = str(payload.get("aspect_ratio", "")).strip()
         if duration <= 0 or width <= 0 or height <= 0:
             raise ValueError("duration and output dimensions must be positive")
+        if duration > 7200:
+            raise ValueError("projects are limited to 120 minutes")
         if not 1 <= clip_seconds <= 30:
             raise ValueError("clip_seconds must be between 1 and 30")
         expected = "9:16" if kind == "shorts" else "16:9"
@@ -55,6 +57,8 @@ class ProjectSpec:
         clip_prompts = tuple(str(item).strip() for item in raw_prompts)
         if any(not item or len(item) > 4000 for item in clip_prompts):
             raise ValueError("each clip prompt must contain 1-4000 characters")
+        if sum(len(item) for item in clip_prompts) > 500000:
+            raise ValueError("combined clip prompts must not exceed 500000 characters")
         expected_clips = (duration + clip_seconds - 1) // clip_seconds
         if clip_prompts and len(clip_prompts) != expected_clips:
             raise ValueError(f"clip_prompts must contain exactly {expected_clips} entries")
