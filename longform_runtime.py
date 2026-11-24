@@ -478,20 +478,25 @@ def verify_generated_manifest(path: Path | str) -> dict[str, Any]:
     project_id = str(payload.get("project_id") or "")
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,79}", project_id) or manifest_path.parent.name != project_id:
         raise ValueError("manifesto fora do workspace correspondente")
+    spec = payload.get("project")
+    if not isinstance(spec, dict) or spec.get("kind") != "longform" or spec.get("aspect_ratio") != "16:9":
+        raise ValueError("manifesto precisa ser de projeto longform 16:9")
     clips = payload.get("clips")
     if not isinstance(clips, list) or not clips or len(clips) != int(payload.get("clip_count", -1)):
         raise ValueError("lista/quantidade de clipes inválida")
     root = manifest_path.parent.resolve()
     seen = set()
+    expected_start = 0
     for item in clips:
         if not isinstance(item, dict):
             raise ValueError("entrada de clipe inválida")
         index = int(item.get("clip_index", 0))
         start = int(item.get("start_seconds", -1))
         duration = int(item.get("duration_seconds", 0))
-        if index < 1 or index in seen or start < 0 or duration < 1:
-            raise ValueError("índice ou timeline de clipe inválido")
+        if index < 1 or index in seen or start != expected_start or duration < 1:
+            raise ValueError("índice, continuidade ou duração de clipe inválida")
         seen.add(index)
+        expected_start += duration
         media = Path(str(item.get("path") or "")).expanduser().resolve()
         if not media.is_relative_to(root) or not media.is_file() or media.stat().st_size <= 0:
             raise ValueError(f"arquivo do clipe {index} ausente ou fora do workspace")
@@ -506,6 +511,8 @@ def verify_generated_manifest(path: Path | str) -> dict[str, Any]:
             raise ValueError(f"clipe {index} sem validação FFprobe")
     if seen != set(range(1, len(clips) + 1)):
         raise ValueError("sequência de clipes não é contínua")
+    if expected_start < 60:
+        raise ValueError("timeline gerada curta demais para long-form")
     return payload
 
 
@@ -551,7 +558,7 @@ def render_generated_chapter(
 def mux_chapter_visual(chapter_dir: Path, visual: Path, audio: Path, duration: float, ass: Path) -> Path:
     output = chapter_dir / "chapter.mp4"
     subprocess.run([
-        "ffmpeg", "-y", "-loglevel", "error", "-i", str(visual), "-i", str(audio),
+        "ffmpeg", "-y", "-loglevel", "error", "-stream_loop", "-1", "-i", str(visual), "-i", str(audio),
         "-vf", f"ass='{ass_filter_path(ass)}'", "-map", "0:v:0", "-map", "1:a:0",
         "-c:v", "libx264", "-preset", "fast", "-crf", "21", "-profile:v", "high",
         "-pix_fmt", "yuv420p", "-r", "30", "-c:a", "aac", "-b:a", "192k", "-ar", "48000",
