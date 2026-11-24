@@ -554,6 +554,25 @@ def _existing_asset_record(
         return None
 
 
+
+def _discard_generated_asset_cache(media_dir: Path, number: int) -> None:
+    """Remove only this scene's generated clip when returning to provider acquisition."""
+    sidecar = media_dir / f"scene_{number:02d}.json"
+    if not sidecar.is_file():
+        return
+    try:
+        record = json.loads(sidecar.read_text(encoding="utf-8"))
+        if not isinstance(record, dict) or not record.get("generated_manifest_sha256"):
+            return
+        old_path = Path(str(record.get("path") or "")).expanduser().resolve()
+        old_path.relative_to(media_dir.resolve())
+        old_path.unlink(missing_ok=True)
+        sidecar.unlink(missing_ok=True)
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        # Do not delete a path that cannot be proven to belong to this scene workspace.
+        return
+
+
 def _write_asset_sidecar(media_dir: Path, number: int, asset: dict[str, Any]) -> None:
     atomic_json(media_dir / f"scene_{number:02d}.json", asset)
 
@@ -2332,6 +2351,7 @@ def build_manifest(short_id: str) -> dict[str, Any]:
             records.append(record)
             used_asset_hashes.add(checksum)
             continue
+        _discard_generated_asset_cache(media_dir, number)
         existing = _existing_asset_record(media_dir, number, scene)
         if existing is not None:
             existing_hash = str(existing.get("checksum_sha256") or "")
