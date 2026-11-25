@@ -32,7 +32,8 @@ jobs:
       - name: Integrate shared worker sources for end-to-end test
         run: |
           cp -R .worker-dependency/generative_video_poc ./generative_video_poc
-          git add generative_video_poc
+          cp -R .worker-dependency/tests_generative_video ./tests_generative_video
+          git add generative_video_poc tests_generative_video
 
       - name: Set up Python
         uses: actions/setup-python@v5
