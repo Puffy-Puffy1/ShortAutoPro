@@ -75,9 +75,6 @@ class LocalBackendTests(unittest.TestCase):
 
     def test_timeout_is_bounded_and_reported(self):
         slow = self.root / "slow-generator"
-        slow.write_text("#!/usr/bin/env python3\nimport time\n time.sleep(5)\n", encoding="utf-8")
-        slow.chmod(0o755)
-        # Rewrite without leading indentation in the executable.
         slow.write_text("#!/usr/bin/env python3\nimport time\ntime.sleep(5)\n", encoding="utf-8")
         slow.chmod(0o755)
         backend = LocalVideoBackend(str(slow), ["{output}"], ffprobe=str(self.ffprobe), timeout_seconds=1)
