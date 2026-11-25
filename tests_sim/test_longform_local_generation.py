@@ -136,6 +136,17 @@ class LongFormLocalGenerationTests(unittest.TestCase):
         self.assertNotIn("generated_manifest", state)
         verify.assert_not_called()
 
+    def test_longform_cli_forwards_local_backend_config(self):
+        config = "/tmp/local_video_backend.json"
+        with mock.patch.object(longform, "execute") as execute, \
+             mock.patch("sys.argv", [
+                 "longform_runtime.py", "run", "--topic", "Tema",
+                 "--local-ai-backend-config", config,
+             ]):
+            result = longform.main()
+        self.assertEqual(result, 0)
+        self.assertEqual(execute.call_args.kwargs["local_ai_backend_config"], config)
+
     def test_execute_rejects_two_media_sources(self):
         with self.assertRaisesRegex(ValueError, "não ambos"):
             longform.execute(
