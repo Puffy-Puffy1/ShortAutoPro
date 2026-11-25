@@ -26,7 +26,7 @@ jobs:
       - name: Checkout shared local worker dependency
         uses: actions/checkout@v4
         with:
-          ref: feat/generative-video-queue-worker-20261124
+          ref: edad4b8e794c33c76d1bb98dba72d9d444542bdb
           path: .worker-dependency
 
       - name: Integrate shared worker sources for end-to-end test
