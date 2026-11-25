@@ -679,11 +679,12 @@ def _generate_local_longform_manifest(
         "local_ai_spec_path": str(spec_path),
         "local_generation_status": "RUNNING",
     })
-    timeout_raw = os.getenv("SAP_LONGFORM_LOCAL_WORKER_TIMEOUT_SECONDS", "21600")
+    # Keep a 30-minute finalization window inside main.py's 6-hour control timeout.
+    timeout_raw = os.getenv("SAP_LONGFORM_LOCAL_WORKER_TIMEOUT_SECONDS", "19800")
     try:
-        worker_timeout = max(300, min(int(timeout_raw), 21600))
+        worker_timeout = max(300, min(int(timeout_raw), 19800))
     except (TypeError, ValueError):
-        worker_timeout = 21600
+        worker_timeout = 19800
 
     _run_local_queue_cli(
         ["create", project_id, "--spec-file", str(spec_path)],
