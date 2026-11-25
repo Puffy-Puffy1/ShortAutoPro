@@ -290,7 +290,8 @@ def main() -> int:
         if rule not in ignore_lines:
             issues.append(f"gitignore_rule_missing:{rule}")
 
-    _, _, seeds, active, inactive, classification = map_active_graph.build_analysis()
+    _, _, seeds, active, _, classification = map_active_graph.build_analysis()
+    inactive = classification["inactive_code"]
     production_code = classification["production_code"]
     test_only_code = classification["test_only_code"]
     support_code = classification["support_code"]
