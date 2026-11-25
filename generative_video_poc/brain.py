@@ -48,6 +48,8 @@ def build_parser() -> argparse.ArgumentParser:
     export.add_argument("--root")
     verify = sub.add_parser("verify-manifest", help="verify a generated clip manifest and all clip checksums")
     verify.add_argument("manifest_path")
+    backend_check = sub.add_parser("backend-check", help="validate local generator configuration without running inference")
+    backend_check.add_argument("--backend-config", required=True)
     return parser
 
 
@@ -65,6 +67,19 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.command == "verify-manifest":
             _print(verify_ready_manifest(args.manifest_path))
+            return 0
+        if args.command == "backend-check":
+            backend, config = load_backend_config(args.backend_config)
+            _print({
+                "status": "CONFIG_VALID",
+                "executable": backend.executable,
+                "ffprobe": backend.ffprobe,
+                "model": config["model"],
+                "fps": config["fps"],
+                "timeout_seconds": config["timeout_seconds"],
+                "inference_executed": False,
+                "message": "Configuration and executable paths are valid; model inference was not tested.",
+            })
             return 0
         if args.command == "work":
             backend, config = load_backend_config(args.backend_config)
