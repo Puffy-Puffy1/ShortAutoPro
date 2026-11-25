@@ -660,6 +660,13 @@ def _generate_local_longform_manifest(
 
     spec_path = run_dir / "generated_media_spec.json"
     atomic_json(spec_path, spec)
+    state.update({
+        "local_ai_backend_config": str(config_path),
+        "local_ai_backend_config_sha256": config_sha256,
+        "local_ai_project_id": project_id,
+        "local_ai_spec_path": str(spec_path),
+        "local_generation_status": "RUNNING",
+    })
     timeout_raw = os.getenv("SAP_LONGFORM_LOCAL_WORKER_TIMEOUT_SECONDS", "21600")
     try:
         worker_timeout = max(300, min(int(timeout_raw), 21600))
@@ -699,6 +706,7 @@ def _generate_local_longform_manifest(
         "generated_manifest": str(Path(manifest_path).resolve()),
         "generated_manifest_integrity": str(generated["integrity_sha256"]),
         "generated_media_source": "shared_local_queue",
+        "local_generation_status": "COMPLETE",
     })
     return generated
 
@@ -951,14 +959,22 @@ def execute(
         atomic_json(state_path, state)
 
     if generated is None and config_path is not None:
-        generated = _generate_local_longform_manifest(
-            rid, topic, minutes, outline, config_path, state, run_dir,
-        )
-        generated_integrity = str(generated["integrity_sha256"])
-        if prior_integrity and prior_integrity != generated_integrity:
-            raise RuntimeError("manifesto de clipes mudou desde a execução anterior; use um novo projeto Long-form")
-        state["generated_manifest_integrity"] = generated_integrity
-        atomic_json(state_path, state)
+        try:
+            generated = _generate_local_longform_manifest(
+                rid, topic, minutes, outline, config_path, state, run_dir,
+            )
+            generated_integrity = str(generated["integrity_sha256"])
+            if prior_integrity and prior_integrity != generated_integrity:
+                raise RuntimeError("manifesto de clipes mudou desde a execução anterior; use um novo projeto Long-form")
+            state["generated_manifest_integrity"] = generated_integrity
+            atomic_json(state_path, state)
+        except Exception as exc:
+            state["status"] = "PARTIAL"
+            state["local_generation_status"] = "FAILED"
+            state["local_generation_error"] = f"{type(exc).__name__}: {exc}"
+            state["updated_at"] = now_iso()
+            atomic_json(state_path, state)
+            raise
 
     total_target_words = minutes * 130
     target_words = max(190, min(520, round(total_target_words / chapters)))
