@@ -136,4 +136,3 @@ def verify_ready_manifest(path: Path | str) -> dict[str, Any]:
     if seen != set(range(1, len(clips) + 1)):
         raise ValueError("manifest clip indices are not contiguous")
     return payload
-"
