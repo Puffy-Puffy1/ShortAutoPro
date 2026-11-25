@@ -531,6 +531,178 @@ def verify_generated_manifest(path: Path | str) -> dict[str, Any]:
     return payload
 
 
+
+_LOCAL_LONGFORM_SHOT_STYLES = (
+    "wide establishing shot with a slow, stable camera move",
+    "medium documentary shot emphasizing the central environment",
+    "close detail shot of a relevant object or texture",
+    "side tracking shot with natural, restrained movement",
+    "high-angle contextual shot that clarifies the location",
+    "low-angle cinematic shot with realistic natural lighting",
+)
+
+
+def _file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _build_local_longform_prompts(
+    topic: str,
+    outline: list[dict[str, Any]],
+    target_duration_seconds: int,
+    clip_seconds: int = 10,
+) -> list[str]:
+    if not outline or target_duration_seconds <= 0 or not 1 <= clip_seconds <= 30:
+        raise ValueError("LONGFORM_LOCAL_SPEC_INVALID")
+    clip_count = math.ceil(target_duration_seconds / clip_seconds)
+    chapter_windows = []
+    chapter_duration = target_duration_seconds / len(outline)
+    for position, chapter in enumerate(outline):
+        title = str(chapter.get("title") or "").strip()
+        objective = str(chapter.get("objective") or "").strip()
+        if not title or not objective:
+            raise ValueError(f"LONGFORM_LOCAL_CHAPTER_INVALID:{position + 1}")
+        chapter_windows.append((position * chapter_duration, (position + 1) * chapter_duration, title, objective))
+
+    prompts = []
+    for index in range(clip_count):
+        start = index * clip_seconds
+        center = start + min(clip_seconds, target_duration_seconds - start) / 2
+        chapter = next(
+            (item for item in chapter_windows if item[0] <= center < item[1]),
+            chapter_windows[-1],
+        )
+        shot = _LOCAL_LONGFORM_SHOT_STYLES[index % len(_LOCAL_LONGFORM_SHOT_STYLES)]
+        prompt = (
+            "Create one continuous 16:9 documentary video shot, photorealistic, "
+            "visually coherent, with natural restrained motion and realistic lighting. "
+            f"Subject: {topic}. Chapter: {chapter[2]}. Visual objective: {chapter[3]}. "
+            f"Camera direction: {shot}. "
+            "Show only plausible visual material relevant to this chapter; do not invent "
+            "readable signs, names, dates, historical identities or events. "
+            "No captions, subtitles, logos, watermarks, borders or interface text."
+        )
+        prompts.append(prompt[:4000])
+    return prompts
+
+
+def _run_local_queue_cli(arguments: list[str], timeout_seconds: int) -> subprocess.CompletedProcess:
+    worker_entrypoint = BASE / "generative_video_poc" / "brain.py"
+    if not worker_entrypoint.is_file():
+        raise RuntimeError(
+            "LOCAL_GENERATION_WORKER_UNAVAILABLE: integre primeiro a fila local compartilhada da PR #160"
+        )
+    command = [sys.executable, "-m", "generative_video_poc.brain", *arguments]
+    try:
+        result = subprocess.run(
+            command,
+            cwd=BASE,
+            env=os.environ.copy(),
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=timeout_seconds,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError("LONGFORM_LOCAL_GENERATION_TIMEOUT: fila local excedeu o limite configurado") from exc
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "sem detalhes").strip()[-1600:]
+        raise RuntimeError(f"LONGFORM_LOCAL_GENERATION_FAILED:{detail}")
+    return result
+
+
+def _generate_local_longform_manifest(
+    run_name: str,
+    topic: str,
+    minutes: int,
+    outline: list[dict[str, Any]],
+    backend_config: str | Path,
+    state: dict[str, Any],
+    run_dir: Path,
+) -> dict[str, Any]:
+    """Create/resume Long-form clips through the one shared local worker CLI."""
+    config_path = Path(backend_config).expanduser().resolve()
+    if not config_path.is_file():
+        raise RuntimeError(f"LONGFORM_LOCAL_BACKEND_CONFIG_NOT_FOUND:{config_path}")
+    config_sha256 = _file_sha256(config_path)
+    saved_sha256 = str(state.get("local_ai_backend_config_sha256") or "").strip()
+    if saved_sha256 and saved_sha256 != config_sha256:
+        raise RuntimeError("LONGFORM_LOCAL_BACKEND_CONFIG_CHANGED: use o mesmo arquivo da retomada")
+    prompts = _build_local_longform_prompts(topic, outline, minutes * 60)
+    spec = {
+        "kind": "longform",
+        "target_duration_seconds": minutes * 60,
+        "aspect_ratio": "16:9",
+        "width": 640,
+        "height": 360,
+        "clip_seconds": 10,
+        "clip_prompts": prompts,
+    }
+    identity = json.dumps(
+        {
+            "run_id": run_name,
+            "topic": topic,
+            "config_sha256": config_sha256,
+            "spec": spec,
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    identity_sha256 = hashlib.sha256(identity).hexdigest()
+    slug = re.sub(r"[^A-Za-z0-9_-]+", "_", run_name).strip("_-")[:30] or "run"
+    project_id = f"long_{slug}_{identity_sha256[:12]}"[:64]
+
+    spec_path = run_dir / "generated_media_spec.json"
+    atomic_json(spec_path, spec)
+    timeout_raw = os.getenv("SAP_LONGFORM_LOCAL_WORKER_TIMEOUT_SECONDS", "21600")
+    try:
+        worker_timeout = max(300, min(int(timeout_raw), 21600))
+    except (TypeError, ValueError):
+        worker_timeout = 21600
+
+    _run_local_queue_cli(
+        ["create", project_id, "--spec-file", str(spec_path)],
+        min(worker_timeout, 300),
+    )
+    worker_result = _run_local_queue_cli(
+        [
+            "work", "--project-id", project_id,
+            "--backend-config", str(config_path), "--drain",
+        ],
+        worker_timeout,
+    )
+    try:
+        payload = json.loads(worker_result.stdout)
+    except (TypeError, json.JSONDecodeError) as exc:
+        raise RuntimeError("LONGFORM_LOCAL_WORKER_INVALID_RESPONSE: resposta JSON ausente") from exc
+    if not isinstance(payload, dict) or payload.get("status") != "PROJECT_COMPLETE":
+        status = payload.get("status") if isinstance(payload, dict) else "INVALID"
+        raise RuntimeError(f"LONGFORM_LOCAL_GENERATION_INCOMPLETE:{status}")
+    manifest_info = payload.get("manifest")
+    manifest_path = str(manifest_info.get("manifest_path") or "") if isinstance(manifest_info, dict) else ""
+    if not manifest_path:
+        raise RuntimeError("LONGFORM_LOCAL_MANIFEST_NOT_EXPORTED")
+    generated = verify_generated_manifest(manifest_path)
+    if int(generated["project"]["target_duration_seconds"]) != minutes * 60:
+        raise RuntimeError("LONGFORM_LOCAL_MANIFEST_DURATION_MISMATCH")
+
+    state.update({
+        "local_ai_backend_config": str(config_path),
+        "local_ai_backend_config_sha256": config_sha256,
+        "local_ai_project_id": project_id,
+        "generated_manifest": str(Path(manifest_path).resolve()),
+        "generated_manifest_integrity": str(generated["integrity_sha256"]),
+        "generated_media_source": "shared_local_queue",
+    })
+    return generated
+
+
 def render_generated_chapter(
     chapter_dir: Path, manifest: dict[str, Any], start_seconds: float,
     end_seconds: float, audio: Path, duration: float, ass: Path,
