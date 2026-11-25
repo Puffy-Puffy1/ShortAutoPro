@@ -9,6 +9,7 @@ The POC uses Python's built-in SQLite; no extra database server or service is ne
 Run from the repository root in Termux:
 
     python -m generative_video_poc.brain device
+    python -m generative_video_poc.brain backend-check --backend-config generative_video_poc/local_video_backend.json
     python -m generative_video_poc.brain create meu-short --spec-file generative_video_poc/examples/shorts.json
     python -m generative_video_poc.brain create meu-documentario --spec-file generative_video_poc/examples/longform.json
     python -m generative_video_poc.brain list
@@ -56,6 +57,8 @@ References:
 - The worker writes generated clips only into the project workspace and marks them READY after FFprobe, resolution and duration checks. A completed project receives an integrity-checked `generated_manifest.json` containing clip order, timing, prompts, checksums and FFprobe metadata. This manifest is a handoff contract, not a finished MP4.
 
 ## Configure a real local video model
+
+Before starting a queue, run `backend-check`. It validates the JSON, executable path, FFprobe path and basic settings without starting the model. A successful preflight does not prove that model weights are installed, that the CLI flags are compatible, or that inference works; confirm those with a short real clip before processing a full project.
 
 Copy `local_video_backend.example.json` to `local_video_backend.json` and edit the executable path, model name and argument list to match the CLI of a model that is actually installed on the phone. The example is a template, not an installed generator: the backend deliberately does not guess model-specific flags. It invokes the executable without a shell and requires FFprobe-valid video output.
 
