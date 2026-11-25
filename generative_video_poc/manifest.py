@@ -4,15 +4,15 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from generative_video_poc.state_store import ProjectStore
-
 
 SCHEMA_VERSION = "shortautopro-generated-clips-v1"
+_PROJECT_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
 
 
 def _canonical(payload: dict[str, Any]) -> bytes:
@@ -45,7 +45,7 @@ def _prompt_for(spec: dict[str, Any], clip: dict[str, Any]) -> str:
     return prompt.strip()
 
 
-def build_ready_manifest(store: ProjectStore, project_id: str) -> dict[str, Any]:
+def build_ready_manifest(store: Any, project_id: str) -> dict[str, Any]:
     project = store.get_project(project_id)
     if project["status"] != "COMPLETE":
         raise ValueError("only a COMPLETE project can be exported")
@@ -113,10 +113,12 @@ def verify_ready_manifest(path: Path | str) -> dict[str, Any]:
     expected = hashlib.sha256(_canonical(payload)).hexdigest()
     if payload.get("integrity_sha256") != expected:
         raise ValueError("generated clip manifest integrity check failed")
-    project_id = ProjectStore.validate_project_id(str(payload.get("project_id") or ""))
+    project_id = str(payload.get("project_id") or "").strip()
+    if not _PROJECT_ID.fullmatch(project_id):
+        raise ValueError("project_id must be 1-64 letters, numbers, '_' or '-'")
     project_root = manifest_path.parent.resolve()
     if project_root.name != project_id:
-        raise ValueError("manifest is not stored in its matching project workspace")
+        raise ValueError(f"manifest workspace mismatch: parent={project_root.name!r} project_id={project_id!r}")
     clips = payload.get("clips")
     if not isinstance(clips, list) or len(clips) != int(payload.get("clip_count") or -1):
         raise ValueError("manifest clip count is inconsistent")

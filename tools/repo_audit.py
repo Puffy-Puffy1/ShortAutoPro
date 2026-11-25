@@ -290,7 +290,8 @@ def main() -> int:
         if rule not in ignore_lines:
             issues.append(f"gitignore_rule_missing:{rule}")
 
-    _, _, seeds, active, inactive, classification = map_active_graph.build_analysis()
+    _, _, seeds, active, _, classification = map_active_graph.build_analysis()
+    orphaned = classification["inactive_code"]
     production_code = classification["production_code"]
     test_only_code = classification["test_only_code"]
     support_code = classification["support_code"]
@@ -304,7 +305,7 @@ def main() -> int:
     # Only files that are unreachable from both production and test/CI roots
     # are treated as orphaned. Test-only code is reported separately so legacy
     # compatibility coverage stays visible without being mistaken for runtime.
-    for path in inactive:
+    for path in orphaned:
         issues.append(f"inactive_code:{path}")
 
     payload = {
@@ -320,8 +321,8 @@ def main() -> int:
         "test_only_code": test_only_code,
         "support_code_count": len(support_code),
         "support_code": support_code,
-        "inactive_code_count": len(inactive),
-        "inactive_code": inactive,
+        "inactive_code_count": len(orphaned),
+        "inactive_code": orphaned,
         "issues": issues,
     }
     print(json.dumps(payload, ensure_ascii=False, indent=2))

@@ -8,6 +8,7 @@ Short ID rather than trying to interpret legacy state.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -584,6 +585,34 @@ def _resume_locked(sid: str, point: str) -> int:
         return 1
 
 
+
+def restore_generated_manifest(sid: str) -> str | None:
+    """Restore the immutable generated-media input before any resumed stage runs."""
+    state_path = canonical.STATE_DIR / f"pipeline_{sid}.json"
+    state = read_json(state_path)
+    saved_manifest = str(state.get("generated_clips_manifest") or "").strip()
+    saved_backend = str(state.get("local_ai_backend_config") or "").strip()
+    if saved_manifest and saved_backend:
+        raise RuntimeError("estado contém duas fontes de geração de mídia; correção manual necessária")
+    if saved_manifest:
+        manifest = Path(saved_manifest).expanduser().resolve()
+        if not manifest.is_file():
+            raise RuntimeError(f"manifesto de clipes salvo não encontrado: {manifest}")
+        os.environ["SAP_GENERATED_CLIPS_MANIFEST"] = str(manifest)
+        return str(manifest)
+    if saved_backend:
+        backend = Path(saved_backend).expanduser().resolve()
+        if not backend.is_file():
+            raise RuntimeError(f"configuração do gerador local salva não encontrada: {backend}")
+        expected_sha = str(state.get("local_ai_backend_config_sha256") or "")
+        actual_sha = hashlib.sha256(backend.read_bytes()).hexdigest()
+        if expected_sha and actual_sha != expected_sha:
+            raise RuntimeError("configuração do gerador local mudou desde a produção; use uma nova execução")
+        os.environ["SAP_GENERATIVE_VIDEO_BACKEND_CONFIG"] = str(backend)
+        return str(backend)
+    return None
+
+
 def resume(sid: str) -> int:
     os.environ["SHORT_ID"] = sid
     try:
@@ -648,6 +677,11 @@ def main() -> int:
             )
         )
         return 0
+    try:
+        restore_generated_manifest(sid)
+    except Exception as exc:
+        print(f"RESUME_ERROR={type(exc).__name__}: {exc}", file=sys.stderr)
+        return 1
     return resume(sid)
 
 

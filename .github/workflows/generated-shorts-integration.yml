@@ -1,0 +1,52 @@
+name: ShortAutoPro Generated Shorts Integration
+on:
+  push:
+    branches:
+      - feat/shorts-generated-clips-integration-20261124
+  pull_request:
+    branches:
+      - feat/generative-video-queue-worker-20261124
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shortautopro-generated-shorts-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  generated-shorts-integration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: "utf-8"
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up FFmpeg and FFprobe
+        uses: ./.github/actions/setup-ffmpeg
+
+      - name: Install test dependency
+        run: python -m pip install --disable-pip-version-check --quiet requests
+
+      - name: Python syntax audit
+        run: python -m compileall -q .
+
+      - name: Generated Shorts and acquisition tests
+        run: |
+          python -m unittest discover -s tests -p "test_generated_shorts_*.py" -v
+          python -m unittest discover -s tests -p "test_media_acquisition_v2.py" -v
+
+      - name: Local generation queue and manifest tests
+        run: python -m unittest discover -s tests_generative_video -p "test_*.py" -v
+
+      - name: Full simulated regression suite
+        run: python -m unittest discover -s tests_sim -p "test_*.py" -v

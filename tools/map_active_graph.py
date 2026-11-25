@@ -20,6 +20,7 @@ CODE_EXTS = {".py", ".sh"}
 # entrypoint as orphaned code.
 DEFAULT_SEEDS = {
     "main.py",
+    "generative_video_poc/brain.py",
     "control_center.sh",
     "profile_run.sh",
     "evolution_center.sh",
@@ -214,7 +215,11 @@ def build_analysis():
 
     seeds = set(DEFAULT_SEEDS)
     seeds |= SUPPORT_SEEDS & set(files)
-    seeds |= {rel for rel in files if rel.startswith("tests_sim/") and rel.endswith(".py")}
+    seeds |= {
+        rel for rel in files
+        if rel.startswith(("tests/", "tests_sim/", "tests_generative_video/"))
+        and rel.endswith(".py")
+    }
     seeds |= {rel for rel in files if rel.startswith(".github/workflows/") and rel.endswith((".yml", ".yaml"))}
     seeds = {seed for seed in seeds if seed in files}
 
@@ -227,7 +232,7 @@ def build_analysis():
     test_seeds = {
         rel for rel in files
         if (
-            (rel.startswith("tests/") or rel.startswith("tests_sim/"))
+            rel.startswith(("tests/", "tests_sim/", "tests_generative_video/"))
             and rel.endswith(".py")
         ) or (
             rel.startswith(".github/workflows/")

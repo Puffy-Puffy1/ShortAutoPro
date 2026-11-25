@@ -50,6 +50,10 @@ class GeneratedManifestTests(unittest.TestCase):
     def test_exports_ordered_manifest_and_verifies_checksums(self):
         self.complete_all()
         manifest = build_ready_manifest(self.store, "manifest-test")
+        manifest_path = Path(manifest["manifest_path"])
+        raw_manifest = manifest_path.read_bytes()
+        self.assertTrue(raw_manifest.endswith(bytes((10,))))
+        self.assertFalse(raw_manifest.endswith(bytes((92, 110))))
         verified = verify_ready_manifest(manifest["manifest_path"])
         self.assertEqual(verified["clip_count"], 2)
         self.assertEqual([item["clip_index"] for item in verified["clips"]], [1, 2])

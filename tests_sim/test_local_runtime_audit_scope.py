@@ -34,8 +34,12 @@ class LocalRuntimeAuditScopeTests(unittest.TestCase):
             self.assertIn("main.py", production)
             self.assertIn("tools/purge_legacy_runtime.py", production)
             self.assertIn("render_v2/__init__.py", production)
+            self.assertIn("generative_video_poc/brain.py", production)
+            self.assertIn("generative_video_poc/termux_runtime.py", production)
             self.assertIn("automation/install_termux_bridge.sh", support)
             self.assertEqual(payload.get("support_code_count"), len(support))
+            self.assertIn("tests/test_generated_shorts_integration.py", test_only)
+            self.assertIn("tests_generative_video/test_manifest.py", test_only)
             for compatibility_module in (
                 "media_stage_runtime.py",
                 "midia.py",

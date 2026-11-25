@@ -16,6 +16,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -517,6 +518,8 @@ def _existing_asset_record(
         record = json.loads(sidecar.read_text(encoding="utf-8"))
         if not isinstance(record, dict):
             return None
+        if record.get("generated_manifest_sha256"):
+            return None
         relevance = record.get("query_relevance")
         if not isinstance(relevance, dict) or relevance.get("ok") is not True:
             return None
@@ -549,6 +552,25 @@ def _existing_asset_record(
         return record
     except (OSError, ValueError, TypeError, RuntimeError):
         return None
+
+
+
+def _discard_generated_asset_cache(media_dir: Path, number: int) -> None:
+    """Remove only this scene's generated clip when returning to provider acquisition."""
+    sidecar = media_dir / f"scene_{number:02d}.json"
+    if not sidecar.is_file():
+        return
+    try:
+        record = json.loads(sidecar.read_text(encoding="utf-8"))
+        if not isinstance(record, dict) or not record.get("generated_manifest_sha256"):
+            return
+        old_path = Path(str(record.get("path") or "")).expanduser().resolve()
+        old_path.relative_to(media_dir.resolve())
+        old_path.unlink(missing_ok=True)
+        sidecar.unlink(missing_ok=True)
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        # Do not delete a path that cannot be proven to belong to this scene workspace.
+        return
 
 
 def _write_asset_sidecar(media_dir: Path, number: int, asset: dict[str, Any]) -> None:
@@ -2174,6 +2196,243 @@ def acquire_scene(
 
 
 
+
+def _generate_local_shorts_manifest(
+    short_id: str,
+    scenes: list[dict[str, Any]],
+    backend_config_path: str | Path,
+) -> str:
+    """Create/resume the local queue directly from the canonical scene map."""
+    from generative_video_poc.contracts import ProjectSpec
+    from generative_video_poc.manifest import build_ready_manifest
+    from generative_video_poc.state_store import ProjectStore
+    from generative_video_poc.worker import LocalQueueWorker, load_backend_config
+
+    if not scenes or len(scenes) > 20:
+        raise RuntimeError("MEDIA_LOCAL_AI_SCENE_COUNT_OUT_OF_RANGE")
+    config_path = Path(backend_config_path).expanduser().resolve()
+    if not config_path.is_file():
+        raise RuntimeError(f"MEDIA_LOCAL_AI_BACKEND_CONFIG_NOT_FOUND:{config_path}")
+
+    prompts = []
+    for index, scene in enumerate(scenes, 1):
+        if not isinstance(scene, dict):
+            raise RuntimeError(f"MEDIA_LOCAL_AI_SCENE_INVALID:{index}")
+        query = str(scene.get("query") or scene.get("busca") or "").strip()
+        segment = str(scene.get("segment") or "").strip()
+        direction = str(
+            scene.get("visual_direction")
+            or scene.get("visual_intent")
+            or scene.get("visual_mode")
+            or scene.get("modo_visual")
+            or ""
+        ).strip()
+        must = scene.get("must_have") or []
+        avoid = scene.get("avoid") or []
+        if isinstance(must, str):
+            must = [must]
+        if isinstance(avoid, str):
+            avoid = [avoid]
+        required = ", ".join(str(x).strip() for x in must if str(x).strip())
+        excluded = ", ".join(str(x).strip() for x in avoid if str(x).strip())
+        subject = " ".join(part for part in (segment, direction, query) if part)
+        if not subject:
+            raise RuntimeError(f"MEDIA_LOCAL_AI_SCENE_HAS_NO_VISUAL_DIRECTION:{index}")
+        prompt = (
+            "Create one continuous vertical 9:16 documentary video shot, "
+            "photorealistic and visually coherent, with natural motion and stable subjects. "
+            f"Scene {index}: {subject}. "
+            + (f"Required visible elements: {required}. " if required else "")
+            + (f"Avoid showing: {excluded}. " if excluded else "")
+            + "No captions, subtitles, logos, watermarks, borders, or UI text."
+        )
+        prompts.append(prompt[:4000])
+
+    clip_seconds = min(10, max(1, 180 // len(scenes)))
+    spec = ProjectSpec.from_dict({
+        "kind": "shorts",
+        "target_duration_seconds": clip_seconds * len(scenes),
+        "aspect_ratio": "9:16",
+        "width": 720,
+        "height": 1280,
+        "clip_seconds": clip_seconds,
+        "clip_prompts": prompts,
+    })
+    backend_config_sha256 = sha256(config_path)
+    scene_identity = hashlib.sha256(
+        _canonical_json({
+            "short_id": short_id,
+            "prompts": prompts,
+            "clip_seconds": clip_seconds,
+            "backend_config_sha256": backend_config_sha256,
+        })
+    ).hexdigest()[:10]
+    slug = re.sub(r"[^A-Za-z0-9_-]+", "_", short_id).strip("_-")[:42] or "short"
+    project_id = f"short_{slug}_{scene_identity}"[:63]
+
+    backend, settings = load_backend_config(str(config_path))
+    store = ProjectStore()
+    store.create_project(project_id, spec)
+    worker = LocalQueueWorker(
+        store,
+        backend,
+        fps=int(settings["fps"]),
+        seed=int(settings["seed"]),
+        model=str(settings["model"]),
+        worker_id=f"sap-short-{scene_identity}",
+        timeout_seconds=int(settings["timeout_seconds"]),
+    )
+    result = worker.run_until_idle(project_id)
+    if result.get("status") != "PROJECT_COMPLETE":
+        raise RuntimeError(
+            "MEDIA_LOCAL_AI_GENERATION_INCOMPLETE:"
+            + json.dumps(result, ensure_ascii=False, sort_keys=True, default=str)
+        )
+    exported = build_ready_manifest(store, project_id)
+    manifest_path = Path(str(exported.get("manifest_path") or "")).expanduser().resolve()
+    if not manifest_path.is_file():
+        raise RuntimeError("MEDIA_LOCAL_AI_MANIFEST_EXPORT_FAILED")
+    print(
+        f"MEDIA_LOCAL_AI=PASS project={project_id} "
+        f"clips={len(prompts)} manifest={manifest_path}"
+    )
+    return str(manifest_path)
+
+
+
+def _load_generated_shorts_manifest(path: str | Path, expected_scenes: int) -> dict[str, Any]:
+    from generative_video_poc.manifest import verify_ready_manifest
+
+    payload = verify_ready_manifest(path)
+    spec = payload.get("project")
+    if not isinstance(spec, dict) or spec.get("kind") != "shorts" or spec.get("aspect_ratio") != "9:16":
+        raise RuntimeError("MEDIA_GENERATED_MANIFEST_INVALID:expected_shorts_9x16")
+    clips = payload.get("clips")
+    if not isinstance(clips, list) or len(clips) != expected_scenes:
+        raise RuntimeError(
+            f"MEDIA_GENERATED_MANIFEST_SCENE_COUNT_MISMATCH:expected={expected_scenes}:actual={len(clips) if isinstance(clips, list) else 0}"
+        )
+    if int(payload.get("clip_count", -1)) != expected_scenes:
+        raise RuntimeError("MEDIA_GENERATED_MANIFEST_CLIP_COUNT_INVALID")
+    target_duration = int(spec.get("target_duration_seconds") or 0)
+    clip_seconds = int(spec.get("clip_seconds") or 0)
+    if not 1 <= target_duration <= 180 or not 1 <= clip_seconds <= 30:
+        raise RuntimeError("MEDIA_GENERATED_MANIFEST_DURATION_INVALID")
+    if (target_duration + clip_seconds - 1) // clip_seconds != expected_scenes:
+        raise RuntimeError("MEDIA_GENERATED_MANIFEST_SCHEDULE_COUNT_MISMATCH")
+    width, height = int(spec.get("width") or 0), int(spec.get("height") or 0)
+    if width <= 0 or height <= 0 or width >= height:
+        raise RuntimeError("MEDIA_GENERATED_MANIFEST_DIMENSIONS_INVALID")
+    expected_start = 0
+    for index, clip in enumerate(clips, 1):
+        if not isinstance(clip, dict):
+            raise RuntimeError(f"MEDIA_GENERATED_MANIFEST_CLIP_INVALID:{index}")
+        start = int(clip.get("start_seconds", -1))
+        duration = int(clip.get("duration_seconds", 0))
+        expected_duration = min(clip_seconds, target_duration - expected_start)
+        if int(clip.get("clip_index", 0)) != index or start != expected_start or duration != expected_duration:
+            raise RuntimeError(f"MEDIA_GENERATED_MANIFEST_TIMELINE_INVALID:{index}")
+        if not str(clip.get("prompt") or "").strip():
+            raise RuntimeError(f"MEDIA_GENERATED_MANIFEST_PROMPT_MISSING:{index}")
+        media_path = Path(str(clip.get("path") or "")).expanduser().resolve()
+        if int(clip.get("size_bytes") or -1) != media_path.stat().st_size:
+            raise RuntimeError(f"MEDIA_GENERATED_MANIFEST_SIZE_MISMATCH:{index}")
+        probe = clip.get("ffprobe")
+        if not isinstance(probe, dict) or probe.get("status") != "GENERATED_AND_PROBED":
+            raise RuntimeError(f"MEDIA_GENERATED_MANIFEST_FFPROBE_MISSING:{index}")
+        if int(probe.get("width") or 0) != int(spec["width"]) or int(probe.get("height") or 0) != int(spec["height"]):
+            raise RuntimeError(f"MEDIA_GENERATED_MANIFEST_RESOLUTION_MISMATCH:{index}")
+        if not duration * 0.95 <= float(probe.get("duration_seconds") or 0) <= duration * 1.10:
+            raise RuntimeError(f"MEDIA_GENERATED_MANIFEST_DURATION_MISMATCH:{index}")
+        expected_start += duration
+    if expected_start != target_duration:
+        raise RuntimeError("MEDIA_GENERATED_MANIFEST_TIMELINE_INCOMPLETE")
+    return payload
+
+
+def acquire_generated_scene(
+    short_id: str,
+    number: int,
+    scene: dict[str, Any],
+    media_dir: Path,
+    clip: dict[str, Any],
+    manifest: dict[str, Any],
+    used_asset_hashes: set[str],
+) -> dict[str, Any]:
+    """Use one generated clip for one scene, but retain pixel-level scene QA."""
+    must = [str(value).strip() for value in (scene.get("must_have") or []) if str(value).strip()]
+    avoid = [str(value).strip() for value in (scene.get("avoid") or []) if str(value).strip()]
+    query = str(scene.get("query") or scene.get("busca") or scene.get("segment") or "").strip()
+    segment = str(scene.get("segment") or "").strip()
+    source = Path(str(clip.get("path") or "")).expanduser().resolve()
+    root = Path(str(manifest["_manifest_path"])).resolve().parent
+    if not source.is_relative_to(root) or not source.is_file():
+        raise RuntimeError(f"MEDIA_GENERATED_CLIP_SCOPE_INVALID:scene_{number:02d}")
+    digest = sha256(source)
+    if digest != clip.get("sha256") or digest in used_asset_hashes:
+        raise RuntimeError(f"MEDIA_GENERATED_CLIP_CHECKSUM_OR_DUPLICATE:scene_{number:02d}")
+    target = media_dir / f"scene_{number:02d}.mp4"
+    shutil.copy2(source, target)
+    validation = validate_asset(target)
+    if validation.get("sha256") != digest:
+        raise RuntimeError(f"MEDIA_GENERATED_CLIP_COPY_INVALID:scene_{number:02d}")
+    probe = validation.get("probe", {})
+    resolution_error = _resolution_issue(probe)
+    if resolution_error:
+        raise RuntimeError(f"MEDIA_GENERATED_CLIP_{resolution_error}:scene_{number:02d}")
+    candidate = {
+        "tipo": "video",
+        "asset_type": "video",
+        "descricao": str(clip.get("prompt") or ""),
+        "fonte": "ShortAutoPro Local AI",
+    }
+    visual_result = _verify_scene_pixels(
+        target, must, avoid, _scene_verification_intent(segment, query), candidate,
+    )
+    if visual_result.get("status") != "PASS":
+        try:
+            target.unlink(missing_ok=True)
+        except OSError:
+            pass
+        raise RuntimeError(
+            f"MEDIA_GENERATED_VISUAL_QA_BLOCK:scene_{number:02d}:"
+            f"{_visual_rejection_diagnostic(visual_result)}"
+        )
+    fingerprint = _scene_contract_fingerprint(scene)
+    candidate.update({
+        "_sap_must_total": len(must),
+        "_sap_scene_contract_fingerprint": fingerprint,
+        "must_hits": len(must),
+        "evidence_class": "visual_model",
+        "query_relevance": {
+            "ok": True,
+            "method": "generated_clip_prompt_binding",
+            "matched_count": 1,
+            "note": "prompt binding only; pixel-level verification is recorded separately",
+        },
+    })
+    record = _candidate_record(candidate, target, probe)
+    record.update({
+        "short_id": short_id,
+        "scene_number": number,
+        "license": "AI-generated",
+        "provenance": {
+            "generation_host": str(clip.get("ffprobe", {}).get("generation_host") or "termux_local"),
+            "model": str(clip.get("ffprobe", {}).get("model") or ""),
+            "prompt": str(clip.get("prompt") or ""),
+            "source_project_id": str(manifest.get("project_id") or ""),
+            "source_manifest_sha256": str(manifest.get("integrity_sha256") or ""),
+        },
+        "verification_mode": "gemini_visual_must",
+        "verification_note": "generated clip passed frame-level scene MUST/AVOID verification",
+        "visual_verification": visual_result,
+        "metadata_must_hits": 0,
+        "generated_manifest_sha256": str(manifest.get("integrity_sha256") or ""),
+        "generated_clip_index": int(clip["clip_index"]),
+    })
+    return record
+
+
 def build_manifest(short_id: str) -> dict[str, Any]:
     short_id = validate_short_id(short_id)
     scenes = load_scene_map(short_id)
@@ -2181,7 +2440,27 @@ def build_manifest(short_id: str) -> dict[str, Any]:
     media_dir.mkdir(parents=True, exist_ok=True)
     records = []
     used_asset_hashes: set[str] = set()
+    generated_path = os.getenv("SAP_GENERATED_CLIPS_MANIFEST", "").strip()
+    backend_config = os.getenv("SAP_GENERATIVE_VIDEO_BACKEND_CONFIG", "").strip()
+    if generated_path and backend_config:
+        raise RuntimeError("MEDIA_GENERATED_INPUT_AMBIGUOUS:choose_manifest_or_local_backend_config")
+    if backend_config and not generated_path:
+        generated_path = _generate_local_shorts_manifest(short_id, scenes, backend_config)
+    generated = _load_generated_shorts_manifest(generated_path, len(scenes)) if generated_path else None
+    if generated:
+        generated["_manifest_path"] = str(Path(generated_path).expanduser().resolve())
     for number, scene in enumerate(scenes, 1):
+        if generated:
+            record = acquire_generated_scene(
+                short_id, number, scene, media_dir, generated["clips"][number - 1],
+                generated, used_asset_hashes,
+            )
+            checksum = str(record.get("checksum_sha256") or "")
+            _write_asset_sidecar(media_dir, number, record)
+            records.append(record)
+            used_asset_hashes.add(checksum)
+            continue
+        _discard_generated_asset_cache(media_dir, number)
         existing = _existing_asset_record(media_dir, number, scene)
         if existing is not None:
             existing_hash = str(existing.get("checksum_sha256") or "")
