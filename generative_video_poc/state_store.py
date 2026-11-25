@@ -42,6 +42,8 @@ def _spec_payload(spec: ProjectSpec) -> dict[str, Any]:
         "width": spec.width,
         "height": spec.height,
         "clip_seconds": spec.clip_seconds,
+        "prompt_template": spec.prompt_template,
+        "clip_prompts": list(spec.clip_prompts),
     }
 
 
@@ -148,7 +150,15 @@ class ProjectStore:
                 "SELECT spec_json FROM projects WHERE project_id = ?", (project_id,)
             ).fetchone()
             if existing:
-                if existing["spec_json"] != encoded:
+                try:
+                    previous_spec = json.loads(existing["spec_json"])
+                except (TypeError, json.JSONDecodeError):
+                    previous_spec = None
+                if isinstance(previous_spec, dict):
+                    # Backward compatibility for queue projects created before prompt_template existed.
+                    previous_spec.setdefault("prompt_template", "")
+                    previous_spec.setdefault("clip_prompts", [])
+                if previous_spec != json.loads(encoded):
                     db.rollback()
                     raise ProjectConflict("project ID already exists with a different spec")
                 db.commit()

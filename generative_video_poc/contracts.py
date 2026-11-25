@@ -17,6 +17,8 @@ class ProjectSpec:
     width: int
     height: int
     clip_seconds: int = 10
+    prompt_template: str = ""
+    clip_prompts: tuple[str, ...] = ()
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> "ProjectSpec":
@@ -33,6 +35,8 @@ class ProjectSpec:
         ratio = str(payload.get("aspect_ratio", "")).strip()
         if duration <= 0 or width <= 0 or height <= 0:
             raise ValueError("duration and output dimensions must be positive")
+        if duration > 7200:
+            raise ValueError("projects are limited to 120 minutes")
         if not 1 <= clip_seconds <= 30:
             raise ValueError("clip_seconds must be between 1 and 30")
         expected = "9:16" if kind == "shorts" else "16:9"
@@ -40,13 +44,27 @@ class ProjectSpec:
             raise ValueError(f"{kind} projects require aspect_ratio {expected}")
         if kind == "shorts" and duration > 180:
             raise ValueError("Shorts proof-of-concept projects are limited to 180 seconds")
-        if kind == "longform" and duration <= 180:
-            raise ValueError("longform projects must exceed 180 seconds")
         if ratio == "9:16" and height <= width:
             raise ValueError("9:16 output must be portrait")
         if ratio == "16:9" and width <= height:
             raise ValueError("16:9 output must be landscape")
-        return cls(kind, duration, ratio, width, height, clip_seconds)
+        prompt_template = str(payload.get("prompt_template", "")).strip()
+        if len(prompt_template) > 4000:
+            raise ValueError("prompt_template must not exceed 4000 characters")
+        raw_prompts = payload.get("clip_prompts", [])
+        if not isinstance(raw_prompts, list):
+            raise ValueError("clip_prompts must be a list when provided")
+        clip_prompts = tuple(str(item).strip() for item in raw_prompts)
+        if any(not item or len(item) > 4000 for item in clip_prompts):
+            raise ValueError("each clip prompt must contain 1-4000 characters")
+        if sum(len(item) for item in clip_prompts) > 500000:
+            raise ValueError("combined clip prompts must not exceed 500000 characters")
+        expected_clips = (duration + clip_seconds - 1) // clip_seconds
+        if clip_prompts and len(clip_prompts) != expected_clips:
+            raise ValueError(f"clip_prompts must contain exactly {expected_clips} entries")
+        if clip_prompts and prompt_template:
+            raise ValueError("use clip_prompts or prompt_template, not both")
+        return cls(kind, duration, ratio, width, height, clip_seconds, prompt_template, clip_prompts)
 
     def clip_schedule(self) -> list[Clip]:
         clips, start = [], 0

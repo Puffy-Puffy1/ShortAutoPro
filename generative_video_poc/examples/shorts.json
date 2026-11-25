@@ -4,5 +4,6 @@
   "aspect_ratio": "9:16",
   "width": 720,
   "height": 1280,
-  "clip_seconds": 10
+  "clip_seconds": 10,
+  "prompt_template": "Cinematic vertical video about [write the subject and visual action]. Keep a consistent visual style. Scene {clip_index}, time {start_seconds}s, duration {duration_seconds}s."
 }

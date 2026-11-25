@@ -10,6 +10,8 @@ from typing import Any
 
 from generative_video_poc.state_store import ProjectStore, StoreError
 from generative_video_poc.termux_runtime import TermuxRuntime, TermuxPreflightError
+from generative_video_poc.worker import LocalQueueWorker, load_backend_config
+from generative_video_poc.manifest import build_ready_manifest, verify_ready_manifest
 
 
 def _print(payload: Any) -> None:
@@ -35,6 +37,19 @@ def build_parser() -> argparse.ArgumentParser:
     claim.add_argument("--worker", default=f"{socket.gethostname()}-{os.getpid()}")
     claim.add_argument("--lease-seconds", type=int, default=900)
     claim.add_argument("--root")
+    work = sub.add_parser("work", help="generate one real clip from the local model queue")
+    work.add_argument("--project-id")
+    work.add_argument("--backend-config", required=True)
+    work.add_argument("--worker", default=f"{socket.gethostname()}-{os.getpid()}")
+    work.add_argument("--drain", action="store_true", help="keep processing until the project is complete or fails")
+    work.add_argument("--root")
+    export = sub.add_parser("export", help="write an integrity-checked manifest for a completed project")
+    export.add_argument("project_id")
+    export.add_argument("--root")
+    verify = sub.add_parser("verify-manifest", help="verify a generated clip manifest and all clip checksums")
+    verify.add_argument("manifest_path")
+    backend_check = sub.add_parser("backend-check", help="validate local generator configuration without running inference")
+    backend_check.add_argument("--backend-config", required=True)
     return parser
 
 
@@ -49,8 +64,39 @@ def main(argv: list[str] | None = None) -> int:
         except TermuxPreflightError as exc:
             _print({"preflight": "FAIL", "reason": str(exc), **runtime.inspect()})
             return 2
-    store = ProjectStore(Path(args.root) if args.root else None)
     try:
+        if args.command == "verify-manifest":
+            _print(verify_ready_manifest(args.manifest_path))
+            return 0
+        if args.command == "backend-check":
+            backend, config = load_backend_config(args.backend_config)
+            _print({
+                "status": "CONFIG_VALID",
+                "executable": backend.executable,
+                "ffprobe": backend.ffprobe,
+                "model": config["model"],
+                "fps": config["fps"],
+                "timeout_seconds": config["timeout_seconds"],
+                "inference_executed": False,
+                "message": "Configuration and executable paths are valid; model inference was not tested.",
+            })
+            return 0
+        if args.command == "work":
+            backend, config = load_backend_config(args.backend_config)
+            store = ProjectStore(Path(args.root) if args.root else None)
+            worker = LocalQueueWorker(
+                store, backend, fps=config["fps"], seed=config["seed"],
+                model=config["model"], worker_id=args.worker,
+                timeout_seconds=config["timeout_seconds"],
+            )
+            if args.drain and not args.project_id:
+                raise ValueError("--drain requires --project-id")
+            result = worker.run_until_idle(args.project_id) if args.drain else worker.run_one(project_id=args.project_id)
+            if args.drain and result["status"] == "PROJECT_COMPLETE":
+                result["manifest"] = build_ready_manifest(store, args.project_id)
+            _print(result)
+            return 0 if result["status"] in {"CLIP_READY", "QUEUE_EMPTY", "PROJECT_COMPLETE"} else 2
+        store = ProjectStore(Path(args.root) if args.root else None)
         if args.command == "create":
             spec_path = Path(args.spec_file).expanduser().resolve()
             data = json.loads(spec_path.read_text(encoding="utf-8"))
@@ -64,6 +110,8 @@ def main(argv: list[str] | None = None) -> int:
                 args.worker, project_id=args.project_id, lease_seconds=args.lease_seconds,
             )
             _print(result if result is not None else {"status": "QUEUE_EMPTY"})
+        elif args.command == "export":
+            _print(build_ready_manifest(store, args.project_id))
         return 0
     except (OSError, json.JSONDecodeError, ValueError, KeyError, StoreError) as exc:
         print(f"SHORTAUTOPRO_ERROR={type(exc).__name__}: {exc}", file=sys.stderr)

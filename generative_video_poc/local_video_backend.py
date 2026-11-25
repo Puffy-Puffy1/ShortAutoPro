@@ -1,6 +1,7 @@
 """Safe adapter for a local Android/Termux video-generation executable."""
 from __future__ import annotations
 import json
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -29,16 +30,16 @@ class LocalVideoBackend:
     def __init__(self, executable: str, command_template: Sequence[str], *,
                  timeout_seconds: int = 1800, ffprobe: str = "ffprobe"):
         resolved = shutil.which(executable) if "/" not in executable else executable
-        if not resolved or not Path(resolved).is_file():
-            raise ValueError(f"local generation executable not found: {executable}")
+        if not resolved or not Path(resolved).is_file() or not os.access(resolved, os.X_OK):
+            raise ValueError(f"local generation executable not found or not executable: {executable}")
         if not 1 <= int(timeout_seconds) <= 14400:
             raise ValueError("timeout_seconds must be between 1 and 14400")
         self.executable = str(resolved)
         self.command_template = validate_template(command_template)
         self.timeout_seconds = int(timeout_seconds)
         self.ffprobe = shutil.which(ffprobe) if "/" not in ffprobe else ffprobe
-        if not self.ffprobe or not Path(self.ffprobe).is_file():
-            raise ValueError("ffprobe is required to validate a generated clip")
+        if not self.ffprobe or not Path(self.ffprobe).is_file() or not os.access(self.ffprobe, os.X_OK):
+            raise ValueError("an executable ffprobe is required to validate a generated clip")
 
     @staticmethod
     def _tail(path: Path, limit: int = 1600) -> str:
@@ -114,5 +115,6 @@ class LocalVideoBackend:
             "width": video.get("width"),
             "height": video.get("height"),
             "generation_host": "termux_local",
+            "model": model,
             "log_path": str(log_path),
         }

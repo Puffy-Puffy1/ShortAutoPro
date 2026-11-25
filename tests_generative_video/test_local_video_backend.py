@@ -42,6 +42,17 @@ class LocalBackendTests(unittest.TestCase):
         self.assertEqual(out.read_bytes(), b"fake video bytes")
         self.assertTrue(Path(result["log_path"]).is_file())
 
+    def test_requires_executable_generator_and_ffprobe(self):
+        non_executable = self.root / "not-executable"
+        non_executable.write_text("not executable", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "not executable"):
+            LocalVideoBackend(str(non_executable), ["{output}"], ffprobe=str(self.ffprobe))
+
+        non_executable_probe = self.root / "not-executable-ffprobe"
+        non_executable_probe.write_text("not executable", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "executable ffprobe"):
+            LocalVideoBackend(str(self.generator), ["{output}"], ffprobe=str(non_executable_probe))
+
     def test_refuses_existing_output(self):
         out = self.root / "sample.mp4"
         out.write_bytes(b"already here")
@@ -75,9 +86,6 @@ class LocalBackendTests(unittest.TestCase):
 
     def test_timeout_is_bounded_and_reported(self):
         slow = self.root / "slow-generator"
-        slow.write_text("#!/usr/bin/env python3\nimport time\n time.sleep(5)\n", encoding="utf-8")
-        slow.chmod(0o755)
-        # Rewrite without leading indentation in the executable.
         slow.write_text("#!/usr/bin/env python3\nimport time\ntime.sleep(5)\n", encoding="utf-8")
         slow.chmod(0o755)
         backend = LocalVideoBackend(str(slow), ["{output}"], ffprobe=str(self.ffprobe), timeout_seconds=1)

@@ -1,0 +1,17 @@
+{
+  "executable": "/absolute/path/to/your/local-video-generator",
+  "command_template": [
+    "--prompt", "{prompt}",
+    "--output", "{output}",
+    "--width", "{width}",
+    "--height", "{height}",
+    "--frames", "{frames}",
+    "--seed", "{seed}",
+    "--model", "{model}"
+  ],
+  "timeout_seconds": 1800,
+  "fps": 12,
+  "seed": 1000,
+  "model": "replace-with-installed-model-id",
+  "ffprobe": "ffprobe"
+}

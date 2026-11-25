@@ -4,16 +4,19 @@
 
 ## Local controller and queue
 
-The POC uses Python's built-in SQLite; no extra database server or service is needed.
+The POC uses Python's built-in SQLite; no extra database server or service is needed. Project schedules support up to 120 minutes per run, with bounded clip counts and prompt payloads.
 
 Run from the repository root in Termux:
 
     python -m generative_video_poc.brain device
+    python -m generative_video_poc.brain backend-check --backend-config generative_video_poc/local_video_backend.json
     python -m generative_video_poc.brain create meu-short --spec-file generative_video_poc/examples/shorts.json
     python -m generative_video_poc.brain create meu-documentario --spec-file generative_video_poc/examples/longform.json
     python -m generative_video_poc.brain list
     python -m generative_video_poc.brain show meu-short
     python -m generative_video_poc.brain claim --project-id meu-short
+    # after configuring a compatible local video generator:
+    python -m generative_video_poc.brain work --project-id meu-short --backend-config generative_video_poc/local_video_backend.json
 
 The device report inspects Android manufacturer/model, platform properties from an allow-list, RAM, free internal storage, installed tools and optional Vulkan information. It does not collect serial numbers or account/network identifiers. Controller readiness is checked separately from availability of local text/video inference.
 
@@ -47,10 +50,25 @@ References:
 - Database: $HOME/.shortautopro/state/queue.sqlite3.
 - Project workspace: $HOME/.shortautopro/projects/<project_id>/.
 - Every clip has PENDING, RUNNING, READY or FAILED status.
-- A worker claims a clip with a unique lease token. Heartbeats renew the lease.
+- The worker claims one clip with a unique lease token and sets the lease longer than the bounded model timeout; stale workers cannot commit results.
 - Expired leases return to the queue up to the fixed per-project retry limit; stale workers cannot complete a clip.
 - Each attempt gets its own suggested output filename. Completion requires an in-project file and FFprobe validation metadata.
-- Project specs are immutable and create is idempotent.
+- Project specs are immutable and create is idempotent. Each spec includes either a visual `prompt_template` or a `clip_prompts` list with exactly one prompt per scheduled clip; supported placeholders are `{clip_index}`, `{start_seconds}` and `{duration_seconds}`.
+- The worker writes generated clips only into the project workspace and marks them READY after FFprobe, resolution and duration checks. A completed project receives an integrity-checked `generated_manifest.json` containing clip order, timing, prompts, checksums and FFprobe metadata. This manifest is a handoff contract, not a finished MP4.
+
+## Configure a real local video model
+
+Before starting a queue, run `backend-check`. It validates the JSON, executable path, FFprobe path and basic settings without starting the model. A successful preflight does not prove that model weights are installed, that the CLI flags are compatible, or that inference works; confirm those with a short real clip before processing a full project.
+
+Copy `local_video_backend.example.json` to `local_video_backend.json` and edit the executable path, model name and argument list to match the CLI of a model that is actually installed on the phone. The example is a template, not an installed generator: the backend deliberately does not guess model-specific flags. It invokes the executable without a shell and requires FFprobe-valid video output.
+
+The project JSON must contain a meaningful `prompt_template`. Replace the bracketed subject in the sample Shorts/long-form specs before creating a project. Use `--drain` to process the entire project automatically in one session; without it, the command processes only one clip. The SQLite checkpoints make interrupted projects resumable:
+
+    python -m generative_video_poc.brain work --project-id meu-documentario --backend-config generative_video_poc/local_video_backend.json --drain
+    python -m generative_video_poc.brain show meu-documentario
+    python -m generative_video_poc.brain verify-manifest ~/.shortautopro/projects/meu-documentario/generated_manifest.json
+
+A READY clip is a generated asset checkpoint, not a finished exported video. The manifest is the interchange contract for the canonical media/long-form pipeline; final assembly remains a separate integration gate, and no parallel renderer is introduced here.
 
 ## Base packages
 
@@ -74,5 +92,6 @@ Tests use fake local processes and fixture data; they validate contracts, concur
 2. Test the local text runtime with a small model only after checking device RAM and free storage.
 3. Identify the exact GPU/driver before choosing a video runtime and model quantization.
 4. Generate a real local clip, inspect it and validate with FFprobe; measure time, peak memory and heat.
-5. Connect the model worker to the durable queue and test Termux interruption/recovery.
-6. Only after those gates, propose integration with the existing canonical production pipeline.
+5. Run the queue worker against the actual installed local model and test interruption/recovery.
+6. Connect READY clip assets to the existing media manifest and long-form chapter timeline without creating another renderer.
+7. Validate the complete MP4 in Termux with FFprobe before declaring the feature ready.
