@@ -467,17 +467,28 @@ def ass_filter_path(path: Path) -> str:
 def verify_generated_manifest(path: Path | str) -> dict[str, Any]:
     """Validate the worker manifest and every clip before media enters production."""
     manifest_path = Path(path).expanduser().resolve()
-    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
-    if not isinstance(payload, dict) or payload.get("schema_version") != "shortautopro-generated-clips-v1":
-        raise ValueError("manifesto de clipes incompatível")
-    canonical = dict(payload)
-    expected = str(canonical.pop("integrity_sha256", ""))
-    raw = json.dumps(canonical, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    if not expected or hashlib.sha256(raw).hexdigest() != expected:
-        raise ValueError("integridade do manifesto de clipes inválida")
-    project_id = str(payload.get("project_id") or "")
-    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,79}", project_id) or manifest_path.parent.name != project_id:
-        raise ValueError("manifesto fora do workspace correspondente")
+    shared_verified = False
+    try:
+        from generative_video_poc.manifest import verify_ready_manifest
+    except ModuleNotFoundError as exc:
+        if exc.name not in {"generative_video_poc", "generative_video_poc.manifest"}:
+            raise
+    else:
+        payload = verify_ready_manifest(manifest_path)
+        shared_verified = True
+
+    if not shared_verified:
+        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict) or payload.get("schema_version") != "shortautopro-generated-clips-v1":
+            raise ValueError("manifesto de clipes incompatível")
+        canonical = dict(payload)
+        expected = str(canonical.pop("integrity_sha256", ""))
+        raw = json.dumps(canonical, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        if not expected or hashlib.sha256(raw).hexdigest() != expected:
+            raise ValueError("integridade do manifesto de clipes inválida")
+        project_id = str(payload.get("project_id") or "")
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,79}", project_id) or manifest_path.parent.name != project_id:
+            raise ValueError("manifesto fora do workspace correspondente")
     spec = payload.get("project")
     if not isinstance(spec, dict) or spec.get("kind") != "longform" or spec.get("aspect_ratio") != "16:9":
         raise ValueError("manifesto precisa ser de projeto longform 16:9")
@@ -512,12 +523,13 @@ def verify_generated_manifest(path: Path | str) -> dict[str, Any]:
             raise ValueError(f"arquivo do clipe {index} ausente ou fora do workspace")
         if int(item.get("size_bytes") or -1) != media.stat().st_size:
             raise ValueError(f"tamanho do clipe {index} não confere")
-        digest = hashlib.sha256()
-        with media.open("rb") as handle:
-            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-                digest.update(chunk)
-        if digest.hexdigest() != item.get("sha256"):
-            raise ValueError(f"checksum do clipe {index} não confere")
+        if not shared_verified:
+            digest = hashlib.sha256()
+            with media.open("rb") as handle:
+                for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                    digest.update(chunk)
+            if digest.hexdigest() != item.get("sha256"):
+                raise ValueError(f"checksum do clipe {index} não confere")
         probe = item.get("ffprobe")
         if not isinstance(probe, dict) or probe.get("status") != "GENERATED_AND_PROBED":
             raise ValueError(f"clipe {index} sem validação FFprobe")
