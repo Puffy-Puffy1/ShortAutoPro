@@ -40,8 +40,8 @@ jobs:
       - name: Python syntax audit
         run: python -m compileall -q .
 
-      - name: Generated manifest integration tests
-        run: python -m unittest tests_sim.test_generated_manifest_integration tests_sim.test_longform_integration -v
+      - name: Generated manifest and local queue integration tests
+        run: python -m unittest tests_sim.test_generated_manifest_integration tests_sim.test_longform_integration tests_sim.test_longform_local_generation -v
 
       - name: Full simulated regression suite
         run: python -m unittest discover -s tests_sim -p "test_*.py" -v
