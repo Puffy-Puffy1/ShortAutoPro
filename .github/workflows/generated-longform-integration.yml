@@ -47,7 +47,7 @@ jobs:
         run: python -m compileall -q .
 
       - name: Generated manifest and local queue integration tests
-        run: python -m unittest tests_sim.test_generated_manifest_integration tests_sim.test_longform_integration tests_sim.test_longform_local_generation -v
+        run: python -m unittest tests_sim.test_generated_manifest_integration tests_sim.test_longform_integration tests_sim.test_longform_local_generation tests_sim.test_longform_shared_worker_e2e -v
 
       - name: Full simulated regression suite
         run: python -m unittest discover -s tests_sim -p "test_*.py" -v
