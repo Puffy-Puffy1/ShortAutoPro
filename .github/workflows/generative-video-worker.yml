@@ -1,8 +1,5 @@
 name: Generative Video Queue Worker
 on:
-  push:
-    branches:
-      - feat/generative-video-queue-worker-20261124
   pull_request:
     branches:
       - poc/generative-video-zero-budget-20261117
