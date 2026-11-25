@@ -673,7 +673,9 @@ def cli() -> int:
     longform_run.add_argument("--minutes", type=int, default=15)
     longform_run.add_argument("--chapters", type=int, default=None)
     longform_run.add_argument("--profile", default="true_crime")
-    longform_run.add_argument("--generated-manifest", default=None)
+    longform_media_source = longform_run.add_mutually_exclusive_group()
+    longform_media_source.add_argument("--generated-manifest", default=None)
+    longform_media_source.add_argument("--local-ai-backend-config", default=None)
     longform_resume = longform_sub.add_parser("resume")
     longform_resume.add_argument("--run-id", default=None)
     longform_status = longform_sub.add_parser("status")
@@ -697,6 +699,8 @@ def cli() -> int:
             command.extend(["--topic", args.topic, "--minutes", str(args.minutes), "--profile", args.profile])
             if args.generated_manifest:
                 command.extend(["--generated-manifest", args.generated_manifest])
+            if args.local_ai_backend_config:
+                command.extend(["--local-ai-backend-config", args.local_ai_backend_config])
             if args.chapters is not None:
                 command.extend(["--chapters", str(args.chapters)])
         elif args.longform_command in {"resume", "status"} and args.run_id:
@@ -704,7 +708,11 @@ def cli() -> int:
         try:
             return run_group(
                 command, cwd=BASE, env=os.environ.copy(), check=False,
-                timeout=env_int("SAP_CONTROL_COMMAND_TIMEOUT", 7200, 300, 21600),
+                timeout=env_int(
+                    "SAP_CONTROL_COMMAND_TIMEOUT",
+                    21600 if args.longform_command == "run" and args.local_ai_backend_config else 7200,
+                    300, 21600,
+                ),
             ).returncode
         except subprocess.TimeoutExpired:
             print("ERRO: produção long-form excedeu o timeout de controle")
