@@ -71,9 +71,16 @@ python main.py longform run --topic "Tema factual" --minutes 15 --chapters 6 \
 Para gerar automaticamente os clipes pela fila local compartilhada, use:
 
 ```bash
+cp generative_video_poc/local_video_backend.example.json \
+  generative_video_poc/local_video_backend.json
+# Edite executable, command_template e model para o gerador realmente instalado.
 python main.py longform run --topic "Tema factual" --minutes 15 --chapters 6 \
-  --local-ai-backend-config "$HOME/ShortAutoPro/config/local_video_backend.json"
+  --local-ai-backend-config "$HOME/ShortAutoPro/generative_video_poc/local_video_backend.json"
 ```
+
+O arquivo de exemplo é apenas um modelo de configuração; ele não instala nem
+fornece um gerador. Ajuste o caminho do executável, os argumentos suportados
+pelo seu modelo e o identificador dos pesos locais antes de iniciar.
 
 O runtime cria um projeto idempotente, usa a fila/worker/exportador da PR #160,
 gera prompts de vídeo por trecho de capítulo e retoma o mesmo projeto quando
