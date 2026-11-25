@@ -188,6 +188,32 @@ class LongFormLocalGenerationTests(unittest.TestCase):
         self.assertEqual(execute.call_args.kwargs["generated_manifest"], str(manifest))
         self.assertIsNone(execute.call_args.kwargs["local_ai_backend_config"])
 
+    def test_worker_failure_is_saved_as_partial_and_resumable_state(self):
+        run_id = "20261125_local_failure"
+        run_root = self.root / "state"
+        media_root = self.root / "media"
+        run_root.mkdir()
+        with mock.patch.object(longform, "RUN_ROOT", run_root), \
+             mock.patch.object(longform, "MEDIA_ROOT", media_root), \
+             mock.patch.object(longform, "require_runtime"), \
+             mock.patch.object(longform, "safe_profile", return_value={}), \
+             mock.patch.object(longform, "verify_topic", return_value=({"wiki_title": "Tema"}, "fonte factual")), \
+             mock.patch.object(longform, "build_outline", return_value=self.outline + [
+                 {"chapter": 3, "title": "Conclusão", "objective": "Fechar o contexto"},
+             ]), \
+             mock.patch.object(longform, "_generate_local_longform_manifest", side_effect=RuntimeError("worker interrupted")):
+            with self.assertRaisesRegex(RuntimeError, "worker interrupted"):
+                longform.execute(
+                    "Tema", 5, 3, "default", existing_id=run_id,
+                    local_ai_backend_config=str(self.backend),
+                )
+
+        saved = json.loads((run_root / f"{run_id}.json").read_text(encoding="utf-8"))
+        self.assertEqual(saved["status"], "PARTIAL")
+        self.assertEqual(saved["local_generation_status"], "FAILED")
+        self.assertIn("worker interrupted", saved["local_generation_error"])
+        self.assertEqual(saved["local_ai_backend_config_sha256"], longform._file_sha256(self.backend))
+
     def test_execute_rejects_two_media_sources(self):
         with self.assertRaisesRegex(ValueError, "não ambos"):
             longform.execute(
