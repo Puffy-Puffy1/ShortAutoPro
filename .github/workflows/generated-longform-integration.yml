@@ -23,6 +23,15 @@ jobs:
       - name: Checkout exact commit
         uses: actions/checkout@v4
 
+      - name: Checkout shared local worker dependency
+        uses: actions/checkout@v4
+        with:
+          ref: feat/generative-video-queue-worker-20261124
+          path: .worker-dependency
+
+      - name: Integrate shared worker sources for end-to-end test
+        run: cp -R .worker-dependency/generative_video_poc ./generative_video_poc
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
