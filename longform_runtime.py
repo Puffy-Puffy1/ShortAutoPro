@@ -842,7 +842,17 @@ def credits_text(credits: list[dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
-def execute(topic: str, minutes: int, chapters: int | None, profile_name: str, existing_id: str | None = None, generated_manifest: str | None = None) -> dict[str, Any]:
+def execute(
+    topic: str,
+    minutes: int,
+    chapters: int | None,
+    profile_name: str,
+    existing_id: str | None = None,
+    generated_manifest: str | None = None,
+    local_ai_backend_config: str | None = None,
+) -> dict[str, Any]:
+    if generated_manifest and local_ai_backend_config:
+        raise ValueError("escolha --generated-manifest ou --local-ai-backend-config, não ambos")
     require_runtime()
     profile = safe_profile(profile_name)
     minutes = max(5, min(int(minutes), 60))
@@ -862,6 +872,49 @@ def execute(topic: str, minutes: int, chapters: int | None, profile_name: str, e
     if state and str(state.get("topic")) != topic:
         raise RuntimeError("LONGFORM_ID existente pertence a outro tema")
 
+    saved_manifest = str(state.get("generated_manifest") or "").strip()
+    if generated_manifest:
+        requested_manifest = str(Path(generated_manifest).expanduser().resolve())
+        if saved_manifest and str(Path(saved_manifest).expanduser().resolve()) != requested_manifest:
+            raise RuntimeError("manifesto informado difere do manifesto salvo nesta execução")
+        if state.get("local_ai_backend_config") and not saved_manifest:
+            raise RuntimeError("esta execução já usa a fila local; não é permitido trocar a origem da mídia")
+        state["generated_manifest"] = requested_manifest
+
+    if local_ai_backend_config:
+        if saved_manifest:
+            raise RuntimeError("esta execução já possui um manifesto; não é permitido substituir a mídia por outra fila")
+        config_path = Path(local_ai_backend_config).expanduser().resolve()
+        if not config_path.is_file():
+            raise RuntimeError(f"LONGFORM_LOCAL_BACKEND_CONFIG_NOT_FOUND:{config_path}")
+        config_sha256 = _file_sha256(config_path)
+        saved_config_sha = str(state.get("local_ai_backend_config_sha256") or "").strip()
+        if saved_config_sha and saved_config_sha != config_sha256:
+            raise RuntimeError("LONGFORM_LOCAL_BACKEND_CONFIG_CHANGED: use o mesmo arquivo da execução anterior")
+        state["local_ai_backend_config"] = str(config_path)
+        state["local_ai_backend_config_sha256"] = config_sha256
+    elif not state.get("generated_manifest") and state.get("local_ai_backend_config"):
+        config_path = Path(str(state["local_ai_backend_config"])).expanduser().resolve()
+        if not config_path.is_file():
+            raise RuntimeError(f"LONGFORM_LOCAL_BACKEND_CONFIG_NOT_FOUND:{config_path}")
+        config_sha256 = _file_sha256(config_path)
+        if config_sha256 != str(state.get("local_ai_backend_config_sha256") or ""):
+            raise RuntimeError("LONGFORM_LOCAL_BACKEND_CONFIG_CHANGED: use o mesmo arquivo da execução anterior")
+        state["local_ai_backend_config"] = str(config_path)
+    else:
+        config_path = None
+
+    manifest_path = str(state.get("generated_manifest") or "").strip()
+    generated = verify_generated_manifest(manifest_path) if manifest_path else None
+    if generated and int(generated["project"]["target_duration_seconds"]) < minutes * 60:
+        raise ValueError("manifesto não contém duração suficiente para o Long-form solicitado")
+    prior_integrity = str(state.get("generated_manifest_integrity") or "").strip()
+    generated_integrity = str(generated.get("integrity_sha256")) if generated else None
+    if prior_integrity and not generated_integrity:
+        raise RuntimeError("manifesto salvo não está disponível; retomada bloqueada para evitar troca de mídia")
+    if prior_integrity and generated_integrity and prior_integrity != generated_integrity:
+        raise RuntimeError("manifesto de clipes mudou desde a execução anterior; use um novo projeto Long-form")
+
     state.update({
         "version": "1.0",
         "run_id": rid,
@@ -874,17 +927,6 @@ def execute(topic: str, minutes: int, chapters: int | None, profile_name: str, e
     })
     state.setdefault("created_at", now_iso())
     state.setdefault("chapters", [])
-    if generated_manifest:
-        state["generated_manifest"] = str(Path(generated_manifest).expanduser().resolve())
-    generated = verify_generated_manifest(state["generated_manifest"]) if state.get("generated_manifest") else None
-    if generated and int(generated["project"]["target_duration_seconds"]) < minutes * 60:
-        raise ValueError("manifesto não contém duração suficiente para o Long-form solicitado")
-    generated_integrity = str(generated.get("integrity_sha256")) if generated else None
-    prior_integrity = state.get("generated_manifest_integrity")
-    if prior_integrity and generated_integrity and prior_integrity != generated_integrity:
-        raise RuntimeError("manifesto de clipes mudou desde a execução anterior; use um novo projeto Long-form")
-    if prior_integrity and not generated_integrity:
-        raise RuntimeError("esta execução foi iniciada com clipes gerados; não é permitido retomar usando outra fonte")
     if generated_integrity:
         state["generated_manifest_integrity"] = generated_integrity
     atomic_json(state_path, state)
@@ -906,6 +948,16 @@ def execute(topic: str, minutes: int, chapters: int | None, profile_name: str, e
     if not outline or len(outline) != chapters:
         outline = build_outline(topic, source, chapters, minutes)
         state["outline"] = outline
+        atomic_json(state_path, state)
+
+    if generated is None and config_path is not None:
+        generated = _generate_local_longform_manifest(
+            rid, topic, minutes, outline, config_path, state, run_dir,
+        )
+        generated_integrity = str(generated["integrity_sha256"])
+        if prior_integrity and prior_integrity != generated_integrity:
+            raise RuntimeError("manifesto de clipes mudou desde a execução anterior; use um novo projeto Long-form")
+        state["generated_manifest_integrity"] = generated_integrity
         atomic_json(state_path, state)
 
     total_target_words = minutes * 130
