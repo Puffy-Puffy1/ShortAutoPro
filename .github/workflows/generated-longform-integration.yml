@@ -1,8 +1,5 @@
 name: ShortAutoPro Generated Clips Long-form Integration
 on:
-  push:
-    branches:
-      - feat/longform-generated-clips-integration-20261124
   pull_request:
     branches:
       - fix/unified-longform-entrypoint-20261124
