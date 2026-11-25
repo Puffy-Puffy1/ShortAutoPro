@@ -78,6 +78,7 @@ class LongFormLocalGenerationTests(unittest.TestCase):
         self.assertEqual(state["generated_manifest_integrity"], "manifest-sha")
         self.assertEqual(state["local_ai_backend_config_sha256"], longform._file_sha256(self.backend))
         self.assertEqual(state["generated_media_source"], "shared_local_queue")
+        self.assertEqual(state["local_generation_status"], "COMPLETE")
         self.assertTrue((self.run_dir / "generated_media_spec.json").is_file())
         spec = json.loads((self.run_dir / "generated_media_spec.json").read_text(encoding="utf-8"))
         self.assertEqual(spec["kind"], "longform")
@@ -146,6 +147,46 @@ class LongFormLocalGenerationTests(unittest.TestCase):
             result = longform.main()
         self.assertEqual(result, 0)
         self.assertEqual(execute.call_args.kwargs["local_ai_backend_config"], config)
+
+    def test_resume_reuses_pinned_local_config_until_manifest_exists(self):
+        run_id = "20261125_local_resume"
+        run_root = self.root / "state"
+        run_root.mkdir()
+        state_path = run_root / f"{run_id}.json"
+        state_path.write_text(json.dumps({
+            "topic": "Tema",
+            "target_minutes": 5,
+            "chapter_count": 3,
+            "profile": "default",
+            "local_ai_backend_config": str(self.backend),
+            "local_ai_backend_config_sha256": longform._file_sha256(self.backend),
+        }), encoding="utf-8")
+        with mock.patch.object(longform, "RUN_ROOT", run_root), \
+             mock.patch.object(longform, "execute", return_value={"status": "RUNNING"}) as execute:
+            longform.resume(run_id)
+        self.assertEqual(execute.call_args.kwargs["local_ai_backend_config"], str(self.backend))
+        self.assertIsNone(execute.call_args.kwargs["generated_manifest"])
+
+    def test_resume_uses_saved_manifest_after_queue_is_complete(self):
+        run_id = "20261125_manifest_resume"
+        run_root = self.root / "state"
+        run_root.mkdir()
+        manifest = self.root / "generated_manifest.json"
+        state_path = run_root / f"{run_id}.json"
+        state_path.write_text(json.dumps({
+            "topic": "Tema",
+            "target_minutes": 5,
+            "chapter_count": 3,
+            "profile": "default",
+            "generated_manifest": str(manifest),
+            "local_ai_backend_config": str(self.backend),
+            "local_ai_backend_config_sha256": longform._file_sha256(self.backend),
+        }), encoding="utf-8")
+        with mock.patch.object(longform, "RUN_ROOT", run_root), \
+             mock.patch.object(longform, "execute", return_value={"status": "RUNNING"}) as execute:
+            longform.resume(run_id)
+        self.assertEqual(execute.call_args.kwargs["generated_manifest"], str(manifest))
+        self.assertIsNone(execute.call_args.kwargs["local_ai_backend_config"])
 
     def test_execute_rejects_two_media_sources(self):
         with self.assertRaisesRegex(ValueError, "não ambos"):
