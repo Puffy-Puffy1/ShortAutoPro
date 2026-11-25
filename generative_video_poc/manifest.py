@@ -1,4 +1,4 @@
-""""Immutable manifest export for FFprobe-validated locally generated clips."""
+"""Immutable manifest export for FFprobe-validated locally generated clips."""
 from __future__ import annotations
 
 import hashlib
@@ -92,7 +92,7 @@ def build_ready_manifest(store: Any, project_id: str) -> dict[str, Any]:
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
             json.dump(payload, handle, ensure_ascii=False, indent=2, sort_keys=True)
-            handle.write("\\n")
+            handle.write("\n")
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(temporary, destination)
