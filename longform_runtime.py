@@ -14,6 +14,7 @@ Gemini (using the user's configured key/free quota), Piper and FFmpeg.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import html
 import json
 import math
@@ -462,6 +463,328 @@ def ass_filter_path(path: Path) -> str:
     return str(path.resolve()).replace("\\", "\\\\").replace(":", "\\:").replace("'", "\\'")
 
 
+
+def verify_generated_manifest(path: Path | str) -> dict[str, Any]:
+    """Validate the worker manifest and every clip before media enters production."""
+    manifest_path = Path(path).expanduser().resolve()
+    shared_verified = False
+    try:
+        from generative_video_poc.manifest import verify_ready_manifest
+    except ModuleNotFoundError as exc:
+        if exc.name not in {"generative_video_poc", "generative_video_poc.manifest"}:
+            raise
+    else:
+        payload = verify_ready_manifest(manifest_path)
+        shared_verified = True
+
+    if not shared_verified:
+        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict) or payload.get("schema_version") != "shortautopro-generated-clips-v1":
+            raise ValueError("manifesto de clipes incompatível")
+        canonical = dict(payload)
+        expected = str(canonical.pop("integrity_sha256", ""))
+        raw = json.dumps(canonical, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        if not expected or hashlib.sha256(raw).hexdigest() != expected:
+            raise ValueError("integridade do manifesto de clipes inválida")
+        project_id = str(payload.get("project_id") or "")
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,79}", project_id) or manifest_path.parent.name != project_id:
+            raise ValueError("manifesto fora do workspace correspondente")
+    spec = payload.get("project")
+    if not isinstance(spec, dict) or spec.get("kind") != "longform" or spec.get("aspect_ratio") != "16:9":
+        raise ValueError("manifesto precisa ser de projeto longform 16:9")
+    try:
+        target_duration = int(spec["target_duration_seconds"])
+        clip_seconds = int(spec["clip_seconds"])
+        width, height = int(spec["width"]), int(spec["height"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError("especificação de mídia do manifesto inválida") from exc
+    if not 60 <= target_duration <= 7200 or not 1 <= clip_seconds <= 30 or width <= height:
+        raise ValueError("especificação longform fora dos limites")
+    clips = payload.get("clips")
+    expected_count = math.ceil(target_duration / clip_seconds)
+    if not isinstance(clips, list) or len(clips) != expected_count or len(clips) != int(payload.get("clip_count", -1)):
+        raise ValueError("lista/quantidade de clipes inválida para a duração declarada")
+    root = manifest_path.parent.resolve()
+    seen = set()
+    expected_start = 0
+    for item in clips:
+        if not isinstance(item, dict):
+            raise ValueError("entrada de clipe inválida")
+        index = int(item.get("clip_index", 0))
+        start = int(item.get("start_seconds", -1))
+        duration = int(item.get("duration_seconds", 0))
+        expected_duration = min(clip_seconds, target_duration - expected_start)
+        if index < 1 or index in seen or start != expected_start or duration != expected_duration:
+            raise ValueError("índice, continuidade ou duração de clipe inválida")
+        seen.add(index)
+        expected_start += duration
+        media = Path(str(item.get("path") or "")).expanduser().resolve()
+        if not media.is_relative_to(root) or not media.is_file() or media.stat().st_size <= 0:
+            raise ValueError(f"arquivo do clipe {index} ausente ou fora do workspace")
+        if int(item.get("size_bytes") or -1) != media.stat().st_size:
+            raise ValueError(f"tamanho do clipe {index} não confere")
+        if not shared_verified:
+            digest = hashlib.sha256()
+            with media.open("rb") as handle:
+                for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                    digest.update(chunk)
+            if digest.hexdigest() != item.get("sha256"):
+                raise ValueError(f"checksum do clipe {index} não confere")
+        probe = item.get("ffprobe")
+        if not isinstance(probe, dict) or probe.get("status") != "GENERATED_AND_PROBED":
+            raise ValueError(f"clipe {index} sem validação FFprobe")
+        if int(probe.get("width") or 0) != width or int(probe.get("height") or 0) != height:
+            raise ValueError(f"resolução FFprobe do clipe {index} não confere")
+        actual_duration = float(probe.get("duration_seconds") or 0)
+        if not duration * 0.95 <= actual_duration <= duration * 1.10:
+            raise ValueError(f"duração FFprobe do clipe {index} não confere")
+    if seen != set(range(1, len(clips) + 1)) or expected_start != target_duration:
+        raise ValueError("sequência/timeline de clipes não cobre a duração declarada")
+    return payload
+
+
+
+_LOCAL_LONGFORM_SHOT_STYLES = (
+    "wide establishing shot with a slow, stable camera move",
+    "medium documentary shot emphasizing the central environment",
+    "close detail shot of a relevant object or texture",
+    "side tracking shot with natural, restrained movement",
+    "high-angle contextual shot that clarifies the location",
+    "low-angle cinematic shot with realistic natural lighting",
+)
+
+
+def _file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _build_local_longform_prompts(
+    topic: str,
+    outline: list[dict[str, Any]],
+    target_duration_seconds: int,
+    clip_seconds: int = 10,
+) -> list[str]:
+    if not outline or target_duration_seconds <= 0 or not 1 <= clip_seconds <= 30:
+        raise ValueError("LONGFORM_LOCAL_SPEC_INVALID")
+    clip_count = math.ceil(target_duration_seconds / clip_seconds)
+    chapter_windows = []
+    chapter_duration = target_duration_seconds / len(outline)
+    for position, chapter in enumerate(outline):
+        title = str(chapter.get("title") or "").strip()
+        objective = str(chapter.get("objective") or "").strip()
+        if not title or not objective:
+            raise ValueError(f"LONGFORM_LOCAL_CHAPTER_INVALID:{position + 1}")
+        chapter_windows.append((position * chapter_duration, (position + 1) * chapter_duration, title, objective))
+
+    prompts = []
+    for index in range(clip_count):
+        start = index * clip_seconds
+        center = start + min(clip_seconds, target_duration_seconds - start) / 2
+        chapter = next(
+            (item for item in chapter_windows if item[0] <= center < item[1]),
+            chapter_windows[-1],
+        )
+        shot = _LOCAL_LONGFORM_SHOT_STYLES[index % len(_LOCAL_LONGFORM_SHOT_STYLES)]
+        prompt = (
+            "Create one continuous 16:9 documentary video shot, photorealistic, "
+            "visually coherent, with natural restrained motion and realistic lighting. "
+            f"Subject: {topic}. Chapter: {chapter[2]}. Visual objective: {chapter[3]}. "
+            f"Camera direction: {shot}. "
+            "Show only plausible visual material relevant to this chapter; do not invent "
+            "readable signs, names, dates, historical identities or events. "
+            "No captions, subtitles, logos, watermarks, borders or interface text."
+        )
+        prompts.append(prompt[:4000])
+    return prompts
+
+
+def _run_local_queue_cli(arguments: list[str], timeout_seconds: int) -> subprocess.CompletedProcess:
+    worker_entrypoint = BASE / "generative_video_poc" / "brain.py"
+    if not worker_entrypoint.is_file():
+        raise RuntimeError(
+            "LOCAL_GENERATION_WORKER_UNAVAILABLE: integre primeiro a fila local compartilhada da PR #160"
+        )
+    command = [sys.executable, "-m", "generative_video_poc.brain", *arguments]
+    try:
+        result = subprocess.run(
+            command,
+            cwd=BASE,
+            env=os.environ.copy(),
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=timeout_seconds,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError("LONGFORM_LOCAL_GENERATION_TIMEOUT: fila local excedeu o limite configurado") from exc
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "sem detalhes").strip()[-1600:]
+        raise RuntimeError(f"LONGFORM_LOCAL_GENERATION_FAILED:{detail}")
+    return result
+
+
+def _generate_local_longform_manifest(
+    run_name: str,
+    topic: str,
+    minutes: int,
+    outline: list[dict[str, Any]],
+    backend_config: str | Path,
+    state: dict[str, Any],
+    run_dir: Path,
+) -> dict[str, Any]:
+    """Create/resume Long-form clips through the one shared local worker CLI."""
+    config_path = Path(backend_config).expanduser().resolve()
+    if not config_path.is_file():
+        raise RuntimeError(f"LONGFORM_LOCAL_BACKEND_CONFIG_NOT_FOUND:{config_path}")
+    config_sha256 = _file_sha256(config_path)
+    saved_sha256 = str(state.get("local_ai_backend_config_sha256") or "").strip()
+    if saved_sha256 and saved_sha256 != config_sha256:
+        raise RuntimeError("LONGFORM_LOCAL_BACKEND_CONFIG_CHANGED: use o mesmo arquivo da retomada")
+    prompts = _build_local_longform_prompts(topic, outline, minutes * 60)
+    spec = {
+        "kind": "longform",
+        "target_duration_seconds": minutes * 60,
+        "aspect_ratio": "16:9",
+        "width": 640,
+        "height": 360,
+        "clip_seconds": 10,
+        "clip_prompts": prompts,
+    }
+    identity = json.dumps(
+        {
+            "run_id": run_name,
+            "topic": topic,
+            "config_sha256": config_sha256,
+            "spec": spec,
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    identity_sha256 = hashlib.sha256(identity).hexdigest()
+    slug = re.sub(r"[^A-Za-z0-9_-]+", "_", run_name).strip("_-")[:30] or "run"
+    project_id = f"long_{slug}_{identity_sha256[:12]}"[:64]
+
+    spec_path = run_dir / "generated_media_spec.json"
+    atomic_json(spec_path, spec)
+    state.update({
+        "local_ai_backend_config": str(config_path),
+        "local_ai_backend_config_sha256": config_sha256,
+        "local_ai_project_id": project_id,
+        "local_ai_spec_path": str(spec_path),
+        "local_generation_status": "RUNNING",
+    })
+    # Keep a 30-minute finalization window inside main.py's 6-hour control timeout.
+    timeout_raw = os.getenv("SAP_LONGFORM_LOCAL_WORKER_TIMEOUT_SECONDS", "19800")
+    try:
+        worker_timeout = max(300, min(int(timeout_raw), 19800))
+    except (TypeError, ValueError):
+        worker_timeout = 19800
+
+    _run_local_queue_cli(
+        ["create", project_id, "--spec-file", str(spec_path)],
+        min(worker_timeout, 300),
+    )
+    worker_result = _run_local_queue_cli(
+        [
+            "work", "--project-id", project_id,
+            "--backend-config", str(config_path), "--drain",
+        ],
+        worker_timeout,
+    )
+    try:
+        payload = json.loads(worker_result.stdout)
+    except (TypeError, json.JSONDecodeError) as exc:
+        raise RuntimeError("LONGFORM_LOCAL_WORKER_INVALID_RESPONSE: resposta JSON ausente") from exc
+    if not isinstance(payload, dict) or payload.get("status") != "PROJECT_COMPLETE":
+        status = payload.get("status") if isinstance(payload, dict) else "INVALID"
+        raise RuntimeError(f"LONGFORM_LOCAL_GENERATION_INCOMPLETE:{status}")
+    manifest_info = payload.get("manifest")
+    manifest_path = str(manifest_info.get("manifest_path") or "") if isinstance(manifest_info, dict) else ""
+    if not manifest_path:
+        raise RuntimeError("LONGFORM_LOCAL_MANIFEST_NOT_EXPORTED")
+    generated = verify_generated_manifest(manifest_path)
+    if int(generated["project"]["target_duration_seconds"]) != minutes * 60:
+        raise RuntimeError("LONGFORM_LOCAL_MANIFEST_DURATION_MISMATCH")
+
+    state.update({
+        "local_ai_backend_config": str(config_path),
+        "local_ai_backend_config_sha256": config_sha256,
+        "local_ai_project_id": project_id,
+        "generated_manifest": str(Path(manifest_path).resolve()),
+        "generated_manifest_integrity": str(generated["integrity_sha256"]),
+        "generated_media_source": "shared_local_queue",
+        "local_generation_status": "COMPLETE",
+    })
+    return generated
+
+
+def render_generated_chapter(
+    chapter_dir: Path, manifest: dict[str, Any], start_seconds: float,
+    end_seconds: float, audio: Path, duration: float, ass: Path,
+) -> Path:
+    """Normalize timeline slices from generated clips, then use the canonical chapter mux."""
+    clips_dir = chapter_dir / "generated_clips"
+    clips_dir.mkdir(parents=True, exist_ok=True)
+    selected: list[Path] = []
+    for item in manifest["clips"]:
+        clip_start = float(item["start_seconds"])
+        clip_end = clip_start + float(item["duration_seconds"])
+        overlap_start = max(start_seconds, clip_start)
+        overlap_end = min(end_seconds, clip_end)
+        if overlap_end <= overlap_start:
+            continue
+        source = Path(item["path"]).resolve()
+        target = clips_dir / f"clip_{int(item['clip_index']):04d}.mp4"
+        subprocess.run([
+            "ffmpeg", "-y", "-loglevel", "error", "-ss", f"{overlap_start-clip_start:.3f}",
+            "-i", str(source), "-t", f"{overlap_end-overlap_start:.3f}",
+            "-vf", "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p",
+            "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "22",
+            "-pix_fmt", "yuv420p", "-r", "30", str(target),
+        ], check=True, timeout=900)
+        if not target.is_file() or target.stat().st_size <= 1000:
+            raise RuntimeError(f"normalização do clipe gerado {item['clip_index']} falhou")
+        normalized_probe = probe_video(target)
+        if (
+            normalized_probe["width"] != 1920
+            or normalized_probe["height"] != 1080
+            or normalized_probe["video_codec"] != "h264"
+            or normalized_probe["duration"] < (overlap_end - overlap_start) * 0.90
+        ):
+            raise RuntimeError(f"contrato FFprobe da normalização falhou no clipe {item['clip_index']}")
+        selected.append(target)
+    if not selected:
+        raise RuntimeError(f"manifesto não contém clipes para o intervalo {start_seconds:.1f}-{end_seconds:.1f}s")
+    concat = chapter_dir / "generated_visuals.txt"
+    atomic_text(concat, "".join(f"file '{p.as_posix()}'\n" for p in selected))
+    visual = chapter_dir / "generated_visual.mp4"
+    subprocess.run([
+        "ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0",
+        "-i", str(concat), "-c", "copy", str(visual),
+    ], check=True, timeout=600)
+    return mux_chapter_visual(chapter_dir, visual, audio, duration, ass)
+
+
+def mux_chapter_visual(chapter_dir: Path, visual: Path, audio: Path, duration: float, ass: Path) -> Path:
+    output = chapter_dir / "chapter.mp4"
+    subprocess.run([
+        "ffmpeg", "-y", "-loglevel", "error", "-stream_loop", "-1", "-i", str(visual), "-i", str(audio),
+        "-vf", f"ass='{ass_filter_path(ass)}'", "-map", "0:v:0", "-map", "1:a:0",
+        "-c:v", "libx264", "-preset", "fast", "-crf", "21", "-profile:v", "high",
+        "-pix_fmt", "yuv420p", "-r", "30", "-c:a", "aac", "-b:a", "192k", "-ar", "48000",
+        "-t", f"{duration:.3f}", "-movflags", "+faststart", str(output),
+    ], check=True, timeout=900)
+    if not output.is_file() or output.stat().st_size < 100_000:
+        raise RuntimeError("render do capítulo não produziu MP4 válido")
+    return output
+
+
 def render_chapter(chapter_dir: Path, images: list[Path], audio: Path, duration: float, ass: Path) -> Path:
     clips = chapter_dir / "clips"
     clips.mkdir(parents=True, exist_ok=True)
@@ -490,17 +813,7 @@ def render_chapter(chapter_dir: Path, images: list[Path], audio: Path, duration:
         "ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", str(concat),
         "-c", "copy", str(visual),
     ], check=True, timeout=240)
-    output = chapter_dir / "chapter.mp4"
-    subprocess.run([
-        "ffmpeg", "-y", "-loglevel", "error", "-i", str(visual), "-i", str(audio),
-        "-vf", f"ass='{ass_filter_path(ass)}'", "-map", "0:v:0", "-map", "1:a:0",
-        "-c:v", "libx264", "-preset", "fast", "-crf", "21", "-profile:v", "high",
-        "-pix_fmt", "yuv420p", "-r", "30", "-c:a", "aac", "-b:a", "192k", "-ar", "48000",
-        "-t", f"{duration:.3f}", "-movflags", "+faststart", str(output),
-    ], check=True, timeout=900)
-    if not output.is_file() or output.stat().st_size < 100_000:
-        raise RuntimeError("render do capítulo não produziu MP4 válido")
-    return output
+    return mux_chapter_visual(chapter_dir, visual, audio, duration, ass)
 
 
 def probe_video(path: Path) -> dict[str, Any]:
@@ -550,7 +863,17 @@ def credits_text(credits: list[dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
-def execute(topic: str, minutes: int, chapters: int | None, profile_name: str, existing_id: str | None = None) -> dict[str, Any]:
+def execute(
+    topic: str,
+    minutes: int,
+    chapters: int | None,
+    profile_name: str,
+    existing_id: str | None = None,
+    generated_manifest: str | None = None,
+    local_ai_backend_config: str | None = None,
+) -> dict[str, Any]:
+    if generated_manifest and local_ai_backend_config:
+        raise ValueError("escolha --generated-manifest ou --local-ai-backend-config, não ambos")
     require_runtime()
     profile = safe_profile(profile_name)
     minutes = max(5, min(int(minutes), 60))
@@ -570,6 +893,49 @@ def execute(topic: str, minutes: int, chapters: int | None, profile_name: str, e
     if state and str(state.get("topic")) != topic:
         raise RuntimeError("LONGFORM_ID existente pertence a outro tema")
 
+    saved_manifest = str(state.get("generated_manifest") or "").strip()
+    if generated_manifest:
+        requested_manifest = str(Path(generated_manifest).expanduser().resolve())
+        if saved_manifest and str(Path(saved_manifest).expanduser().resolve()) != requested_manifest:
+            raise RuntimeError("manifesto informado difere do manifesto salvo nesta execução")
+        if state.get("local_ai_backend_config") and not saved_manifest:
+            raise RuntimeError("esta execução já usa a fila local; não é permitido trocar a origem da mídia")
+        state["generated_manifest"] = requested_manifest
+
+    if local_ai_backend_config:
+        if saved_manifest:
+            raise RuntimeError("esta execução já possui um manifesto; não é permitido substituir a mídia por outra fila")
+        config_path = Path(local_ai_backend_config).expanduser().resolve()
+        if not config_path.is_file():
+            raise RuntimeError(f"LONGFORM_LOCAL_BACKEND_CONFIG_NOT_FOUND:{config_path}")
+        config_sha256 = _file_sha256(config_path)
+        saved_config_sha = str(state.get("local_ai_backend_config_sha256") or "").strip()
+        if saved_config_sha and saved_config_sha != config_sha256:
+            raise RuntimeError("LONGFORM_LOCAL_BACKEND_CONFIG_CHANGED: use o mesmo arquivo da execução anterior")
+        state["local_ai_backend_config"] = str(config_path)
+        state["local_ai_backend_config_sha256"] = config_sha256
+    elif not state.get("generated_manifest") and state.get("local_ai_backend_config"):
+        config_path = Path(str(state["local_ai_backend_config"])).expanduser().resolve()
+        if not config_path.is_file():
+            raise RuntimeError(f"LONGFORM_LOCAL_BACKEND_CONFIG_NOT_FOUND:{config_path}")
+        config_sha256 = _file_sha256(config_path)
+        if config_sha256 != str(state.get("local_ai_backend_config_sha256") or ""):
+            raise RuntimeError("LONGFORM_LOCAL_BACKEND_CONFIG_CHANGED: use o mesmo arquivo da execução anterior")
+        state["local_ai_backend_config"] = str(config_path)
+    else:
+        config_path = None
+
+    manifest_path = str(state.get("generated_manifest") or "").strip()
+    generated = verify_generated_manifest(manifest_path) if manifest_path else None
+    if generated and int(generated["project"]["target_duration_seconds"]) < minutes * 60:
+        raise ValueError("manifesto não contém duração suficiente para o Long-form solicitado")
+    prior_integrity = str(state.get("generated_manifest_integrity") or "").strip()
+    generated_integrity = str(generated.get("integrity_sha256")) if generated else None
+    if prior_integrity and not generated_integrity:
+        raise RuntimeError("manifesto salvo não está disponível; retomada bloqueada para evitar troca de mídia")
+    if prior_integrity and generated_integrity and prior_integrity != generated_integrity:
+        raise RuntimeError("manifesto de clipes mudou desde a execução anterior; use um novo projeto Long-form")
+
     state.update({
         "version": "1.0",
         "run_id": rid,
@@ -582,6 +948,8 @@ def execute(topic: str, minutes: int, chapters: int | None, profile_name: str, e
     })
     state.setdefault("created_at", now_iso())
     state.setdefault("chapters", [])
+    if generated_integrity:
+        state["generated_manifest_integrity"] = generated_integrity
     atomic_json(state_path, state)
 
     print("========================================")
@@ -602,6 +970,24 @@ def execute(topic: str, minutes: int, chapters: int | None, profile_name: str, e
         outline = build_outline(topic, source, chapters, minutes)
         state["outline"] = outline
         atomic_json(state_path, state)
+
+    if generated is None and config_path is not None:
+        try:
+            generated = _generate_local_longform_manifest(
+                rid, topic, minutes, outline, config_path, state, run_dir,
+            )
+            generated_integrity = str(generated["integrity_sha256"])
+            if prior_integrity and prior_integrity != generated_integrity:
+                raise RuntimeError("manifesto de clipes mudou desde a execução anterior; use um novo projeto Long-form")
+            state["generated_manifest_integrity"] = generated_integrity
+            atomic_json(state_path, state)
+        except Exception as exc:
+            state["status"] = "PARTIAL"
+            state["local_generation_status"] = "FAILED"
+            state["local_generation_error"] = f"{type(exc).__name__}: {exc}"
+            state["updated_at"] = now_iso()
+            atomic_json(state_path, state)
+            raise
 
     total_target_words = minutes * 130
     target_words = max(190, min(520, round(total_target_words / chapters)))
@@ -624,7 +1010,8 @@ def execute(topic: str, minutes: int, chapters: int | None, profile_name: str, e
         chapter_json = chapter_dir / "chapter.json"
         credits_json = chapter_dir / "credits.json"
 
-        if item.get("status") == "PASS" and output.is_file() and output.stat().st_size > 100_000 and chapter_json.is_file():
+        media_source = "generated_manifest" if generated else "wikimedia"
+        if item.get("status") == "PASS" and item.get("media_source", "wikimedia") == media_source and output.is_file() and output.stat().st_size > 100_000 and chapter_json.is_file():
             print(f"Capítulo {index}/{chapters}: já aprovado — pulando.")
             data = json.loads(chapter_json.read_text(encoding="utf-8"))
             prior.append({"title": chapter["title"], "summary": str(data.get("summary", ""))})
@@ -637,7 +1024,7 @@ def execute(topic: str, minutes: int, chapters: int | None, profile_name: str, e
             continue
 
         print(f"Capítulo {index}/{chapters}: {chapter['title']}")
-        item.update({"status": "RUNNING", "title": chapter["title"], "started_at": now_iso()})
+        item.update({"status": "RUNNING", "title": chapter["title"], "media_source": media_source, "started_at": now_iso()})
         existing_items[index] = item
         state["chapters"] = [existing_items[i] for i in sorted(existing_items)]
         atomic_json(state_path, state)
@@ -645,20 +1032,28 @@ def execute(topic: str, minutes: int, chapters: int | None, profile_name: str, e
         try:
             data = chapter_script(topic, source, chapter, target_words, prior)
             atomic_json(chapter_json, {**chapter, **data})
-            desired_images = max(4, min(8, round((minutes * 60 / chapters) / 25)))
-            images, credits = download_visuals(chapter_dir, data["visual_queries"], topic, desired_images, used_urls)
-            atomic_json(credits_json, credits)
             audio, duration = tts_chapter(chapter_dir, data["narration"], profile)
             caption_words = int(profile.get("captions", {}).get("max_words_per_event", 7)) if isinstance(profile.get("captions"), dict) else 7
             ass = chapter_dir / "captions.ass"
             make_ass(ass, data["narration"], duration, caption_words)
-            rendered = render_chapter(chapter_dir, images, audio, duration, ass)
+            if generated:
+                timeline_start = (index - 1) * (minutes * 60 / chapters)
+                timeline_end = index * (minutes * 60 / chapters)
+                rendered = render_generated_chapter(chapter_dir, generated, timeline_start, timeline_end, audio, duration, ass)
+                credits = []
+                media_count = sum(1 for clip in generated["clips"] if timeline_start < float(clip["start_seconds"]) + float(clip["duration_seconds"]) and timeline_end > float(clip["start_seconds"]))
+            else:
+                desired_images = max(4, min(8, round((minutes * 60 / chapters) / 25)))
+                images, credits = download_visuals(chapter_dir, data["visual_queries"], topic, desired_images, used_urls)
+                atomic_json(credits_json, credits)
+                rendered = render_chapter(chapter_dir, images, audio, duration, ass)
+                media_count = len(images)
             probe = probe_video(rendered)
             if probe["width"] != 1920 or probe["height"] != 1080 or probe["video_codec"] != "h264" or probe["audio_codec"] != "aac":
                 raise RuntimeError(f"contrato técnico do capítulo falhou: {probe}")
             item.update({
                 "status": "PASS", "finished_at": now_iso(), "duration": probe["duration"],
-                "word_count": data["word_count"], "media_count": len(images), "video": str(rendered),
+                "word_count": data["word_count"], "media_count": media_count, "video": str(rendered),
             })
             prior.append({"title": chapter["title"], "summary": data["summary"]})
             all_credits.extend(credits)
@@ -745,7 +1140,10 @@ def resume(run_name: str | None) -> dict[str, Any]:
         raise SystemExit(f"ERRO: estado long-form inválido: {exc}")
     return execute(
         str(state["topic"]), int(state["target_minutes"]), int(state["chapter_count"]),
-        str(state.get("profile", "default")), existing_id=run_name,
+        str(state.get("profile", "default")),
+        existing_id=run_name,
+        generated_manifest=state.get("generated_manifest"),
+        local_ai_backend_config=(state.get("local_ai_backend_config") if not state.get("generated_manifest") else None),
     )
 
 
@@ -757,6 +1155,9 @@ def main() -> int:
     p.add_argument("--minutes", type=int, default=15)
     p.add_argument("--chapters", type=int, default=None)
     p.add_argument("--profile", default="true_crime")
+    media_source = p.add_mutually_exclusive_group()
+    media_source.add_argument("--generated-manifest", default=None, help="usar manifesto local já exportado")
+    media_source.add_argument("--local-ai-backend-config", default=None, help="criar/retomar clipes pela fila local compartilhada")
     p = sub.add_parser("resume")
     p.add_argument("--run-id", default=None)
     p = sub.add_parser("status")
@@ -764,7 +1165,11 @@ def main() -> int:
     args = parser.parse_args()
     try:
         if args.command == "run":
-            execute(args.topic.strip(), args.minutes, args.chapters, args.profile)
+            execute(
+                args.topic.strip(), args.minutes, args.chapters, args.profile,
+                generated_manifest=args.generated_manifest,
+                local_ai_backend_config=args.local_ai_backend_config,
+            )
         elif args.command == "resume":
             resume(args.run_id)
         else:

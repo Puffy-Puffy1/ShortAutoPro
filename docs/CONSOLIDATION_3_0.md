@@ -25,7 +25,7 @@ Módulos especializados são estágios do mesmo pipeline; não existem pipelines
 
 ## Limitações atuais do Long-form V1
 
-O runtime longo atual usa imagens do Wikimedia Commons com movimento Ken Burns e exige `GEMINI_API_KEY` para estruturar roteiro e capítulos. Ele já monta MP4 H.264/AAC, mas não deve ser descrito como gerador local de clipes por IA nem como fluxo totalmente offline/custo zero. A integração de geração visual local e a validação de uma produção real no Termux permanecem pendentes.
+O runtime Long-form gera roteiro factual com `GEMINI_API_KEY`, narração com Piper e finaliza MP4 H.264/AAC. A geração visual local por clipes é opcional e depende do worker/modelo realmente instalado no aparelho; isso não torna o roteiro/TTS totalmente offline. A validação de uma produção real no Termux continua obrigatória.
 
 ## Estágios de qualidade
 
@@ -52,3 +52,50 @@ A auditoria 3.0 falha se os antigos entrypoints voltarem a ser rastreados, inclu
 ## Validação e promoção
 
 Toda alteração deve passar pela Portable Validation. A promoção para `termux-stable` ocorre somente para o SHA exato validado em `main` e por fast-forward.
+
+
+## Long-form com clipes locais gerados (integração em validação)
+
+O Long-form pode consumir, opcionalmente, um manifesto `generated_manifest.json`
+exportado pela fila local de geração de clipes. A integração valida a assinatura
+SHA-256 do manifesto, o workspace, a sequência temporal, os checksums e os
+metadados FFprobe antes de usar qualquer arquivo.
+
+Exemplo pelo entrypoint oficial:
+
+```bash
+python main.py longform run --topic "Tema factual" --minutes 15 --chapters 6 \
+  --generated-manifest "$HOME/.shortautopro/projects/PROJECT_ID/generated_manifest.json"
+```
+
+Para gerar automaticamente os clipes pela fila local compartilhada, use:
+
+```bash
+cp generative_video_poc/local_video_backend.example.json \
+  generative_video_poc/local_video_backend.json
+# Edite executable, command_template e model para o gerador realmente instalado.
+python main.py longform run --topic "Tema factual" --minutes 15 --chapters 6 \
+  --local-ai-backend-config "$HOME/ShortAutoPro/generative_video_poc/local_video_backend.json"
+```
+
+O arquivo de exemplo é apenas um modelo de configuração; ele não instala nem
+fornece um gerador. Ajuste o caminho do executável, os argumentos suportados
+pelo seu modelo e o identificador dos pesos locais antes de iniciar.
+
+O runtime cria um projeto idempotente, usa a fila/worker/exportador da PR #160,
+gera prompts de vídeo por trecho de capítulo e retoma o mesmo projeto quando
+a execução é interrompida. A configuração e seu SHA-256 ficam registrados no
+estado; uma alteração do arquivo bloqueia a retomada. O manifesto continua
+sendo validado antes de entrar na timeline.
+
+`--generated-manifest` permanece disponível para quem já possui um manifesto.
+As duas opções são mutuamente exclusivas. Sem nenhuma delas, o fluxo Wikimedia
+Commons/Ken Burns continua como fallback. O renderizador final, áudio e legendas
+continuam compartilhados.
+
+A integração automática requer que o worker da PR #160 esteja presente no checkout
+e um executável/modelo local real configurado. O runtime Long-form permanece
+limitado a 5–60 minutos e usa Gemini para roteiro e Piper para narração. Os clipes
+locais são gerados em 640x360 e normalizados pelo render existente para 1920x1080.
+CI e clipes sintéticos não comprovam inferência real; uma produção MP4 no Termux
+com FFprobe continua obrigatória antes de declarar o recurso concluído.
