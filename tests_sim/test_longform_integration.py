@@ -64,6 +64,16 @@ class LongFormIntegrationTests(unittest.TestCase):
         self.assertIn("--generated-manifest", command)
         self.assertEqual(command[command.index("--generated-manifest") + 1], manifest)
 
+    def test_main_forwards_local_ai_backend_config(self):
+        config = "/tmp/local_video_backend.json"
+        result, command = self._run_cli([
+            "main.py", "longform", "run", "--topic", "Tema",
+            "--local-ai-backend-config", config,
+        ])
+        self.assertEqual(result, 0)
+        self.assertIn("--local-ai-backend-config", command)
+        self.assertEqual(command[command.index("--local-ai-backend-config") + 1], config)
+
     def test_main_returns_timeout_exit_code(self):
         with mock.patch.object(main, "source_config"), \
              mock.patch.object(main, "setup_env"), \
