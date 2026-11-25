@@ -1111,7 +1111,10 @@ def resume(run_name: str | None) -> dict[str, Any]:
         raise SystemExit(f"ERRO: estado long-form inválido: {exc}")
     return execute(
         str(state["topic"]), int(state["target_minutes"]), int(state["chapter_count"]),
-        str(state.get("profile", "default")), existing_id=run_name, generated_manifest=state.get("generated_manifest"),
+        str(state.get("profile", "default")),
+        existing_id=run_name,
+        generated_manifest=state.get("generated_manifest"),
+        local_ai_backend_config=(state.get("local_ai_backend_config") if not state.get("generated_manifest") else None),
     )
 
 
@@ -1123,7 +1126,9 @@ def main() -> int:
     p.add_argument("--minutes", type=int, default=15)
     p.add_argument("--chapters", type=int, default=None)
     p.add_argument("--profile", default="true_crime")
-    p.add_argument("--generated-manifest", default=None, help="manifesto gerado pela fila local (opcional)")
+    media_source = p.add_mutually_exclusive_group()
+    media_source.add_argument("--generated-manifest", default=None, help="usar manifesto local já exportado")
+    media_source.add_argument("--local-ai-backend-config", default=None, help="criar/retomar clipes pela fila local compartilhada")
     p = sub.add_parser("resume")
     p.add_argument("--run-id", default=None)
     p = sub.add_parser("status")
@@ -1131,7 +1136,11 @@ def main() -> int:
     args = parser.parse_args()
     try:
         if args.command == "run":
-            execute(args.topic.strip(), args.minutes, args.chapters, args.profile, generated_manifest=args.generated_manifest)
+            execute(
+                args.topic.strip(), args.minutes, args.chapters, args.profile,
+                generated_manifest=args.generated_manifest,
+                local_ai_backend_config=args.local_ai_backend_config,
+            )
         elif args.command == "resume":
             resume(args.run_id)
         else:
