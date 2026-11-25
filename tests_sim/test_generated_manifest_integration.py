@@ -4,6 +4,9 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+import sys
+import types
+from unittest import mock
 from pathlib import Path
 
 from longform_runtime import make_ass, probe_video, render_generated_chapter, verify_generated_manifest
@@ -57,6 +60,22 @@ class GeneratedManifestIntegrationTests(unittest.TestCase):
             result = verify_generated_manifest(manifest)
             self.assertEqual(result["project_id"], payload["project_id"])
             self.assertEqual(len(result["clips"]), 2)
+
+    def test_uses_shared_manifest_verifier_when_worker_package_is_available(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest, _, payload = self._write_manifest(Path(tmp))
+            package = types.ModuleType("generative_video_poc")
+            package.__path__ = []
+            manifest_module = types.ModuleType("generative_video_poc.manifest")
+            shared_verify = mock.Mock(return_value=payload)
+            manifest_module.verify_ready_manifest = shared_verify
+            with mock.patch.dict(sys.modules, {
+                "generative_video_poc": package,
+                "generative_video_poc.manifest": manifest_module,
+            }):
+                result = verify_generated_manifest(manifest)
+            self.assertEqual(result["project_id"], payload["project_id"])
+            shared_verify.assert_called_once_with(manifest.resolve())
 
     @unittest.skipUnless(shutil.which("ffmpeg") and shutil.which("ffprobe"), "FFmpeg/FFprobe required")
     def test_generated_clips_render_to_real_h264_aac_chapter(self):
@@ -116,7 +135,7 @@ class GeneratedManifestIntegrationTests(unittest.TestCase):
             manifest, _, payload = self._write_manifest(Path(tmp))
             payload["clips"][0]["prompt"] = "tampered"
             manifest.write_text(json.dumps(payload), encoding="utf-8")
-            with self.assertRaisesRegex(ValueError, "integridade"):
+            with self.assertRaisesRegex(ValueError, "integridade|integrity"):
                 verify_generated_manifest(manifest)
 
     def test_rejects_clip_checksum_tampering(self):
@@ -137,7 +156,7 @@ class GeneratedManifestIntegrationTests(unittest.TestCase):
             payload["clips"][0]["sha256"] = hashlib.sha256(outside.read_bytes()).hexdigest()
             payload["integrity_sha256"] = hashlib.sha256(_canonical(payload)).hexdigest()
             manifest.write_text(json.dumps(payload), encoding="utf-8")
-            with self.assertRaisesRegex(ValueError, "fora do workspace"):
+            with self.assertRaisesRegex(ValueError, "fora do workspace|outside the project"):
                 verify_generated_manifest(manifest)
 
 
