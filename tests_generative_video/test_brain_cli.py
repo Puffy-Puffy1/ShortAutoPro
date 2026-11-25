@@ -9,6 +9,35 @@ from generative_video_poc.brain import main
 
 
 class BrainCliTests(unittest.TestCase):
+    def test_backend_check_validates_paths_without_running_inference(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            executable = root / "local-generator"
+            executable.write_text("#!/bin/sh\\nexit 0\\n", encoding="utf-8")
+            executable.chmod(0o755)
+            ffprobe = root / "ffprobe"
+            ffprobe.write_text("#!/bin/sh\\nexit 0\\n", encoding="utf-8")
+            ffprobe.chmod(0o755)
+            config = root / "backend.json"
+            config.write_text(json.dumps({
+                "executable": str(executable),
+                "command_template": ["--prompt", "{prompt}", "--output", "{output}"],
+                "timeout_seconds": 120,
+                "fps": 12,
+                "seed": 7,
+                "model": "local-test-model",
+                "ffprobe": str(ffprobe),
+            }), encoding="utf-8")
+
+            output = StringIO()
+            with redirect_stdout(output):
+                self.assertEqual(main(["backend-check", "--backend-config", str(config)]), 0)
+
+            result = json.loads(output.getvalue())
+            self.assertEqual(result["status"], "CONFIG_VALID")
+            self.assertEqual(result["executable"], str(executable))
+            self.assertEqual(result["ffprobe"], str(ffprobe))
+            self.assertFalse(result["inference_executed"])
     def test_create_list_show_and_claim_use_local_root(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp) / "sap"
