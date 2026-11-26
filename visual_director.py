@@ -222,7 +222,14 @@ def safe_scene(original: dict[str, Any], proposal: dict[str, Any] | None) -> tup
     # A mission patch or logo is not a documentary photograph of the people/events
     # in the narration. Reject symbolic visuals unless the script explicitly
     # discusses the symbol itself; derive a simple, visible subject instead.
-    symbolic_terms = {"emblem", "patch", "logo", "insignia", "badge", "crest", "seal", "icon", "symbol"}
+    symbolic_terms = {
+        "emblem", "patch", "logo", "insignia", "badge", "crest", "seal", "icon", "symbol",
+        # Portuguese equivalents are common in pt-BR narration. Detecting only
+        # English terms incorrectly rewrote scenes that explicitly discuss a
+        # mission emblem, coat of arms, seal, or logo.
+        "emblema", "distintivo", "insignia", "insígnia", "brasao", "brasão",
+        "selo", "icone", "ícone", "simbolo", "símbolo", "logotipo",
+    }
     request_tokens = tokens(" ".join([query, *must]))
     segment_tokens = tokens(original.get("segment"))
     explicit_symbol = bool(symbolic_terms & segment_tokens)
