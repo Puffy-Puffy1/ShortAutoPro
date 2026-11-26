@@ -88,7 +88,7 @@ class NasaMediaProviderTests(unittest.TestCase):
             item["url"],
             "https://images-assets.nasa.gov/image/AS11-40-5875/AS11-40-5875~large.jpg",
         )
-        self.assertIn("lunar surface", item["image_description"])
+        self.assertIn("Moon", item["image_description"])
         self.assertIn("Moon", item["tags"])
         self.assertEqual(item["must_hits"], 1)
         self.assertEqual(item["tipo"], "image")
