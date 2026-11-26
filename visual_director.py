@@ -155,7 +155,12 @@ PRIORIDADES:
 4) variar enquadramento e movimento sem transformar documento/foto histórica em efeito artificial;
 5) proibir stock lifestyle genérico quando não representa de fato a cena;
 6) pessoas reais específicas não podem virar retratos genéricos;
-7) teoria/paranormal deve permanecer visualmente ambígua.
+7) teoria/paranormal deve permanecer visualmente ambígua;
+8) para documentários históricos, priorize fotografias de arquivo reais de tripulação, pessoas, veículos, equipamentos, locais e centros de controle;
+9) não use emblemas, patches, logotipos, insígnias, brasões, selos, ícones, cartazes ou ilustrações como imagem principal, salvo quando a frase falar explicitamente desse símbolo;
+10) quando a narração citar astronautas ou tripulação, prefira retrato histórico da tripulação ou foto real dos astronautas, nunca patch da missão;
+11) query e alt_queries devem descrever fotografias documentais observáveis, sem palavras como emblem, patch, logo ou insignia quando isso não for o assunto da frase;
+12) must_have deve conter âncora fotográfica concreta sustentada pela frase, não a marca visual ou identidade gráfica de uma missão.
 
 ENTRADA:
 {json.dumps(seed, ensure_ascii=False, indent=2)}
@@ -214,6 +219,27 @@ def safe_scene(original: dict[str, Any], proposal: dict[str, Any] | None) -> tup
         must = original_must
         query = fallback["query"]
 
+    # A mission patch or logo is not a documentary photograph of the people/events
+    # in the narration. Reject symbolic visuals unless the script explicitly
+    # discusses the symbol itself; derive a simple, visible subject instead.
+    symbolic_terms = {"emblem", "patch", "logo", "insignia", "badge", "crest", "seal", "icon", "symbol"}
+    request_tokens = tokens(" ".join([query, *must]))
+    segment_tokens = tokens(original.get("segment"))
+    explicit_symbol = bool(symbolic_terms & segment_tokens)
+    if symbolic_terms & request_tokens and not explicit_symbol:
+        if segment_tokens & {"astronaut", "astronauta", "astronautas", "crew", "tripulacao"}:
+            must = ["astronaut"]
+            query = "Apollo 11 crew astronauts historical NASA archival portrait"
+        else:
+            must = []
+            subject_words = [word for word in re.findall(r"[a-z0-9]+", norm(original.get("segment"))) if len(word) >= 4]
+            query = "historical archival photograph " + " ".join(subject_words[:6])
+        print(f"VISUAL_DIRECTOR_SYMBOLIC_ASSET=REPLACED scene={original.get('scene')}")
+
+    alt_queries = clean_list(p.get("alt_queries"), 3)
+    if symbolic_terms & tokens(" ".join(alt_queries)) and not explicit_symbol:
+        alt_queries = [query]
+
     fields = {
         "main_subject": clean(p.get("main_subject")) or fallback["main_subject"],
         "environment": clean(p.get("environment")) or fallback["environment"],
@@ -225,7 +251,7 @@ def safe_scene(original: dict[str, Any], proposal: dict[str, Any] | None) -> tup
         "must_have": must,
         "avoid": avoid,
         "query": query,
-        "alt_queries": clean_list(p.get("alt_queries"), 3),
+        "alt_queries": alt_queries,
         "protected_zone": norm(p.get("protected_zone")) if norm(p.get("protected_zone")) in {"center", "top", "bottom", "left", "right"} else "center",
     }
     if not fields["alt_queries"]:
