@@ -30,6 +30,22 @@ _NON_ATOMIC_VISUAL_MUSTS = {
     "aged parchment page": "manuscript",
     "medieval manuscript pages": "manuscript",
     "illuminated manuscript pages": "manuscript",
+    # Documentary scene directors sometimes encode the full composition as one
+    # MUST. Keep the composition in the query/scene-intent check, and require
+    # one visible anchor here so a photo is not rejected for lacking an entire
+    # narrative description as a literal object.
+    "newspaper headline about moon landing": "newspaper",
+    "official government document": "document",
+    "planning schedule document": "document",
+    "spacecraft module in water": "spacecraft",
+    "large celebrating crowd": "crowd",
+    "medal award": "medal",
+    "historical geopolitical map": "map",
+    "control room consoles": "control room",
+    "newspaper print": "newspaper",
+    "satellite spherical body with antennas": "satellite",
+    "paper graph with telemetry lines": "graph",
+    "observatory building at night": "observatory",
 }
 
 _MANUSCRIPT_CONTEXT = re.compile(r"\b(?:manuscript|manuscripts|voynich)\b", re.IGNORECASE)
