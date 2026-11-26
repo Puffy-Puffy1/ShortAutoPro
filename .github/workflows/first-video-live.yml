@@ -166,7 +166,7 @@ jobs:
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           SAP_BRAIN_ENFORCE: "1"
-          TOPIC: "${{ inputs.topic || 'A missão Apollo 11 - a chegada do ser humano à Lua' }}"
+          TOPIC: "${{ inputs.topic || 'Apollo 11' }}"
           SHORT_ID: ${{ inputs.short_id }}
           WHISPER_CLI: ${{ runner.temp }}/whisper.cpp/build/bin/whisper-cli
           WHISPER_MODEL: ${{ runner.temp }}/whisper.cpp/models/ggml-base.bin
@@ -194,6 +194,11 @@ jobs:
           test -s "$PIPER_MODEL_PATH"
           export PIPER_MODEL="$PIPER_MODEL_PATH"
           export SHORT_TEMA="$TOPIC"
+          # Manual request topics must flow through the verified exact-topic engine;
+          # SHORT_TEMA alone is only a channel/category hint for automatic discovery.
+          export SHORT_TOPIC_EXACT="$TOPIC"
+          test -n "$SHORT_TOPIC_EXACT"
+          echo "FIRST_VIDEO_TOPIC_MODE=EXACT topic=$SHORT_TOPIC_EXACT"
           export SHORTAUTOPRO_BASE="$GITHUB_WORKSPACE"
           export FIRST_VIDEO_LIVE=1
 
@@ -254,5 +259,7 @@ jobs:
             roteiros/speech_*.txt
             roteiros/speech_*.json
             roteiros/pro_edit_plan_*.json
+            roteiros/topic_*.txt
+            roteiros/topic_verified_*.json
             first_video_ffprobe.json
           if-no-files-found: warn
