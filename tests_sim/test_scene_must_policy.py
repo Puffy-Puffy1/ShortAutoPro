@@ -441,6 +441,39 @@ class SceneMustPolicyTests(unittest.TestCase):
         self.assertEqual(anchors, ["vintage paper texture"])
         self.assertEqual(events, [])
 
+
+    def test_documentary_compound_anchors_reduce_to_observable_objects(self):
+        rows = [
+            ("planning schedule document", "document"),
+            ("official government document", "document"),
+            ("spacecraft module in water", "spacecraft"),
+            ("large celebrating crowd", "crowd"),
+            ("medal award", "medal"),
+            ("historical geopolitical map", "map"),
+            ("control room consoles", "control room"),
+            ("satellite spherical body with antennas", "satellite"),
+            ("paper graph with telemetry lines", "graph"),
+            ("observatory building at night", "observatory"),
+        ]
+        for original, expected in rows:
+            with self.subTest(original=original):
+                anchors, events = normalize_visual_musts([original], context=f"Apollo 11 historical scene: {original}")
+                self.assertEqual(anchors, [expected])
+                self.assertEqual(events[0]["from"], original)
+                self.assertEqual(events[0]["to"], expected)
+                self.assertEqual(events[0]["reason"], "NON_ATOMIC_VISUAL_QUALIFIER")
+
+    def test_documentary_anchor_simplification_keeps_scene_context_separate(self):
+        query = "vintage NASA mission planning calendar 1960s document"
+        anchors, events = normalize_visual_musts(
+            ["planning schedule document"],
+            context=query + " Kennedy's lunar landing objective",
+        )
+        self.assertEqual(anchors, ["document"])
+        self.assertEqual(len(events), 1)
+        self.assertIn("mission planning calendar", query)
+        self.assertNotIn(query, anchors)
+
 if __name__ == "__main__":
     unittest.main()
 
