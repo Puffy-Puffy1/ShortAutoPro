@@ -20,11 +20,14 @@ on:
       - "scene_must_policy.py"
       - "semantic_integrity_gate.py"
       - "media_engine_v2.py"
+      - "media_provider_router_v2.py"
+      - "media_external_resilience.py"
       - "media_visual_verifier.py"
       - "gemini_runtime.py"
       - "tests_sim/test_media_visual_verifier.py"
       - "tests_sim/test_gemini_runtime_unification.py"
       - "tests_sim/test_media_engine_v2_failure_modes.py"
+      - "tests_sim/test_nasa_media_provider.py"
       - "tests_sim/test_scene_must_policy.py"
       - "tests_sim/test_media_engine_v2_contract.py"
       - "media_must_verifier.py"
@@ -146,6 +149,9 @@ jobs:
           test -n "$GEMINI_API_KEY" || { echo "::error::Missing GEMINI_API_KEY"; exit 1; }
           if [ -z "$PEXELS_API_KEY" ]; then echo "Pexels unavailable; continuing to configured fallback providers."; fi
           if [ -z "$PIXABAY_API_KEY" ]; then echo "Pixabay unavailable; continuing to configured fallback providers."; fi
+
+      - name: Verify NASA public imagery provider
+        run: python -m unittest tests_sim.test_nasa_media_provider -v
 
       - name: Verify source-traceable script fallback
         run: python -m unittest tests_sim.test_script_claim_traceability -v
