@@ -8,6 +8,7 @@ import time
 from datetime import date
 
 from scene_must_policy import normalize_visual_musts
+from scene_coverage import scenes_cover_script
 
 from gemini_runtime import generate_text
 
@@ -197,6 +198,15 @@ if not scenes:
 
 if not scenes:
     sys.exit("ERRO: Scene Director não conseguiu criar cenas locais.")
+
+# AI-proposed scene segments must preserve the complete narration exactly once.
+# Reject duplicates, omissions, reordering, and invented text before media search.
+if not scenes_cover_script(scenes, roteiro):
+    print("SCENE_DIRECTOR_AI=REJECTED reason=segment_coverage_mismatch")
+    scenes = fallback_local_scenes(roteiro, QTD_CENAS)
+    if not scenes_cover_script(scenes, roteiro):
+        sys.exit("ERRO: fallback local não preservou a cobertura exata do roteiro.")
+    print("SCENE_DIRECTOR_FALLBACK=SOURCE_COVERAGE_SAFE")
 
 scene_count_original = len(scenes)
 recovery_actions = []
