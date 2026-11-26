@@ -11,7 +11,7 @@ import re
 import time
 from pathlib import Path
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 
 import requests
 
@@ -274,6 +274,130 @@ def _wikimedia_image_url(info: dict[str, Any]) -> str:
     if original and original_width * original_height >= min_pixels:
         return original
     return thumbnail or original
+
+
+NASA_SEARCH_URL = "https://images-api.nasa.gov/search"
+_NASA_CACHE: dict[str, list[dict[str, Any]]] = {}
+
+
+class NasaProvider(Provider):
+    """Keyless NASA Images API adapter for public historical/space imagery."""
+
+    name = "nasa"
+
+    @staticmethod
+    def _preview_url(item: dict[str, Any]) -> str:
+        links = item.get("links") or []
+        if not isinstance(links, list):
+            return ""
+        for link in links:
+            if not isinstance(link, dict):
+                continue
+            if str(link.get("render") or "").casefold() not in {"image", ""}:
+                continue
+            href = str(link.get("href") or "").strip()
+            try:
+                parsed = urlsplit(href)
+            except Exception:
+                continue
+            host = (parsed.hostname or "").casefold()
+            suffix = Path(parsed.path).suffix.casefold()
+            if (
+                parsed.scheme != "https"
+                or host != "images-assets.nasa.gov"
+                or suffix not in {".jpg", ".jpeg", ".png", ".webp"}
+            ):
+                continue
+            # NASA publishes several preview sizes at the same asset path.
+            # Prefer the large derivative where the API exposes the standard
+            # ~thumb naming, otherwise keep the exact HTTPS preview URL.
+            return re.sub(r"~thumb(?=\.)", "~large", href, count=1, flags=re.IGNORECASE)
+        return ""
+
+    def search(self, query, must, avoid):
+        query = " ".join(str(query or "").split()).strip()
+        if not query:
+            return []
+        cache_key = query.casefold()
+        cached = _NASA_CACHE.get(cache_key)
+        if cached is not None:
+            return [dict(item) for item in cached]
+
+        allowed, gate_reason, gate_remaining = provider_gate(self.name)
+        if not allowed:
+            print(
+                f"SAP_MEDIA_PROVIDER_GATE provider={self.name} allowed=false "
+                f"reason={str(gate_reason or 'OPEN')} "
+                f"remaining_seconds={max(0, int(float(gate_remaining or 0)))}"
+            )
+            return []
+
+        out = []
+        try:
+            response = requests.get(
+                NASA_SEARCH_URL,
+                params={"q": query, "media_type": "image", "page_size": 20, "page": 1},
+                headers={"User-Agent": "ShortAutoPro/2.3 (public NASA Images API; educational media retrieval)"},
+                timeout=TIMEOUT,
+            )
+            event = note_response(self.name, response)
+            if not response.ok:
+                note_provider_event(
+                    self.name, event, status=response.status_code,
+                    detail="NASA Images API search HTTP failure",
+                )
+                print(f"SAP_MEDIA_PROVIDER_FAILURE provider={self.name} status={response.status_code}")
+                return []
+
+            collection = (response.json().get("collection") or {})
+            items = collection.get("items") or []
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                rows = item.get("data") or []
+                if not rows or not isinstance(rows[0], dict):
+                    continue
+                data = rows[0]
+                if str(data.get("media_type") or "image").casefold() != "image":
+                    continue
+                url = self._preview_url(item)
+                if not url:
+                    continue
+                nasa_id = str(data.get("nasa_id") or "").strip()
+                title = re.sub(r"\s+", " ", str(data.get("title") or "")).strip()
+                description = re.sub(
+                    r"\s+", " ", str(data.get("description") or "")
+                ).strip()[:2400]
+                keywords = data.get("keywords") or []
+                if not isinstance(keywords, list):
+                    keywords = []
+                keywords = [
+                    re.sub(r"\s+", " ", str(value)).strip()
+                    for value in keywords[:16] if str(value).strip()
+                ]
+                if not nasa_id or not title:
+                    continue
+                catalog_text = " ".join([title, description, " ".join(keywords)])
+                out.append(_candidate(
+                    self.name, "image", nasa_id, url, catalog_text,
+                    query, must, avoid,
+                    title=title,
+                    image_description=description,
+                    tags=keywords,
+                    center=str(data.get("center") or ""),
+                    date_created=str(data.get("date_created") or ""),
+                    license="NASA public image library; verify item-specific credit",
+                ))
+            _NASA_CACHE[cache_key] = [dict(item) for item in out]
+            note_provider_event(self.name, "SUCCESS", item_count=len(out))
+        except Exception as exc:
+            note_exception(self.name, exc)
+            print(
+                f"SAP_MEDIA_PROVIDER_FAILURE provider={self.name} "
+                f"error={type(exc).__name__}",
+                flush=True,
+            )
+        return out
 
 
 class WikimediaProvider(Provider):
@@ -718,7 +842,7 @@ def _query_variants(query: str, must: list[str] | None = None) -> list[str]:
 class MediaProviderRouterV2:
     def __init__(self, providers=None):
         self.providers = providers or [
-            PexelsProvider(), PixabayProvider(), WikimediaProvider(), CoverrProvider(), LocalLibraryProvider()
+            PexelsProvider(), PixabayProvider(), NasaProvider(), WikimediaProvider(), CoverrProvider(), LocalLibraryProvider()
         ]
 
     def search(self, query, must, avoid, **_: Any):
