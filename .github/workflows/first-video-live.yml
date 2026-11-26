@@ -160,6 +160,9 @@ jobs:
       - name: Verify exact scene narration coverage
         run: python -m unittest tests_sim.test_scene_coverage -v
 
+      - name: Verify atomic documentary scene MUST policy
+        run: python -m unittest tests_sim.test_scene_must_policy -v
+
       - name: Verify documentary visual preference
         run: python -m unittest tests_sim.test_visual_director_symbolic_assets -v
 
