@@ -160,7 +160,9 @@ PRIORIDADES:
 9) não use emblemas, patches, logotipos, insígnias, brasões, selos, ícones, cartazes ou ilustrações como imagem principal, salvo quando a frase falar explicitamente desse símbolo;
 10) quando a narração citar astronautas ou tripulação, prefira retrato histórico da tripulação ou foto real dos astronautas, nunca patch da missão;
 11) query e alt_queries devem descrever fotografias documentais observáveis, sem palavras como emblem, patch, logo ou insignia quando isso não for o assunto da frase;
-12) must_have deve conter âncora fotográfica concreta sustentada pela frase, não a marca visual ou identidade gráfica de uma missão.
+12) must_have deve conter âncora fotográfica concreta sustentada pela frase, não a marca visual ou identidade gráfica de uma missão;
+13) cada MUST deve ser um objeto visível simples, preferencialmente 1 palavra ou no máximo 2 (por exemplo: document, newspaper, spacecraft, crowd, medal, map, satellite, graph, observatory);
+14) NÃO coloque a composição inteira em um MUST (ex.: "planning schedule document", "satellite spherical body with antennas", "paper graph with telemetry lines"); descreva a composição completa em query/alt_queries e deixe a verificação de intenção da cena avaliar o contexto.
 
 ENTRADA:
 {json.dumps(seed, ensure_ascii=False, indent=2)}
