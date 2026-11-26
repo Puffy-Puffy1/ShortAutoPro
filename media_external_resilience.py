@@ -24,7 +24,7 @@ _STATE = None
 ALIASES = {
     "pexels_video": "pexels", "pexels_foto": "pexels",
     "pixabay_video": "pixabay", "pixabay_foto": "pixabay",
-    "coverr_video": "coverr", "wikimedia_api": "wikimedia",
+    "coverr_video": "coverr", "wikimedia_api": "wikimedia", "nasa_api": "nasa",
 }
 THRESHOLDS = {"AUTH": 1, "RATE_LIMIT": 1, "SERVER": 2, "NETWORK": 3, "TIMEOUT": 3, "MALFORMED": 2}
 COOLDOWNS = {"AUTH": 900.0, "RATE_LIMIT": 60.0, "SERVER": 20.0, "NETWORK": 8.0, "TIMEOUT": 8.0, "MALFORMED": 30.0}
@@ -353,6 +353,7 @@ def infer_download_provider(url: Any):
     if "pixabay" in host: return "download_pixabay"
     if "coverr" in host: return "download_coverr"
     if "wikimedia" in host: return "download_wikimedia"
+    if host == "images-assets.nasa.gov": return "download_nasa"
     return "download_external"
 
 
