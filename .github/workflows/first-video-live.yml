@@ -166,7 +166,7 @@ jobs:
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           SAP_BRAIN_ENFORCE: "1"
-          TOPIC: ${{ inputs.topic || 'A missão Apollo 11: a chegada do ser humano à Lua' }}
+          TOPIC: "${{ inputs.topic || 'A missão Apollo 11 - a chegada do ser humano à Lua' }}"
           SHORT_ID: ${{ inputs.short_id }}
           WHISPER_CLI: ${{ runner.temp }}/whisper.cpp/build/bin/whisper-cli
           WHISPER_MODEL: ${{ runner.temp }}/whisper.cpp/models/ggml-base.bin
